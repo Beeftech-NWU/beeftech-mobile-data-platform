@@ -49,7 +49,7 @@ Every record saved on a mobile device automatically embeds immutable, non-repudi
 [ HTTPS POST Batched ]  ────► Local Linux Backend Server API & Central Database Upsert
           │
           ▼
-[ HTTPS Acknowledgment ] ────► Update Local Status to SYNCED (No Duplicate Records)
+[ HTTPS Acknowledgment ] ────► Update Local Status to SYNCED (No Duplicate Records) ```
 
 1. **Field Capture:** Data is captured via digital forms with point-of-entry validation.
 2. **Encrypted Local Storage:** Records write immediately to local SQLite databases encrypted via SQLCipher using hardware-secured keys.
