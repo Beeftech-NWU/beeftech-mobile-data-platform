@@ -51,11 +51,10 @@ class PinLockoutManager(context: Context)
 
     fun resetAttempts()
     {
-        prefs?.edit()?.apply
-        {
-            putInt(KEY_FAILED_ATTEMPTS, 0)
-            putLong(KEY_LOCKOUT_TIMESTAMP, 0L)
-        }?.apply()
+        prefs?.edit()
+            ?.putInt(KEY_FAILED_ATTEMPTS, 0)
+            ?.putLong(KEY_LOCKOUT_TIMESTAMP, 0L)
+            ?.apply()
     }
 
     fun isLockedOut(): Boolean
