@@ -38,6 +38,8 @@ dependencies {
 
     implementation("net.zetetic:sqlcipher-android:4.17.0@aar")
     implementation("androidx.sqlite:sqlite:2.6.2")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
+    implementation("androidx.security:security-crypto:1.1.0")
 
     testImplementation("junit:junit:4.13.2")
 
