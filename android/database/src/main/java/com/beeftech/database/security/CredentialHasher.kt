@@ -1,5 +1,8 @@
+package com.beeftech.database.security
+
 import org.bouncycastle.crypto.generators.Argon2BytesGenerator
 import org.bouncycastle.crypto.params.Argon2Parameters
+import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Base64
 
@@ -14,29 +17,61 @@ object CredentialHasher {
         return salt
     }
 
-    fun hash(password: CharArray, salt: ByteArray): ByteArray {
-        val params = Argon2Parameters.Builder(Argon2Parameters.ARGON2_id)
-            .withVersion(Argon2Parameters.ARGON2_VERSION_13)
-            .withIterations(2)
-            .withMemoryAsKB(19 * 1024) // 19 MB
-            .withParallelism(1)
-            .withSalt(salt)
-            .build()
+    fun hash(
+        password: CharArray,
+        salt: ByteArray
+    ): ByteArray {
+
+        val params =
+            Argon2Parameters.Builder(
+                Argon2Parameters.ARGON2_id
+            )
+                .withVersion(
+                    Argon2Parameters.ARGON2_VERSION_13
+                )
+                .withIterations(2)
+                .withMemoryAsKB(19 * 1024)
+                .withParallelism(1)
+                .withSalt(salt)
+                .build()
 
         val generator = Argon2BytesGenerator()
         generator.init(params)
 
         val result = ByteArray(HASH_LENGTH)
-        generator.generateBytes(password, result, 0, result.size)
+
+        generator.generateBytes(
+            password,
+            result,
+            0,
+            result.size
+        )
+
         return result
     }
 
-    fun verify(password: CharArray, salt: ByteArray, storedHash: ByteArray): Boolean {
-        val computed = hash(password, salt)
-        return computed.contentEquals(storedHash) // Bouncy Castle byte compare; fine here since inputs are fixed-length
+    fun verify(
+        password: CharArray,
+        salt: ByteArray,
+        storedHash: ByteArray
+    ): Boolean {
+
+        val computedHash =
+            hash(password, salt)
+
+        return MessageDigest.isEqual(
+            computedHash,
+            storedHash
+        )
     }
 
-    // Helpers for storing as strings in Keystore/EncryptedSharedPreferences
-    fun ByteArray.toBase64(): String = Base64.getEncoder().encodeToString(this)
-    fun String.fromBase64(): ByteArray = Base64.getDecoder().decode(this)
+    fun ByteArray.toBase64(): String {
+        return Base64.getEncoder()
+            .encodeToString(this)
+    }
+
+    fun String.fromBase64(): ByteArray {
+        return Base64.getDecoder()
+            .decode(this)
+    }
 }
