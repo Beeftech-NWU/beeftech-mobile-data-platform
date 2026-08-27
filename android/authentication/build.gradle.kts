@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
@@ -11,10 +13,23 @@ android {
     defaultConfig {
         minSdk = 24
         targetSdk = 34
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
     }
 
     buildFeatures {
         compose = true
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 
@@ -25,7 +40,12 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.fragment:fragment-ktx:1.6.2")
 
-// Unit testing dependencies
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.mockito:mockito-core:5.10.0")
+
+    androidTestImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:core-ktx:1.6.1")
+    androidTestImplementation("androidx.test:rules:1.6.1")
 }
