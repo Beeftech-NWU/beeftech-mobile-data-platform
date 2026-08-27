@@ -19,4 +19,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "BeefTechAndroid"
 
-include(":database")
+include(":database", ":authentication")
