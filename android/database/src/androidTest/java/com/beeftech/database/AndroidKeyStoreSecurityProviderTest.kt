@@ -1,4 +1,4 @@
-package com.beeftech.database
+package com.beeftech.database.security
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
@@ -16,15 +16,12 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class AndroidKeyStoreSecurityProviderTest {
 
-    private lateinit var provider:
-            AndroidKeyStoreSecurityProvider
+    private lateinit var provider: AndroidKeyStoreSecurityProvider
 
     @Before
     fun setUp() {
-
         val context =
-            ApplicationProvider
-                .getApplicationContext<Context>()
+            ApplicationProvider.getApplicationContext<Context>()
 
         provider =
             AndroidKeyStoreSecurityProvider(context)
@@ -34,7 +31,6 @@ class AndroidKeyStoreSecurityProviderTest {
 
     @After
     fun tearDown() {
-
         try {
             provider.invalidateDatabaseKey()
         } catch (_: Exception) {
@@ -43,7 +39,6 @@ class AndroidKeyStoreSecurityProviderTest {
 
     @Test
     fun initializeKey_createsDatabaseSecurity() {
-
         provider.initializeKey(
             "DEV_ONLY_123456"
         )
@@ -58,7 +53,6 @@ class AndroidKeyStoreSecurityProviderTest {
             )
 
         try {
-
             assertNotNull(passphrase)
 
             assertTrue(
@@ -68,16 +62,13 @@ class AndroidKeyStoreSecurityProviderTest {
             assertTrue(
                 passphrase.size == 32
             )
-
         } finally {
-
             passphrase.fill(0)
         }
     }
 
     @Test
     fun samePassphraseCanBeRecovered() {
-
         provider.initializeKey(
             "DEV_ONLY_123456"
         )
@@ -98,14 +89,11 @@ class AndroidKeyStoreSecurityProviderTest {
             )
 
         try {
-
             assertArrayEquals(
                 firstCopy,
                 second
             )
-
         } finally {
-
             firstCopy.fill(0)
             second.fill(0)
         }
@@ -113,13 +101,11 @@ class AndroidKeyStoreSecurityProviderTest {
 
     @Test
     fun incorrectPasscodeIsRejected() {
-
         provider.initializeKey(
             "DEV_ONLY_123456"
         )
 
         try {
-
             provider.getDatabasePassphrase(
                 "WRONG_PASSWORD"
             )
@@ -127,21 +113,21 @@ class AndroidKeyStoreSecurityProviderTest {
             fail(
                 "Incorrect passcode must be rejected."
             )
-
         } catch (
             exception: DatabaseSecurityException
         ) {
-
             assertTrue(
                 exception.message
-                    ?.contains("authentication") == true
+                    ?.contains(
+                        "authentication",
+                        ignoreCase = true
+                    ) == true
             )
         }
     }
 
     @Test
     fun clearKeyFromMemoryDoesNotDeleteKeyStoreKey() {
-
         provider.initializeKey(
             "DEV_ONLY_123456"
         )
@@ -162,7 +148,6 @@ class AndroidKeyStoreSecurityProviderTest {
 
     @Test
     fun invalidateDatabaseKeyDeletesKey() {
-
         provider.initializeKey(
             "DEV_ONLY_123456"
         )
@@ -178,7 +163,6 @@ class AndroidKeyStoreSecurityProviderTest {
         )
 
         try {
-
             provider.getDatabasePassphrase(
                 "DEV_ONLY_123456"
             )
@@ -186,11 +170,10 @@ class AndroidKeyStoreSecurityProviderTest {
             fail(
                 "Passphrase should not be available after invalidation."
             )
-
         } catch (
-            exception: DatabaseSecurityException
+            _: DatabaseSecurityException
         ) {
-
+            // Expected
         }
     }
 }
