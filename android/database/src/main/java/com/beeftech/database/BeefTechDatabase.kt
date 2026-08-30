@@ -10,12 +10,15 @@ import com.beeftech.database.dao.MortalityDao
 import com.beeftech.database.entity.Mortality
 import com.beeftech.database.dao.PendingSyncDao
 import com.beeftech.database.entity.PendingSync
+import com.beeftech.database.entity.CalfRegistration
+import com.beeftech.database.dao.CalfRegistrationDao
 
 @Database(
     entities = [AnimalMovement::class,
                Treatment::class,
                Mortality::class,
-               PendingSync::class
+               PendingSync::class,
+               CalfRegistration::class
                ],
     version = 1,
     exportSchema = false
@@ -26,4 +29,5 @@ abstract class BeefTechDatabase : RoomDatabase() {
     abstract fun treatmentDao(): TreatmentDao
     abstract fun mortalityDao(): MortalityDao
     abstract fun pendingSyncDao(): PendingSyncDao
+    abstract fun calfRegistrationDao(): CalfRegistrationDao
 }
