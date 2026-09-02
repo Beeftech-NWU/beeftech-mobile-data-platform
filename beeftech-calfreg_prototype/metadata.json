@@ -1,0 +1,6 @@
+{
+  "name": "Beeftech Calf",
+  "description": "Beeftech Mobile Data Collection Platform - Register New Calf Module. Offline-first calf registration, validation, duplicate detection, immutable audit trail, and local backend synchronisation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
