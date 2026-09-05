@@ -14,7 +14,23 @@ interface CalfRegistrationDao {
     @Query("SELECT * FROM calf_registrations")
     suspend fun getAll(): List<CalfRegistration>
 
-    @Query("SELECT EXISTS(SELECT 1 FROM calf_registrations WHERE animalId = :animalId LIMIT 1)")
+    @Query("""
+        SELECT EXISTS(
+            SELECT 1 
+            FROM calf_registrations 
+            WHERE animalId = :animalId 
+            LIMIT 1
+        )
+    """)
     suspend fun existsByAnimalId(animalId: String): Boolean
-}
 
+    @Query("""
+        SELECT * 
+        FROM calf_registrations
+        WHERE animalId = :animalId
+        LIMIT 1
+    """)
+    suspend fun findByAnimalId(
+        animalId: String
+    ): CalfRegistration?
+}

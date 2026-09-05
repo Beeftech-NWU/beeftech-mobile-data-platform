@@ -16,3 +16,4 @@ build
 #ignore local.properties
 
 local.properties
+*.hprof
