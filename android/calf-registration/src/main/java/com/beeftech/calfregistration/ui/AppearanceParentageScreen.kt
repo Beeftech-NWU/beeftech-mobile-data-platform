@@ -3,15 +3,17 @@ package com.beeftech.calfregistration.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AccountTree
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 @Composable
 fun AppearanceParentageScreen(
@@ -23,219 +25,95 @@ fun AppearanceParentageScreen(
 ) {
     var activeLookupField by remember { mutableStateOf<String?>(null) }
 
-    // Dialog for lookup selection
     if (activeLookupField != null) {
         val (title, options, currentVal, onSelect) = when (activeLookupField) {
-            "HIDE_COLOUR" -> Quadruple(
-                "Select Hide Colour",
-                CalfRegistrationLookups.hideColours,
-                formData.hideColour
-            ) { selected: String ->
+            "HIDE_COLOUR" -> Quadruple("Select Hide Colour", CalfRegistrationLookups.hideColours, formData.hideColour) { selected: String ->
                 onFormDataChange(formData.copy(hideColour = selected))
             }
-            "CONFORMITY" -> Quadruple(
-                "Select Conformity",
-                CalfRegistrationLookups.conformities,
-                formData.conformity
-            ) { selected: String ->
+            "CONFORMITY" -> Quadruple("Select Conformity", CalfRegistrationLookups.conformities, formData.conformity) { selected: String ->
                 onFormDataChange(formData.copy(conformity = selected))
             }
-            "DAME" -> Quadruple(
-                "Select Dame Tag (F4 List)",
-                CalfRegistrationLookups.dameTagList,
-                formData.dameTagNumber
-            ) { selected: String ->
+            "DAME" -> Quadruple("Select Dam Tag", CalfRegistrationLookups.dameTagList, formData.dameTagNumber) { selected: String ->
                 onFormDataChange(formData.copy(dameTagNumber = selected))
             }
-            else -> Quadruple(
-                "Select Sire Tag",
-                CalfRegistrationLookups.sireTagList,
-                formData.sireTagNumber
-            ) { selected: String ->
+            else -> Quadruple("Select Sire Tag", CalfRegistrationLookups.sireTagList, formData.sireTagNumber) { selected: String ->
                 onFormDataChange(formData.copy(sireTagNumber = selected))
             }
         }
 
         AlertDialog(
             onDismissRequest = { activeLookupField = null },
-            title = {
-                Text(
-                    text = title.uppercase(),
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = BeeftechPrimaryDark
-                )
-            },
+            title = { Text(title, fontWeight = FontWeight.Bold, color = BeeftechPrimaryDark) },
             text = {
                 Column {
                     options.forEach { option ->
                         TextButton(
-                            onClick = {
-                                onSelect(option)
-                                activeLookupField = null
-                            },
+                            onClick = { onSelect(option); activeLookupField = null },
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
                                 text = option,
-                                fontSize = 14.sp,
-                                fontWeight = if (option == currentVal) FontWeight.Black else FontWeight.Normal,
-                                color = if (option == currentVal) BeeftechAccentRust else BeeftechText
+                                fontWeight = if (option == currentVal) FontWeight.Bold else FontWeight.Normal,
+                                color = if (option == currentVal) BeeftechPrimaryDark else BeeftechText
                             )
                         }
                     }
                 }
             },
             confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { activeLookupField = null }) {
-                    Text("Cancel", color = BeeftechMutedText)
-                }
-            },
-            containerColor = BeeftechSurface,
-            shape = RoundedCornerShape(12.dp)
+            dismissButton = { TextButton(onClick = { activeLookupField = null }) { Text("Cancel") } },
+            containerColor = BeeftechSurface
         )
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BeeftechBackground)
-            .verticalScroll(rememberScrollState())
+        modifier = Modifier.fillMaxSize().background(BeeftechBackground).verticalScroll(rememberScrollState())
     ) {
-        // Header
         CalfHeader(
-            timeString = "07:22",
-            unsyncedCount = 1,
-            eyebrow = "REGISTER NEW CALF",
-            title = "APPEARANCE & PARENTAGE",
+            eyebrow = "Calf registration",
+            title = "Appearance & Parentage",
+            subtitle = "Complete visual, parentage and verification details.",
+            icon = Icons.Outlined.AccountTree,
             showBackButton = true,
             onBackClick = onBackClick
         )
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 20.dp)
-        ) {
-            // Row 1: HIDE COLOUR & CONFORMITY
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                CalfLookupDropdownField(
-                    label = "HIDE COLOUR",
-                    badgeLabel = "LOOKUP",
-                    selectedValue = formData.hideColour,
-                    onClick = { activeLookupField = "HIDE_COLOUR" },
-                    modifier = Modifier.weight(1f)
-                )
-
-                CalfLookupDropdownField(
-                    label = "CONFORMITY",
-                    badgeLabel = "LOOKUP",
-                    selectedValue = formData.conformity,
-                    onClick = { activeLookupField = "CONFORMITY" },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // MARK ("BRAND MERK")
-            CalfTextField(
-                label = "MARK (\"BRAND MERK\")",
-                value = formData.mark,
-                onValueChange = { onFormDataChange(formData.copy(mark = it)) },
-                placeholder = "—"
-            )
-
-            // PARENTAGE SECTION
-            CalfSectionDivider(title = "PARENTAGE")
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                CalfLookupDropdownField(
-                    label = "DAME TAG NUMBER",
-                    badgeLabel = "F4 LIST",
-                    selectedValue = formData.dameTagNumber,
-                    onClick = { activeLookupField = "DAME" },
-                    modifier = Modifier.weight(1f)
-                )
-
-                CalfLookupDropdownField(
-                    label = "SIRE TAG NUMBER",
-                    badgeLabel = "IF AVAILABLE",
-                    selectedValue = formData.sireTagNumber,
-                    onClick = { activeLookupField = "SIRE" },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            // VERIFICATION SECTION
-            CalfSectionDivider(title = "VERIFICATION")
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                CalfTextField(
-                    label = "PROCESS PROOF",
-                    value = formData.processProof,
-                    onValueChange = { onFormDataChange(formData.copy(processProof = it)) },
-                    placeholder = "—",
-                    modifier = Modifier.weight(1f)
-                )
-
-                CalfTextField(
-                    label = "IMPLANT PROOF",
-                    value = formData.implantProof,
-                    onValueChange = { onFormDataChange(formData.copy(implantProof = it)) },
-                    placeholder = "—",
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // GROUP
-            CalfTextField(
-                label = "GROUP",
-                value = formData.group,
-                onValueChange = { onFormDataChange(formData.copy(group = it)) },
-                placeholder = "—"
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Action Buttons Row: DISCARD and SAVE & NEXT CALF
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                CalfSecondaryButton(
-                    text = "DISCARD",
-                    onClick = onDiscardClick,
-                    modifier = Modifier.weight(1f)
-                )
-
-                CalfPrimaryButton(
-                    text = "SAVE & NEXT CALF",
-                    onClick = onSaveAndNextClick,
-                    modifier = Modifier.weight(1f)
-                )
+        Column(modifier = Modifier.fillMaxWidth().padding(18.dp)) {
+            CalfSectionTitle("Appearance")
+            Spacer(modifier = Modifier.height(12.dp))
+            CalfCard {
+                CalfLookupDropdownField("Hide colour", selectedValue = formData.hideColour, onClick = { activeLookupField = "HIDE_COLOUR" })
+                Spacer(modifier = Modifier.height(16.dp))
+                CalfLookupDropdownField("Conformity", selectedValue = formData.conformity, onClick = { activeLookupField = "CONFORMITY" })
+                Spacer(modifier = Modifier.height(16.dp))
+                CalfTextField("Mark (brand merk)", formData.mark, { onFormDataChange(formData.copy(mark = it)) })
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-
-            // Bottom Design Note
-            CalfDesignNoteCard(
-                noteText = "Dame and Sire pull from the same F4-list lookup the spec calls out — presented as a searchable picker rather than a free type-in, since tag numbers are easy to mistype in the veld."
-            )
+            CalfSectionTitle("Parentage")
+            Spacer(modifier = Modifier.height(12.dp))
+            CalfCard {
+                CalfLookupDropdownField("Dam tag number", "F4 list", formData.dameTagNumber, { activeLookupField = "DAME" })
+                Spacer(modifier = Modifier.height(16.dp))
+                CalfLookupDropdownField("Sire tag number", "If available", formData.sireTagNumber, { activeLookupField = "SIRE" })
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
+            CalfSectionTitle("Verification")
+            Spacer(modifier = Modifier.height(12.dp))
+            CalfCard {
+                CalfTextField("Process proof", formData.processProof, { onFormDataChange(formData.copy(processProof = it)) })
+                Spacer(modifier = Modifier.height(16.dp))
+                CalfTextField("Implant proof", formData.implantProof, { onFormDataChange(formData.copy(implantProof = it)) })
+                Spacer(modifier = Modifier.height(16.dp))
+                CalfTextField("Group", formData.group, { onFormDataChange(formData.copy(group = it)) })
+            }
+
+            Spacer(modifier = Modifier.height(26.dp))
+            CalfSecondaryButton(text = "Discard registration", onClick = onDiscardClick)
+            Spacer(modifier = Modifier.height(12.dp))
+            CalfPrimaryButton(text = "Save and register next calf", onClick = onSaveAndNextClick)
+            Spacer(modifier = Modifier.height(30.dp))
         }
     }
 }
@@ -243,13 +121,5 @@ fun AppearanceParentageScreen(
 @Preview(showBackground = true)
 @Composable
 private fun AppearanceParentageScreenPreview() {
-    AppearanceParentageScreen(
-        formData = CalfRegistrationData(),
-        onFormDataChange = {},
-        onBackClick = {},
-        onDiscardClick = {},
-        onSaveAndNextClick = {}
-    )
+    AppearanceParentageScreen(CalfRegistrationData(), {}, {}, {}, {})
 }
-
-
