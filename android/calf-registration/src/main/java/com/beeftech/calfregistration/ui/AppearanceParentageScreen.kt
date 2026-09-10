@@ -120,6 +120,6 @@ fun AppearanceParentageScreen(
 
 @Preview(showBackground = true)
 @Composable
-private fun AppearanceParentageScreenPreview() {
+fun AppearanceParentageScreenPreview() {
     AppearanceParentageScreen(CalfRegistrationData(), {}, {}, {}, {})
 }
