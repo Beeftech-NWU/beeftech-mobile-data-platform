@@ -19,4 +19,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "BeefTechAndroid"
 
-include(":database", ":authentication", ":calf-registration", ":farm-traceability")
+include(":database", ":authentication", ":calf-registration", ":farm-traceability", ":feed-crib")
