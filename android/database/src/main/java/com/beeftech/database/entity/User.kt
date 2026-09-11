@@ -33,6 +33,9 @@ data class User(
     @ColumnInfo(name = "pin_hash")
     val pinHash: String? = null,
 
+    @ColumnInfo(name = "failed_pin_attempts")
+    val failedPinAttempts: Int = 0,
+
     @ColumnInfo(name = "role")
     val role: Long? = null,
 

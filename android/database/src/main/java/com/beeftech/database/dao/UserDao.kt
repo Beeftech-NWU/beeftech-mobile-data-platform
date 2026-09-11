@@ -29,12 +29,15 @@ interface UserDao {
     @Query("SELECT * FROM users")
     suspend fun getAllUsers(): List<User>
 
+    @Query("UPDATE users SET failed_pin_attempts = :attempts WHERE user_id = :userId")
+    suspend fun updateFailedPinAttempts(userId: String, attempts: Int)
+
     @Query("UPDATE users SET failed_sync_attempts = :attempts WHERE user_id = :userId")
     suspend fun updateFailedSyncAttempts(userId: String, attempts: Int)
 
     @Query("UPDATE users SET device_last_sync = :timestamp, failed_sync_attempts = 0 WHERE user_id = :userId")
     suspend fun updateLastSync(userId: String, timestamp: Long)
 
-    @Query("UPDATE users SET pin_hash = :pinHash WHERE user_id = :userId")
+    @Query("UPDATE users SET pin_hash = :pinHash, failed_pin_attempts = 0 WHERE user_id = :userId")
     suspend fun updatePinHash(userId: String, pinHash: String?)
 }
