@@ -12,13 +12,20 @@ import com.beeftech.database.dao.PendingSyncDao
 import com.beeftech.database.entity.PendingSync
 import com.beeftech.database.entity.CalfRegistration
 import com.beeftech.database.dao.CalfRegistrationDao
+import com.beeftech.database.entity.AnimalGroup
+import com.beeftech.database.entity.Animal
+
 
 @Database(
     entities = [AnimalMovement::class,
                Treatment::class,
                Mortality::class,
                PendingSync::class,
-               CalfRegistration::class
+               CalfRegistration::class,
+               Animal::class,
+               AnimalGroup::class
+
+
                ],
     version = 1,
     exportSchema = false
