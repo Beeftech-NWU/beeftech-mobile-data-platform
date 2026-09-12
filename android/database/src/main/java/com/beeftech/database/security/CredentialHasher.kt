@@ -4,7 +4,6 @@ import org.bouncycastle.crypto.generators.Argon2BytesGenerator
 import org.bouncycastle.crypto.params.Argon2Parameters
 import java.security.MessageDigest
 import java.security.SecureRandom
-import java.util.Base64
 
 object CredentialHasher {
 
@@ -66,12 +65,18 @@ object CredentialHasher {
     }
 
     fun ByteArray.toBase64(): String {
-        return Base64.getEncoder()
-            .encodeToString(this)
+        return try {
+            android.util.Base64.encodeToString(this, android.util.Base64.NO_WRAP)
+        } catch (e: Throwable) {
+            java.util.Base64.getEncoder().encodeToString(this)
+        }
     }
 
     fun String.fromBase64(): ByteArray {
-        return Base64.getDecoder()
-            .decode(this)
+        return try {
+            android.util.Base64.decode(this, android.util.Base64.NO_WRAP)
+        } catch (e: Throwable) {
+            java.util.Base64.getDecoder().decode(this)
+        }
     }
 }
