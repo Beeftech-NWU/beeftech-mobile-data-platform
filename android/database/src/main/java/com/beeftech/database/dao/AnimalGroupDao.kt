@@ -17,7 +17,7 @@ interface AnimalGroupDao {
     suspend fun update(group: AnimalGroup)
 
     @Delete
-    suspend fun delete(group: AnimalGroup)
+    suspend fun delete(group: AnimalGroup): Int
 
     @Query("SELECT * FROM animal_groups")
     suspend fun getAll(): List<AnimalGroup>

@@ -30,6 +30,9 @@ interface AnimalDao {
     @Query("SELECT * FROM animals WHERE tagNumber = :tagNumber")
     suspend fun getByTagNumber(tagNumber: String): Animal?
 
+    @Query("SELECT * FROM animals WHERE referenceNumber = :referenceNumber")
+    suspend fun getByReferenceNumber(referenceNumber: String): Animal?
+
     @Query("SELECT * FROM animals WHERE damId = :parentId OR sireId = :parentId")
     suspend fun getOffspring(parentId: String): List<Animal>
 }

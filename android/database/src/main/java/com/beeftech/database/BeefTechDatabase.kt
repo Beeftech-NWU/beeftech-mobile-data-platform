@@ -13,7 +13,9 @@ import com.beeftech.database.entity.PendingSync
 import com.beeftech.database.entity.CalfRegistration
 import com.beeftech.database.dao.CalfRegistrationDao
 import com.beeftech.database.entity.AnimalGroup
+import com.beeftech.database.dao.AnimalGroupDao
 import com.beeftech.database.entity.Animal
+import com.beeftech.database.dao.AnimalDao
 
 
 @Database(
