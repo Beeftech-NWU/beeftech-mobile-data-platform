@@ -39,4 +39,6 @@ abstract class BeefTechDatabase : RoomDatabase() {
     abstract fun mortalityDao(): MortalityDao
     abstract fun pendingSyncDao(): PendingSyncDao
     abstract fun calfRegistrationDao(): CalfRegistrationDao
+    abstract fun animalDao(): AnimalDao
+    abstract fun animalGroupDao(): AnimalGroupDao
 }
