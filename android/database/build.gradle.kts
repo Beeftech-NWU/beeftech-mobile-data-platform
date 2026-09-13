@@ -37,18 +37,30 @@ kotlin {
 }
 
 dependencies {
-    implementation("androidx.room:room-runtime:2.8.4")
+
+    // Room
+    // 'api' is required because BeefTechDatabase publicly
+    // extends androidx.room.RoomDatabase.
+    api("androidx.room:room-runtime:2.8.4")
+
     implementation("androidx.room:room-ktx:2.8.4")
 
     ksp("androidx.room:room-compiler:2.8.4")
 
+    // SQLCipher
     implementation("net.zetetic:sqlcipher-android:4.17.0@aar")
+
+    // SQLite
     implementation("androidx.sqlite:sqlite:2.6.2")
+
+    // Security
     implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
     implementation("androidx.security:security-crypto:1.1.0")
 
+    // Unit tests
     testImplementation("junit:junit:4.13.2")
 
+    // Android tests
     androidTestImplementation(
         "androidx.test.ext:junit:1.3.0"
     )

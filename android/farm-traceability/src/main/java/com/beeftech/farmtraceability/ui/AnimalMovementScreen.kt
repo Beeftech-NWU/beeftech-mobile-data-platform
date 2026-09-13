@@ -14,24 +14,31 @@ import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Route
 import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.beeftech.database.entity.AnimalMovement
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun AnimalMovementScreen(
     animalReference: String = "",
     movementInformation: String = "",
     responsibleWorker: String = "",
+    movementRecords: List<AnimalMovement> = emptyList(),
     onBackClick: () -> Unit = {},
     onMovementInformationChange: (String) -> Unit = {},
     onResponsibleWorkerChange: (String) -> Unit = {},
-    onSaveClick: () -> Unit = {}
+    onSaveClick: (String, String) -> Unit = { _, _ -> }
 ) {
 
     var movementState by remember(movementInformation) {
@@ -70,7 +77,9 @@ fun AnimalMovementScreen(
 
             TraceabilitySectionTitle("Movement Details")
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(
+                modifier = Modifier.height(12.dp)
+            )
 
             TraceabilityCard {
 
@@ -86,7 +95,9 @@ fun AnimalMovementScreen(
                     minLines = 3
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(
+                    modifier = Modifier.height(16.dp)
+                )
 
                 TraceabilityTextField(
                     label = "Responsible Worker",
@@ -99,15 +110,94 @@ fun AnimalMovementScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(26.dp))
+            Spacer(
+                modifier = Modifier.height(26.dp)
+            )
 
             TraceabilityPrimaryButton(
                 text = "Save Movement Record",
                 icon = Icons.Outlined.Save,
-                onClick = onSaveClick
+                onClick = {
+
+                    onSaveClick(
+                        movementState,
+                        workerState
+                    )
+                }
             )
 
-            Spacer(modifier = Modifier.height(30.dp))
+            Spacer(
+                modifier = Modifier.height(30.dp)
+            )
+
+            TraceabilitySectionTitle(
+                "Movement History"
+            )
+
+            Spacer(
+                modifier = Modifier.height(12.dp)
+            )
+
+            if (movementRecords.isEmpty()) {
+
+                TraceabilityCard {
+
+                    Text(
+                        text = "No movement records found.",
+                        color = BeeftechMutedText
+                    )
+                }
+
+            } else {
+
+                movementRecords.forEach { movement ->
+
+                    TraceabilityCard {
+
+                        Text(
+                            text = movement.movementType,
+                            fontWeight = FontWeight.SemiBold,
+                            color = BeeftechText
+                        )
+
+                        Spacer(
+                            modifier = Modifier.height(6.dp)
+                        )
+
+                        Text(
+                            text =
+                                "Responsible worker: " +
+                                        movement.responsibleWorker,
+                            color = BeeftechMutedText
+                        )
+
+                        Spacer(
+                            modifier = Modifier.height(4.dp)
+                        )
+
+                        val formattedDate =
+                            SimpleDateFormat(
+                                "dd MMM yyyy HH:mm",
+                                Locale.getDefault()
+                            ).format(
+                                Date(movement.timestamp)
+                            )
+
+                        Text(
+                            text = formattedDate,
+                            color = BeeftechMutedText
+                        )
+                    }
+
+                    Spacer(
+                        modifier = Modifier.height(12.dp)
+                    )
+                }
+            }
+
+            Spacer(
+                modifier = Modifier.height(30.dp)
+            )
         }
     }
 }
@@ -115,5 +205,6 @@ fun AnimalMovementScreen(
 @Preview(showBackground = true)
 @Composable
 private fun AnimalMovementScreenPreview() {
+
     AnimalMovementScreen()
 }

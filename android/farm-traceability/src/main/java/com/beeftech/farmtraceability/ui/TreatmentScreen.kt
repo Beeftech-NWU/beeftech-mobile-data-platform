@@ -17,14 +17,20 @@ import androidx.compose.material.icons.outlined.Numbers
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Science
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.beeftech.database.entity.Treatment
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun TreatmentsScreen(
@@ -34,6 +40,7 @@ fun TreatmentsScreen(
     batchNumber: String = "",
     volumeUsed: String = "",
     cost: String = "",
+    treatmentRecords: List<Treatment> = emptyList(),
     onBackClick: () -> Unit = {},
     onDiseaseChange: (String) -> Unit = {},
     onTreatmentChange: (String) -> Unit = {},
@@ -41,7 +48,13 @@ fun TreatmentsScreen(
     onVolumeUsedChange: (String) -> Unit = {},
     onCostChange: (String) -> Unit = {},
     onAddTreatmentClick: () -> Unit = {},
-    onSaveClick: () -> Unit = {}
+    onSaveClick: (
+        disease: String,
+        treatment: String,
+        batchNumber: String,
+        volumeUsed: String,
+        cost: String
+    ) -> Unit = { _, _, _, _, _ -> }
 ) {
 
     var diseaseState by remember(disease) {
@@ -92,9 +105,12 @@ fun TreatmentsScreen(
 
             TraceabilitySectionTitle("Disease")
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(
+                modifier = Modifier.height(12.dp)
+            )
 
             TraceabilityCard {
+
                 TraceabilityTextField(
                     label = "Disease",
                     value = diseaseState,
@@ -106,11 +122,15 @@ fun TreatmentsScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(
+                modifier = Modifier.height(24.dp)
+            )
 
             TraceabilitySectionTitle("Medication")
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(
+                modifier = Modifier.height(12.dp)
+            )
 
             TraceabilityCard {
 
@@ -124,7 +144,9 @@ fun TreatmentsScreen(
                     icon = Icons.Outlined.Medication
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(
+                    modifier = Modifier.height(16.dp)
+                )
 
                 TraceabilityTextField(
                     label = "Batch No.",
@@ -136,7 +158,9 @@ fun TreatmentsScreen(
                     icon = Icons.Outlined.Numbers
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(
+                    modifier = Modifier.height(16.dp)
+                )
 
                 TraceabilityTextField(
                     label = "Volume Used",
@@ -148,7 +172,9 @@ fun TreatmentsScreen(
                     icon = Icons.Outlined.Science
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(
+                    modifier = Modifier.height(16.dp)
+                )
 
                 TraceabilityTextField(
                     label = "Cost",
@@ -160,7 +186,9 @@ fun TreatmentsScreen(
                     icon = Icons.Outlined.Payments
                 )
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(
+                    modifier = Modifier.height(18.dp)
+                )
 
                 TraceabilitySecondaryButton(
                     text = "Add Another Treatment",
@@ -169,15 +197,113 @@ fun TreatmentsScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(26.dp))
+            Spacer(
+                modifier = Modifier.height(26.dp)
+            )
 
             TraceabilityPrimaryButton(
                 text = "Save Treatment Record",
                 icon = Icons.Outlined.Save,
-                onClick = onSaveClick
+                onClick = {
+                    onSaveClick(
+                        diseaseState,
+                        treatmentState,
+                        batchState,
+                        volumeState,
+                        costState
+                    )
+                }
             )
 
-            Spacer(modifier = Modifier.height(30.dp))
+            Spacer(
+                modifier = Modifier.height(30.dp)
+            )
+
+            TraceabilitySectionTitle(
+                "Treatment History"
+            )
+
+            Spacer(
+                modifier = Modifier.height(12.dp)
+            )
+
+            if (treatmentRecords.isEmpty()) {
+
+                TraceabilityCard {
+
+                    Text(
+                        text = "No treatment records found.",
+                        color = BeeftechMutedText
+                    )
+                }
+
+            } else {
+
+                treatmentRecords.forEach { record ->
+
+                    TraceabilityCard {
+
+                        Text(
+                            text = record.disease,
+                            fontWeight = FontWeight.Bold,
+                            color = BeeftechText
+                        )
+
+                        Spacer(
+                            modifier = Modifier.height(6.dp)
+                        )
+
+                        Text(
+                            text =
+                                "Treatment: ${record.treatmentName}",
+                            color = BeeftechMutedText
+                        )
+
+                        Text(
+                            text =
+                                "Batch: ${record.batchNumber}",
+                            color = BeeftechMutedText
+                        )
+
+                        Text(
+                            text =
+                                "Volume used: ${record.volumeUsed}",
+                            color = BeeftechMutedText
+                        )
+
+                        Text(
+                            text =
+                                "Cost: R%.2f".format(record.cost),
+                            color = BeeftechMutedText
+                        )
+
+                        Spacer(
+                            modifier = Modifier.height(5.dp)
+                        )
+
+                        val formattedDate =
+                            SimpleDateFormat(
+                                "dd MMM yyyy HH:mm",
+                                Locale.getDefault()
+                            ).format(
+                                Date(record.timestamp)
+                            )
+
+                        Text(
+                            text = formattedDate,
+                            color = BeeftechMutedText
+                        )
+                    }
+
+                    Spacer(
+                        modifier = Modifier.height(12.dp)
+                    )
+                }
+            }
+
+            Spacer(
+                modifier = Modifier.height(30.dp)
+            )
         }
     }
 }
@@ -185,5 +311,6 @@ fun TreatmentsScreen(
 @Preview(showBackground = true)
 @Composable
 private fun TreatmentsScreenPreview() {
+
     TreatmentsScreen()
 }

@@ -11,6 +11,18 @@ interface AnimalMovementDao {
     @Insert
     suspend fun insert(movement: AnimalMovement)
 
-    @Query("SELECT * FROM animal_movements")
+    @Query("SELECT * FROM animal_movements ORDER BY timestamp DESC")
     suspend fun getAll(): List<AnimalMovement>
+
+    @Query(
+        """
+        SELECT * 
+        FROM animal_movements 
+        WHERE animalId = :animalId
+        ORDER BY timestamp DESC
+        """
+    )
+    suspend fun getByAnimalId(
+        animalId: String
+    ): List<AnimalMovement>
 }
