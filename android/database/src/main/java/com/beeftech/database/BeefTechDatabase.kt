@@ -25,7 +25,11 @@ import com.beeftech.database.dao.UserDao
         PendingSync::class,
         CalfRegistration::class,
         Role::class,
-        User::class
+        User::class,
+        FarmerEntity::class,
+        FarmerAddressEntity::class,
+        FarmerRoleEntity::class,
+        LocationEntity::class
     ],
     version = 1,
     exportSchema = false
@@ -39,4 +43,6 @@ abstract class BeefTechDatabase : RoomDatabase() {
     abstract fun calfRegistrationDao(): CalfRegistrationDao
     abstract fun roleDao(): RoleDao
     abstract fun userDao(): UserDao
+    abstract fun farmerDao(): FarmerDao
+    abstract fun locationDao(): LocationDao
 }
