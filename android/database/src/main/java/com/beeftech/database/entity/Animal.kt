@@ -9,8 +9,7 @@ import androidx.room.PrimaryKey
     indices = [
         Index(value = ["tagNumber"]),
         Index(value = ["temperatureNumber"]),
-        Index(value = ["damId"]),
-        Index(value = ["sireId"]),
+        Index(value = ["parentId"]),
         Index(value = ["animalGroupId"])
     ]
 )
@@ -30,11 +29,9 @@ data class Animal(
     val age: Int? = null,
     val condition: String? = null,
     val hideColour: String? = null,
-    val earMarking: String? = null,
     val brandMark: String? = null,
 
-    val damId: String? = null,
-    val sireId: String? = null,
+    val parentId: String? = null,
     val animalGroupId: String? = null,
 
     val photoPath: String? = null,
