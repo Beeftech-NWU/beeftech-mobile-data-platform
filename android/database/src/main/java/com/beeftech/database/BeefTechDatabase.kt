@@ -12,6 +12,10 @@ import com.beeftech.database.dao.PendingSyncDao
 import com.beeftech.database.entity.PendingSync
 import com.beeftech.database.entity.CalfRegistration
 import com.beeftech.database.dao.CalfRegistrationDao
+import com.beeftech.database.entity.Role
+import com.beeftech.database.dao.RoleDao
+import com.beeftech.database.entity.User
+import com.beeftech.database.dao.UserDao
 import com.beeftech.database.entity.AnimalGroup
 import com.beeftech.database.dao.AnimalGroupDao
 import com.beeftech.database.entity.Animal
@@ -19,16 +23,21 @@ import com.beeftech.database.dao.AnimalDao
 
 
 @Database(
-    entities = [AnimalMovement::class,
-               Treatment::class,
-               Mortality::class,
-               PendingSync::class,
-               CalfRegistration::class,
-               Animal::class,
-               AnimalGroup::class
-
-
-               ],
+    entities = [
+        AnimalMovement::class,
+        Treatment::class,
+        Mortality::class,
+        PendingSync::class,
+        CalfRegistration::class,
+        Role::class,
+        User::class,
+        FarmerEntity::class,
+        FarmerAddressEntity::class,
+        FarmerRoleEntity::class,
+        LocationEntity::class,
+        Animal::class,
+        AnimalGroup::class
+    ],
     version = 1,
     exportSchema = false
 )
@@ -39,6 +48,10 @@ abstract class BeefTechDatabase : RoomDatabase() {
     abstract fun mortalityDao(): MortalityDao
     abstract fun pendingSyncDao(): PendingSyncDao
     abstract fun calfRegistrationDao(): CalfRegistrationDao
+    abstract fun roleDao(): RoleDao
+    abstract fun userDao(): UserDao
+    abstract fun farmerDao(): FarmerDao
+    abstract fun locationDao(): LocationDao
     abstract fun animalDao(): AnimalDao
     abstract fun animalGroupDao(): AnimalGroupDao
 }
