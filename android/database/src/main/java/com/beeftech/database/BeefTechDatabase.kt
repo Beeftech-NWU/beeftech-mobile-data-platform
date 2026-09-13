@@ -16,6 +16,11 @@ import com.beeftech.database.entity.Role
 import com.beeftech.database.dao.RoleDao
 import com.beeftech.database.entity.User
 import com.beeftech.database.dao.UserDao
+import com.beeftech.database.entity.AnimalGroup
+import com.beeftech.database.dao.AnimalGroupDao
+import com.beeftech.database.entity.Animal
+import com.beeftech.database.dao.AnimalDao
+
 
 @Database(
     entities = [
@@ -29,7 +34,9 @@ import com.beeftech.database.dao.UserDao
         FarmerEntity::class,
         FarmerAddressEntity::class,
         FarmerRoleEntity::class,
-        LocationEntity::class
+        LocationEntity::class,
+        Animal::class,
+        AnimalGroup::class
     ],
     version = 1,
     exportSchema = false
@@ -45,4 +52,6 @@ abstract class BeefTechDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun farmerDao(): FarmerDao
     abstract fun locationDao(): LocationDao
+    abstract fun animalDao(): AnimalDao
+    abstract fun animalGroupDao(): AnimalGroupDao
 }
