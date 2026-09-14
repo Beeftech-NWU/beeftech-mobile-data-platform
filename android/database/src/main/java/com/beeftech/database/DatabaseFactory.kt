@@ -208,6 +208,212 @@ object DatabaseFactory {
             }
         }
 
+    /*
+     * Version 7 -> 8
+     *
+     * Adds the database entities merged from main:
+     * - Roles
+     * - Users
+     * - Farmers
+     * - Farmer addresses
+     * - Farmer roles
+     * - Locations
+     * - Animals
+     * - Animal groups
+     */
+    private val MIGRATION_7_8 =
+        object : Migration(7, 8) {
+
+            override fun migrate(
+                db: SupportSQLiteDatabase
+            ) {
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS roles (
+                        role_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        role_name TEXT NOT NULL
+                    )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE UNIQUE INDEX IF NOT EXISTS
+                    index_roles_role_name
+                    ON roles(role_name)
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS users (
+                        user_id TEXT NOT NULL PRIMARY KEY,
+                        username TEXT NOT NULL,
+                        pin_hash TEXT,
+                        failed_pin_attempts INTEGER NOT NULL,
+                        role INTEGER,
+                        device_assigned_id TEXT,
+                        device_last_sync INTEGER,
+                        failed_sync_attempts INTEGER NOT NULL,
+                        FOREIGN KEY(role)
+                            REFERENCES roles(role_id)
+                            ON UPDATE NO ACTION
+                            ON DELETE SET NULL
+                    )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE UNIQUE INDEX IF NOT EXISTS
+                    index_users_username
+                    ON users(username)
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE INDEX IF NOT EXISTS
+                    index_users_role
+                    ON users(role)
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS farmers (
+                        farmer_id TEXT NOT NULL PRIMARY KEY,
+                        client_code TEXT,
+                        organisation_name TEXT,
+                        vat_number TEXT,
+                        email_address TEXT,
+                        gps_latitude REAL,
+                        gps_longitude REAL,
+                        sync_status TEXT NOT NULL
+                    )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS farmer_addresses (
+                        address_id TEXT NOT NULL PRIMARY KEY,
+                        farmer_id TEXT NOT NULL,
+                        address_type TEXT,
+                        address_line_1 TEXT,
+                        province TEXT,
+                        postal_code TEXT,
+                        gps_latitude REAL,
+                        gps_longitude REAL
+                    )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS farmer_roles (
+                        farmer_role_id TEXT NOT NULL PRIMARY KEY,
+                        farmer_id TEXT NOT NULL,
+                        role_id TEXT NOT NULL
+                    )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS locations (
+                        location_id TEXT NOT NULL PRIMARY KEY,
+                        location_code TEXT,
+                        location_name TEXT,
+                        location_type TEXT
+                    )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS animal_groups (
+                        animalGroupId TEXT NOT NULL PRIMARY KEY,
+                        groupName TEXT NOT NULL,
+                        description TEXT
+                    )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE UNIQUE INDEX IF NOT EXISTS
+                    index_animal_groups_groupName
+                    ON animal_groups(groupName)
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS animals (
+                        animalId TEXT NOT NULL PRIMARY KEY,
+                        tagNumber TEXT,
+                        oldTagNumber TEXT,
+                        temperatureNumber TEXT,
+                        referenceNumber TEXT,
+                        massKg REAL,
+                        birthdate INTEGER NOT NULL,
+                        breed TEXT NOT NULL,
+                        gender TEXT,
+                        age INTEGER,
+                        condition TEXT,
+                        hideColour TEXT,
+                        brandMark TEXT,
+                        parentId TEXT,
+                        animalGroupId TEXT,
+                        photoPath TEXT,
+                        videoPath TEXT,
+                        gpsLat REAL NOT NULL,
+                        gpsLng REAL NOT NULL,
+                        captureAt INTEGER NOT NULL,
+                        deviceId TEXT NOT NULL,
+                        recordguid TEXT NOT NULL,
+                        syncStatus TEXT NOT NULL,
+                        syncedat INTEGER
+                    )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE INDEX IF NOT EXISTS
+                    index_animals_tagNumber
+                    ON animals(tagNumber)
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE INDEX IF NOT EXISTS
+                    index_animals_temperatureNumber
+                    ON animals(temperatureNumber)
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE INDEX IF NOT EXISTS
+                    index_animals_parentId
+                    ON animals(parentId)
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE INDEX IF NOT EXISTS
+                    index_animals_animalGroupId
+                    ON animals(animalGroupId)
+                    """.trimIndent()
+                )
+            }
+        }
+
     fun create(
         context: Context,
         passphrase: ByteArray
@@ -253,6 +459,7 @@ object DatabaseFactory {
                      * 4 -> 5
                      * 5 -> 6
                      * 6 -> 7
+                     * 7 -> 8
                      */
                     .addMigrations(
                         MIGRATION_1_2,
@@ -260,7 +467,8 @@ object DatabaseFactory {
                         MIGRATION_3_4,
                         MIGRATION_4_5,
                         MIGRATION_5_6,
-                        MIGRATION_6_7
+                        MIGRATION_6_7,
+                        MIGRATION_7_8
                     )
 
                     .build()

@@ -233,10 +233,10 @@ class DatabaseMigration6To7Test {
                 )
 
             /*
-             * Confirm database is currently v7.
+             * Confirm database is currently v8.
              */
             assertEquals(
-                7,
+                8,
                 initialDatabase
                     .openHelper
                     .writableDatabase
@@ -287,7 +287,7 @@ class DatabaseMigration6To7Test {
              * DatabaseFactory.
              *
              * Room should detect version 6 and execute
-             * MIGRATION_6_7 automatically.
+             * MIGRATION_6_7 followed by MIGRATION_7_8.
              * ------------------------------------------------
              */
 
@@ -319,10 +319,10 @@ class DatabaseMigration6To7Test {
                 }
 
             /*
-             * Database must now be version 7.
+             * Database must now be version 8.
              */
             assertEquals(
-                7,
+                8,
                 upgradedDatabase
                     .openHelper
                     .writableDatabase
@@ -504,3 +504,4 @@ class DatabaseMigration6To7Test {
             upgradedDatabase.close()
         }
 }
+
