@@ -1,3 +1,5 @@
+import org.gradle.api.initialization.resolve.RepositoriesMode
+
 pluginManagement {
     repositories {
         google()
@@ -35,3 +37,4 @@ include(":android:feed-crib")
 include(":backend:api")
 include(":backend:authentication")
 include(":backend:sync")
+include(":demoapp")

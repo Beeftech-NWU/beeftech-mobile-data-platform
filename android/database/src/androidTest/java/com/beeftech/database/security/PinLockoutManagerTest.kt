@@ -2,14 +2,14 @@ package com.beeftech.database.security
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
 
-@RunWith(RobolectricTestRunner::class)
+@RunWith(AndroidJUnit4::class)
 class PinLockoutManagerTest {
 
     private lateinit var lockoutManager: PinLockoutManager
@@ -30,7 +30,7 @@ class PinLockoutManagerTest {
     @Test
     fun testCooldownTimeRemaining() {
         repeat(5) { lockoutManager.recordFailedAttempt() }
-        val secondsLeft = lockoutManager.getRemainingCooldownSeconds()
+        val secondsLeft = (lockoutManager.getRemainingLockoutTimeMs() / 1000).toInt()
         assertTrue(secondsLeft in 1..60)
     }
 
@@ -41,3 +41,4 @@ class PinLockoutManagerTest {
         assertFalse(lockoutManager.isLockedOut())
     }
 }
+

@@ -1,5 +1,6 @@
 package com.beeftech.database.security
 
+import android.util.Base64
 import org.bouncycastle.crypto.generators.Argon2BytesGenerator
 import org.bouncycastle.crypto.params.Argon2Parameters
 import java.security.MessageDigest
@@ -34,10 +35,13 @@ object CredentialHasher {
                 .withSalt(salt)
                 .build()
 
-        val generator = Argon2BytesGenerator()
+        val generator =
+            Argon2BytesGenerator()
+
         generator.init(params)
 
-        val result = ByteArray(HASH_LENGTH)
+        val result =
+            ByteArray(HASH_LENGTH)
 
         generator.generateBytes(
             password,
@@ -56,7 +60,10 @@ object CredentialHasher {
     ): Boolean {
 
         val computedHash =
-            hash(password, salt)
+            hash(
+                password,
+                salt
+            )
 
         return MessageDigest.isEqual(
             computedHash,
@@ -65,18 +72,16 @@ object CredentialHasher {
     }
 
     fun ByteArray.toBase64(): String {
-        return try {
-            android.util.Base64.encodeToString(this, android.util.Base64.NO_WRAP)
-        } catch (e: Throwable) {
-            java.util.Base64.getEncoder().encodeToString(this)
-        }
+        return Base64.encodeToString(
+            this,
+            Base64.NO_WRAP
+        )
     }
 
     fun String.fromBase64(): ByteArray {
-        return try {
-            android.util.Base64.decode(this, android.util.Base64.NO_WRAP)
-        } catch (e: Throwable) {
-            java.util.Base64.getDecoder().decode(this)
-        }
+        return Base64.decode(
+            this,
+            Base64.NO_WRAP
+        )
     }
 }
