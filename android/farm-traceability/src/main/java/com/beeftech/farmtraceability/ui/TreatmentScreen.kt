@@ -34,6 +34,7 @@ fun TreatmentsScreen(
     batchNumber: String = "",
     volumeUsed: String = "",
     cost: String = "",
+    treatmentOptions: List<String> = emptyList(),
     onBackClick: () -> Unit = {},
     onDiseaseChange: (String) -> Unit = {},
     onTreatmentChange: (String) -> Unit = {},
@@ -43,7 +44,6 @@ fun TreatmentsScreen(
     onAddTreatmentClick: () -> Unit = {},
     onSaveClick: () -> Unit = {}
 ) {
-
     var diseaseState by remember(disease) {
         mutableStateOf(disease)
     }
@@ -70,15 +70,14 @@ fun TreatmentsScreen(
             .background(BeeftechBackground)
             .verticalScroll(rememberScrollState())
     ) {
-
         TraceabilityHeader(
             eyebrow = if (animalReference.isBlank()) {
-                "ANIMAL"
+                "FARM TRACEABILITY"
             } else {
                 "ANIMAL $animalReference"
             },
             title = "Treatments",
-            subtitle = "Disease and medication records",
+            subtitle = "Disease and treatment information",
             icon = Icons.Outlined.Medication,
             showBackButton = true,
             onBackClick = onBackClick
@@ -89,8 +88,9 @@ fun TreatmentsScreen(
                 .fillMaxWidth()
                 .padding(18.dp)
         ) {
-
-            TraceabilitySectionTitle("Disease")
+            TraceabilitySectionTitle(
+                title = "Disease"
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -108,20 +108,22 @@ fun TreatmentsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            TraceabilitySectionTitle("Medication")
+            TraceabilitySectionTitle(
+                title = "Treatment"
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
 
             TraceabilityCard {
-
-                TraceabilityTextField(
-                    label = "Treatment",
+                TraceabilityDropdown(
+                    label = "Treatment Type",
                     value = treatmentState,
+                    options = treatmentOptions,
+                    icon = Icons.Outlined.Medication,
                     onValueChange = {
                         treatmentState = it
                         onTreatmentChange(it)
-                    },
-                    icon = Icons.Outlined.Medication
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))

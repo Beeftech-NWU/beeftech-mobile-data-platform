@@ -10,10 +10,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Pets
 import androidx.compose.material.icons.outlined.Route
 import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,11 +32,28 @@ fun AnimalMovementScreen(
     animalReference: String = "",
     movementInformation: String = "",
     responsibleWorker: String = "",
+    searchAnimalReference: String = "",
+    foundAnimalReference: String = "",
+    foundMovementInformation: String = "",
+    foundMovementDate: String = "",
+    foundResponsibleWorker: String = "",
     onBackClick: () -> Unit = {},
+    onAnimalReferenceChange: (String) -> Unit = {},
     onMovementInformationChange: (String) -> Unit = {},
     onResponsibleWorkerChange: (String) -> Unit = {},
-    onSaveClick: () -> Unit = {}
+    onAddMovementClick: (
+        animalReference: String,
+        movementInformation: String,
+        responsibleWorker: String
+    ) -> Unit = { _, _, _ -> },
+    onSaveClick: () -> Unit = {},
+    onSearchAnimalReferenceChange: (String) -> Unit = {},
+    onSearchClick: (String) -> Unit = {}
 ) {
+
+    var animalReferenceState by remember(animalReference) {
+        mutableStateOf(animalReference)
+    }
 
     var movementState by remember(movementInformation) {
         mutableStateOf(movementInformation)
@@ -40,6 +61,10 @@ fun AnimalMovementScreen(
 
     var workerState by remember(responsibleWorker) {
         mutableStateOf(responsibleWorker)
+    }
+
+    var searchState by remember(searchAnimalReference) {
+        mutableStateOf(searchAnimalReference)
     }
 
     Column(
@@ -50,13 +75,9 @@ fun AnimalMovementScreen(
     ) {
 
         TraceabilityHeader(
-            eyebrow = if (animalReference.isBlank()) {
-                "FARM TRACEABILITY"
-            } else {
-                "ANIMAL $animalReference"
-            },
+            eyebrow = "FARM TRACEABILITY",
             title = "Animal Movement",
-            subtitle = "Capture livestock movement information",
+            subtitle = "Capture and review livestock movement records",
             icon = Icons.Outlined.Route,
             showBackButton = true,
             onBackClick = onBackClick
@@ -68,11 +89,27 @@ fun AnimalMovementScreen(
                 .padding(18.dp)
         ) {
 
+            // ---------------------------------------------------------
+            // CAPTURE MOVEMENT
+            // ---------------------------------------------------------
+
             TraceabilitySectionTitle("Movement Details")
 
             Spacer(modifier = Modifier.height(12.dp))
 
             TraceabilityCard {
+
+                TraceabilityTextField(
+                    label = "Animal Tag / Reference",
+                    value = animalReferenceState,
+                    onValueChange = {
+                        animalReferenceState = it
+                        onAnimalReferenceChange(it)
+                    },
+                    icon = Icons.Outlined.Pets
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 TraceabilityTextField(
                     label = "Movement Information",
@@ -99,13 +136,134 @@ fun AnimalMovementScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(26.dp))
+            Spacer(modifier = Modifier.height(20.dp))
+
+            TraceabilitySecondaryButton(
+                text = "Add Movement Record",
+                icon = Icons.Outlined.Add,
+                onClick = {
+                    val reference = animalReferenceState.trim()
+                    val movement = movementState.trim()
+                    val worker = workerState.trim()
+
+                    if (
+                        reference.isNotBlank() &&
+                        movement.isNotBlank() &&
+                        worker.isNotBlank()
+                    ) {
+                        onAddMovementClick(
+                            reference,
+                            movement,
+                            worker
+                        )
+
+                        animalReferenceState = ""
+                        movementState = ""
+                        workerState = ""
+
+                        onAnimalReferenceChange("")
+                        onMovementInformationChange("")
+                        onResponsibleWorkerChange("")
+                    }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             TraceabilityPrimaryButton(
-                text = "Save Movement Record",
+                text = "Save Movement Records",
                 icon = Icons.Outlined.Save,
                 onClick = onSaveClick
             )
+
+            // ---------------------------------------------------------
+            // SEARCH MOVEMENT RECORDS
+            // ---------------------------------------------------------
+
+            Spacer(modifier = Modifier.height(30.dp))
+
+            TraceabilitySectionTitle("Search Movement Records")
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            TraceabilityCard {
+
+                TraceabilityTextField(
+                    label = "Animal Tag / Reference",
+                    value = searchState,
+                    onValueChange = {
+                        searchState = it
+                        onSearchAnimalReferenceChange(it)
+                    },
+                    icon = Icons.Outlined.Search
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                TraceabilityPrimaryButton(
+                    text = "Search Animal",
+                    icon = Icons.Outlined.Search,
+                    onClick = {
+                        val reference = searchState.trim()
+
+                        if (reference.isNotBlank()) {
+                            onSearchClick(reference)
+                        }
+                    }
+                )
+            }
+
+            // ---------------------------------------------------------
+            // SEARCH RESULT
+            // ---------------------------------------------------------
+
+            if (foundAnimalReference.isNotBlank()) {
+
+                Spacer(modifier = Modifier.height(26.dp))
+
+                TraceabilitySectionTitle("Movement Record")
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                TraceabilityCard {
+
+                    TraceabilityInfoRow(
+                        icon = Icons.Outlined.Pets,
+                        title = "Animal Tag / Reference",
+                        subtitle = foundAnimalReference
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    TraceabilityInfoRow(
+                        icon = Icons.Outlined.EditNote,
+                        title = "Movement Information",
+                        subtitle = foundMovementInformation.ifBlank {
+                            "Movement information unavailable"
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    TraceabilityInfoRow(
+                        icon = Icons.Outlined.CalendarMonth,
+                        title = "Movement Date",
+                        subtitle = foundMovementDate.ifBlank {
+                            "Movement date unavailable"
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    TraceabilityInfoRow(
+                        icon = Icons.Outlined.Person,
+                        title = "Responsible Worker",
+                        subtitle = foundResponsibleWorker.ifBlank {
+                            "Responsible worker unavailable"
+                        }
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(30.dp))
         }

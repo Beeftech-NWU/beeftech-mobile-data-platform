@@ -1,6 +1,8 @@
 package com.beeftech.farmtraceability.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,10 +15,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.ArrowDropDown
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -25,8 +31,13 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -52,11 +63,9 @@ fun TraceabilityHeader(
                 bottom = 20.dp
             )
     ) {
-
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
-
             if (showBackButton) {
                 IconButton(
                     onClick = onBackClick,
@@ -226,6 +235,274 @@ fun TraceabilityTextField(
 }
 
 @Composable
+fun TraceabilityDropdown(
+    label: String,
+    value: String,
+    options: List<String>,
+    icon: ImageVector,
+    onValueChange: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = label.uppercase(),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.6.sp,
+            color = BeeftechPrimaryDark
+        )
+
+        Spacer(modifier = Modifier.height(7.dp))
+
+        Box(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = value,
+                onValueChange = {},
+                readOnly = true,
+                placeholder = {
+                    Text(
+                        text = "Select $label",
+                        color = BeeftechMutedText
+                    )
+                },
+                leadingIcon = {
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .background(
+                                BeeftechSoftAccent,
+                                RoundedCornerShape(8.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = BeeftechPrimaryDark,
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
+                },
+                trailingIcon = {
+                    Icon(
+                        imageVector = Icons.Outlined.ArrowDropDown,
+                        contentDescription = "Open options",
+                        tint = BeeftechPrimaryDark
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = true },
+                singleLine = true,
+                shape = RoundedCornerShape(11.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = BeeftechPrimaryDark,
+                    unfocusedBorderColor = BeeftechBorder,
+                    focusedContainerColor = BeeftechWhite,
+                    unfocusedContainerColor = BeeftechWhite
+                )
+            )
+
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clickable { expanded = true }
+            )
+
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.fillMaxWidth(0.88f)
+            ) {
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = option,
+                                color = BeeftechText
+                            )
+                        },
+                        onClick = {
+                            onValueChange(option)
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Suppress("unused")
+@Composable
+fun TraceabilityChoiceSelector(
+    label: String,
+    selectedValue: String,
+    options: List<String>,
+    onValueChange: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = label.uppercase(),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.6.sp,
+            color = BeeftechPrimaryDark
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            options.forEach { option ->
+                val selected = option == selectedValue
+
+                OutlinedButton(
+                    onClick = { onValueChange(option) },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = if (selected) {
+                            BeeftechSoftAccent
+                        } else {
+                            BeeftechWhite
+                        },
+                        contentColor = BeeftechPrimaryDeep
+                    )
+                ) {
+                    Text(
+                        text = option,
+                        fontSize = 12.sp,
+                        fontWeight = if (selected) {
+                            FontWeight.Bold
+                        } else {
+                            FontWeight.Medium
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Suppress("unused")
+@Composable
+fun TraceabilityStatusBadge(
+    status: String
+) {
+    val backgroundColor: Color
+    val textColor: Color
+
+    when (status.lowercase()) {
+        "registered" -> {
+            backgroundColor = BeeftechSoftAccent
+            textColor = BeeftechPrimaryDeep
+        }
+
+        "processing" -> {
+            backgroundColor = BeeftechPrimary.copy(alpha = 0.18f)
+            textColor = BeeftechPrimaryDeep
+        }
+
+        else -> {
+            backgroundColor = BeeftechSurface
+            textColor = BeeftechPrimaryDark
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .background(
+                color = backgroundColor,
+                shape = RoundedCornerShape(50.dp)
+            )
+            .padding(
+                horizontal = 12.dp,
+                vertical = 7.dp
+            )
+    ) {
+        Text(
+            text = status,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = textColor
+        )
+    }
+}
+
+@Suppress("unused")
+@Composable
+fun TraceabilityReadOnlyField(
+    label: String,
+    value: String,
+    icon: ImageVector,
+    placeholder: String = "Generated automatically"
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = label.uppercase(),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.6.sp,
+            color = BeeftechPrimaryDark
+        )
+
+        Spacer(modifier = Modifier.height(7.dp))
+
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            modifier = Modifier.fillMaxWidth(),
+            readOnly = true,
+            singleLine = true,
+            placeholder = {
+                Text(
+                    text = placeholder,
+                    color = BeeftechMutedText
+                )
+            },
+            leadingIcon = {
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .background(
+                            BeeftechSoftAccent,
+                            RoundedCornerShape(8.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = BeeftechPrimaryDark,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
+            },
+            shape = RoundedCornerShape(11.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = BeeftechBorder,
+                unfocusedBorderColor = BeeftechBorder,
+                disabledBorderColor = BeeftechBorder,
+                focusedContainerColor = BeeftechSurface,
+                unfocusedContainerColor = BeeftechSurface
+            )
+        )
+    }
+}
+
+@Composable
 fun TraceabilityCard(
     content: @Composable () -> Unit
 ) {
@@ -324,7 +601,6 @@ fun TraceabilityInfoRow(
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-
         Box(
             modifier = Modifier
                 .size(40.dp)
@@ -371,6 +647,79 @@ fun TraceabilityInfoRow(
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = BeeftechPrimaryDark
+            )
+        }
+    }
+}
+
+@Composable
+fun TraceabilitySyncWarning(
+    warningLevel: Int,
+    onSyncClick: () -> Unit = {}
+) {
+
+    val warningTitle: String
+    val warningMessage: String
+
+    when (warningLevel) {
+        1 -> {
+            warningTitle = "Data Not Synced"
+            warningMessage =
+                "Data has not been synced. Please connect to a network and sync your records."
+        }
+
+        2 -> {
+            warningTitle = "Critical Sync Warning"
+            warningMessage =
+                "Data is still not synced. Please connect and sync your records as soon as possible."
+        }
+
+        3 -> {
+            warningTitle = "Final Sync Warning"
+            warningMessage =
+                "Your records have not been synced. Please connect and sync your data today."
+        }
+
+        else -> return
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = BeeftechSurface
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 1.dp
+        )
+    ) {
+
+        Column(
+            modifier = Modifier.padding(17.dp)
+        ) {
+
+            Text(
+                text = warningTitle,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = BeeftechPrimaryDeep
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = warningMessage,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                color = BeeftechMutedText
+            )
+
+            Spacer(modifier = Modifier.height(15.dp))
+
+            TraceabilitySecondaryButton(
+                text = "Sync Now",
+                icon = Icons.Outlined.Refresh,
+                onClick = onSyncClick
             )
         }
     }

@@ -38,6 +38,7 @@ fun SupplierScreen(
     purchaseBatch: String = "",
     headInBatch: String = "",
     averageEntryMass: String = "",
+    linkedFarm: String = "",
     onBackClick: () -> Unit = {},
     onSupplierNameChange: (String) -> Unit = {},
     onGlnNumberChange: (String) -> Unit = {},
@@ -46,7 +47,6 @@ fun SupplierScreen(
     onViewFarmClick: () -> Unit = {},
     onSaveClick: () -> Unit = {}
 ) {
-
     var supplierNameState by remember(supplierName) {
         mutableStateOf(supplierName)
     }
@@ -69,10 +69,9 @@ fun SupplierScreen(
             .background(BeeftechBackground)
             .verticalScroll(rememberScrollState())
     ) {
-
         TraceabilityHeader(
             eyebrow = if (animalReference.isBlank()) {
-                "ANIMAL"
+                "FARM TRACEABILITY"
             } else {
                 "ANIMAL $animalReference"
             },
@@ -88,15 +87,15 @@ fun SupplierScreen(
                 .fillMaxWidth()
                 .padding(18.dp)
         ) {
-
-            TraceabilitySectionTitle("Supplier Details")
+            TraceabilitySectionTitle(
+                title = "Supplier Details"
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
 
             TraceabilityCard {
-
                 TraceabilityTextField(
-                    label = "Name",
+                    label = "Supplier Name",
                     value = supplierNameState,
                     onValueChange = {
                         supplierNameState = it
@@ -144,39 +143,53 @@ fun SupplierScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            TraceabilitySectionTitle("Batch Overview")
+            TraceabilitySectionTitle(
+                title = "Batch Overview"
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
 
             TraceabilityCard {
-
                 TraceabilityInfoRow(
                     icon = Icons.Outlined.Groups,
                     title = "Head in Batch",
-                    subtitle = "Number of animals",
+                    subtitle = if (headInBatch.isBlank()) {
+                        "Batch quantity unavailable"
+                    } else {
+                        "Number of animals"
+                    },
                     value = headInBatch
                 )
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 TraceabilityInfoRow(
                     icon = Icons.Outlined.MonitorWeight,
                     title = "Average Entry Mass",
-                    subtitle = "Recorded batch average",
+                    subtitle = if (averageEntryMass.isBlank()) {
+                        "Average entry mass unavailable"
+                    } else {
+                        "Recorded batch average"
+                    },
                     value = averageEntryMass
                 )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            TraceabilitySectionTitle("Farm Location")
+            TraceabilitySectionTitle(
+                title = "Farm Location"
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
 
             TraceabilityCard {
-
                 TraceabilityInfoRow(
                     icon = Icons.Outlined.LocationOn,
                     title = "Linked Farm",
-                    subtitle = "Supplier farm location"
+                    subtitle = linkedFarm.ifBlank {
+                        "Supplier farm information unavailable"
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(14.dp))

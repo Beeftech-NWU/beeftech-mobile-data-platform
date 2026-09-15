@@ -33,6 +33,7 @@ fun LocationFeedScreen(
     rationName: String = "",
     rationDays: String = "",
     rationCost: String = "",
+    rationOptions: List<String> = emptyList(),
     onBackClick: () -> Unit = {},
     onDestinationChange: (String) -> Unit = {},
     onDaysInDestinationChange: (String) -> Unit = {},
@@ -42,7 +43,6 @@ fun LocationFeedScreen(
     onAddRationClick: () -> Unit = {},
     onSaveClick: () -> Unit = {}
 ) {
-
     var destinationState by remember(destination) {
         mutableStateOf(destination)
     }
@@ -69,10 +69,9 @@ fun LocationFeedScreen(
             .background(BeeftechBackground)
             .verticalScroll(rememberScrollState())
     ) {
-
         TraceabilityHeader(
             eyebrow = if (animalReference.isBlank()) {
-                "ANIMAL"
+                "FARM TRACEABILITY"
             } else {
                 "ANIMAL $animalReference"
             },
@@ -88,13 +87,13 @@ fun LocationFeedScreen(
                 .fillMaxWidth()
                 .padding(18.dp)
         ) {
-
-            TraceabilitySectionTitle("Location")
+            TraceabilitySectionTitle(
+                title = "Location"
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
 
             TraceabilityCard {
-
                 TraceabilityTextField(
                     label = "Destination",
                     value = destinationState,
@@ -120,20 +119,22 @@ fun LocationFeedScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            TraceabilitySectionTitle("On Ration")
+            TraceabilitySectionTitle(
+                title = "Ration Entry"
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
 
             TraceabilityCard {
-
-                TraceabilityTextField(
-                    label = "Ration Name",
+                TraceabilityDropdown(
+                    label = "Ration",
                     value = rationNameState,
+                    options = rationOptions,
+                    icon = Icons.Outlined.Restaurant,
                     onValueChange = {
                         rationNameState = it
                         onRationNameChange(it)
-                    },
-                    icon = Icons.Outlined.Restaurant
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))

@@ -19,7 +19,7 @@ import androidx.compose.material.icons.outlined.LocalShipping
 import androidx.compose.material.icons.outlined.Medication
 import androidx.compose.material.icons.outlined.MonitorWeight
 import androidx.compose.material.icons.outlined.Payments
-import androidx.compose.material.icons.outlined.ReceiptLong
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Card
@@ -50,14 +50,12 @@ fun CostSummaryScreen(
     lastMassDate: String = "",
     onBackClick: () -> Unit = {}
 ) {
-
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(BeeftechBackground)
             .verticalScroll(rememberScrollState())
     ) {
-
         TraceabilityHeader(
             eyebrow = if (animalReference.isBlank()) {
                 "ANIMAL COST"
@@ -76,13 +74,11 @@ fun CostSummaryScreen(
                 .fillMaxWidth()
                 .padding(18.dp)
         ) {
-
             TraceabilitySectionTitle("Direct Costs")
 
             Spacer(modifier = Modifier.height(12.dp))
 
             TraceabilityCard {
-
                 CostSummaryRow(
                     icon = Icons.Outlined.LocalShipping,
                     title = "Transport",
@@ -113,9 +109,8 @@ fun CostSummaryScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             TraceabilityCard {
-
                 CostSummaryRow(
-                    icon = Icons.Outlined.ReceiptLong,
+                    icon = Icons.AutoMirrored.Outlined.ReceiptLong,
                     title = "Handling",
                     value = displayCost(handlingCost)
                 )
@@ -138,10 +133,8 @@ fun CostSummaryScreen(
             TotalCostCard(
                 totalAnimalCost = displayCost(totalAnimalCost),
                 costPerKg = displayCost(costPerKg),
-                lastMassDate = if (lastMassDate.isBlank()) {
+                lastMassDate = lastMassDate.ifBlank {
                     "Not recorded"
-                } else {
-                    lastMassDate
                 }
             )
 
@@ -162,7 +155,6 @@ private fun CostSummaryRow(
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-
         Box(
             modifier = Modifier
                 .size(40.dp)
@@ -227,15 +219,12 @@ private fun TotalCostCard(
             defaultElevation = 2.dp
         )
     ) {
-
         Column(
             modifier = Modifier.padding(20.dp)
         ) {
-
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-
                 Box(
                     modifier = Modifier
                         .size(42.dp)
@@ -256,7 +245,6 @@ private fun TotalCostCard(
                 Spacer(modifier = Modifier.size(12.dp))
 
                 Column {
-
                     Text(
                         text = "TOTAL ANIMAL COST",
                         fontSize = 10.sp,
@@ -287,7 +275,6 @@ private fun TotalCostCard(
             Row(
                 modifier = Modifier.fillMaxWidth()
             ) {
-
                 CostMetric(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Outlined.MonitorWeight,
@@ -316,7 +303,6 @@ private fun CostMetric(
     Column(
         modifier = modifier
     ) {
-
         Icon(
             imageVector = icon,
             contentDescription = null,
@@ -349,11 +335,11 @@ private fun displayCost(
     value: String
 ): String {
     return if (value.isBlank()) {
-        "R 0.00"
-    } else if (value.trim().startsWith("R")) {
-        value
+        "Unavailable"
+    } else if (value.trim().startsWith("R", ignoreCase = true)) {
+        value.trim()
     } else {
-        "R $value"
+        "R ${value.trim()}"
     }
 }
 

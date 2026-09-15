@@ -3,6 +3,7 @@ package com.beeftech.farmtraceability.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -22,85 +23,101 @@ private enum class TraceabilityScreen {
 }
 
 @Composable
-fun FarmTraceabilityFlow() {
-
+fun FarmTraceabilityFlow(
+    onExitTraceability: () -> Unit = {}
+) {
     var currentScreen by remember {
         mutableStateOf(TraceabilityScreen.HOME)
+    }
+
+    val navigationHistory = remember {
+        mutableStateListOf<TraceabilityScreen>()
     }
 
     var selectedAnimalReference by remember {
         mutableStateOf("")
     }
 
-    fun goBack() {
-        currentScreen = when (currentScreen) {
+    fun navigateTo(screen: TraceabilityScreen) {
+        navigationHistory.add(currentScreen)
+        currentScreen = screen
+    }
 
-            TraceabilityScreen.SUPPLIER,
-            TraceabilityScreen.LOCATION_FEED,
-            TraceabilityScreen.TREATMENTS,
-            TraceabilityScreen.COST_SUMMARY -> {
-                TraceabilityScreen.ANIMAL_RECORD
-            }
-
-            else -> {
-                TraceabilityScreen.HOME
-            }
+    fun navigateBack() {
+        if (navigationHistory.isNotEmpty()) {
+            currentScreen =
+                navigationHistory.removeAt(navigationHistory.lastIndex)
+        } else if (currentScreen != TraceabilityScreen.HOME) {
+            currentScreen = TraceabilityScreen.HOME
+        } else {
+            onExitTraceability()
         }
     }
 
-    if (currentScreen != TraceabilityScreen.HOME) {
-        BackHandler {
-            goBack()
-        }
+    BackHandler {
+        navigateBack()
     }
 
     when (currentScreen) {
 
         TraceabilityScreen.HOME -> {
             FarmTraceabilityScreen(
+                onBackClick = {
+                    navigateBack()
+                },
+
                 onFarmerFarmProfileClick = {
-                    currentScreen =
+                    navigateTo(
                         TraceabilityScreen.FARMER_FARM_PROFILE
+                    )
                 },
 
                 onFindAnimalClick = {
-                    currentScreen =
+                    navigateTo(
                         TraceabilityScreen.FIND_ANIMAL
+                    )
                 },
 
                 onAnimalRecordClick = {
-                    currentScreen =
+                    navigateTo(
                         TraceabilityScreen.ANIMAL_RECORD
+                    )
                 },
 
                 onAnimalMovementClick = {
-                    currentScreen =
+                    navigateTo(
                         TraceabilityScreen.ANIMAL_MOVEMENT
+                    )
                 },
 
                 onSupplierClick = {
-                    currentScreen =
+                    navigateTo(
                         TraceabilityScreen.SUPPLIER
+                    )
                 },
 
                 onLocationFeedClick = {
-                    currentScreen =
+                    navigateTo(
                         TraceabilityScreen.LOCATION_FEED
+                    )
                 },
 
                 onTreatmentsClick = {
-                    currentScreen =
+                    navigateTo(
                         TraceabilityScreen.TREATMENTS
+                    )
                 },
 
                 onCostSummaryClick = {
-                    currentScreen =
+                    navigateTo(
                         TraceabilityScreen.COST_SUMMARY
+                    )
                 },
 
                 onMortalityClick = {
-                    currentScreen =
+                    navigateTo(
                         TraceabilityScreen.MORTALITY
+                    )
                 }
             )
         }
@@ -108,7 +125,7 @@ fun FarmTraceabilityFlow() {
         TraceabilityScreen.FARMER_FARM_PROFILE -> {
             FarmerFarmProfileScreen(
                 onBackClick = {
-                    goBack()
+                    navigateBack()
                 }
             )
         }
@@ -116,12 +133,15 @@ fun FarmTraceabilityFlow() {
         TraceabilityScreen.FIND_ANIMAL -> {
             FindAnimalScreen(
                 onBackClick = {
-                    goBack()
+                    navigateBack()
                 },
+
                 onFindAnimal = { reference ->
                     selectedAnimalReference = reference
-                    currentScreen =
+
+                    navigateTo(
                         TraceabilityScreen.ANIMAL_RECORD
+                    )
                 }
             )
         }
@@ -131,27 +151,43 @@ fun FarmTraceabilityFlow() {
                 animalReference = selectedAnimalReference,
 
                 onBackClick = {
-                    goBack()
+                    navigateBack()
                 },
 
                 onSupplierClick = {
-                    currentScreen =
+                    navigateTo(
                         TraceabilityScreen.SUPPLIER
+                    )
                 },
 
                 onLocationFeedClick = {
-                    currentScreen =
+                    navigateTo(
                         TraceabilityScreen.LOCATION_FEED
+                    )
                 },
 
                 onTreatmentsClick = {
-                    currentScreen =
+                    navigateTo(
                         TraceabilityScreen.TREATMENTS
+                    )
+                },
+
+                onAnimalMovementClick = {
+                    navigateTo(
+                        TraceabilityScreen.ANIMAL_MOVEMENT
+                    )
                 },
 
                 onCostSummaryClick = {
-                    currentScreen =
+                    navigateTo(
                         TraceabilityScreen.COST_SUMMARY
+                    )
+                },
+
+                onMortalityClick = {
+                    navigateTo(
+                        TraceabilityScreen.MORTALITY
+                    )
                 }
             )
         }
@@ -159,8 +195,9 @@ fun FarmTraceabilityFlow() {
         TraceabilityScreen.ANIMAL_MOVEMENT -> {
             AnimalMovementScreen(
                 animalReference = selectedAnimalReference,
+
                 onBackClick = {
-                    goBack()
+                    navigateBack()
                 }
             )
         }
@@ -168,8 +205,9 @@ fun FarmTraceabilityFlow() {
         TraceabilityScreen.SUPPLIER -> {
             SupplierScreen(
                 animalReference = selectedAnimalReference,
+
                 onBackClick = {
-                    goBack()
+                    navigateBack()
                 }
             )
         }
@@ -177,8 +215,9 @@ fun FarmTraceabilityFlow() {
         TraceabilityScreen.LOCATION_FEED -> {
             LocationFeedScreen(
                 animalReference = selectedAnimalReference,
+
                 onBackClick = {
-                    goBack()
+                    navigateBack()
                 }
             )
         }
@@ -186,8 +225,9 @@ fun FarmTraceabilityFlow() {
         TraceabilityScreen.TREATMENTS -> {
             TreatmentsScreen(
                 animalReference = selectedAnimalReference,
+
                 onBackClick = {
-                    goBack()
+                    navigateBack()
                 }
             )
         }
@@ -195,8 +235,9 @@ fun FarmTraceabilityFlow() {
         TraceabilityScreen.COST_SUMMARY -> {
             CostSummaryScreen(
                 animalReference = selectedAnimalReference,
+
                 onBackClick = {
-                    goBack()
+                    navigateBack()
                 }
             )
         }
@@ -204,8 +245,9 @@ fun FarmTraceabilityFlow() {
         TraceabilityScreen.MORTALITY -> {
             MortalityScreen(
                 animalReference = selectedAnimalReference,
+
                 onBackClick = {
-                    goBack()
+                    navigateBack()
                 }
             )
         }
