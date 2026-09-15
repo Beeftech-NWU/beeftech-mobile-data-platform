@@ -32,6 +32,16 @@ import com.beeftech.database.entity.Role
 import com.beeftech.database.entity.User
 import com.beeftech.database.entity.AnimalGroup
 import com.beeftech.database.entity.Animal
+import com.beeftech.database.entity.PenEntity
+import com.beeftech.database.entity.FeedCribEntity
+import com.beeftech.database.entity.FeedCribReadingEntity
+import com.beeftech.database.entity.FeedCribReadingValueEntity
+import com.beeftech.database.entity.SyncBatchEntity
+import com.beeftech.database.entity.SyncBackupEntity
+import com.beeftech.database.dao.PenDao
+import com.beeftech.database.dao.FeedCribDao
+import com.beeftech.database.dao.FeedCribReadingDao
+import com.beeftech.database.dao.SyncBatchDao
 
 @Database(
     entities = [
@@ -50,7 +60,13 @@ import com.beeftech.database.entity.Animal
         FarmerRoleEntity::class,
         LocationEntity::class,
         Animal::class,
-        AnimalGroup::class
+        AnimalGroup::class,
+        PenEntity::class,
+        FeedCribEntity::class,
+        FeedCribReadingEntity::class,
+        FeedCribReadingValueEntity::class,
+        SyncBatchEntity::class,
+        SyncBackupEntity::class
     ],
     version = 8,
     exportSchema = false
@@ -79,4 +95,12 @@ abstract class BeefTechDatabase : RoomDatabase() {
     abstract fun locationDao(): LocationDao
     abstract fun animalDao(): AnimalDao
     abstract fun animalGroupDao(): AnimalGroupDao
+
+    abstract fun penDao(): PenDao
+
+    abstract fun feedCribDao(): FeedCribDao
+
+    abstract fun feedCribReadingDao(): FeedCribReadingDao
+
+    abstract fun syncBatchDao(): SyncBatchDao
 }
