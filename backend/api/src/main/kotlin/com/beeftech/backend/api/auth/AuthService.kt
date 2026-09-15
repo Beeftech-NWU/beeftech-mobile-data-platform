@@ -1,4 +1,4 @@
-package com.beeftech.backend.api
+package com.beeftech.backend.api.auth
 
 class AuthService(private val jwtService: JwtService) {
 
