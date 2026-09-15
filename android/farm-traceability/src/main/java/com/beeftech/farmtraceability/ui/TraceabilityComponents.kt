@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -338,6 +339,137 @@ fun TraceabilityDropdown(
     }
 }
 
+@Composable
+fun TraceabilitySearchableDropdown(
+    label: String,
+    value: String,
+    options: List<String>,
+    icon: ImageVector,
+    onValueChange: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    var searchText by remember(value) {
+        mutableStateOf(value)
+    }
+
+    val filteredOptions = remember(searchText, options) {
+        if (searchText.isBlank()) {
+            options
+        } else {
+            options.filter { option ->
+                option.contains(
+                    other = searchText,
+                    ignoreCase = true
+                )
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = label.uppercase(),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.6.sp,
+            color = BeeftechPrimaryDark
+        )
+
+        Spacer(modifier = Modifier.height(7.dp))
+
+        Box(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = searchText,
+                onValueChange = { input ->
+                    searchText = input
+                    expanded = true
+
+                    if (input != value) {
+                        onValueChange("")
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = {
+                    Text(
+                        text = "Select $label",
+                        color = BeeftechMutedText
+                    )
+                },
+                leadingIcon = {
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .background(
+                                BeeftechSoftAccent,
+                                RoundedCornerShape(8.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = BeeftechPrimaryDark,
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
+                },
+                trailingIcon = {
+                    IconButton(
+                        onClick = {
+                            expanded = !expanded
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.ArrowDropDown,
+                            contentDescription = "Open options",
+                            tint = BeeftechPrimaryDark
+                        )
+                    }
+                },
+                shape = RoundedCornerShape(11.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = BeeftechPrimaryDark,
+                    unfocusedBorderColor = BeeftechBorder,
+                    cursorColor = BeeftechPrimaryDark,
+                    focusedContainerColor = BeeftechWhite,
+                    unfocusedContainerColor = BeeftechWhite
+                )
+            )
+
+            DropdownMenu(
+                expanded = expanded && filteredOptions.isNotEmpty(),
+                onDismissRequest = {
+                    expanded = false
+                },
+                modifier = Modifier
+                    .fillMaxWidth(0.88f)
+                    .heightIn(max = 280.dp)
+            ) {
+                filteredOptions.forEach { option ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = option,
+                                color = BeeftechText
+                            )
+                        },
+                        onClick = {
+                            searchText = option
+                            onValueChange(option)
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Suppress("unused")
 @Composable
 fun TraceabilityChoiceSelector(
@@ -367,7 +499,9 @@ fun TraceabilityChoiceSelector(
                 val selected = option == selectedValue
 
                 OutlinedButton(
-                    onClick = { onValueChange(option) },
+                    onClick = {
+                        onValueChange(option)
+                    },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
@@ -657,7 +791,6 @@ fun TraceabilitySyncWarning(
     warningLevel: Int,
     onSyncClick: () -> Unit = {}
 ) {
-
     val warningTitle: String
     val warningMessage: String
 
@@ -693,11 +826,9 @@ fun TraceabilitySyncWarning(
             defaultElevation = 1.dp
         )
     ) {
-
         Column(
             modifier = Modifier.padding(17.dp)
         ) {
-
             Text(
                 text = warningTitle,
                 fontSize = 14.sp,

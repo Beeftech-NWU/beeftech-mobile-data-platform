@@ -39,6 +39,7 @@ fun SupplierScreen(
     headInBatch: String = "",
     averageEntryMass: String = "",
     linkedFarm: String = "",
+    supplierOptions: List<String> = emptyList(),
     onBackClick: () -> Unit = {},
     onSupplierNameChange: (String) -> Unit = {},
     onGlnNumberChange: (String) -> Unit = {},
@@ -94,14 +95,15 @@ fun SupplierScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             TraceabilityCard {
-                TraceabilityTextField(
+                TraceabilitySearchableDropdown(
                     label = "Supplier Name",
                     value = supplierNameState,
+                    options = supplierOptions,
+                    icon = Icons.Outlined.Person,
                     onValueChange = {
                         supplierNameState = it
                         onSupplierNameChange(it)
-                    },
-                    icon = Icons.Outlined.Person
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))

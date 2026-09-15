@@ -33,6 +33,7 @@ fun LocationFeedScreen(
     rationName: String = "",
     rationDays: String = "",
     rationCost: String = "",
+    destinationOptions: List<String> = emptyList(),
     rationOptions: List<String> = emptyList(),
     onBackClick: () -> Unit = {},
     onDestinationChange: (String) -> Unit = {},
@@ -94,14 +95,15 @@ fun LocationFeedScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             TraceabilityCard {
-                TraceabilityTextField(
+                TraceabilitySearchableDropdown(
                     label = "Destination",
                     value = destinationState,
+                    options = destinationOptions,
+                    icon = Icons.Outlined.LocationOn,
                     onValueChange = {
                         destinationState = it
                         onDestinationChange(it)
-                    },
-                    icon = Icons.Outlined.LocationOn
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))

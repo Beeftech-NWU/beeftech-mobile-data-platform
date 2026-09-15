@@ -17,7 +17,6 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Pets
 import androidx.compose.material.icons.outlined.Route
 import androidx.compose.material.icons.outlined.Save
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,7 +31,7 @@ fun AnimalMovementScreen(
     animalReference: String = "",
     movementInformation: String = "",
     responsibleWorker: String = "",
-    searchAnimalReference: String = "",
+    workerOptions: List<String> = emptyList(),
     foundAnimalReference: String = "",
     foundMovementInformation: String = "",
     foundMovementDate: String = "",
@@ -46,11 +45,8 @@ fun AnimalMovementScreen(
         movementInformation: String,
         responsibleWorker: String
     ) -> Unit = { _, _, _ -> },
-    onSaveClick: () -> Unit = {},
-    onSearchAnimalReferenceChange: (String) -> Unit = {},
-    onSearchClick: (String) -> Unit = {}
+    onSaveClick: () -> Unit = {}
 ) {
-
     var animalReferenceState by remember(animalReference) {
         mutableStateOf(animalReference)
     }
@@ -63,17 +59,12 @@ fun AnimalMovementScreen(
         mutableStateOf(responsibleWorker)
     }
 
-    var searchState by remember(searchAnimalReference) {
-        mutableStateOf(searchAnimalReference)
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(BeeftechBackground)
             .verticalScroll(rememberScrollState())
     ) {
-
         TraceabilityHeader(
             eyebrow = "FARM TRACEABILITY",
             title = "Animal Movement",
@@ -88,17 +79,11 @@ fun AnimalMovementScreen(
                 .fillMaxWidth()
                 .padding(18.dp)
         ) {
-
-            // ---------------------------------------------------------
-            // CAPTURE MOVEMENT
-            // ---------------------------------------------------------
-
             TraceabilitySectionTitle("Movement Details")
 
             Spacer(modifier = Modifier.height(12.dp))
 
             TraceabilityCard {
-
                 TraceabilityTextField(
                     label = "Animal Tag / Reference",
                     value = animalReferenceState,
@@ -112,7 +97,7 @@ fun AnimalMovementScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 TraceabilityTextField(
-                    label = "Movement Information",
+                    label = "Movement Details",
                     value = movementState,
                     onValueChange = {
                         movementState = it
@@ -125,14 +110,15 @@ fun AnimalMovementScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                TraceabilityTextField(
+                TraceabilitySearchableDropdown(
                     label = "Responsible Worker",
                     value = workerState,
+                    options = workerOptions,
+                    icon = Icons.Outlined.Person,
                     onValueChange = {
                         workerState = it
                         onResponsibleWorkerChange(it)
-                    },
-                    icon = Icons.Outlined.Person
+                    }
                 )
             }
 
@@ -157,11 +143,9 @@ fun AnimalMovementScreen(
                             worker
                         )
 
-                        animalReferenceState = ""
                         movementState = ""
                         workerState = ""
 
-                        onAnimalReferenceChange("")
                         onMovementInformationChange("")
                         onResponsibleWorkerChange("")
                     }
@@ -176,57 +160,14 @@ fun AnimalMovementScreen(
                 onClick = onSaveClick
             )
 
-            // ---------------------------------------------------------
-            // SEARCH MOVEMENT RECORDS
-            // ---------------------------------------------------------
-
-            Spacer(modifier = Modifier.height(30.dp))
-
-            TraceabilitySectionTitle("Search Movement Records")
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            TraceabilityCard {
-
-                TraceabilityTextField(
-                    label = "Animal Tag / Reference",
-                    value = searchState,
-                    onValueChange = {
-                        searchState = it
-                        onSearchAnimalReferenceChange(it)
-                    },
-                    icon = Icons.Outlined.Search
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                TraceabilityPrimaryButton(
-                    text = "Search Animal",
-                    icon = Icons.Outlined.Search,
-                    onClick = {
-                        val reference = searchState.trim()
-
-                        if (reference.isNotBlank()) {
-                            onSearchClick(reference)
-                        }
-                    }
-                )
-            }
-
-            // ---------------------------------------------------------
-            // SEARCH RESULT
-            // ---------------------------------------------------------
-
             if (foundAnimalReference.isNotBlank()) {
-
-                Spacer(modifier = Modifier.height(26.dp))
+                Spacer(modifier = Modifier.height(30.dp))
 
                 TraceabilitySectionTitle("Movement Record")
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 TraceabilityCard {
-
                     TraceabilityInfoRow(
                         icon = Icons.Outlined.Pets,
                         title = "Animal Tag / Reference",
@@ -237,7 +178,7 @@ fun AnimalMovementScreen(
 
                     TraceabilityInfoRow(
                         icon = Icons.Outlined.EditNote,
-                        title = "Movement Information",
+                        title = "Movement Details",
                         subtitle = foundMovementInformation.ifBlank {
                             "Movement information unavailable"
                         }

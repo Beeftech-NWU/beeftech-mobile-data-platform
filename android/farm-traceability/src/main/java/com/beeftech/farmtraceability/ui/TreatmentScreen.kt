@@ -34,6 +34,7 @@ fun TreatmentsScreen(
     batchNumber: String = "",
     volumeUsed: String = "",
     cost: String = "",
+    diseaseOptions: List<String> = emptyList(),
     treatmentOptions: List<String> = emptyList(),
     onBackClick: () -> Unit = {},
     onDiseaseChange: (String) -> Unit = {},
@@ -95,14 +96,15 @@ fun TreatmentsScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             TraceabilityCard {
-                TraceabilityTextField(
+                TraceabilitySearchableDropdown(
                     label = "Disease",
                     value = diseaseState,
+                    options = diseaseOptions,
+                    icon = Icons.Outlined.Healing,
                     onValueChange = {
                         diseaseState = it
                         onDiseaseChange(it)
-                    },
-                    icon = Icons.Outlined.Healing
+                    }
                 )
             }
 
