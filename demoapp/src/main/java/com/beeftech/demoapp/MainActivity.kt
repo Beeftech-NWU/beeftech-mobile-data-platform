@@ -36,7 +36,7 @@ import com.beeftech.farmtraceability.viewmodel.TreatmentViewModelFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
+import com.beeftech.calfregistration.ui.CalfRegistrationFlow
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -313,6 +313,7 @@ class MainActivity : ComponentActivity() {
                                             .padding(innerPadding)
                                 ) {
 
+                                   CalfRegistrationFlow()
                                     FarmTraceabilityFlow(
 
                                         /*

@@ -19,7 +19,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 data class Quadruple<A, B, C, D>(
     val first: A,
     val second: B,
@@ -247,3 +253,168 @@ fun CalfSecondaryButton(text: String, onClick: () -> Unit, modifier: Modifier = 
         Text(text = text, fontWeight = FontWeight.SemiBold)
     }
 }
+
+@Composable
+fun CalfRadioGroupField(
+    label: String,
+    options: List<String>,
+    selectedValue: String,
+    onValueSelected: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    badgeLabel: String? = null
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = label.uppercase(),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.6.sp,
+                color = BeeftechPrimaryDark
+            )
+            if (badgeLabel != null) {
+                Spacer(modifier = Modifier.width(6.dp))
+                LookupTagBadge(label = badgeLabel)
+            }
+        }
+        Spacer(modifier = Modifier.height(7.dp))
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(BeeftechWhite, RoundedCornerShape(11.dp))
+                .border(1.dp, BeeftechBorder, RoundedCornerShape(11.dp))
+                .padding(vertical = 4.dp)
+        ) {
+            options.forEach { option ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .selectable(
+                            selected = (option == selectedValue),
+                            onClick = {
+                                println("RADIO TAP: $option")
+                                onValueSelected(option) },
+                            role = Role.RadioButton
+                        )
+                        .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = (option == selectedValue),
+                        onClick = null,
+                        colors = RadioButtonDefaults.colors(
+                            selectedColor = BeeftechPrimaryDeep,
+                            unselectedColor = BeeftechMutedText
+                        )
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = option,
+                        fontSize = 14.sp,
+                        fontWeight = if (option == selectedValue) FontWeight.SemiBold
+                        else FontWeight.Normal,
+                        color = BeeftechText
+                    )
+                }
+            }
+        }
+    }
+}
+@Composable
+fun CalfDropdownField(
+    label: String,
+    options: List<String>,
+    selectedValue: String,
+    onValueSelected: (String) -> Unit,
+    placeholder: String = "Select an option",
+    badgeLabel: String? = "LOOKUP",
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = label.uppercase(),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.6.sp,
+                color = BeeftechPrimaryDark
+            )
+            if (badgeLabel != null) {
+                Spacer(modifier = Modifier.width(6.dp))
+                LookupTagBadge(label = badgeLabel)
+            }
+        }
+        Spacer(modifier = Modifier.height(7.dp))
+
+        Box {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .background(BeeftechWhite, RoundedCornerShape(11.dp))
+                    .border(1.dp, BeeftechBorder, RoundedCornerShape(11.dp))
+                    .clickable(enabled = enabled) { expanded = true }
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .background(BeeftechSoftAccent, RoundedCornerShape(8.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Outlined.ListAlt,
+                        contentDescription = null,
+                        tint = BeeftechPrimaryDark,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = selectedValue.ifEmpty { placeholder },
+                    modifier = Modifier.weight(1f),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (selectedValue.isEmpty()) BeeftechMutedText else BeeftechText
+                )
+                Icon(
+                    Icons.Default.ArrowDropDown,
+                    contentDescription = "Expand",
+                    tint = BeeftechPrimaryDark
+                )
+            }
+
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.background(BeeftechWhite)
+            ) {
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = option,
+                                fontSize = 14.sp,
+                                color = BeeftechText,
+                                fontWeight = if (option == selectedValue) FontWeight.SemiBold
+                                else FontWeight.Normal
+                            )
+                        },
+                        onClick = {
+                            onValueSelected(option)
+                            expanded = false
+                        },
+                        modifier = Modifier.heightIn(min = 48.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+

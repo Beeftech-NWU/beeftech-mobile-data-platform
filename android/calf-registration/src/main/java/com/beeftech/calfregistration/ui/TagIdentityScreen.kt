@@ -23,7 +23,7 @@ fun TagIdentityScreen(
     onNextClick: () -> Unit
 ) {
     var activeLookupField by remember { mutableStateOf<String?>(null) }
-
+    println("SCREEN: gender = ${formData.gender}")
     if (activeLookupField != null) {
         val (title, options, currentVal, onSelect) = when (activeLookupField) {
             "ANIMAL_TYPE" -> Quadruple("Select Animal Type", CalfRegistrationLookups.animalTypes, formData.animalType) { selected: String ->
@@ -112,13 +112,33 @@ fun TagIdentityScreen(
             CalfSectionTitle("Calf details")
             Spacer(modifier = Modifier.height(12.dp))
             CalfCard {
-                CalfLookupDropdownField("Animal type", selectedValue = formData.animalType, onClick = { activeLookupField = "ANIMAL_TYPE" })
+                CalfDropdownField(
+                    label = "Animal type",
+                    options = CalfRegistrationLookups.animalTypes,
+                    selectedValue = formData.animalType,
+                    onValueSelected = { onFormDataChange(formData.copy(animalType = it)) }
+                )
                 Spacer(modifier = Modifier.height(16.dp))
-                CalfLookupDropdownField("Gender", selectedValue = formData.gender, onClick = { activeLookupField = "GENDER" })
+                CalfRadioGroupField(
+                    label = "Gender",
+                    options = CalfRegistrationLookups.genders,
+                    selectedValue = formData.gender,
+                    onValueSelected = { onFormDataChange(formData.copy(gender = it)) }
+                )
                 Spacer(modifier = Modifier.height(16.dp))
-                CalfLookupDropdownField("Age", selectedValue = formData.age, onClick = { activeLookupField = "AGE" })
+                CalfDropdownField(
+                    label = "Age",
+                    options = CalfRegistrationLookups.ages,
+                    selectedValue = formData.age,
+                    onValueSelected = { onFormDataChange(formData.copy(age = it)) }
+                )
                 Spacer(modifier = Modifier.height(16.dp))
-                CalfLookupDropdownField("Condition", selectedValue = formData.condition, onClick = { activeLookupField = "CONDITION" })
+                CalfDropdownField(
+                    label = "Condition",
+                    options = CalfRegistrationLookups.conditions,
+                    selectedValue = formData.condition,
+                    onValueSelected = { onFormDataChange(formData.copy(condition = it)) }
+                )
             }
 
             Spacer(modifier = Modifier.height(26.dp))

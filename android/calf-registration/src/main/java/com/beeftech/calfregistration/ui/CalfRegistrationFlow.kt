@@ -14,6 +14,7 @@ private enum class CalfFlowStep {
 fun CalfRegistrationFlow() {
     var currentStep by remember { mutableStateOf(CalfFlowStep.TAG_IDENTITY) }
     var formData by remember { mutableStateOf(CalfRegistrationData()) }
+    println("FLOW: gender = ${formData.gender}")
     var registeredCalves by remember {
         mutableStateOf(CalfRegistrationLookups.initialRegisteredCalves)
     }
