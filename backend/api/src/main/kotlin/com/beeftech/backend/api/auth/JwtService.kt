@@ -1,4 +1,4 @@
-package com.beeftech.backend.api
+package com.beeftech.backend.api.auth
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
