@@ -12,3 +12,39 @@ GET http://localhost:8081/api/profile
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImlzcyI6ImJlZWZ0ZWNoIiwiZXhwIjoxNzg5NTAxMzkyfQ.L3zYqlwNoJBBwtVzq8Iq9mOISUo7KM_AzmGAWXwxCRU
 
 ###
+
+POST http://localhost:8081/api/calf-registrations/sync
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImlzcyI6ImJlZWZ0ZWNoIiwiZXhwIjoxNzg5NTAxMzkyfQ.L3zYqlwNoJBBwtVzq8Iq9mOISUo7KM_AzmGAWXwxCRU
+
+{
+  "deviceId": "device-001",
+  "records": [
+    {
+      "animalId": "CALF-0001",
+      "birthdate": 1700000000000,
+      "breed": "Angus",
+      "damId": "DAM-0001",
+      "sireId": "SIRE-0001",
+      "photoPath": null,
+      "videoPath": null,
+      "gpsLat": -26.1234,
+      "gpsLng": 27.9876,
+      "captureAt": 1700000100000,
+      "deviceId": "device-001",
+      "recordguid": "11111111-1111-1111-1111-111111111111",
+      "syncStatus": "PENDING",
+      "syncedAt": null
+    }
+  ]
+}
+
+###
+
+GET http://localhost:8081/api/calf-registrations
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImlzcyI6ImJlZWZ0ZWNoIiwiZXhwIjoxNzg5NTAxMzkyfQ.L3zYqlwNoJBBwtVzq8Iq9mOISUo7KM_AzmGAWXwxCRU
+
+###
+
+GET http://localhost:8081/api/calf-registrations/CALF-0001
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImlzcyI6ImJlZWZ0ZWNoIiwiZXhwIjoxNzg5NTAxMzkyfQ.L3zYqlwNoJBBwtVzq8Iq9mOISUo7KM_AzmGAWXwxCRU

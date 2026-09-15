@@ -54,6 +54,7 @@ dependencies {
 
     // BeefTech modules
     implementation(project(":android:farm-traceability"))
+    implementation(project(":android:calf-registration"))
     implementation(project(":android:database"))
 
     // Room
@@ -81,4 +82,8 @@ dependencies {
 
     // Unit tests
     testImplementation("junit:junit:4.13.2")
+
+    // Instrumented tests
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
 }

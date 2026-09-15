@@ -2,7 +2,7 @@ package com.beeftech.calfregistration.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.*
-import androidx.compose.ui.tooling.preview.Preview
+import com.beeftech.calfregistration.viewmodel.CalfRegistrationViewModel
 
 private enum class CalfFlowStep {
     TAG_IDENTITY,
@@ -11,12 +11,12 @@ private enum class CalfFlowStep {
 }
 
 @Composable
-fun CalfRegistrationFlow() {
+fun CalfRegistrationFlow(
+    viewModel: CalfRegistrationViewModel
+) {
     var currentStep by remember { mutableStateOf(CalfFlowStep.TAG_IDENTITY) }
     var formData by remember { mutableStateOf(CalfRegistrationData()) }
-    var registeredCalves by remember {
-        mutableStateOf(CalfRegistrationLookups.initialRegisteredCalves)
-    }
+    val registeredCalves by viewModel.registeredCalves.collectAsState()
 
     fun goBack() {
         currentStep = when (currentStep) {
@@ -55,16 +55,14 @@ fun CalfRegistrationFlow() {
                     currentStep = CalfFlowStep.TAG_IDENTITY
                 },
                 onSaveAndNextClick = {
-                    // Save calf to session list
-                    val newCalf = formData.copy(synced = false)
-                    registeredCalves = listOf(newCalf) + registeredCalves
-
-                    // Reset form and navigate to session list
-                    formData = CalfRegistrationData(
-                        tagNumber = "RMB${(25426..25499).random()}",
-                        transponderNumber = "${(41..99).random()}"
-                    )
-                    currentStep = CalfFlowStep.SESSION_LIST
+                    viewModel.saveCalf(formData) { _, _ ->
+                        // Reset form and navigate to session list, same as before.
+                        formData = CalfRegistrationData(
+                            tagNumber = "RMB${(25426..25499).random()}",
+                            transponderNumber = "${(41..99).random()}"
+                        )
+                        currentStep = CalfFlowStep.SESSION_LIST
+                    }
                 }
             )
         }
@@ -89,10 +87,4 @@ fun CalfRegistrationFlow() {
             )
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun CalfRegistrationFlowPreview() {
-    CalfRegistrationFlow()
 }

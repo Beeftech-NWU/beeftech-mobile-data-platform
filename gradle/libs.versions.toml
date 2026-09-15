@@ -8,7 +8,10 @@ espressoCore = "3.7.0"
 lifecycleRuntimeKtx = "2.11.0"
 activityCompose = "1.13.0"
 composeBom = "2026.02.01"
-lifecycleLivedataCoreKtx = "2.11.0"
+# Pinned below 2.9.x: androidx.lifecycle aligns all lifecycle artifacts
+# in the graph to this version, and 2.11.0 requires compileSdk 37 /
+# AGP 9.1.0, which this project does not yet use.
+lifecycleLivedataCoreKtx = "2.8.7"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }

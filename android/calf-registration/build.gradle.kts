@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 android {
@@ -28,6 +29,9 @@ android {
 }
 
 dependencies {
+    // BeefTech encrypted database
+    implementation(project(":android:database"))
+
     implementation(platform("androidx.compose:compose-bom:2024.02.00"))
 
     implementation("androidx.compose.ui:ui")
@@ -43,7 +47,21 @@ dependencies {
 
     implementation("androidx.activity:activity-compose:1.9.0")
 
+    // ViewModel
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+
+    // Ktor client (for calf-registration sync)
+    implementation("io.ktor:ktor-client-core:3.0.3")
+    implementation("io.ktor:ktor-client-okhttp:3.0.3")
+    implementation("io.ktor:ktor-client-content-negotiation:3.0.3")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.3")
+
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+
     testImplementation("junit:junit:4.13.2")
+    testImplementation("io.ktor:ktor-client-mock:3.0.3")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
 
     androidTestImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
