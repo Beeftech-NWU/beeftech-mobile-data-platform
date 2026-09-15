@@ -11,7 +11,10 @@ object DatabaseFactory {
 
         val filePath = jdbcUrl.removePrefix("jdbc:sqlite:")
 
-        if (filePath != ":memory:" && !filePath.contains(":memory:")) {
+        // Skip directory creation for in-memory databases (e.g. ":memory:",
+        // or SQLite's shared-cache "file::memory:?cache=shared" form) - there
+        // is no file on disk to create a parent directory for.
+        if (!filePath.contains(":memory:")) {
 
             File(filePath).parentFile?.mkdirs()
         }

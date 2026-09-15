@@ -39,14 +39,15 @@ class CalfRegistrationViewModel(
     ) {
         viewModelScope.launch {
             try {
-                val saved = repository.saveCalf(formData)
+                val outcome = repository.saveCalf(formData)
 
                 _registeredCalves.value = repository.loadAll()
 
-                if (saved.synced) {
+                if (outcome.data.synced) {
                     onResult(true, "Calf registration saved and synced successfully.")
                 } else {
-                    onResult(true, "Calf registration saved locally. Will sync when possible.")
+                    val reason = outcome.syncErrorMessage?.let { " ($it)" } ?: ""
+                    onResult(true, "Calf registration saved locally. Will sync when possible.$reason")
                 }
             } catch (exception: Exception) {
                 onResult(false, "Unable to save calf registration.")

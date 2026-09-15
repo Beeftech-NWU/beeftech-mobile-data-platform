@@ -79,7 +79,7 @@ class CalfRegistrationRepositoryTest {
 
         val saved = repository.saveCalf(formData)
 
-        assertTrue(saved.synced)
+        assertTrue(saved.data.synced)
         assertTrue(calfDao.existsByAnimalId("RMB12345"))
 
         val persisted = calfDao.findByAnimalId("RMB12345")
@@ -102,7 +102,8 @@ class CalfRegistrationRepositoryTest {
         val saved = repository.saveCalf(formData)
 
         assertTrue(calfDao.existsByAnimalId("RMB99999"))
-        assertEquals(false, saved.synced)
+        assertEquals(false, saved.data.synced)
+        assertTrue(saved.syncErrorMessage?.isNotBlank() == true)
     }
 
     @Test
@@ -146,9 +147,9 @@ class CalfRegistrationRepositoryTest {
             apiClient = successfulApiClient()
         )
 
-        val syncedCount = onlineRepository.syncPending()
+        val syncOutcome = onlineRepository.syncPending()
 
-        assertEquals(1, syncedCount)
+        assertEquals(1, syncOutcome.syncedCount)
         assertEquals(SYNC_STATUS_SYNCED, calfDao.findByAnimalId("RMB12345")?.syncStatus)
     }
 

@@ -117,4 +117,68 @@ class CalfRegistrationApiClientTest {
 
         assertTrue(result.isFailure)
     }
+
+    @Test
+    fun `syncCalves re-logs in once and retries when the server reports the token as unauthorized`() = runTest {
+        var loginAttempts = 0
+        var syncAttempts = 0
+
+        val mockEngine = MockEngine { request ->
+            when {
+                request.url.encodedPath.endsWith("/api/auth/login") -> {
+                    loginAttempts++
+
+                    respond(
+                        content = """
+                            {"success":true,"message":"Login successful","data":{"token":"token-$loginAttempts"}}
+                        """.trimIndent(),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json")
+                    )
+                }
+
+                request.url.encodedPath.endsWith("/api/calf-registrations/sync") -> {
+                    syncAttempts++
+
+                    if (syncAttempts == 1) {
+                        // Simulate the server rejecting the (freshly-obtained)
+                        // token, e.g. because it expired unusually fast.
+                        respond(
+                            content = """{"success":false,"message":"Invalid token","data":null}""",
+                            status = HttpStatusCode.Unauthorized,
+                            headers = headersOf(HttpHeaders.ContentType, "application/json")
+                        )
+                    } else {
+                        respond(
+                            content = """
+                                {"success":true,"message":"Sync complete","data":{"results":[
+                                    {"recordguid":"guid-1","animalId":"RMB12345","status":"SYNCED","serverSyncedAt":999,"message":null}
+                                ]}}
+                            """.trimIndent(),
+                            status = HttpStatusCode.OK,
+                            headers = headersOf(HttpHeaders.ContentType, "application/json")
+                        )
+                    }
+                }
+
+                else -> error("Unhandled request: ${request.url}")
+            }
+        }
+
+        val httpClient = HttpClient(mockEngine) {
+            install(ContentNegotiation) { json() }
+        }
+
+        val apiClient = CalfRegistrationApiClient(
+            baseUrl = "http://test-host/",
+            httpClient = httpClient
+        )
+
+        val result = apiClient.syncCalves(listOf(buildCalf()), deviceId = "TEST-DEVICE")
+
+        assertTrue(result.isSuccess)
+        assertEquals(2, loginAttempts)
+        assertEquals(2, syncAttempts)
+        assertEquals("SYNCED", result.getOrThrow().results.first().status)
+    }
 }

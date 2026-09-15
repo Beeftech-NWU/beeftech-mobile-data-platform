@@ -7,6 +7,14 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.sql.update
 
+/**
+ * Note on query style: `Table.selectAll().where { ... }` (rather than the
+ * older `Table.select { ... }`) is intentional, not a stray refactor -
+ * the predicate-taking `select { ... }` overload is deprecated (at
+ * `DeprecationLevel.ERROR`, i.e. it no longer compiles) as of the Exposed
+ * version pinned in this project (0.56.0). `selectAll().where { ... }` is
+ * the current, supported replacement.
+ */
 class CalfRegistrationRepository {
 
     private fun ResultRow.toDto(): CalfRegistrationDto {
