@@ -10,15 +10,24 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import com.beeftech.calfregistration.ui.CalfRegistrationFlow
+import com.beeftech.calfregistration.viewmodel.CalfRegistrationViewModel
+import com.beeftech.calfregistration.viewmodel.CalfRegistrationViewModelFactory
 import com.beeftech.database.DatabaseProvider
 import com.beeftech.database.DatabaseResult
 import com.beeftech.database.entity.CalfRegistration
+import com.beeftech.database.repository.PendingSyncRepository
 import com.beeftech.demoapp.ui.theme.BeeftechTheme
 import com.beeftech.farmtraceability.ui.FarmTraceabilityFlow
 import com.beeftech.farmtraceability.viewmodel.AnimalMovementViewModel
@@ -247,7 +256,27 @@ class MainActivity : ComponentActivity() {
                         )[LocationFeedViewModel::class.java]
 
                     /*
-                     * Start Farm Traceability UI
+                     * Calf Registration setup
+                     */
+                    val calfRegistrationViewModelFactory =
+                        CalfRegistrationViewModelFactory(
+                            calfRegistrationDao =
+                                database.calfRegistrationDao(),
+
+                            pendingSyncRepository =
+                                PendingSyncRepository(
+                                    database.pendingSyncDao()
+                                )
+                        )
+
+                    val calfRegistrationViewModel =
+                        ViewModelProvider(
+                            this@MainActivity,
+                            calfRegistrationViewModelFactory
+                        )[CalfRegistrationViewModel::class.java]
+
+                    /*
+                     * Start demo UI
                      */
                     setContent {
 
@@ -301,9 +330,31 @@ class MainActivity : ComponentActivity() {
                                 .records
                                 .collectAsState()
 
+                            var selectedDemoTab by
+                                remember { mutableIntStateOf(0) }
+
                             Scaffold(
                                 modifier =
-                                    Modifier.fillMaxSize()
+                                    Modifier.fillMaxSize(),
+
+                                topBar = {
+                                    TabRow(
+                                        selectedTabIndex =
+                                            selectedDemoTab
+                                    ) {
+                                        Tab(
+                                            selected = selectedDemoTab == 0,
+                                            onClick = { selectedDemoTab = 0 },
+                                            text = { Text("Farm Traceability") }
+                                        )
+
+                                        Tab(
+                                            selected = selectedDemoTab == 1,
+                                            onClick = { selectedDemoTab = 1 },
+                                            text = { Text("Calf Registration") }
+                                        )
+                                    }
+                                }
                             ) { innerPadding ->
 
                                 Box(
@@ -312,6 +363,14 @@ class MainActivity : ComponentActivity() {
                                             .fillMaxSize()
                                             .padding(innerPadding)
                                 ) {
+
+                                  if (selectedDemoTab == 1) {
+
+                                    CalfRegistrationFlow(
+                                        viewModel = calfRegistrationViewModel
+                                    )
+
+                                  } else {
 
                                     FarmTraceabilityFlow(
 
@@ -605,6 +664,8 @@ class MainActivity : ComponentActivity() {
                                                 )
                                         }
                                     )
+
+                                  }
                                 }
                             }
                         }

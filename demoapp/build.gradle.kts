@@ -54,6 +54,7 @@ dependencies {
 
     // BeefTech modules
     implementation(project(":android:farm-traceability"))
+    implementation(project(":android:calf-registration"))
     implementation(project(":android:database"))
 
     // Room

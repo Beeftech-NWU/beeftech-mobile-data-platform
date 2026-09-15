@@ -24,6 +24,12 @@ fun main() {
 
 fun Application.module() {
 
+    val jdbcUrl =
+        System.getProperty("beeftech.db.url")
+            ?: "jdbc:sqlite:./data/beeftech-backend.db"
+
+    DatabaseFactory.init(jdbcUrl)
+
     install(ContentNegotiation) {
         json()
     }
@@ -31,7 +37,12 @@ fun Application.module() {
     val jwtService = JwtService()
     val authService = AuthService(jwtService)
 
+    val calfRegistrationRepository = CalfRegistrationRepository()
+    val calfRegistrationService = CalfRegistrationService(calfRegistrationRepository)
+
     routing {
+
+        calfRegistrationRoutes(jwtService, calfRegistrationService)
 
         get("/") {
             call.respondText("BeefTech Backend API is running")
@@ -94,43 +105,8 @@ fun Application.module() {
 
         get("/api/profile") {
 
-            val authHeader =
-                call.request.headers["Authorization"]
-
-            if (
-                authHeader == null ||
-                !authHeader.startsWith("Bearer ")
-            ) {
-
-                call.respond(
-                    HttpStatusCode.Unauthorized,
-                    ApiResponse<String>(
-                        success = false,
-                        message = "Missing token"
-                    )
-                )
-
-                return@get
-            }
-
-            val token =
-                authHeader.removePrefix("Bearer ")
-
             val username =
-                jwtService.validateToken(token)
-
-            if (username == null) {
-
-                call.respond(
-                    HttpStatusCode.Unauthorized,
-                    ApiResponse<String>(
-                        success = false,
-                        message = "Invalid token"
-                    )
-                )
-
-                return@get
-            }
+                call.requireBearerToken(jwtService) ?: return@get
 
             call.respond(
                 ApiResponse(
