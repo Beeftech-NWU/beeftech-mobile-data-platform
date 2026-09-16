@@ -1,3 +1,6 @@
+@host = http://localhost:8081
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImlzcyI6ImJlZWZ0ZWNoIiwiZXhwIjoxNzg5NjYzODk4fQ.03ZG2ys32eFep3hQSiA7WdaGzci6kNNv6k9wONTI1ww
+
 POST http://localhost:8081/api/auth/login
 Content-Type: application/json
 
@@ -8,11 +11,11 @@ Content-Type: application/json
 
 ###
 
-GET http://localhost:8081/api/profile
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImlzcyI6ImJlZWZ0ZWNoIiwiZXhwIjoxNzg5NjYzODk4fQ.03ZG2ys32eFep3hQSiA7WdaGzci6kNNv6k9wONTI1ww
+GET {{host}}/api/profile
+Authorization: Bearer {{token}}
 ###
 
-POST http://localhost:8081/api/auth/register
+POST {{host}}/api/auth/register
 Content-Type: application/json
 
 {
@@ -22,9 +25,9 @@ Content-Type: application/json
 
 ###
 
-POST http://localhost:8081/api/calf-registrations/sync
+POST {{host}}/api/calf-registrations/sync
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImlzcyI6ImJlZWZ0ZWNoIiwiZXhwIjoxNzg5NjYzODk4fQ.03ZG2ys32eFep3hQSiA7WdaGzci6kNNv6k9wONTI1ww
+Authorization: Bearer {{token}}
 
 {
   "deviceId": "device-001",
@@ -50,10 +53,35 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsI
 
 ###
 
-GET http://localhost:8081/api/calf-registrations
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImlzcyI6ImJlZWZ0ZWNoIiwiZXhwIjoxNzg5NjYzODk4fQ.03ZG2ys32eFep3hQSiA7WdaGzci6kNNv6k9wONTI1ww
+GET {{host}}/api/calf-registrations
+Authorization: Bearer {{token}}
 
 ###
 
-GET http://localhost:8081/api/calf-registrations/CALF-0001
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImlzcyI6ImJlZWZ0ZWNoIiwiZXhwIjoxNzg5NjYzODk4fQ.03ZG2ys32eFep3hQSiA7WdaGzci6kNNv6k9wONTI1ww
+GET {{host}}/api/calf-registrations/CALF-0001
+Authorization: Bearer {{token}}
+
+#################################################
+#Feed Crib Tests
+#################################################
+
+POST {{host}}/api/feed-crib
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "penName": "A06",
+  "adiValue": 11.06,
+  "morning": "123",
+  "midDay": "",
+  "evening": "",
+  "timestamp": 1726500000000
+}
+
+###
+GET {{host}}/api/feed-crib
+Authorization: Bearer {{token}}
+
+###
+GET {{host}}/api/feed-crib/A06
+Authorization: Bearer {{token}}

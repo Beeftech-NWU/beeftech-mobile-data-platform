@@ -3,6 +3,8 @@ package com.beeftech.backend.api
 import com.beeftech.backend.api.auth.AuthService
 import com.beeftech.backend.api.auth.JwtService
 import com.beeftech.backend.api.auth.authRoutes
+import com.beeftech.backend.api.feedcrib.FeedCribService
+import com.beeftech.backend.api.feedcrib.feedCribRoutes
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
@@ -41,11 +43,15 @@ fun Application.module() {
     val calfRegistrationRepository = CalfRegistrationRepository()
     val calfRegistrationService = CalfRegistrationService(calfRegistrationRepository)
 
+    val feedCribService = FeedCribService()
+
     routing {
 
         authRoutes(authService, jwtService)
 
         calfRegistrationRoutes(jwtService, calfRegistrationService)
+
+        feedCribRoutes(jwtService, feedCribService)
 
         get("/") {
             call.respondText("BeefTech Backend API is running")
