@@ -9,13 +9,22 @@ Content-Type: application/json
 ###
 
 GET http://localhost:8081/api/profile
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImlzcyI6ImJlZWZ0ZWNoIiwiZXhwIjoxNzg5NTAxMzkyfQ.L3zYqlwNoJBBwtVzq8Iq9mOISUo7KM_AzmGAWXwxCRU
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImlzcyI6ImJlZWZ0ZWNoIiwiZXhwIjoxNzg5NjYzODk4fQ.03ZG2ys32eFep3hQSiA7WdaGzci6kNNv6k9wONTI1ww
+###
+
+POST http://localhost:8081/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "password123"
+}
 
 ###
 
 POST http://localhost:8081/api/calf-registrations/sync
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImlzcyI6ImJlZWZ0ZWNoIiwiZXhwIjoxNzg5NTAxMzkyfQ.L3zYqlwNoJBBwtVzq8Iq9mOISUo7KM_AzmGAWXwxCRU
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImlzcyI6ImJlZWZ0ZWNoIiwiZXhwIjoxNzg5NjYzODk4fQ.03ZG2ys32eFep3hQSiA7WdaGzci6kNNv6k9wONTI1ww
 
 {
   "deviceId": "device-001",
@@ -42,9 +51,9 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsI
 ###
 
 GET http://localhost:8081/api/calf-registrations
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImlzcyI6ImJlZWZ0ZWNoIiwiZXhwIjoxNzg5NTAxMzkyfQ.L3zYqlwNoJBBwtVzq8Iq9mOISUo7KM_AzmGAWXwxCRU
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImlzcyI6ImJlZWZ0ZWNoIiwiZXhwIjoxNzg5NjYzODk4fQ.03ZG2ys32eFep3hQSiA7WdaGzci6kNNv6k9wONTI1ww
 
 ###
 
 GET http://localhost:8081/api/calf-registrations/CALF-0001
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImlzcyI6ImJlZWZ0ZWNoIiwiZXhwIjoxNzg5NTAxMzkyfQ.L3zYqlwNoJBBwtVzq8Iq9mOISUo7KM_AzmGAWXwxCRU
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImlzcyI6ImJlZWZ0ZWNoIiwiZXhwIjoxNzg5NjYzODk4fQ.03ZG2ys32eFep3hQSiA7WdaGzci6kNNv6k9wONTI1ww
