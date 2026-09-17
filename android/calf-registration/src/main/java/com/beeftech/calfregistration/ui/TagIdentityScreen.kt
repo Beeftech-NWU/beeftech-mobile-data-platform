@@ -1,20 +1,29 @@
 package com.beeftech.calfregistration.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Pets
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.outlined.Tag
+import androidx.compose.material.icons.outlined.Warning
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.beeftech.calfregistration.util.TagColour
+import com.beeftech.calfregistration.util.TagNamingUtils
 
 @Composable
 fun TagIdentityScreen(
@@ -23,6 +32,13 @@ fun TagIdentityScreen(
     onNextClick: () -> Unit
 ) {
     var activeLookupField by remember { mutableStateOf<String?>(null) }
+
+    val extractedComponents = remember(formData.tagNumber) {
+        TagNamingUtils.extractComponents(formData.tagNumber)
+    }
+    val currentColour = extractedComponents?.first ?: TagColour.BLUE
+    val currentSequence = extractedComponents?.second ?: ""
+    val isTagValid = TagNamingUtils.validateTag(formData.tagNumber)
 
     if (activeLookupField != null) {
         val (title, options, currentVal, onSelect) = when (activeLookupField) {
@@ -76,16 +92,153 @@ fun TagIdentityScreen(
         )
 
         Column(modifier = Modifier.fillMaxWidth().padding(18.dp)) {
-            CalfSectionTitle("Tag identity")
+            CalfSectionTitle("Ear Tag Naming Standard")
             Spacer(modifier = Modifier.height(12.dp))
             CalfCard {
-                CalfTextField(
-                    label = "Tag number",
-                    value = formData.tagNumber,
-                    onValueChange = { onFormDataChange(formData.copy(tagNumber = it)) },
-                    placeholder = "e.g. RMB25423",
-                    supportingText = "As shown on the tag to be inserted"
+                Text(
+                    text = "TAG COLOUR",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.6.sp,
+                    color = BeeftechPrimaryDark
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    TagColour.entries.forEach { colour ->
+                        val isSelected = currentColour == colour
+                        val chipBgColor = when (colour) {
+                            TagColour.BLUE -> Color(0xFFE3F2FD)
+                            TagColour.RED -> Color(0xFFFFEBEE)
+                            TagColour.GREEN -> Color(0xFFE8F5E9)
+                            TagColour.YELLOW -> Color(0xFFFFFDE7)
+                        }
+                        val chipTextColor = when (colour) {
+                            TagColour.BLUE -> Color(0xFF0D47A1)
+                            TagColour.RED -> Color(0xFFB71C1C)
+                            TagColour.GREEN -> Color(0xFF1B5E20)
+                            TagColour.YELLOW -> Color(0xFFF57F17)
+                        }
+
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable {
+                                    val seqNum = currentSequence.toLongOrNull() ?: 64L
+                                    val updatedTag = TagNamingUtils.formatTag(colour, seqNum)
+                                    onFormDataChange(formData.copy(tagNumber = updatedTag))
+                                },
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (isSelected) chipBgColor else BeeftechWhite,
+                            border = BorderStroke(
+                                width = if (isSelected) 2.dp else 1.dp,
+                                color = if (isSelected) chipTextColor else BeeftechBorder
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(vertical = 10.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(10.dp)
+                                        .background(chipTextColor, CircleShape)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = colour.prefix,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) chipTextColor else BeeftechText
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                CalfTextField(
+                    label = "Tag sequence or shorthand (e.g. 64 or B64)",
+                    value = formData.tagNumber,
+                    onValueChange = { input ->
+                        val expanded = TagNamingUtils.parseAndExpand(input)
+                        onFormDataChange(formData.copy(tagNumber = expanded))
+                    },
+                    placeholder = "e.g. 64 or B64 or Blu0000064",
+                    supportingText = "Accepts quick search codes like B64, R123, G45, Y78",
+                    icon = Icons.Outlined.Tag
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                val badgeBgColor = when (currentColour) {
+                    TagColour.BLUE -> Color(0xFF1565C0)
+                    TagColour.RED -> Color(0xFFC62828)
+                    TagColour.GREEN -> Color(0xFF2E7D32)
+                    TagColour.YELLOW -> Color(0xFFF57F17)
+                }
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = badgeBgColor.copy(alpha = 0.08f)),
+                    border = BorderStroke(1.dp, badgeBgColor.copy(alpha = 0.3f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = badgeBgColor
+                        ) {
+                            Text(
+                                text = currentColour.prefix.uppercase(),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Standard Ear Tag ID",
+                                fontSize = 10.sp,
+                                color = BeeftechMutedText,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = formData.tagNumber,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = BeeftechText
+                            )
+                        }
+                        if (isTagValid) {
+                            Icon(
+                                imageVector = Icons.Outlined.CheckCircle,
+                                contentDescription = "Valid Tag",
+                                tint = Color(0xFF2E7D32),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Outlined.Warning,
+                                contentDescription = "Invalid Tag",
+                                tint = Color(0xFFC62828),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(16.dp))
                 CalfTextField(
                     label = "Old tag number",
