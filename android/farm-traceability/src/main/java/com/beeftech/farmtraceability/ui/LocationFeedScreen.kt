@@ -39,6 +39,8 @@ fun LocationFeedScreen(
     rationName: String = "",
     rationDays: String = "",
     rationCost: String = "",
+    destinationOptions: List<String> = emptyList(),
+    rationOptions: List<String> = emptyList(),
     locationFeedRecords: List<LocationFeed> = emptyList(),
     onBackClick: () -> Unit = {},
     onDestinationChange: (String) -> Unit = {},
@@ -55,7 +57,6 @@ fun LocationFeedScreen(
         rationCost: String
     ) -> Unit = { _, _, _, _, _ -> }
 ) {
-
     var destinationState by remember(destination) {
         mutableStateOf(destination)
     }
@@ -80,18 +81,22 @@ fun LocationFeedScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(BeeftechBackground)
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(
+                rememberScrollState()
+            )
     ) {
-
         TraceabilityHeader(
-            eyebrow = if (animalReference.isBlank()) {
-                "ANIMAL"
-            } else {
-                "ANIMAL $animalReference"
-            },
+            eyebrow =
+                if (animalReference.isBlank()) {
+                    "FARM TRACEABILITY"
+                } else {
+                    "ANIMAL $animalReference"
+                },
             title = "Location & Feed",
-            subtitle = "Destination and ration information",
-            icon = Icons.Outlined.LocationOn,
+            subtitle =
+                "Destination and ration information",
+            icon =
+                Icons.Outlined.LocationOn,
             showBackButton = true,
             onBackClick = onBackClick
         )
@@ -101,68 +106,79 @@ fun LocationFeedScreen(
                 .fillMaxWidth()
                 .padding(18.dp)
         ) {
-
             TraceabilitySectionTitle(
-                "Location"
+                title = "Location"
             )
 
             Spacer(
-                modifier = Modifier.height(12.dp)
+                modifier =
+                    Modifier.height(12.dp)
             )
 
             TraceabilityCard {
-
-                TraceabilityTextField(
+                TraceabilitySearchableDropdown(
                     label = "Destination",
                     value = destinationState,
+                    options =
+                        destinationOptions,
+                    icon =
+                        Icons.Outlined.LocationOn,
                     onValueChange = {
                         destinationState = it
                         onDestinationChange(it)
-                    },
-                    icon = Icons.Outlined.LocationOn
+                    }
                 )
 
                 Spacer(
-                    modifier = Modifier.height(16.dp)
+                    modifier =
+                        Modifier.height(16.dp)
                 )
 
                 TraceabilityTextField(
-                    label = "Days in Destination",
+                    label =
+                        "Days in Destination",
                     value = daysState,
                     onValueChange = {
                         daysState = it
-                        onDaysInDestinationChange(it)
+                        onDaysInDestinationChange(
+                            it
+                        )
                     },
-                    icon = Icons.Outlined.Numbers
+                    icon =
+                        Icons.Outlined.Numbers
                 )
             }
 
             Spacer(
-                modifier = Modifier.height(24.dp)
+                modifier =
+                    Modifier.height(24.dp)
             )
 
             TraceabilitySectionTitle(
-                "On Ration"
+                title = "Ration Entry"
             )
 
             Spacer(
-                modifier = Modifier.height(12.dp)
+                modifier =
+                    Modifier.height(12.dp)
             )
 
             TraceabilityCard {
-
-                TraceabilityTextField(
-                    label = "Ration Name",
+                TraceabilityDropdown(
+                    label = "Ration",
                     value = rationNameState,
+                    options = rationOptions,
+                    icon =
+                        Icons.Outlined.Restaurant,
                     onValueChange = {
                         rationNameState = it
                         onRationNameChange(it)
-                    },
-                    icon = Icons.Outlined.Restaurant
+                    }
                 )
 
                 Spacer(
-                    modifier = Modifier.height(16.dp)
+                    modifier =
+                        Modifier.height(16.dp)
                 )
 
                 TraceabilityTextField(
@@ -172,11 +188,13 @@ fun LocationFeedScreen(
                         rationDaysState = it
                         onRationDaysChange(it)
                     },
-                    icon = Icons.Outlined.Numbers
+                    icon =
+                        Icons.Outlined.Numbers
                 )
 
                 Spacer(
-                    modifier = Modifier.height(16.dp)
+                    modifier =
+                        Modifier.height(16.dp)
                 )
 
                 TraceabilityTextField(
@@ -186,29 +204,36 @@ fun LocationFeedScreen(
                         rationCostState = it
                         onRationCostChange(it)
                     },
-                    icon = Icons.Outlined.Payments
+                    icon =
+                        Icons.Outlined.Payments
                 )
 
                 Spacer(
-                    modifier = Modifier.height(18.dp)
+                    modifier =
+                        Modifier.height(18.dp)
                 )
 
                 TraceabilitySecondaryButton(
-                    text = "Add Ration Entry",
-                    icon = Icons.Outlined.Add,
-                    onClick = onAddRationClick
+                    text =
+                        "Add Ration Entry",
+                    icon =
+                        Icons.Outlined.Add,
+                    onClick =
+                        onAddRationClick
                 )
             }
 
             Spacer(
-                modifier = Modifier.height(26.dp)
+                modifier =
+                    Modifier.height(26.dp)
             )
 
             TraceabilityPrimaryButton(
-                text = "Save Location & Feed",
-                icon = Icons.Outlined.Save,
+                text =
+                    "Save Location & Feed",
+                icon =
+                    Icons.Outlined.Save,
                 onClick = {
-
                     onSaveClick(
                         destinationState,
                         daysState,
@@ -220,7 +245,8 @@ fun LocationFeedScreen(
             )
 
             Spacer(
-                modifier = Modifier.height(30.dp)
+                modifier =
+                    Modifier.height(30.dp)
             )
 
             TraceabilitySectionTitle(
@@ -228,13 +254,14 @@ fun LocationFeedScreen(
             )
 
             Spacer(
-                modifier = Modifier.height(12.dp)
+                modifier =
+                    Modifier.height(12.dp)
             )
 
-            if (locationFeedRecords.isEmpty()) {
-
+            if (
+                locationFeedRecords.isEmpty()
+            ) {
                 TraceabilityCard {
-
                     Text(
                         text =
                             "No location and feed records found.",
@@ -242,87 +269,96 @@ fun LocationFeedScreen(
                             BeeftechMutedText
                     )
                 }
-
             } else {
+                locationFeedRecords
+                    .forEach { record ->
 
-                locationFeedRecords.forEach { record ->
-
-                    TraceabilityCard {
-
-                        Text(
-                            text =
-                                record.destination,
-                            fontWeight =
-                                FontWeight.Bold,
-                            color =
-                                BeeftechText
-                        )
-
-                        Spacer(
-                            modifier =
-                                Modifier.height(6.dp)
-                        )
-
-                        Text(
-                            text =
-                                "Days in destination: " +
-                                        record.daysInDestination,
-                            color =
-                                BeeftechMutedText
-                        )
-
-                        Text(
-                            text =
-                                "Ration: ${record.rationName}",
-                            color =
-                                BeeftechMutedText
-                        )
-
-                        Text(
-                            text =
-                                "Ration days: ${record.rationDays}",
-                            color =
-                                BeeftechMutedText
-                        )
-
-                        Text(
-                            text =
-                                "Ration cost: R%.2f"
-                                    .format(record.rationCost),
-                            color =
-                                BeeftechMutedText
-                        )
-
-                        Spacer(
-                            modifier =
-                                Modifier.height(5.dp)
-                        )
-
-                        val formattedDate =
-                            SimpleDateFormat(
-                                "dd MMM yyyy HH:mm",
-                                Locale.getDefault()
-                            ).format(
-                                Date(record.timestamp)
+                        TraceabilityCard {
+                            Text(
+                                text =
+                                    record.destination,
+                                fontWeight =
+                                    FontWeight.Bold,
+                                color =
+                                    BeeftechText
                             )
 
-                        Text(
-                            text =
-                                formattedDate,
-                            color =
-                                BeeftechMutedText
+                            Spacer(
+                                modifier =
+                                    Modifier.height(
+                                        6.dp
+                                    )
+                            )
+
+                            Text(
+                                text =
+                                    "Days in destination: ${record.daysInDestination}",
+                                color =
+                                    BeeftechMutedText
+                            )
+
+                            Text(
+                                text =
+                                    "Ration: ${record.rationName}",
+                                color =
+                                    BeeftechMutedText
+                            )
+
+                            Text(
+                                text =
+                                    "Ration days: ${record.rationDays}",
+                                color =
+                                    BeeftechMutedText
+                            )
+
+                            Text(
+                                text =
+                                    "Ration cost: R%.2f"
+                                        .format(
+                                            record.rationCost
+                                        ),
+                                color =
+                                    BeeftechMutedText
+                            )
+
+                            Spacer(
+                                modifier =
+                                    Modifier.height(
+                                        5.dp
+                                    )
+                            )
+
+                            val formattedDate =
+                                SimpleDateFormat(
+                                    "dd MMM yyyy HH:mm",
+                                    Locale
+                                        .getDefault()
+                                ).format(
+                                    Date(
+                                        record.timestamp
+                                    )
+                                )
+
+                            Text(
+                                text =
+                                    formattedDate,
+                                color =
+                                    BeeftechMutedText
+                            )
+                        }
+
+                        Spacer(
+                            modifier =
+                                Modifier.height(
+                                    12.dp
+                                )
                         )
                     }
-
-                    Spacer(
-                        modifier =
-                            Modifier.height(12.dp)
-                    )
-                }
             }
 
             Spacer(
-                modifier = Modifier.height(30.dp)
+                modifier =
+                    Modifier.height(30.dp)
             )
         }
     }
@@ -331,6 +367,5 @@ fun LocationFeedScreen(
 @Preview(showBackground = true)
 @Composable
 private fun LocationFeedScreenPreview() {
-
     LocationFeedScreen()
 }

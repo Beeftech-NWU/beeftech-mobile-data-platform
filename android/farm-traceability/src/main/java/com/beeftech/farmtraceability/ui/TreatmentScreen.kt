@@ -40,6 +40,8 @@ fun TreatmentsScreen(
     batchNumber: String = "",
     volumeUsed: String = "",
     cost: String = "",
+    diseaseOptions: List<String> = emptyList(),
+    treatmentOptions: List<String> = emptyList(),
     treatmentRecords: List<Treatment> = emptyList(),
     onBackClick: () -> Unit = {},
     onDiseaseChange: (String) -> Unit = {},
@@ -56,7 +58,6 @@ fun TreatmentsScreen(
         cost: String
     ) -> Unit = { _, _, _, _, _ -> }
 ) {
-
     var diseaseState by remember(disease) {
         mutableStateOf(disease)
     }
@@ -83,15 +84,14 @@ fun TreatmentsScreen(
             .background(BeeftechBackground)
             .verticalScroll(rememberScrollState())
     ) {
-
         TraceabilityHeader(
             eyebrow = if (animalReference.isBlank()) {
-                "ANIMAL"
+                "FARM TRACEABILITY"
             } else {
                 "ANIMAL $animalReference"
             },
             title = "Treatments",
-            subtitle = "Disease and medication records",
+            subtitle = "Disease and treatment information",
             icon = Icons.Outlined.Medication,
             showBackButton = true,
             onBackClick = onBackClick
@@ -102,23 +102,24 @@ fun TreatmentsScreen(
                 .fillMaxWidth()
                 .padding(18.dp)
         ) {
-
-            TraceabilitySectionTitle("Disease")
+            TraceabilitySectionTitle(
+                title = "Disease"
+            )
 
             Spacer(
                 modifier = Modifier.height(12.dp)
             )
 
             TraceabilityCard {
-
-                TraceabilityTextField(
+                TraceabilitySearchableDropdown(
                     label = "Disease",
                     value = diseaseState,
+                    options = diseaseOptions,
+                    icon = Icons.Outlined.Healing,
                     onValueChange = {
                         diseaseState = it
                         onDiseaseChange(it)
-                    },
-                    icon = Icons.Outlined.Healing
+                    }
                 )
             }
 
@@ -126,22 +127,24 @@ fun TreatmentsScreen(
                 modifier = Modifier.height(24.dp)
             )
 
-            TraceabilitySectionTitle("Medication")
+            TraceabilitySectionTitle(
+                title = "Treatment"
+            )
 
             Spacer(
                 modifier = Modifier.height(12.dp)
             )
 
             TraceabilityCard {
-
-                TraceabilityTextField(
-                    label = "Treatment",
+                TraceabilityDropdown(
+                    label = "Treatment Type",
                     value = treatmentState,
+                    options = treatmentOptions,
+                    icon = Icons.Outlined.Medication,
                     onValueChange = {
                         treatmentState = it
                         onTreatmentChange(it)
-                    },
-                    icon = Icons.Outlined.Medication
+                    }
                 )
 
                 Spacer(
@@ -228,21 +231,15 @@ fun TreatmentsScreen(
             )
 
             if (treatmentRecords.isEmpty()) {
-
                 TraceabilityCard {
-
                     Text(
                         text = "No treatment records found.",
                         color = BeeftechMutedText
                     )
                 }
-
             } else {
-
                 treatmentRecords.forEach { record ->
-
                     TraceabilityCard {
-
                         Text(
                             text = record.disease,
                             fontWeight = FontWeight.Bold,
@@ -254,26 +251,22 @@ fun TreatmentsScreen(
                         )
 
                         Text(
-                            text =
-                                "Treatment: ${record.treatmentName}",
+                            text = "Treatment: ${record.treatmentName}",
                             color = BeeftechMutedText
                         )
 
                         Text(
-                            text =
-                                "Batch: ${record.batchNumber}",
+                            text = "Batch: ${record.batchNumber}",
                             color = BeeftechMutedText
                         )
 
                         Text(
-                            text =
-                                "Volume used: ${record.volumeUsed}",
+                            text = "Volume used: ${record.volumeUsed}",
                             color = BeeftechMutedText
                         )
 
                         Text(
-                            text =
-                                "Cost: R%.2f".format(record.cost),
+                            text = "Cost: R%.2f".format(record.cost),
                             color = BeeftechMutedText
                         )
 
@@ -311,6 +304,5 @@ fun TreatmentsScreen(
 @Preview(showBackground = true)
 @Composable
 private fun TreatmentsScreenPreview() {
-
     TreatmentsScreen()
 }

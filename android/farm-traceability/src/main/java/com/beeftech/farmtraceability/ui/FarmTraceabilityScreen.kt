@@ -15,19 +15,24 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Assignment
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.Assignment
+import androidx.compose.material.icons.outlined.CloudDone
+import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.HomeWork
 import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.LocalShipping
 import androidx.compose.material.icons.outlined.Medication
 import androidx.compose.material.icons.outlined.Payments
-import androidx.compose.material.icons.outlined.PersonSearch
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Route
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.LocalShipping
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -40,6 +45,12 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun FarmTraceabilityScreen(
+    pendingRecordCount: Int? = null,
+    lastSync: String = "",
+    syncStatus: String = "",
+    syncWarningLevel: Int = 0,
+    onBackClick: () -> Unit = {},
+    onRetrySyncClick: () -> Unit = {},
     onFarmerFarmProfileClick: () -> Unit = {},
     onFindAnimalClick: () -> Unit = {},
     onAnimalRecordClick: () -> Unit = {},
@@ -57,43 +68,65 @@ fun FarmTraceabilityScreen(
             .verticalScroll(rememberScrollState())
     ) {
 
+        // ---------------------------------------------------------
+        // HEADER
+        // ---------------------------------------------------------
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(BeeftechPrimaryDeep)
                 .padding(
-                    start = 22.dp,
+                    start = 14.dp,
                     end = 22.dp,
-                    top = 30.dp,
+                    top = 18.dp,
                     bottom = 25.dp
                 )
         ) {
 
-            Text(
-                text = "BEEFTECH",
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.2.sp,
-                color = BeeftechPrimary
-            )
+            IconButton(
+                onClick = onBackClick,
+                modifier = Modifier.size(42.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                    contentDescription = "Back to main Beeftech app",
+                    tint = BeeftechWhite,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
 
-            Spacer(modifier = Modifier.height(5.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
-            Text(
-                text = "Farm Traceability",
-                fontSize = 29.sp,
-                fontWeight = FontWeight.Bold,
-                color = BeeftechWhite
-            )
+            Column(
+                modifier = Modifier.padding(start = 8.dp)
+            ) {
+                Text(
+                    text = "BEEFTECH",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.2.sp,
+                    color = BeeftechPrimary
+                )
 
-            Spacer(modifier = Modifier.height(7.dp))
+                Spacer(modifier = Modifier.height(5.dp))
 
-            Text(
-                text = "Manage livestock traceability records and farm information",
-                fontSize = 13.sp,
-                lineHeight = 18.sp,
-                color = BeeftechSoftAccent
-            )
+                Text(
+                    text = "Farm Traceability",
+                    fontSize = 29.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = BeeftechWhite
+                )
+
+                Spacer(modifier = Modifier.height(7.dp))
+
+                Text(
+                    text = "View and manage livestock traceability information",
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    color = BeeftechSoftAccent
+                )
+            }
         }
 
         Column(
@@ -105,6 +138,84 @@ fun FarmTraceabilityScreen(
                 )
         ) {
 
+            // ---------------------------------------------------------
+            // UNSYNCED DATA WARNING
+            // ---------------------------------------------------------
+
+            if (syncWarningLevel in 1..3) {
+
+                TraceabilitySyncWarning(
+                    warningLevel = syncWarningLevel,
+                    onSyncClick = onRetrySyncClick
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+
+            // ---------------------------------------------------------
+            // SYNC STATUS
+            // ---------------------------------------------------------
+
+            TraceabilitySectionTitle(
+                title = "Sync Status"
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            TraceabilityCard {
+
+                TraceabilityInfoRow(
+                    icon = Icons.Outlined.CloudSync,
+                    title = "Pending Records",
+                    subtitle = pendingRecordCount?.let {
+                        "$it record${if (it == 1) "" else "s"} waiting to sync"
+                    } ?: "Pending record count unavailable"
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                TraceabilityInfoRow(
+                    icon = Icons.Outlined.CloudDone,
+                    title = "Last Sync",
+                    subtitle = lastSync.ifBlank {
+                        "Last sync information unavailable"
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                TraceabilityInfoRow(
+                    icon = Icons.Outlined.Schedule,
+                    title = "Scheduled Sync",
+                    subtitle = "Morning 05:00–06:00 • Evening 18:00–19:00"
+                )
+
+                if (syncStatus.isNotBlank()) {
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    TraceabilityInfoRow(
+                        icon = Icons.Outlined.CloudSync,
+                        title = "Current Status",
+                        subtitle = syncStatus
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                TraceabilitySecondaryButton(
+                    text = "Retry Sync",
+                    icon = Icons.Outlined.Refresh,
+                    onClick = onRetrySyncClick
+                )
+            }
+
+            // ---------------------------------------------------------
+            // TRACEABILITY OPTIONS
+            // ---------------------------------------------------------
+
+            Spacer(modifier = Modifier.height(28.dp))
+
             TraceabilitySectionTitle(
                 title = "Traceability Options"
             )
@@ -113,7 +224,7 @@ fun FarmTraceabilityScreen(
 
             TraceabilityMenuCard(
                 title = "Farmer & Farm Profile",
-                subtitle = "Farmer, farm and location details",
+                subtitle = "View farmer, farm and location details",
                 icon = Icons.Outlined.HomeWork,
                 onClick = onFarmerFarmProfileClick
             )
@@ -122,7 +233,7 @@ fun FarmTraceabilityScreen(
 
             TraceabilityMenuCard(
                 title = "Find Animal",
-                subtitle = "Locate an animal by reference number",
+                subtitle = "Find an animal using its tag reference",
                 icon = Icons.Outlined.Search,
                 onClick = onFindAnimalClick
             )
@@ -140,7 +251,7 @@ fun FarmTraceabilityScreen(
 
             TraceabilityMenuCard(
                 title = "Animal Movement",
-                subtitle = "Capture livestock movement information",
+                subtitle = "Capture and review livestock movement records",
                 icon = Icons.Outlined.Route,
                 onClick = onAnimalMovementClick
             )
@@ -149,7 +260,7 @@ fun FarmTraceabilityScreen(
 
             TraceabilityMenuCard(
                 title = "Supplier",
-                subtitle = "Origin and purchase information",
+                subtitle = "View and capture origin and purchase information",
                 icon = Icons.Outlined.LocalShipping,
                 onClick = onSupplierClick
             )
@@ -158,7 +269,7 @@ fun FarmTraceabilityScreen(
 
             TraceabilityMenuCard(
                 title = "Location & Feed",
-                subtitle = "Destination and ration information",
+                subtitle = "View and capture destination and ration information",
                 icon = Icons.Outlined.LocationOn,
                 onClick = onLocationFeedClick
             )
@@ -167,7 +278,7 @@ fun FarmTraceabilityScreen(
 
             TraceabilityMenuCard(
                 title = "Treatments",
-                subtitle = "Disease and medication records",
+                subtitle = "View and capture treatment records",
                 icon = Icons.Outlined.Medication,
                 onClick = onTreatmentsClick
             )
@@ -176,7 +287,7 @@ fun FarmTraceabilityScreen(
 
             TraceabilityMenuCard(
                 title = "Cost Summary",
-                subtitle = "Direct and indirect animal costs",
+                subtitle = "View direct and indirect animal costs",
                 icon = Icons.Outlined.Payments,
                 onClick = onCostSummaryClick
             )
@@ -185,8 +296,8 @@ fun FarmTraceabilityScreen(
 
             TraceabilityMenuCard(
                 title = "Mortality Records",
-                subtitle = "Capture livestock mortality information",
-                icon = Icons.Outlined.Assignment,
+                subtitle = "Capture and review livestock mortality records",
+                Icons.AutoMirrored.Outlined.Assignment,
                 onClick = onMortalityClick
             )
 

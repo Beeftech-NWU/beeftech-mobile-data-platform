@@ -10,9 +10,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Assignment
+import androidx.compose.material.icons.automirrored.outlined.Assignment
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.outlined.Numbers
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Pets
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,15 +38,30 @@ fun MortalityScreen(
     animalReference: String = "",
     mortalityReason: String = "",
     responsibleWorker: String = "",
+    workerOptions: List<String> = emptyList(),
+    mortalityCount: Int? = null,
+    foundAnimalReference: String = "",
+    foundMortalityReason: String = "",
+    foundMortalityDate: String = "",
+    foundResponsibleWorker: String = "",
     mortalityRecords: List<Mortality> = emptyList(),
     onBackClick: () -> Unit = {},
+    onAnimalReferenceChange: (String) -> Unit = {},
     onMortalityReasonChange: (String) -> Unit = {},
     onResponsibleWorkerChange: (String) -> Unit = {},
+    onAddMortalityClick: (
+        animalReference: String,
+        mortalityReason: String,
+        responsibleWorker: String
+    ) -> Unit = { _, _, _ -> },
     onSaveClick: (
         mortalityReason: String,
         responsibleWorker: String
     ) -> Unit = { _, _ -> }
 ) {
+    var animalReferenceState by remember(animalReference) {
+        mutableStateOf(animalReference)
+    }
 
     var reasonState by remember(mortalityReason) {
         mutableStateOf(mortalityReason)
@@ -58,16 +77,15 @@ fun MortalityScreen(
             .background(BeeftechBackground)
             .verticalScroll(rememberScrollState())
     ) {
-
         TraceabilityHeader(
             eyebrow = if (animalReference.isBlank()) {
                 "FARM TRACEABILITY"
             } else {
                 "ANIMAL $animalReference"
             },
-            title = "Mortality Record",
-            subtitle = "Capture livestock mortality information",
-            icon = Icons.Outlined.Assignment,
+            title = "Mortality Records",
+            subtitle = "Capture and review livestock mortality records",
+            icon = Icons.AutoMirrored.Outlined.Assignment,
             showBackButton = true,
             onBackClick = onBackClick
         )
@@ -77,16 +95,24 @@ fun MortalityScreen(
                 .fillMaxWidth()
                 .padding(18.dp)
         ) {
-
             TraceabilitySectionTitle(
-                "Mortality Details"
+                title = "Mortality Details"
             )
 
-            Spacer(
-                modifier = Modifier.height(12.dp)
-            )
+            Spacer(modifier = Modifier.height(12.dp))
 
             TraceabilityCard {
+                TraceabilityTextField(
+                    label = "Animal Tag / Reference",
+                    value = animalReferenceState,
+                    onValueChange = {
+                        animalReferenceState = it
+                        onAnimalReferenceChange(it)
+                    },
+                    icon = Icons.Outlined.Pets
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 TraceabilityTextField(
                     label = "Mortality Reason",
@@ -100,30 +126,56 @@ fun MortalityScreen(
                     minLines = 3
                 )
 
-                Spacer(
-                    modifier = Modifier.height(16.dp)
-                )
+                Spacer(modifier = Modifier.height(16.dp))
 
-                TraceabilityTextField(
+                TraceabilitySearchableDropdown(
                     label = "Responsible Worker",
                     value = workerState,
+                    options = workerOptions,
+                    icon = Icons.Outlined.Person,
                     onValueChange = {
                         workerState = it
                         onResponsibleWorkerChange(it)
-                    },
-                    icon = Icons.Outlined.Person
+                    }
                 )
             }
 
-            Spacer(
-                modifier = Modifier.height(26.dp)
+            Spacer(modifier = Modifier.height(20.dp))
+
+            TraceabilitySecondaryButton(
+                text = "Add Mortality Record",
+                icon = Icons.Outlined.Add,
+                onClick = {
+                    val reference = animalReferenceState.trim()
+                    val reason = reasonState.trim()
+                    val worker = workerState.trim()
+
+                    if (
+                        reference.isNotBlank() &&
+                        reason.isNotBlank() &&
+                        worker.isNotBlank()
+                    ) {
+                        onAddMortalityClick(
+                            reference,
+                            reason,
+                            worker
+                        )
+
+                        reasonState = ""
+                        workerState = ""
+
+                        onMortalityReasonChange("")
+                        onResponsibleWorkerChange("")
+                    }
+                }
             )
 
+            Spacer(modifier = Modifier.height(12.dp))
+
             TraceabilityPrimaryButton(
-                text = "Save Mortality Record",
+                text = "Save Mortality Records",
                 icon = Icons.Outlined.Save,
                 onClick = {
-
                     onSaveClick(
                         reasonState,
                         workerState
@@ -131,54 +183,38 @@ fun MortalityScreen(
                 }
             )
 
-            Spacer(
-                modifier = Modifier.height(30.dp)
-            )
+            Spacer(modifier = Modifier.height(30.dp))
 
             TraceabilitySectionTitle(
                 "Mortality History"
             )
 
-            Spacer(
-                modifier = Modifier.height(12.dp)
-            )
+            Spacer(modifier = Modifier.height(12.dp))
 
             if (mortalityRecords.isEmpty()) {
-
                 TraceabilityCard {
-
                     Text(
                         text = "No mortality records found.",
                         color = BeeftechMutedText
                     )
                 }
-
             } else {
-
                 mortalityRecords.forEach { record ->
-
                     TraceabilityCard {
-
                         Text(
                             text = record.causeOfDeath,
                             fontWeight = FontWeight.SemiBold,
                             color = BeeftechText
                         )
 
-                        Spacer(
-                            modifier = Modifier.height(6.dp)
-                        )
+                        Spacer(modifier = Modifier.height(6.dp))
 
                         Text(
-                            text =
-                                "Responsible worker: " +
-                                        record.responsibleWorker,
+                            text = "Responsible worker: ${record.responsibleWorker}",
                             color = BeeftechMutedText
                         )
 
-                        Spacer(
-                            modifier = Modifier.height(4.dp)
-                        )
+                        Spacer(modifier = Modifier.height(4.dp))
 
                         val formattedDate =
                             SimpleDateFormat(
@@ -194,15 +230,76 @@ fun MortalityScreen(
                         )
                     }
 
-                    Spacer(
-                        modifier = Modifier.height(12.dp)
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            TraceabilitySectionTitle(
+                title = "Mortality Overview"
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            TraceabilityCard {
+                TraceabilityInfoRow(
+                    icon = Icons.Outlined.Numbers,
+                    title = "Number of Mortalities",
+                    subtitle = mortalityCount?.toString()
+                        ?: mortalityRecords.size.toString()
+                )
+            }
+
+            if (foundAnimalReference.isNotBlank()) {
+                Spacer(modifier = Modifier.height(26.dp))
+
+                TraceabilitySectionTitle(
+                    title = "Mortality Record"
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                TraceabilityCard {
+                    TraceabilityInfoRow(
+                        icon = Icons.Outlined.Pets,
+                        title = "Animal Tag / Reference",
+                        subtitle = foundAnimalReference
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    TraceabilityInfoRow(
+                        icon = Icons.Outlined.EditNote,
+                        title = "Mortality Reason",
+                        subtitle = foundMortalityReason.ifBlank {
+                            "Mortality reason unavailable"
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    TraceabilityInfoRow(
+                        icon = Icons.Outlined.CalendarMonth,
+                        title = "Mortality Date",
+                        subtitle = foundMortalityDate.ifBlank {
+                            "Mortality date unavailable"
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    TraceabilityInfoRow(
+                        icon = Icons.Outlined.Person,
+                        title = "Responsible Worker",
+                        subtitle = foundResponsibleWorker.ifBlank {
+                            "Responsible worker unavailable"
+                        }
                     )
                 }
             }
 
-            Spacer(
-                modifier = Modifier.height(30.dp)
-            )
+            Spacer(modifier = Modifier.height(30.dp))
         }
     }
 }
@@ -210,6 +307,5 @@ fun MortalityScreen(
 @Preview(showBackground = true)
 @Composable
 private fun MortalityScreenPreview() {
-
     MortalityScreen()
 }

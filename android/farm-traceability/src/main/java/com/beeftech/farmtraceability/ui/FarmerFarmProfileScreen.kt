@@ -14,45 +14,33 @@ import androidx.compose.material.icons.outlined.Call
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.HomeWork
 import androidx.compose.material.icons.outlined.LocationOn
-import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Tag
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
 @Composable
 fun FarmerFarmProfileScreen(
-    onBackClick: () -> Unit = {},
-    onSaveClick: () -> Unit = {},
-    onCaptureLocationClick: () -> Unit = {}
+    farmerName: String = "",
+    contactNumber: String = "",
+    farmName: String = "",
+    farmReference: String = "",
+    farmAddress: String = "",
+    gpsCoordinates: String = "",
+    onBackClick: () -> Unit = {}
 ) {
-
-    var firstName by remember { mutableStateOf("") }
-    var surname by remember { mutableStateOf("") }
-    var contactNumber by remember { mutableStateOf("") }
-
-    var farmName by remember { mutableStateOf("") }
-    var farmReference by remember { mutableStateOf("") }
-    var farmAddress by remember { mutableStateOf("") }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(BeeftechBackground)
             .verticalScroll(rememberScrollState())
     ) {
-
         TraceabilityHeader(
             eyebrow = "FARM TRACEABILITY",
             title = "Farmer & Farm Profile",
-            subtitle = "Farmer, farm and location information",
+            subtitle = "View farmer, farm and location information",
             icon = Icons.Outlined.HomeWork,
             showBackButton = true,
             onBackClick = onBackClick
@@ -64,104 +52,90 @@ fun FarmerFarmProfileScreen(
                 .padding(18.dp)
         ) {
 
-            TraceabilitySectionTitle("Farmer Details")
+            // Farmer Details
+            TraceabilitySectionTitle(
+                title = "Farmer Details"
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
 
             TraceabilityCard {
-
-                TraceabilityTextField(
-                    label = "First Name",
-                    value = firstName,
-                    onValueChange = { firstName = it },
-                    icon = Icons.Outlined.Person
+                TraceabilityInfoRow(
+                    icon = Icons.Outlined.Person,
+                    title = "Farmer Name",
+                    subtitle = farmerName.ifBlank {
+                        "Farmer information unavailable"
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                TraceabilityTextField(
-                    label = "Surname",
-                    value = surname,
-                    onValueChange = { surname = it },
-                    icon = Icons.Outlined.Person
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                TraceabilityTextField(
-                    label = "Contact Number",
-                    value = contactNumber,
-                    onValueChange = { contactNumber = it },
-                    icon = Icons.Outlined.Call
+                TraceabilityInfoRow(
+                    icon = Icons.Outlined.Call,
+                    title = "Contact Number",
+                    subtitle = contactNumber.ifBlank {
+                        "Contact information unavailable"
+                    }
                 )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            TraceabilitySectionTitle("Farm Details")
+            // Farm Details
+            TraceabilitySectionTitle(
+                title = "Farm Details"
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
 
             TraceabilityCard {
-
-                TraceabilityTextField(
-                    label = "Farm Name",
-                    value = farmName,
-                    onValueChange = { farmName = it },
-                    icon = Icons.Outlined.Home
+                TraceabilityInfoRow(
+                    icon = Icons.Outlined.Home,
+                    title = "Farm Name",
+                    subtitle = farmName.ifBlank {
+                        "Farm information unavailable"
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                TraceabilityTextField(
-                    label = "Farm Reference",
-                    value = farmReference,
-                    onValueChange = { farmReference = it },
-                    icon = Icons.Outlined.Tag
+                TraceabilityInfoRow(
+                    icon = Icons.Outlined.Tag,
+                    title = "Farm Reference",
+                    subtitle = farmReference.ifBlank {
+                        "Farm reference unavailable"
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
-
-                TraceabilityTextField(
-                    label = "Farm Address",
-                    value = farmAddress,
-                    onValueChange = { farmAddress = it },
-                    icon = Icons.Outlined.LocationOn,
-                    singleLine = false,
-                    minLines = 3
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            TraceabilitySectionTitle("Farm Location")
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            TraceabilityCard {
 
                 TraceabilityInfoRow(
                     icon = Icons.Outlined.LocationOn,
-                    title = "GPS Coordinates",
-                    subtitle = "No location captured"
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                TraceabilitySecondaryButton(
-                    text = "Capture Current Location",
-                    icon = Icons.Outlined.MyLocation,
-                    onClick = onCaptureLocationClick
+                    title = "Farm Address",
+                    subtitle = farmAddress.ifBlank {
+                        "Farm address unavailable"
+                    }
                 )
             }
 
-            Spacer(modifier = Modifier.height(26.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            TraceabilityPrimaryButton(
-                text = "Save Profile",
-                icon = Icons.Outlined.Save,
-                onClick = onSaveClick
+            // Farm Location
+            TraceabilitySectionTitle(
+                title = "Farm Location"
             )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            TraceabilityCard {
+                TraceabilityInfoRow(
+                    icon = Icons.Outlined.LocationOn,
+                    title = "GPS Coordinates",
+                    subtitle = gpsCoordinates.ifBlank {
+                        "Location information unavailable"
+                    }
+                )
+            }
 
             Spacer(modifier = Modifier.height(30.dp))
         }

@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -36,8 +37,8 @@ private enum class TraceabilityScreen {
 
 @Composable
 fun FarmTraceabilityFlow(
+    onExitTraceability: () -> Unit = {},
 
-    // Animal Movement
     movementRecords: List<AnimalMovement> = emptyList(),
 
     onLoadMovements: (String) -> Unit = {},
@@ -48,7 +49,6 @@ fun FarmTraceabilityFlow(
         responsibleWorker: String
     ) -> Unit = { _, _, _ -> },
 
-    // Treatments
     treatmentRecords: List<Treatment> = emptyList(),
 
     onLoadTreatments: (String) -> Unit = {},
@@ -62,7 +62,6 @@ fun FarmTraceabilityFlow(
         cost: String
     ) -> Unit = { _, _, _, _, _, _ -> },
 
-    // Mortality
     mortalityRecords: List<Mortality> = emptyList(),
 
     onLoadMortalities: (String) -> Unit = {},
@@ -73,24 +72,16 @@ fun FarmTraceabilityFlow(
         responsibleWorker: String
     ) -> Unit = { _, _, _ -> },
 
-    // Cost Summary
     transportCost: Double = 0.0,
-
     processingCost: Double = 0.0,
-
     treatmentCost: Double = 0.0,
-
     feedCost: Double = 0.0,
-
     handlingCost: Double = 0.0,
-
     interestCost: Double = 0.0,
-
     totalAnimalCost: Double = 0.0,
 
     onLoadCostSummary: (String) -> Unit = {},
 
-    // Supplier
     supplierRecords: List<Supplier> = emptyList(),
 
     onLoadSuppliers: (String) -> Unit = {},
@@ -103,7 +94,6 @@ fun FarmTraceabilityFlow(
         purchaseBatchNumber: String
     ) -> Unit = { _, _, _, _, _ -> },
 
-    // Location & Feed
     locationFeedRecords: List<LocationFeed> = emptyList(),
 
     onLoadLocationFeed: (String) -> Unit = {},
@@ -117,49 +107,60 @@ fun FarmTraceabilityFlow(
         rationCost: String
     ) -> Unit = { _, _, _, _, _, _ -> }
 ) {
-
     var currentScreen by remember {
-        mutableStateOf(TraceabilityScreen.HOME)
+        mutableStateOf(
+            TraceabilityScreen.HOME
+        )
     }
+
+    val navigationHistory =
+        remember {
+            mutableStateListOf<
+                    TraceabilityScreen
+                    >()
+        }
 
     var selectedAnimalReference by remember {
         mutableStateOf("")
     }
 
-    /*
-     * Determines which screen should open
-     * after an animal has successfully been found.
-     */
     var findAnimalDestination by remember {
-        mutableStateOf(TraceabilityScreen.ANIMAL_RECORD)
+        mutableStateOf(
+            TraceabilityScreen.ANIMAL_RECORD
+        )
     }
 
-    fun goBack() {
+    fun navigateTo(
+        screen: TraceabilityScreen
+    ) {
+        navigationHistory.add(
+            currentScreen
+        )
 
-        currentScreen =
-            when (currentScreen) {
-
-                TraceabilityScreen.SUPPLIER,
-                TraceabilityScreen.LOCATION_FEED,
-                TraceabilityScreen.TREATMENTS,
-                TraceabilityScreen.COST_SUMMARY,
-                TraceabilityScreen.MORTALITY -> {
-
-                    TraceabilityScreen.ANIMAL_RECORD
-                }
-
-                else -> {
-
-                    TraceabilityScreen.HOME
-                }
-            }
+        currentScreen = screen
     }
 
-    if (currentScreen != TraceabilityScreen.HOME) {
-
-        BackHandler {
-            goBack()
+    fun navigateBack() {
+        if (
+            navigationHistory.isNotEmpty()
+        ) {
+            currentScreen =
+                navigationHistory.removeAt(
+                    navigationHistory.lastIndex
+                )
+        } else if (
+            currentScreen !=
+            TraceabilityScreen.HOME
+        ) {
+            currentScreen =
+                TraceabilityScreen.HOME
+        } else {
+            onExitTraceability()
         }
+    }
+
+    BackHandler {
+        navigateBack()
     }
 
     when (currentScreen) {
@@ -167,113 +168,132 @@ fun FarmTraceabilityFlow(
         TraceabilityScreen.HOME -> {
 
             FarmTraceabilityScreen(
+                onBackClick = {
+                    navigateBack()
+                },
 
                 onFarmerFarmProfileClick = {
-
-                    currentScreen =
-                        TraceabilityScreen.FARMER_FARM_PROFILE
+                    navigateTo(
+                        TraceabilityScreen
+                            .FARMER_FARM_PROFILE
+                    )
                 },
 
                 onFindAnimalClick = {
-
                     findAnimalDestination =
-                        TraceabilityScreen.ANIMAL_RECORD
+                        TraceabilityScreen
+                            .ANIMAL_RECORD
 
-                    currentScreen =
-                        TraceabilityScreen.FIND_ANIMAL
+                    navigateTo(
+                        TraceabilityScreen
+                            .FIND_ANIMAL
+                    )
                 },
 
                 onAnimalRecordClick = {
-
                     findAnimalDestination =
-                        TraceabilityScreen.ANIMAL_RECORD
+                        TraceabilityScreen
+                            .ANIMAL_RECORD
 
-                    currentScreen =
-                        TraceabilityScreen.FIND_ANIMAL
+                    navigateTo(
+                        TraceabilityScreen
+                            .FIND_ANIMAL
+                    )
                 },
 
                 onAnimalMovementClick = {
-
                     findAnimalDestination =
-                        TraceabilityScreen.ANIMAL_MOVEMENT
+                        TraceabilityScreen
+                            .ANIMAL_MOVEMENT
 
-                    currentScreen =
-                        TraceabilityScreen.FIND_ANIMAL
+                    navigateTo(
+                        TraceabilityScreen
+                            .FIND_ANIMAL
+                    )
                 },
 
                 onSupplierClick = {
-
                     findAnimalDestination =
-                        TraceabilityScreen.SUPPLIER
+                        TraceabilityScreen
+                            .SUPPLIER
 
-                    currentScreen =
-                        TraceabilityScreen.FIND_ANIMAL
+                    navigateTo(
+                        TraceabilityScreen
+                            .FIND_ANIMAL
+                    )
                 },
 
                 onLocationFeedClick = {
-
                     findAnimalDestination =
-                        TraceabilityScreen.LOCATION_FEED
+                        TraceabilityScreen
+                            .LOCATION_FEED
 
-                    currentScreen =
-                        TraceabilityScreen.FIND_ANIMAL
+                    navigateTo(
+                        TraceabilityScreen
+                            .FIND_ANIMAL
+                    )
                 },
 
                 onTreatmentsClick = {
-
                     findAnimalDestination =
-                        TraceabilityScreen.TREATMENTS
+                        TraceabilityScreen
+                            .TREATMENTS
 
-                    currentScreen =
-                        TraceabilityScreen.FIND_ANIMAL
+                    navigateTo(
+                        TraceabilityScreen
+                            .FIND_ANIMAL
+                    )
                 },
 
                 onCostSummaryClick = {
-
                     findAnimalDestination =
-                        TraceabilityScreen.COST_SUMMARY
+                        TraceabilityScreen
+                            .COST_SUMMARY
 
-                    currentScreen =
-                        TraceabilityScreen.FIND_ANIMAL
+                    navigateTo(
+                        TraceabilityScreen
+                            .FIND_ANIMAL
+                    )
                 },
 
                 onMortalityClick = {
-
                     findAnimalDestination =
-                        TraceabilityScreen.MORTALITY
+                        TraceabilityScreen
+                            .MORTALITY
 
-                    currentScreen =
-                        TraceabilityScreen.FIND_ANIMAL
+                    navigateTo(
+                        TraceabilityScreen
+                            .FIND_ANIMAL
+                    )
                 }
             )
         }
 
-        TraceabilityScreen.FARMER_FARM_PROFILE -> {
+        TraceabilityScreen
+            .FARMER_FARM_PROFILE -> {
 
             FarmerFarmProfileScreen(
-
                 onBackClick = {
-
-                    goBack()
+                    navigateBack()
                 }
             )
         }
 
-        TraceabilityScreen.FIND_ANIMAL -> {
+        TraceabilityScreen
+            .FIND_ANIMAL -> {
 
             val database =
-                DatabaseProvider.getDatabase()
+                DatabaseProvider
+                    .getDatabase()
 
             if (database == null) {
 
                 FindAnimalScreen(
-
                     errorMessage =
                         "The encrypted database has not been initialised yet.",
 
                     onBackClick = {
-
-                        goBack()
+                        navigateBack()
                     }
                 )
 
@@ -281,16 +301,15 @@ fun FarmTraceabilityFlow(
 
                 val repository =
                     remember(database) {
-
                         FindAnimalRepository(
                             calfRegistrationDao =
-                                database.calfRegistrationDao()
+                                database
+                                    .calfRegistrationDao()
                         )
                     }
 
                 val factory =
                     remember(repository) {
-
                         FindAnimalViewModelFactory(
                             repository
                         )
@@ -307,18 +326,35 @@ fun FarmTraceabilityFlow(
                     .uiState
                     .collectAsState()
 
-                LaunchedEffect(uiState) {
-
+                LaunchedEffect(
+                    uiState
+                ) {
                     val state =
                         uiState
 
-                    if (state is FindAnimalUiState.Found) {
-
+                    if (
+                        state is
+                                FindAnimalUiState
+                                .Found
+                    ) {
                         selectedAnimalReference =
-                            state.animal.animalId
+                            state
+                                .animal
+                                .animalId
 
                         findAnimalViewModel
                             .resetState()
+
+                        if (
+                            findAnimalDestination !=
+                            TraceabilityScreen
+                                .ANIMAL_RECORD
+                        ) {
+                            navigationHistory.add(
+                                TraceabilityScreen
+                                    .ANIMAL_RECORD
+                            )
+                        }
 
                         currentScreen =
                             findAnimalDestination
@@ -326,98 +362,120 @@ fun FarmTraceabilityFlow(
                 }
 
                 val errorMessage =
-                    when (val state = uiState) {
-
-                        is FindAnimalUiState.NotFound -> {
+                    when (
+                        val state =
+                            uiState
+                    ) {
+                        is FindAnimalUiState
+                        .NotFound -> {
 
                             "Animal ${state.animalReference} was not found."
                         }
 
-                        is FindAnimalUiState.Error -> {
+                        is FindAnimalUiState
+                        .Error -> {
 
                             state.message
                         }
 
                         else -> {
-
                             null
                         }
                     }
 
                 FindAnimalScreen(
-
                     isLoading =
-                        uiState is FindAnimalUiState.Loading,
+                        uiState is
+                                FindAnimalUiState
+                                .Loading,
 
                     errorMessage =
                         errorMessage,
 
                     onBackClick = {
-
                         findAnimalViewModel
                             .resetState()
 
-                        goBack()
+                        navigateBack()
                     },
 
-                    onFindAnimal = { reference ->
+                    onFindAnimal = {
+                            reference ->
 
                         findAnimalViewModel
-                            .findAnimal(reference)
+                            .findAnimal(
+                                reference
+                            )
                     }
                 )
             }
         }
 
-        TraceabilityScreen.ANIMAL_RECORD -> {
+        TraceabilityScreen
+            .ANIMAL_RECORD -> {
 
             AnimalRecordScreen(
-
                 animalReference =
                     selectedAnimalReference,
 
                 onBackClick = {
-
-                    goBack()
+                    navigateBack()
                 },
 
                 onSupplierClick = {
-
-                    currentScreen =
-                        TraceabilityScreen.SUPPLIER
+                    navigateTo(
+                        TraceabilityScreen
+                            .SUPPLIER
+                    )
                 },
 
                 onLocationFeedClick = {
-
-                    currentScreen =
-                        TraceabilityScreen.LOCATION_FEED
+                    navigateTo(
+                        TraceabilityScreen
+                            .LOCATION_FEED
+                    )
                 },
 
                 onTreatmentsClick = {
+                    navigateTo(
+                        TraceabilityScreen
+                            .TREATMENTS
+                    )
+                },
 
-                    currentScreen =
-                        TraceabilityScreen.TREATMENTS
+                onAnimalMovementClick = {
+                    navigateTo(
+                        TraceabilityScreen
+                            .ANIMAL_MOVEMENT
+                    )
                 },
 
                 onCostSummaryClick = {
+                    navigateTo(
+                        TraceabilityScreen
+                            .COST_SUMMARY
+                    )
+                },
 
-                    currentScreen =
-                        TraceabilityScreen.COST_SUMMARY
+                onMortalityClick = {
+                    navigateTo(
+                        TraceabilityScreen
+                            .MORTALITY
+                    )
                 }
             )
         }
 
-        TraceabilityScreen.ANIMAL_MOVEMENT -> {
+        TraceabilityScreen
+            .ANIMAL_MOVEMENT -> {
 
             LaunchedEffect(
                 selectedAnimalReference
             ) {
-
                 if (
                     selectedAnimalReference
                         .isNotBlank()
                 ) {
-
                     onLoadMovements(
                         selectedAnimalReference
                     )
@@ -425,7 +483,6 @@ fun FarmTraceabilityFlow(
             }
 
             AnimalMovementScreen(
-
                 animalReference =
                     selectedAnimalReference,
 
@@ -433,8 +490,19 @@ fun FarmTraceabilityFlow(
                     movementRecords,
 
                 onBackClick = {
+                    navigateBack()
+                },
 
-                    goBack()
+                onAddMovementClick = {
+                        _,
+                        movementInformation,
+                        responsibleWorker ->
+
+                    onSaveMovement(
+                        selectedAnimalReference,
+                        movementInformation,
+                        responsibleWorker
+                    )
                 },
 
                 onSaveClick = {
@@ -450,17 +518,16 @@ fun FarmTraceabilityFlow(
             )
         }
 
-        TraceabilityScreen.SUPPLIER -> {
+        TraceabilityScreen
+            .SUPPLIER -> {
 
             LaunchedEffect(
                 selectedAnimalReference
             ) {
-
                 if (
                     selectedAnimalReference
                         .isNotBlank()
                 ) {
-
                     onLoadSuppliers(
                         selectedAnimalReference
                     )
@@ -468,7 +535,6 @@ fun FarmTraceabilityFlow(
             }
 
             SupplierScreen(
-
                 animalReference =
                     selectedAnimalReference,
 
@@ -476,8 +542,7 @@ fun FarmTraceabilityFlow(
                     supplierRecords,
 
                 onBackClick = {
-
-                    goBack()
+                    navigateBack()
                 },
 
                 onSaveClick = {
@@ -497,21 +562,16 @@ fun FarmTraceabilityFlow(
             )
         }
 
-        TraceabilityScreen.LOCATION_FEED -> {
+        TraceabilityScreen
+            .LOCATION_FEED -> {
 
-            /*
-             * Load saved Location & Feed records
-             * for the selected animal.
-             */
             LaunchedEffect(
                 selectedAnimalReference
             ) {
-
                 if (
                     selectedAnimalReference
                         .isNotBlank()
                 ) {
-
                     onLoadLocationFeed(
                         selectedAnimalReference
                     )
@@ -519,7 +579,6 @@ fun FarmTraceabilityFlow(
             }
 
             LocationFeedScreen(
-
                 animalReference =
                     selectedAnimalReference,
 
@@ -527,8 +586,7 @@ fun FarmTraceabilityFlow(
                     locationFeedRecords,
 
                 onBackClick = {
-
-                    goBack()
+                    navigateBack()
                 },
 
                 onSaveClick = {
@@ -550,17 +608,16 @@ fun FarmTraceabilityFlow(
             )
         }
 
-        TraceabilityScreen.TREATMENTS -> {
+        TraceabilityScreen
+            .TREATMENTS -> {
 
             LaunchedEffect(
                 selectedAnimalReference
             ) {
-
                 if (
                     selectedAnimalReference
                         .isNotBlank()
                 ) {
-
                     onLoadTreatments(
                         selectedAnimalReference
                     )
@@ -568,7 +625,6 @@ fun FarmTraceabilityFlow(
             }
 
             TreatmentsScreen(
-
                 animalReference =
                     selectedAnimalReference,
 
@@ -576,8 +632,7 @@ fun FarmTraceabilityFlow(
                     treatmentRecords,
 
                 onBackClick = {
-
-                    goBack()
+                    navigateBack()
                 },
 
                 onSaveClick = {
@@ -599,17 +654,16 @@ fun FarmTraceabilityFlow(
             )
         }
 
-        TraceabilityScreen.COST_SUMMARY -> {
+        TraceabilityScreen
+            .COST_SUMMARY -> {
 
             LaunchedEffect(
                 selectedAnimalReference
             ) {
-
                 if (
                     selectedAnimalReference
                         .isNotBlank()
                 ) {
-
                     onLoadCostSummary(
                         selectedAnimalReference
                     )
@@ -617,7 +671,6 @@ fun FarmTraceabilityFlow(
             }
 
             CostSummaryScreen(
-
                 animalReference =
                     selectedAnimalReference,
 
@@ -657,23 +710,21 @@ fun FarmTraceabilityFlow(
                     ),
 
                 onBackClick = {
-
-                    goBack()
+                    navigateBack()
                 }
             )
         }
 
-        TraceabilityScreen.MORTALITY -> {
+        TraceabilityScreen
+            .MORTALITY -> {
 
             LaunchedEffect(
                 selectedAnimalReference
             ) {
-
                 if (
                     selectedAnimalReference
                         .isNotBlank()
                 ) {
-
                     onLoadMortalities(
                         selectedAnimalReference
                     )
@@ -681,16 +732,29 @@ fun FarmTraceabilityFlow(
             }
 
             MortalityScreen(
-
                 animalReference =
                     selectedAnimalReference,
 
                 mortalityRecords =
                     mortalityRecords,
 
-                onBackClick = {
+                mortalityCount =
+                    mortalityRecords.size,
 
-                    goBack()
+                onBackClick = {
+                    navigateBack()
+                },
+
+                onAddMortalityClick = {
+                        _,
+                        mortalityReason,
+                        responsibleWorker ->
+
+                    onSaveMortality(
+                        selectedAnimalReference,
+                        mortalityReason,
+                        responsibleWorker
+                    )
                 },
 
                 onSaveClick = {
@@ -711,6 +775,5 @@ fun FarmTraceabilityFlow(
 @Preview(showBackground = true)
 @Composable
 private fun FarmTraceabilityFlowPreview() {
-
     FarmTraceabilityFlow()
 }

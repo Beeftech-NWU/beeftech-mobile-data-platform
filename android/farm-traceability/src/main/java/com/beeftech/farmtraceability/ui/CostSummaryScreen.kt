@@ -14,12 +14,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.LocalShipping
 import androidx.compose.material.icons.outlined.Medication
 import androidx.compose.material.icons.outlined.MonitorWeight
 import androidx.compose.material.icons.outlined.Payments
-import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material.icons.outlined.Settings
@@ -52,14 +52,12 @@ fun CostSummaryScreen(
     lastMassDate: String = "",
     onBackClick: () -> Unit = {}
 ) {
-
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(BeeftechBackground)
             .verticalScroll(rememberScrollState())
     ) {
-
         TraceabilityHeader(
             eyebrow = if (animalReference.isBlank()) {
                 "ANIMAL COST"
@@ -78,7 +76,6 @@ fun CostSummaryScreen(
                 .fillMaxWidth()
                 .padding(18.dp)
         ) {
-
             TraceabilitySectionTitle(
                 "Direct Costs"
             )
@@ -88,13 +85,10 @@ fun CostSummaryScreen(
             )
 
             TraceabilityCard {
-
                 CostSummaryRow(
                     icon = Icons.Outlined.LocalShipping,
                     title = "Transport",
-                    value = displayCost(
-                        transportCost
-                    )
+                    value = displayCost(transportCost)
                 )
 
                 CostDivider()
@@ -102,9 +96,7 @@ fun CostSummaryScreen(
                 CostSummaryRow(
                     icon = Icons.Outlined.Settings,
                     title = "Processing",
-                    value = displayCost(
-                        processingCost
-                    )
+                    value = displayCost(processingCost)
                 )
 
                 CostDivider()
@@ -112,23 +104,15 @@ fun CostSummaryScreen(
                 CostSummaryRow(
                     icon = Icons.Outlined.Medication,
                     title = "Treatment",
-                    value = displayCost(
-                        treatmentCost
-                    )
+                    value = displayCost(treatmentCost)
                 )
 
                 CostDivider()
 
-                /*
-                 * Feed / ration expenditure from
-                 * Location & Feed records.
-                 */
                 CostSummaryRow(
                     icon = Icons.Outlined.Restaurant,
                     title = "Feed / Ration",
-                    value = displayCost(
-                        feedCost
-                    )
+                    value = displayCost(feedCost)
                 )
             }
 
@@ -145,13 +129,10 @@ fun CostSummaryScreen(
             )
 
             TraceabilityCard {
-
                 CostSummaryRow(
-                    icon = Icons.Outlined.ReceiptLong,
+                    icon = Icons.AutoMirrored.Outlined.ReceiptLong,
                     title = "Handling",
-                    value = displayCost(
-                        handlingCost
-                    )
+                    value = displayCost(handlingCost)
                 )
 
                 CostDivider()
@@ -159,9 +140,7 @@ fun CostSummaryScreen(
                 CostSummaryRow(
                     icon = Icons.Outlined.Savings,
                     title = "Interest",
-                    value = displayCost(
-                        interestCost
-                    )
+                    value = displayCost(interestCost)
                 )
             }
 
@@ -179,25 +158,14 @@ fun CostSummaryScreen(
 
             TotalCostCard(
                 totalAnimalCost =
-                    displayCost(
-                        totalAnimalCost
-                    ),
+                    displayCost(totalAnimalCost),
 
                 costPerKg =
-                    displayCost(
-                        costPerKg
-                    ),
+                    displayCost(costPerKg),
 
                 lastMassDate =
-                    if (
-                        lastMassDate.isBlank()
-                    ) {
-
+                    lastMassDate.ifBlank {
                         "Not recorded"
-
-                    } else {
-
-                        lastMassDate
                     }
             )
 
@@ -214,7 +182,6 @@ private fun CostSummaryRow(
     title: String,
     value: String
 ) {
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -224,7 +191,6 @@ private fun CostSummaryRow(
         verticalAlignment =
             Alignment.CenterVertically
     ) {
-
         Box(
             modifier = Modifier
                 .size(40.dp)
@@ -237,57 +203,42 @@ private fun CostSummaryRow(
             contentAlignment =
                 Alignment.Center
         ) {
-
             Icon(
-                imageVector =
-                    icon,
-                contentDescription =
-                    null,
-                tint =
-                    BeeftechPrimaryDark,
+                imageVector = icon,
+                contentDescription = null,
+                tint = BeeftechPrimaryDark,
                 modifier =
-                    Modifier.size(
-                        20.dp
-                    )
+                    Modifier.size(20.dp)
             )
         }
 
         Spacer(
             modifier =
-                Modifier.size(
-                    12.dp
-                )
+                Modifier.size(12.dp)
         )
 
         Text(
             text = title,
             modifier =
-                Modifier.weight(
-                    1f
-                ),
-            fontSize =
-                14.sp,
+                Modifier.weight(1f),
+            fontSize = 14.sp,
             fontWeight =
                 FontWeight.SemiBold,
-            color =
-                BeeftechText
+            color = BeeftechText
         )
 
         Text(
             text = value,
-            fontSize =
-                14.sp,
+            fontSize = 14.sp,
             fontWeight =
                 FontWeight.Bold,
-            color =
-                BeeftechPrimaryDark
+            color = BeeftechPrimaryDark
         )
     }
 }
 
 @Composable
 private fun CostDivider() {
-
     HorizontalDivider(
         modifier =
             Modifier.padding(
@@ -295,8 +246,7 @@ private fun CostDivider() {
                 top = 3.dp,
                 bottom = 3.dp
             ),
-        color =
-            BeeftechBorder
+        color = BeeftechBorder
     )
 }
 
@@ -306,14 +256,11 @@ private fun TotalCostCard(
     costPerKg: String,
     lastMassDate: String
 ) {
-
     Card(
         modifier =
             Modifier.fillMaxWidth(),
         shape =
-            RoundedCornerShape(
-                16.dp
-            ),
+            RoundedCornerShape(16.dp),
         colors =
             CardDefaults.cardColors(
                 containerColor =
@@ -321,23 +268,17 @@ private fun TotalCostCard(
             ),
         elevation =
             CardDefaults.cardElevation(
-                defaultElevation =
-                    2.dp
+                defaultElevation = 2.dp
             )
     ) {
-
         Column(
             modifier =
-                Modifier.padding(
-                    20.dp
-                )
+                Modifier.padding(20.dp)
         ) {
-
             Row(
                 verticalAlignment =
                     Alignment.CenterVertically
             ) {
-
                 Box(
                     modifier = Modifier
                         .size(42.dp)
@@ -352,7 +293,6 @@ private fun TotalCostCard(
                     contentAlignment =
                         Alignment.Center
                 ) {
-
                     Icon(
                         imageVector =
                             Icons.Outlined.Payments,
@@ -361,59 +301,45 @@ private fun TotalCostCard(
                         tint =
                             BeeftechWhite,
                         modifier =
-                            Modifier.size(
-                                21.dp
-                            )
+                            Modifier.size(21.dp)
                     )
                 }
 
                 Spacer(
                     modifier =
-                        Modifier.size(
-                            12.dp
-                        )
+                        Modifier.size(12.dp)
                 )
 
                 Column {
-
                     Text(
                         text =
                             "TOTAL ANIMAL COST",
-                        fontSize =
-                            10.sp,
+                        fontSize = 10.sp,
                         fontWeight =
                             FontWeight.SemiBold,
-                        letterSpacing =
-                            0.7.sp,
+                        letterSpacing = 0.7.sp,
                         color =
                             BeeftechSoftAccent
                     )
 
                     Spacer(
                         modifier =
-                            Modifier.height(
-                                4.dp
-                            )
+                            Modifier.height(4.dp)
                     )
 
                     Text(
-                        text =
-                            totalAnimalCost,
-                        fontSize =
-                            27.sp,
+                        text = totalAnimalCost,
+                        fontSize = 27.sp,
                         fontWeight =
                             FontWeight.Bold,
-                        color =
-                            BeeftechWhite
+                        color = BeeftechWhite
                     )
                 }
             }
 
             Spacer(
                 modifier =
-                    Modifier.height(
-                        20.dp
-                    )
+                    Modifier.height(20.dp)
             )
 
             HorizontalDivider(
@@ -425,21 +351,16 @@ private fun TotalCostCard(
 
             Spacer(
                 modifier =
-                    Modifier.height(
-                        17.dp
-                    )
+                    Modifier.height(17.dp)
             )
 
             Row(
                 modifier =
                     Modifier.fillMaxWidth()
             ) {
-
                 CostMetric(
                     modifier =
-                        Modifier.weight(
-                            1f
-                        ),
+                        Modifier.weight(1f),
                     icon =
                         Icons.Outlined.MonitorWeight,
                     label =
@@ -450,9 +371,7 @@ private fun TotalCostCard(
 
                 CostMetric(
                     modifier =
-                        Modifier.weight(
-                            1f
-                        ),
+                        Modifier.weight(1f),
                     icon =
                         Icons.Outlined.CalendarMonth,
                     label =
@@ -472,61 +391,42 @@ private fun CostMetric(
     label: String,
     value: String
 ) {
-
     Column(
-        modifier =
-            modifier
+        modifier = modifier
     ) {
-
         Icon(
-            imageVector =
-                icon,
-            contentDescription =
-                null,
-            tint =
-                BeeftechSoftAccent,
+            imageVector = icon,
+            contentDescription = null,
+            tint = BeeftechSoftAccent,
             modifier =
-                Modifier.size(
-                    18.dp
-                )
+                Modifier.size(18.dp)
         )
 
         Spacer(
             modifier =
-                Modifier.height(
-                    7.dp
-                )
+                Modifier.height(7.dp)
         )
 
         Text(
-            text =
-                label,
-            fontSize =
-                9.sp,
+            text = label,
+            fontSize = 9.sp,
             fontWeight =
                 FontWeight.SemiBold,
-            letterSpacing =
-                0.5.sp,
-            color =
-                BeeftechSoftAccent
+            letterSpacing = 0.5.sp,
+            color = BeeftechSoftAccent
         )
 
         Spacer(
             modifier =
-                Modifier.height(
-                    4.dp
-                )
+                Modifier.height(4.dp)
         )
 
         Text(
-            text =
-                value,
-            fontSize =
-                14.sp,
+            text = value,
+            fontSize = 14.sp,
             fontWeight =
                 FontWeight.SemiBold,
-            color =
-                BeeftechWhite
+            color = BeeftechWhite
         )
     }
 }
@@ -534,31 +434,25 @@ private fun CostMetric(
 private fun displayCost(
     value: String
 ): String {
+    val cleanValue = value.trim()
 
-    return if (
-        value.isBlank()
-    ) {
-
+    return if (cleanValue.isBlank()) {
         "R 0.00"
-
     } else if (
-        value
-            .trim()
-            .startsWith("R")
+        cleanValue.startsWith(
+            "R",
+            ignoreCase = true
+        )
     ) {
-
-        value
-
+        cleanValue
     } else {
-
-        "R $value"
+        "R $cleanValue"
     }
 }
 
 @Preview(showBackground = true)
 @Composable
 private fun CostSummaryScreenPreview() {
-
     CostSummaryScreen(
         treatmentCost = "150.00",
         feedCost = "500.00",

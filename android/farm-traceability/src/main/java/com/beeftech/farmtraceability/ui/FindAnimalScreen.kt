@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Tag
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,8 +30,7 @@ fun FindAnimalScreen(
     onBackClick: () -> Unit = {},
     onFindAnimal: (String) -> Unit = {}
 ) {
-
-    var animalReference by remember {
+    var tagReference by remember {
         mutableStateOf("")
     }
 
@@ -40,11 +40,10 @@ fun FindAnimalScreen(
             .background(BeeftechBackground)
             .verticalScroll(rememberScrollState())
     ) {
-
         TraceabilityHeader(
             eyebrow = "FARM TRACEABILITY",
             title = "Find Animal",
-            subtitle = "Locate an animal using its reference number",
+            subtitle = "Search using the animal's tag reference",
             icon = Icons.Outlined.Search,
             showBackButton = true,
             onBackClick = onBackClick
@@ -55,26 +54,26 @@ fun FindAnimalScreen(
                 .fillMaxWidth()
                 .padding(18.dp)
         ) {
-
-            TraceabilitySectionTitle("Animal Lookup")
+            TraceabilitySectionTitle(
+                title = "Animal Lookup"
+            )
 
             Spacer(
                 modifier = Modifier.height(12.dp)
             )
 
             TraceabilityCard {
-
                 TraceabilityTextField(
-                    label = "Animal Reference",
-                    value = animalReference,
+                    label = "Tag Reference",
+                    value = tagReference,
                     onValueChange = {
-                        animalReference = it.uppercase()
+                        tagReference = it.trimStart()
                     },
-                    icon = Icons.Outlined.Search
+                    icon = Icons.Outlined.Tag
                 )
 
                 Spacer(
-                    modifier = Modifier.height(18.dp)
+                    modifier = Modifier.height(20.dp)
                 )
 
                 TraceabilityPrimaryButton(
@@ -85,19 +84,15 @@ fun FindAnimalScreen(
                     },
                     icon = Icons.Outlined.Search,
                     onClick = {
-                        if (
-                            animalReference.isNotBlank() &&
-                            !isLoading
-                        ) {
-                            onFindAnimal(
-                                animalReference.trim()
-                            )
+                        val reference = tagReference.trim()
+
+                        if (reference.isNotBlank() && !isLoading) {
+                            onFindAnimal(reference)
                         }
                     }
                 )
 
                 if (isLoading) {
-
                     Spacer(
                         modifier = Modifier.height(14.dp)
                     )
@@ -109,7 +104,6 @@ fun FindAnimalScreen(
                 }
 
                 if (!errorMessage.isNullOrBlank()) {
-
                     Spacer(
                         modifier = Modifier.height(14.dp)
                     )

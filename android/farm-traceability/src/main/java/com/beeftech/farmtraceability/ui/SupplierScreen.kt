@@ -44,6 +44,8 @@ fun SupplierScreen(
     purchaseBatch: String = "",
     headInBatch: String = "",
     averageEntryMass: String = "",
+    linkedFarm: String = "",
+    supplierOptions: List<String> = emptyList(),
     supplierRecords: List<Supplier> = emptyList(),
     onBackClick: () -> Unit = {},
     onSupplierNameChange: (String) -> Unit = {},
@@ -58,7 +60,6 @@ fun SupplierScreen(
         purchaseBatchNumber: String
     ) -> Unit = { _, _, _, _ -> }
 ) {
-
     var supplierNameState by remember(supplierName) {
         mutableStateOf(supplierName)
     }
@@ -81,10 +82,9 @@ fun SupplierScreen(
             .background(BeeftechBackground)
             .verticalScroll(rememberScrollState())
     ) {
-
         TraceabilityHeader(
             eyebrow = if (animalReference.isBlank()) {
-                "ANIMAL"
+                "FARM TRACEABILITY"
             } else {
                 "ANIMAL $animalReference"
             },
@@ -100,30 +100,25 @@ fun SupplierScreen(
                 .fillMaxWidth()
                 .padding(18.dp)
         ) {
-
             TraceabilitySectionTitle(
-                "Supplier Details"
+                title = "Supplier Details"
             )
 
-            Spacer(
-                modifier = Modifier.height(12.dp)
-            )
+            Spacer(modifier = Modifier.height(12.dp))
 
             TraceabilityCard {
-
-                TraceabilityTextField(
-                    label = "Name",
+                TraceabilitySearchableDropdown(
+                    label = "Supplier Name",
                     value = supplierNameState,
+                    options = supplierOptions,
+                    icon = Icons.Outlined.Person,
                     onValueChange = {
                         supplierNameState = it
                         onSupplierNameChange(it)
-                    },
-                    icon = Icons.Outlined.Person
+                    }
                 )
 
-                Spacer(
-                    modifier = Modifier.height(16.dp)
-                )
+                Spacer(modifier = Modifier.height(16.dp))
 
                 TraceabilityTextField(
                     label = "GLN Number",
@@ -135,9 +130,7 @@ fun SupplierScreen(
                     icon = Icons.Outlined.Numbers
                 )
 
-                Spacer(
-                    modifier = Modifier.height(16.dp)
-                )
+                Spacer(modifier = Modifier.height(16.dp))
 
                 TraceabilityTextField(
                     label = "Date of Purchase",
@@ -149,9 +142,7 @@ fun SupplierScreen(
                     icon = Icons.Outlined.CalendarMonth
                 )
 
-                Spacer(
-                    modifier = Modifier.height(16.dp)
-                )
+                Spacer(modifier = Modifier.height(16.dp))
 
                 TraceabilityTextField(
                     label = "Purchase Batch Number",
@@ -164,58 +155,58 @@ fun SupplierScreen(
                 )
             }
 
-            Spacer(
-                modifier = Modifier.height(24.dp)
-            )
+            Spacer(modifier = Modifier.height(24.dp))
 
             TraceabilitySectionTitle(
-                "Batch Overview"
+                title = "Batch Overview"
             )
 
-            Spacer(
-                modifier = Modifier.height(12.dp)
-            )
+            Spacer(modifier = Modifier.height(12.dp))
 
             TraceabilityCard {
-
                 TraceabilityInfoRow(
                     icon = Icons.Outlined.Groups,
                     title = "Head in Batch",
-                    subtitle = "Number of animals",
+                    subtitle = if (headInBatch.isBlank()) {
+                        "Batch quantity unavailable"
+                    } else {
+                        "Number of animals"
+                    },
                     value = headInBatch
                 )
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 TraceabilityInfoRow(
                     icon = Icons.Outlined.MonitorWeight,
                     title = "Average Entry Mass",
-                    subtitle = "Recorded batch average",
+                    subtitle = if (averageEntryMass.isBlank()) {
+                        "Average entry mass unavailable"
+                    } else {
+                        "Recorded batch average"
+                    },
                     value = averageEntryMass
                 )
             }
 
-            Spacer(
-                modifier = Modifier.height(24.dp)
-            )
+            Spacer(modifier = Modifier.height(24.dp))
 
             TraceabilitySectionTitle(
-                "Farm Location"
+                title = "Farm Location"
             )
 
-            Spacer(
-                modifier = Modifier.height(12.dp)
-            )
+            Spacer(modifier = Modifier.height(12.dp))
 
             TraceabilityCard {
-
                 TraceabilityInfoRow(
                     icon = Icons.Outlined.LocationOn,
                     title = "Linked Farm",
-                    subtitle = "Supplier farm location"
+                    subtitle = linkedFarm.ifBlank {
+                        "Supplier farm information unavailable"
+                    }
                 )
 
-                Spacer(
-                    modifier = Modifier.height(14.dp)
-                )
+                Spacer(modifier = Modifier.height(14.dp))
 
                 TraceabilitySecondaryButton(
                     text = "View Farm",
@@ -224,15 +215,12 @@ fun SupplierScreen(
                 )
             }
 
-            Spacer(
-                modifier = Modifier.height(26.dp)
-            )
+            Spacer(modifier = Modifier.height(26.dp))
 
             TraceabilityPrimaryButton(
                 text = "Save Supplier",
                 icon = Icons.Outlined.Save,
                 onClick = {
-
                     onSaveClick(
                         supplierNameState,
                         glnNumberState,
@@ -242,65 +230,48 @@ fun SupplierScreen(
                 }
             )
 
-            Spacer(
-                modifier = Modifier.height(30.dp)
-            )
+            Spacer(modifier = Modifier.height(30.dp))
 
             TraceabilitySectionTitle(
                 "Supplier History"
             )
 
-            Spacer(
-                modifier = Modifier.height(12.dp)
-            )
+            Spacer(modifier = Modifier.height(12.dp))
 
             if (supplierRecords.isEmpty()) {
-
                 TraceabilityCard {
-
                     Text(
                         text = "No supplier records found.",
                         color = BeeftechMutedText
                     )
                 }
-
             } else {
-
                 supplierRecords.forEach { record ->
-
                     TraceabilityCard {
-
                         Text(
                             text = record.supplierName,
                             fontWeight = FontWeight.Bold,
                             color = BeeftechText
                         )
 
-                        Spacer(
-                            modifier = Modifier.height(6.dp)
-                        )
+                        Spacer(modifier = Modifier.height(6.dp))
 
                         Text(
-                            text =
-                                "GLN: ${record.glnNumber}",
+                            text = "GLN: ${record.glnNumber}",
                             color = BeeftechMutedText
                         )
 
                         Text(
-                            text =
-                                "Purchase date: ${record.purchaseDate}",
+                            text = "Purchase date: ${record.purchaseDate}",
                             color = BeeftechMutedText
                         )
 
                         Text(
-                            text =
-                                "Batch: ${record.purchaseBatchNumber}",
+                            text = "Batch: ${record.purchaseBatchNumber}",
                             color = BeeftechMutedText
                         )
 
-                        Spacer(
-                            modifier = Modifier.height(5.dp)
-                        )
+                        Spacer(modifier = Modifier.height(5.dp))
 
                         val formattedDate =
                             SimpleDateFormat(
@@ -316,15 +287,11 @@ fun SupplierScreen(
                         )
                     }
 
-                    Spacer(
-                        modifier = Modifier.height(12.dp)
-                    )
+                    Spacer(modifier = Modifier.height(12.dp))
                 }
             }
 
-            Spacer(
-                modifier = Modifier.height(30.dp)
-            )
+            Spacer(modifier = Modifier.height(30.dp))
         }
     }
 }
@@ -332,6 +299,5 @@ fun SupplierScreen(
 @Preview(showBackground = true)
 @Composable
 private fun SupplierScreenPreview() {
-
     SupplierScreen()
 }
