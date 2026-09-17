@@ -12,6 +12,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Tag
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -23,6 +25,8 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun FindAnimalScreen(
+    isLoading: Boolean = false,
+    errorMessage: String? = null,
     onBackClick: () -> Unit = {},
     onFindAnimal: (String) -> Unit = {}
 ) {
@@ -54,7 +58,9 @@ fun FindAnimalScreen(
                 title = "Animal Lookup"
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(
+                modifier = Modifier.height(12.dp)
+            )
 
             TraceabilityCard {
                 TraceabilityTextField(
@@ -66,22 +72,52 @@ fun FindAnimalScreen(
                     icon = Icons.Outlined.Tag
                 )
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(
+                    modifier = Modifier.height(20.dp)
+                )
 
                 TraceabilityPrimaryButton(
-                    text = "Find Animal",
+                    text = if (isLoading) {
+                        "Searching..."
+                    } else {
+                        "Find Animal"
+                    },
                     icon = Icons.Outlined.Search,
                     onClick = {
                         val reference = tagReference.trim()
 
-                        if (reference.isNotBlank()) {
+                        if (reference.isNotBlank() && !isLoading) {
                             onFindAnimal(reference)
                         }
                     }
                 )
+
+                if (isLoading) {
+                    Spacer(
+                        modifier = Modifier.height(14.dp)
+                    )
+
+                    Text(
+                        text = "Searching local animal records...",
+                        color = BeeftechMutedText
+                    )
+                }
+
+                if (!errorMessage.isNullOrBlank()) {
+                    Spacer(
+                        modifier = Modifier.height(14.dp)
+                    )
+
+                    Text(
+                        text = errorMessage,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(30.dp))
+            Spacer(
+                modifier = Modifier.height(30.dp)
+            )
         }
     }
 }

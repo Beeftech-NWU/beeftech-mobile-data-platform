@@ -9,8 +9,28 @@ import com.beeftech.database.entity.Mortality
 interface MortalityDao {
 
     @Insert
-    suspend fun insert(mortality: Mortality)
+    suspend fun insert(
+        mortality: Mortality
+    )
 
-    @Query("SELECT * FROM mortalities")
+    @Query(
+        """
+        SELECT *
+        FROM mortalities
+        ORDER BY timestamp DESC
+        """
+    )
     suspend fun getAll(): List<Mortality>
+
+    @Query(
+        """
+        SELECT *
+        FROM mortalities
+        WHERE animalId = :animalId
+        ORDER BY timestamp DESC
+        """
+    )
+    suspend fun getByAnimalId(
+        animalId: String
+    ): List<Mortality>
 }
