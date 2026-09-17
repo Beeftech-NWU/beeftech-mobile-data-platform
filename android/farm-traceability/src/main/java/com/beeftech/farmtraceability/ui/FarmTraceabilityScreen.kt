@@ -49,6 +49,8 @@ fun FarmTraceabilityScreen(
     lastSync: String = "",
     syncStatus: String = "",
     syncWarningLevel: Int = 0,
+    scheduledSync: String = "",
+    retrySyncAvailable: Boolean = false,
     onBackClick: () -> Unit = {},
     onRetrySyncClick: () -> Unit = {},
     onFarmerFarmProfileClick: () -> Unit = {},
@@ -187,7 +189,9 @@ fun FarmTraceabilityScreen(
                 TraceabilityInfoRow(
                     icon = Icons.Outlined.Schedule,
                     title = "Scheduled Sync",
-                    subtitle = "Morning 05:00–06:00 • Evening 18:00–19:00"
+                    subtitle = scheduledSync.ifBlank {
+                        "Background sync not configured yet"
+                    }
                 )
 
                 if (syncStatus.isNotBlank()) {
@@ -203,11 +207,22 @@ fun FarmTraceabilityScreen(
 
                 Spacer(modifier = Modifier.height(18.dp))
 
-                TraceabilitySecondaryButton(
-                    text = "Retry Sync",
-                    icon = Icons.Outlined.Refresh,
-                    onClick = onRetrySyncClick
-                )
+                if (retrySyncAvailable) {
+
+                    TraceabilitySecondaryButton(
+                        text = "Retry Sync",
+                        icon = Icons.Outlined.Refresh,
+                        onClick = onRetrySyncClick
+                    )
+
+                } else {
+
+                    TraceabilityInfoRow(
+                        icon = Icons.Outlined.Refresh,
+                        title = "Retry Sync",
+                        subtitle = "Available when the sync service is connected"
+                    )
+                }
             }
 
             // ---------------------------------------------------------
@@ -297,7 +312,7 @@ fun FarmTraceabilityScreen(
             TraceabilityMenuCard(
                 title = "Mortality Records",
                 subtitle = "Capture and review livestock mortality records",
-                Icons.AutoMirrored.Outlined.Assignment,
+                icon = Icons.AutoMirrored.Outlined.Assignment,
                 onClick = onMortalityClick
             )
 

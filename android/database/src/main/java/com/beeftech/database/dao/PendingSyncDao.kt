@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
 import com.beeftech.database.entity.PendingSync
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PendingSyncDao {
@@ -59,17 +60,12 @@ interface PendingSyncDao {
         id: Long
     )
 
-    @Query(
-        """
-        DELETE FROM pending_sync
-        """
-    )
+    @Query("DELETE FROM pending_sync")
     suspend fun clearAll()
 
-    @Query(
-        """
-        SELECT COUNT(*) FROM pending_sync
-        """
-    )
+    @Query("SELECT COUNT(*) FROM pending_sync")
     suspend fun getPendingCount(): Int
+
+    @Query("SELECT COUNT(*) FROM pending_sync")
+    fun observePendingCount(): Flow<Int>
 }
