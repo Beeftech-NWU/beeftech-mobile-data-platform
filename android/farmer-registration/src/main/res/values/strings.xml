@@ -1,0 +1,5 @@
+<resources>
+    <string name="title_activity_client_details_screen">ClientDetailsScreen</string>
+    <string name="title_activity_address_and_location_screen">AddressAndLocationScreen</string>
+    <string name="title_activity_coordinates_and_save_screen">CoordinatesAndSaveScreen</string>
+</resources>
