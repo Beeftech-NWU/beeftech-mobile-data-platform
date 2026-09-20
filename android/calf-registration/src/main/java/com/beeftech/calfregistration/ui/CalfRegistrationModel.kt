@@ -17,6 +17,7 @@ data class CalfRegistrationData(
     val processProof: String = "",
     val implantProof: String = "",
     val group: String = "",
+    val photoPath: String? = null,
     val synced: Boolean = false,
     val dateRegistered: String = "26 Aug"
 )
