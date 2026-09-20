@@ -31,6 +31,7 @@ android {
 dependencies {
     // BeefTech encrypted database
     implementation(project(":android:database"))
+    implementation(project(":android:authentication"))
 
     implementation(platform("androidx.compose:compose-bom:2024.02.00"))
 

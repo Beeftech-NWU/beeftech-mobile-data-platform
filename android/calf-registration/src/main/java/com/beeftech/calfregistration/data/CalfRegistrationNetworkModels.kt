@@ -18,16 +18,6 @@ data class ApiResponse<T>(
     val data: T? = null
 )
 
-@Serializable
-data class LoginRequest(
-    val username: String,
-    val password: String
-)
-
-@Serializable
-data class LoginResponse(
-    val token: String
-)
 
 @Serializable
 data class CalfRegistrationDto(

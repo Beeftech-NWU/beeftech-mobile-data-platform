@@ -31,9 +31,6 @@ class AndroidKeyStoreSecurityProvider(
 
         private const val DATABASE_PASSPHRASE_LENGTH =
             32
-
-        private const val MOCK_PASSCODE =
-            "DEV_ONLY_123456"
     }
 
     private val keyStore: KeyStore =
@@ -292,14 +289,22 @@ class AndroidKeyStoreSecurityProvider(
         return entry.secretKey
     }
 
+    /**
+     * Sanity-checks [passcode] is well-formed (non-blank). Does NOT verify
+     * it's the "correct" passcode for any user - that verification already
+     * happened in AuthRepository.login() (online: backend check; offline:
+     * BCrypt against the cached pin_hash) before this class is ever
+     * called. This function exists only to catch a programming error
+     * (e.g. an empty string reaching here), not to authenticate anyone.
+     */
     private fun validatePasscode(
         passcode: String
     ) {
 
-        if (passcode != MOCK_PASSCODE) {
+        if (passcode.isBlank()) {
 
             throw DatabaseSecurityException(
-                "Database authentication failed."
+                "Passcode must not be blank."
             )
         }
     }
