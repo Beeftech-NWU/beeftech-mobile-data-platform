@@ -32,6 +32,7 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-jdbc:0.56.0")
 
     implementation("org.xerial:sqlite-jdbc:3.46.1.3")
+    implementation("org.apache.pdfbox:pdfbox:2.0.30")
 
     testImplementation("io.ktor:ktor-server-test-host-jvm:3.0.3")
 }
