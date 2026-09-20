@@ -29,7 +29,8 @@ import com.beeftech.calfregistration.util.TagNamingUtils
 fun TagIdentityScreen(
     formData: CalfRegistrationData,
     onFormDataChange: (CalfRegistrationData) -> Unit,
-    onNextClick: () -> Unit
+    onNextClick: () -> Unit,
+    onCheckTagDuplicate: (suspend (String) -> Boolean)? = null
 ) {
     var activeLookupField by remember { mutableStateOf<String?>(null) }
 
@@ -39,6 +40,16 @@ fun TagIdentityScreen(
     val currentColour = extractedComponents?.first ?: TagColour.BLUE
     val currentSequence = extractedComponents?.second ?: ""
     val isTagValid = TagNamingUtils.validateTag(formData.tagNumber)
+
+    var isDuplicateTag by remember { mutableStateOf(false) }
+
+    LaunchedEffect(formData.tagNumber) {
+        if (isTagValid && onCheckTagDuplicate != null) {
+            isDuplicateTag = onCheckTagDuplicate(formData.tagNumber)
+        } else {
+            isDuplicateTag = false
+        }
+    }
 
     if (activeLookupField != null) {
         val (title, options, currentVal, onSelect) = when (activeLookupField) {
@@ -221,7 +232,7 @@ fun TagIdentityScreen(
                                 color = BeeftechText
                             )
                         }
-                        if (isTagValid) {
+                        if (isTagValid && !isDuplicateTag) {
                             Icon(
                                 imageVector = Icons.Outlined.CheckCircle,
                                 contentDescription = "Valid Tag",
@@ -231,9 +242,38 @@ fun TagIdentityScreen(
                         } else {
                             Icon(
                                 imageVector = Icons.Outlined.Warning,
-                                contentDescription = "Invalid Tag",
-                                tint = Color(0xFFC62828),
+                                contentDescription = "Warning",
+                                tint = if (isDuplicateTag) Color(0xFFE65100) else Color(0xFFC62828),
                                 modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                }
+
+                if (isDuplicateTag) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0)),
+                        border = BorderStroke(1.dp, Color(0xFFFFB74D))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Warning,
+                                contentDescription = "Duplicate",
+                                tint = Color(0xFFE65100),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "Tag '${formData.tagNumber}' already exists locally. Saving will update the existing record.",
+                                fontSize = 12.sp,
+                                color = Color(0xFFE65100),
+                                fontWeight = FontWeight.Medium
                             )
                         }
                     }

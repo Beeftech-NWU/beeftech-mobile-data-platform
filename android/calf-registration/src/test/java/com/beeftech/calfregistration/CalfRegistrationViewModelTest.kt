@@ -127,4 +127,22 @@ class CalfRegistrationViewModelTest {
         assertEquals(1, viewModel.registeredCalves.value.size)
         assertEquals("RMB1", viewModel.registeredCalves.value.first().tagNumber)
     }
+
+    @Test
+    fun `isTagRegistered returns true for existing tag and false for new tag`() = runBlocking {
+        val viewModel = buildViewModel(successfulApiClient())
+
+        assertEquals(false, viewModel.isTagRegistered("Blu0000064"))
+
+        val resultDeferred = CompletableDeferred<Pair<Boolean, String>>()
+        viewModel.saveCalf(
+            CalfRegistrationData(tagNumber = "Blu0000064", animalType = "Brangus")
+        ) { success, message ->
+            resultDeferred.complete(success to message)
+        }
+        withTimeout(5_000) { resultDeferred.await() }
+
+        assertEquals(true, viewModel.isTagRegistered("Blu0000064"))
+        assertEquals(false, viewModel.isTagRegistered("Red0000123"))
+    }
 }

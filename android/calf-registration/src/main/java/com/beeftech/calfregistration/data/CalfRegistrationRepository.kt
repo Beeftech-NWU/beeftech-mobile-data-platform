@@ -39,6 +39,16 @@ class CalfRegistrationRepository(
         }
     }
 
+    /** Checks whether a calf registration with the given [tagNumber] (animalId) already exists locally. */
+    suspend fun isTagRegistered(tagNumber: String): Boolean {
+        if (tagNumber.isBlank()) return false
+        return try {
+            calfRegistrationDao.existsByAnimalId(tagNumber.trim())
+        } catch (exception: Exception) {
+            false
+        }
+    }
+
     /**
      * Persists [formData] locally, queues a pending-sync operation, and
      * makes a best-effort immediate attempt to sync it (and any other

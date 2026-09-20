@@ -39,6 +39,7 @@ fun CalfRegistrationFlow(
             TagIdentityScreen(
                 formData = formData,
                 onFormDataChange = { updated -> formData = updated },
+                onCheckTagDuplicate = { tag -> viewModel.isTagRegistered(tag) },
                 onNextClick = {
                     currentStep = CalfFlowStep.APPEARANCE_PARENTAGE
                 }
