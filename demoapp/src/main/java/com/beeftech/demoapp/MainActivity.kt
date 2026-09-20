@@ -1,6 +1,7 @@
 
 package com.beeftech.demoapp
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -30,6 +31,7 @@ import com.beeftech.database.entity.CalfRegistration
 import com.beeftech.database.repository.PendingSyncRepository
 import com.beeftech.demoapp.ui.theme.BeeftechTheme
 import com.beeftech.farmtraceability.ui.FarmTraceabilityFlow
+import com.beeftech.farmerregistration.ClientDetailsScreen
 import com.beeftech.farmtraceability.viewmodel.AnimalMovementViewModel
 import com.beeftech.farmtraceability.viewmodel.AnimalMovementViewModelFactory
 import com.beeftech.farmtraceability.viewmodel.CostSummaryViewModel
@@ -373,6 +375,17 @@ class MainActivity : ComponentActivity() {
                                   } else {
 
                                     FarmTraceabilityFlow(
+
+                                        onFarmerRegistrationClick = {
+
+                                            val intent =
+                                                Intent(
+                                                    this@MainActivity,
+                                                    ClientDetailsScreen::class.java
+                                                )
+
+                                            startActivity(intent)
+                                        },
 
                                         /*
                                          * Animal Movement

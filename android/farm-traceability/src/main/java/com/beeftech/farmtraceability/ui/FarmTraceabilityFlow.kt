@@ -42,6 +42,8 @@ private enum class TraceabilityScreen {
 fun FarmTraceabilityFlow(
     onExitTraceability: () -> Unit = {},
 
+    onFarmerRegistrationClick: () -> Unit = {},
+
     movementRecords: List<AnimalMovement> = emptyList(),
 
     onLoadMovements: (String) -> Unit = {},
@@ -196,6 +198,9 @@ fun FarmTraceabilityFlow(
                         )
                     },
 
+                    onFarmerRegistrationClick =
+                        onFarmerRegistrationClick,
+
                     onFindAnimalClick = {
                         findAnimalDestination =
                             TraceabilityScreen
@@ -344,6 +349,9 @@ fun FarmTraceabilityFlow(
                                 .FARMER_FARM_PROFILE
                         )
                     },
+
+                    onFarmerRegistrationClick =
+                        onFarmerRegistrationClick,
 
                     onFindAnimalClick = {
                         findAnimalDestination =
