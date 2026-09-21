@@ -2,6 +2,8 @@ package com.beeftech.calfregistration.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.*
+import com.beeftech.calfregistration.util.TagColour
+import com.beeftech.calfregistration.util.TagNamingUtils
 import com.beeftech.calfregistration.viewmodel.CalfRegistrationViewModel
 
 private enum class CalfFlowStep {
@@ -37,6 +39,7 @@ fun CalfRegistrationFlow(
             TagIdentityScreen(
                 formData = formData,
                 onFormDataChange = { updated -> formData = updated },
+                onCheckTagDuplicate = { tag -> viewModel.isTagRegistered(tag) },
                 onNextClick = {
                     currentStep = CalfFlowStep.APPEARANCE_PARENTAGE
                 }
@@ -58,7 +61,7 @@ fun CalfRegistrationFlow(
                     viewModel.saveCalf(formData) { _, _ ->
                         // Reset form and navigate to session list, same as before.
                         formData = CalfRegistrationData(
-                            tagNumber = "RMB${(25426..25499).random()}",
+                            tagNumber = TagNamingUtils.formatTag(TagColour.BLUE, (64..99).random().toLong()),
                             transponderNumber = "${(41..99).random()}"
                         )
                         currentStep = CalfFlowStep.SESSION_LIST
@@ -76,7 +79,7 @@ fun CalfRegistrationFlow(
                 },
                 onRegisterNewCalfClick = {
                     formData = CalfRegistrationData(
-                        tagNumber = "RMB${(25426..25499).random()}",
+                        tagNumber = TagNamingUtils.formatTag(TagColour.BLUE, (64..99).random().toLong()),
                         transponderNumber = "${(41..99).random()}"
                     )
                     currentStep = CalfFlowStep.TAG_IDENTITY

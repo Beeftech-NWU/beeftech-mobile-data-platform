@@ -72,7 +72,7 @@ object CalfRegistrationMappers {
             breed = formData.animalType,
             damId = damId,
             sireId = sireId,
-            photoPath = null,
+            photoPath = formData.photoPath,
             videoPath = null,
             gpsLat = 0.0,
             gpsLng = 0.0,
@@ -104,6 +104,7 @@ object CalfRegistrationMappers {
             animalType = entity.breed,
             dameTagNumber = entity.damId ?: SELECT_DAME_PLACEHOLDER,
             sireTagNumber = entity.sireId ?: SELECT_SIRE_PLACEHOLDER,
+            photoPath = entity.photoPath,
             synced = entity.syncStatus == SYNC_STATUS_SYNCED,
             dateRegistered = dateFormat.format(entity.captureAt)
         )

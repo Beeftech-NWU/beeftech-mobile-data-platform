@@ -1,7 +1,7 @@
 package com.beeftech.calfregistration.ui
 
 data class CalfRegistrationData(
-    val tagNumber: String = "RMB25423",
+    val tagNumber: String = "Blu0000064",
     val oldTagNumber: String = "",
     val transponderNumber: String = "40",
     val referenceNumber: String = "",
@@ -17,6 +17,7 @@ data class CalfRegistrationData(
     val processProof: String = "",
     val implantProof: String = "",
     val group: String = "",
+    val photoPath: String? = null,
     val synced: Boolean = false,
     val dateRegistered: String = "26 Aug"
 )
@@ -69,37 +70,37 @@ object CalfRegistrationLookups {
     )
 
     val dameTagList = listOf(
-        "RMB-DAM-011 (Bonsmara)",
-        "RMB-DAM-024 (Brangus)",
-        "RMB-DAM-039 (Brahman)",
-        "RMB-DAM-052 (Nguni)",
-        "RMB-DAM-088 (Angus)"
+        "Blu0000011 (Bonsmara)",
+        "Red0000024 (Brangus)",
+        "Grn0000039 (Brahman)",
+        "Yel0000052 (Nguni)",
+        "Blu0000088 (Angus)"
     )
 
     val sireTagList = listOf(
-        "BULL-BNM-902 (Bonsmara Stud)",
-        "BULL-BRG-550 (Brangus Stud)",
-        "BULL-BRH-110 (Brahman Stud)",
-        "BULL-NGN-301 (Nguni Stud)"
+        "Blu0000902 (Bonsmara Stud)",
+        "Red0000550 (Brangus Stud)",
+        "Grn0000110 (Brahman Stud)",
+        "Yel0000301 (Nguni Stud)"
     )
 
     val initialRegisteredCalves = listOf(
         CalfRegistrationData(
-            tagNumber = "RMB25423",
+            tagNumber = "Blu0000064",
             animalType = "Brangus",
             gender = "Female",
             dateRegistered = "26 Aug",
             synced = false
         ),
         CalfRegistrationData(
-            tagNumber = "RMB25424",
+            tagNumber = "Blu0000065",
             animalType = "Brangus",
             gender = "Male",
             dateRegistered = "25 Aug",
             synced = false
         ),
         CalfRegistrationData(
-            tagNumber = "RMB25425",
+            tagNumber = "Blu0000066",
             animalType = "Bonsmara",
             gender = "Female",
             dateRegistered = "24 Aug",
