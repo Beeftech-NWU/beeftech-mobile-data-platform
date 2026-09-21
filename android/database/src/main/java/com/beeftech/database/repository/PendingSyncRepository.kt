@@ -6,50 +6,43 @@ import com.beeftech.database.entity.PendingSync
 class PendingSyncRepository(
     private val pendingSyncDao: PendingSyncDao
 ) {
-
     suspend fun queueOperation(
         entityType: String,
         entityId: String,
         operation: String,
         payload: String
     ): Long {
-
-        val pendingSync = PendingSync(
-            entityType = entityType,
-            entityId = entityId,
-            operation = operation,
-            payload = payload,
-            createdAt = System.currentTimeMillis(),
-            retryCount = 0
+        return pendingSyncDao.insert(
+            PendingSync(
+                entityType = entityType,
+                entityId = entityId,
+                operation = operation,
+                payload = payload,
+                createdAt = System.currentTimeMillis(),
+                retryCount = 0
+            )
         )
-
-        return pendingSyncDao.insert(pendingSync)
     }
 
     suspend fun getPendingOperations(
         maxRetries: Int = DEFAULT_MAX_RETRIES
-    ): List<PendingSync> {
+    ): List<PendingSync> =
+        pendingSyncDao.getPendingForRetry(maxRetries)
 
-        return pendingSyncDao.getPendingForRetry(
-            maxRetries
-        )
-    }
+    // Includes records that have already reached the retry limit.
+    suspend fun getAllPendingOperations(): List<PendingSync> =
+        pendingSyncDao.getAll()
 
-    suspend fun markSyncFailed(
-        id: Long
-    ) {
+    suspend fun markSyncFailed(id: Long) {
         pendingSyncDao.incrementRetryCount(id)
     }
 
-    suspend fun markSyncSuccessful(
-        id: Long
-    ) {
+    suspend fun markSyncSuccessful(id: Long) {
         pendingSyncDao.deleteById(id)
     }
 
-    suspend fun getPendingCount(): Int {
-        return pendingSyncDao.getPendingCount()
-    }
+    suspend fun getPendingCount(): Int =
+        pendingSyncDao.getPendingCount()
 
     suspend fun clearAll() {
         pendingSyncDao.clearAll()

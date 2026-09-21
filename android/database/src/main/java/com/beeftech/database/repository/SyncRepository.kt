@@ -5,6 +5,7 @@ import com.beeftech.database.dao.SyncBatchDao
 import com.beeftech.database.entity.PendingSync
 import com.beeftech.database.entity.SyncBatchEntity
 import kotlinx.coroutines.flow.Flow
+import java.util.UUID
 
 class SyncRepository(
     private val pendingSyncDao: PendingSyncDao,
@@ -35,5 +36,16 @@ class SyncRepository(
 
     suspend fun deletePendingRecord(id: Long) {
         pendingSyncDao.deleteById(id)
+    }
+
+    suspend fun recordSuccessfulSync(
+        timestamp: Long = System.currentTimeMillis()
+    ) {
+        syncBatchDao.insert(
+            SyncBatchEntity(
+                id = UUID.randomUUID().toString(),
+                timestamp = timestamp
+            )
+        )
     }
 }

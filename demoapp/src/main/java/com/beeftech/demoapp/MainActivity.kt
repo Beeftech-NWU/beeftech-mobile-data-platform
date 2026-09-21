@@ -1,4 +1,3 @@
-
 package com.beeftech.demoapp
 
 import android.content.Intent
@@ -10,9 +9,10 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -29,9 +29,12 @@ import com.beeftech.database.DatabaseProvider
 import com.beeftech.database.DatabaseResult
 import com.beeftech.database.entity.CalfRegistration
 import com.beeftech.database.repository.PendingSyncRepository
+import com.beeftech.database.repository.SyncRepository
 import com.beeftech.demoapp.ui.theme.BeeftechTheme
-import com.beeftech.farmtraceability.ui.FarmTraceabilityFlow
 import com.beeftech.farmerregistration.ClientDetailsScreen
+import com.beeftech.farmtraceability.ui.FarmTraceabilityFlow
+import com.beeftech.farmtraceability.data.TreatmentApiClient
+import com.beeftech.farmtraceability.data.TreatmentRepository
 import com.beeftech.farmtraceability.viewmodel.AnimalMovementViewModel
 import com.beeftech.farmtraceability.viewmodel.AnimalMovementViewModelFactory
 import com.beeftech.farmtraceability.viewmodel.CostSummaryViewModel
@@ -130,6 +133,17 @@ class MainActivity : ComponentActivity() {
                     }
 
                     /*
+                     * Shared Pending Sync Repository
+                     *
+                     * Calf Registration and Animal Movement
+                     * use the same encrypted pending-sync queue.
+                     */
+                    val pendingSyncRepository =
+                        PendingSyncRepository(
+                            database.pendingSyncDao()
+                        )
+
+                    /*
                      * Animal Movement setup
                      */
                     val animalMovementDao =
@@ -138,7 +152,11 @@ class MainActivity : ComponentActivity() {
                     val movementViewModelFactory =
                         AnimalMovementViewModelFactory(
                             animalMovementDao =
-                                animalMovementDao
+                                animalMovementDao,
+                            pendingSyncRepository =
+                                pendingSyncRepository,
+                            context =
+                                applicationContext
                         )
 
                     val movementViewModel =
@@ -153,10 +171,25 @@ class MainActivity : ComponentActivity() {
                     val treatmentDao =
                         database.treatmentDao()
 
+                    val treatmentApiClient =
+                        TreatmentApiClient()
+
+                    val treatmentRepository =
+                        TreatmentRepository(
+                            treatmentDao =
+                                treatmentDao,
+                            pendingSyncRepository =
+                                pendingSyncRepository,
+                            apiClient =
+                                treatmentApiClient
+                        )
+
                     val treatmentViewModelFactory =
                         TreatmentViewModelFactory(
-                            treatmentDao =
-                                treatmentDao
+                            repository =
+                                treatmentRepository,
+                            applicationContext =
+                                applicationContext
                         )
 
                     val treatmentViewModel =
@@ -185,35 +218,25 @@ class MainActivity : ComponentActivity() {
 
                     /*
                      * Location & Feed DAO
-                     *
-                     * Shared by Location & Feed and Cost Summary.
                      */
                     val locationFeedDao =
                         database.locationFeedDao()
 
                     /*
                      * Animal Cost DAO
-                     *
-                     * Used for Transport, Processing,
-                     * Handling and Interest costs.
                      */
                     val animalCostDao =
                         database.animalCostDao()
 
                     /*
                      * Cost Summary setup
-                     *
-                     * Uses Treatment, Feed/Ration and
-                     * additional Animal Cost records.
                      */
                     val costSummaryViewModelFactory =
                         CostSummaryViewModelFactory(
                             treatmentDao =
                                 treatmentDao,
-
                             locationFeedDao =
                                 locationFeedDao,
-
                             animalCostDao =
                                 animalCostDao
                         )
@@ -262,13 +285,11 @@ class MainActivity : ComponentActivity() {
                      */
                     val calfRegistrationViewModelFactory =
                         CalfRegistrationViewModelFactory(
+                            context = applicationContext,
                             calfRegistrationDao =
                                 database.calfRegistrationDao(),
-
                             pendingSyncRepository =
-                                PendingSyncRepository(
-                                    database.pendingSyncDao()
-                                )
+                                pendingSyncRepository
                         )
 
                     val calfRegistrationViewModel =
@@ -277,6 +298,14 @@ class MainActivity : ComponentActivity() {
                             calfRegistrationViewModelFactory
                         )[CalfRegistrationViewModel::class.java]
 
+                    val syncRepository =
+                        SyncRepository(
+                            pendingSyncDao =
+                                database.pendingSyncDao(),
+                            syncBatchDao =
+                                database.syncBatchDao()
+                        )
+
                     /*
                      * Start demo UI
                      */
@@ -284,76 +313,88 @@ class MainActivity : ComponentActivity() {
 
                         BeeftechTheme {
 
-                            /*
-                             * Animal Movement history
-                             */
                             val movementRecords by
                             movementViewModel
                                 .movements
                                 .collectAsState()
 
-                            /*
-                             * Treatment history
-                             */
                             val treatmentRecords by
                             treatmentViewModel
                                 .treatments
                                 .collectAsState()
 
-                            /*
-                             * Mortality history
-                             */
+                            val diseaseOptions by
+                            treatmentViewModel
+                                .diseaseOptions
+                                .collectAsState()
+
+                            val treatmentOptions by
+                            treatmentViewModel
+                                .treatmentOptions
+                                .collectAsState()
+
                             val mortalityRecords by
                             mortalityViewModel
                                 .mortalities
                                 .collectAsState()
 
-                            /*
-                             * Cost Summary
-                             */
                             val costSummaryState by
                             costSummaryViewModel
                                 .uiState
                                 .collectAsState()
 
-                            /*
-                             * Supplier history
-                             */
                             val supplierRecords by
                             supplierViewModel
                                 .suppliers
                                 .collectAsState()
 
-                            /*
-                             * Location & Feed history
-                             */
                             val locationFeedRecords by
                             locationFeedViewModel
                                 .records
                                 .collectAsState()
 
                             var selectedDemoTab by
-                                remember { mutableIntStateOf(0) }
+                            remember {
+                                mutableIntStateOf(0)
+                            }
 
                             Scaffold(
                                 modifier =
                                     Modifier.fillMaxSize(),
 
                                 topBar = {
-                                    TabRow(
+
+                                    PrimaryTabRow(
                                         selectedTabIndex =
-                                            selectedDemoTab
+                                            selectedDemoTab,
+                                        modifier =
+                                            Modifier.statusBarsPadding()
                                     ) {
+
                                         Tab(
-                                            selected = selectedDemoTab == 0,
-                                            onClick = { selectedDemoTab = 0 },
-                                            text = { Text("Farm Traceability") }
+                                            selected =
+                                                selectedDemoTab == 0,
+                                            onClick = {
+                                                selectedDemoTab = 0
+                                            },
+                                            text = {
+                                                Text(
+                                                    "Farm Traceability"
+                                                )
+                                            }
                                         )
 
                                         Tab(
-                                            selected = selectedDemoTab == 1,
-                                            onClick = { selectedDemoTab = 1 },
-                                            text = { Text("Calf Registration") }
+                                            selected =
+                                                selectedDemoTab == 1,
+                                            onClick = {
+                                                selectedDemoTab = 1
+                                            },
+                                            text = {
+                                                Text(
+                                                    "Calf Registration"
+                                                )
+                                            }
                                         )
                                     }
                                 }
@@ -366,60 +407,315 @@ class MainActivity : ComponentActivity() {
                                             .padding(innerPadding)
                                 ) {
 
-                                  if (selectedDemoTab == 1) {
+                                    if (selectedDemoTab == 1) {
 
-                                    CalfRegistrationFlow(
-                                        viewModel = calfRegistrationViewModel
-                                    )
+                                        CalfRegistrationFlow(
+                                            viewModel =
+                                                calfRegistrationViewModel
+                                        )
 
-                                  } else {
+                                    } else {
 
-                                    FarmTraceabilityFlow(
+                                        FarmTraceabilityFlow(
 
-                                        onFarmerRegistrationClick = {
+                                            onFarmerRegistrationClick = {
 
-                                            val intent =
-                                                Intent(
-                                                    this@MainActivity,
-                                                    ClientDetailsScreen::class.java
-                                                )
+                                                val intent =
+                                                    Intent(
+                                                        this@MainActivity,
+                                                        ClientDetailsScreen::class.java
+                                                    )
 
-                                            startActivity(intent)
-                                        },
+                                                startActivity(intent)
+                                            },
 
-                                        /*
-                                         * Animal Movement
-                                         */
-                                        movementRecords =
-                                            movementRecords,
+                                            movementRecords =
+                                                movementRecords,
 
-                                        onLoadMovements = {
-                                                animalId: String ->
+                                            onLoadMovements = {
+                                                    animalId: String ->
 
-                                            movementViewModel
-                                                .loadMovements(
-                                                    animalId
-                                                )
-                                        },
+                                                movementViewModel
+                                                    .loadMovements(
+                                                        animalId
+                                                    )
+                                            },
 
-                                        onSaveMovement = {
-                                                animalId,
-                                                movementInformation,
-                                                responsibleWorker ->
+                                            onSaveMovement = {
+                                                    animalId,
+                                                    movementInformation,
+                                                    responsibleWorker ->
 
-                                            movementViewModel
-                                                .saveMovement(
+                                                movementViewModel
+                                                    .saveMovement(
+                                                        animalId =
+                                                            animalId,
+                                                        movementInformation =
+                                                            movementInformation,
+                                                        responsibleWorker =
+                                                            responsibleWorker,
+                                                        onResult = {
+                                                                _,
+                                                                message ->
 
-                                                    animalId =
-                                                        animalId,
+                                                            Toast.makeText(
+                                                                this@MainActivity,
+                                                                message,
+                                                                Toast.LENGTH_SHORT
+                                                            ).show()
+                                                        }
+                                                    )
+                                            },
 
-                                                    movementInformation =
-                                                        movementInformation,
+                                            treatmentRecords =
+                                                treatmentRecords,
 
-                                                    responsibleWorker =
-                                                        responsibleWorker,
+                                            diseaseOptions =
+                                                diseaseOptions,
 
-                                                    onResult = {
+                                            treatmentOptions =
+                                                treatmentOptions,
+
+                                            onLoadTreatments = {
+                                                    animalId: String ->
+
+                                                treatmentViewModel
+                                                    .loadTreatments(
+                                                        animalId
+                                                    )
+                                            },
+
+                                            onSaveTreatment = {
+                                                    animalId,
+                                                    disease,
+                                                    treatment,
+                                                    batchNumber,
+                                                    volumeUsed,
+                                                    cost ->
+
+                                                treatmentViewModel
+                                                    .saveTreatment(
+                                                        animalId =
+                                                            animalId,
+                                                        disease =
+                                                            disease,
+                                                        treatmentName =
+                                                            treatment,
+                                                        batchNumber =
+                                                            batchNumber,
+                                                        volumeUsed =
+                                                            volumeUsed,
+                                                        costText =
+                                                            cost,
+                                                        onResult = {
+                                                                _,
+                                                                message ->
+
+                                                            Toast.makeText(
+                                                                this@MainActivity,
+                                                                message,
+                                                                Toast.LENGTH_SHORT
+                                                            ).show()
+                                                        }
+                                                    )
+                                            },
+
+                                            mortalityRecords =
+                                                mortalityRecords,
+
+                                            onLoadMortalities = {
+                                                    animalId: String ->
+
+                                                mortalityViewModel
+                                                    .loadMortalities(
+                                                        animalId
+                                                    )
+                                            },
+
+                                            onSaveMortality = {
+                                                    animalId,
+                                                    mortalityReason,
+                                                    responsibleWorker ->
+
+                                                mortalityViewModel
+                                                    .saveMortality(
+                                                        animalId =
+                                                            animalId,
+                                                        mortalityReason =
+                                                            mortalityReason,
+                                                        responsibleWorker =
+                                                            responsibleWorker,
+                                                        onResult = {
+                                                                _,
+                                                                message ->
+
+                                                            Toast.makeText(
+                                                                this@MainActivity,
+                                                                message,
+                                                                Toast.LENGTH_SHORT
+                                                            ).show()
+                                                        }
+                                                    )
+                                            },
+
+                                            transportCost =
+                                                costSummaryState.transportCost,
+
+                                            processingCost =
+                                                costSummaryState.processingCost,
+
+                                            treatmentCost =
+                                                costSummaryState.treatmentCost,
+
+                                            feedCost =
+                                                costSummaryState.feedCost,
+
+                                            handlingCost =
+                                                costSummaryState.handlingCost,
+
+                                            interestCost =
+                                                costSummaryState.interestCost,
+
+                                            totalAnimalCost =
+                                                costSummaryState.totalAnimalCost,
+
+                                            onLoadCostSummary = {
+                                                    animalId: String ->
+
+                                                costSummaryViewModel
+                                                    .loadCostSummary(
+                                                        animalId
+                                                    )
+                                            },
+
+                                            supplierRecords =
+                                                supplierRecords,
+
+                                            onLoadSuppliers = {
+                                                    animalId: String ->
+
+                                                supplierViewModel
+                                                    .loadSuppliers(
+                                                        animalId
+                                                    )
+                                            },
+
+                                            onSaveSupplier = {
+                                                    animalId,
+                                                    supplierName,
+                                                    glnNumber,
+                                                    purchaseDate,
+                                                    purchaseBatchNumber ->
+
+                                                supplierViewModel
+                                                    .saveSupplier(
+                                                        animalId =
+                                                            animalId,
+                                                        supplierName =
+                                                            supplierName,
+                                                        glnNumber =
+                                                            glnNumber,
+                                                        purchaseDate =
+                                                            purchaseDate,
+                                                        purchaseBatchNumber =
+                                                            purchaseBatchNumber,
+                                                        onResult = {
+                                                                _,
+                                                                message ->
+
+                                                            Toast.makeText(
+                                                                this@MainActivity,
+                                                                message,
+                                                                Toast.LENGTH_SHORT
+                                                            ).show()
+                                                        }
+                                                    )
+                                            },
+
+                                            locationFeedRecords =
+                                                locationFeedRecords,
+
+                                            onLoadLocationFeed = {
+                                                    animalId: String ->
+
+                                                locationFeedViewModel
+                                                    .loadRecords(
+                                                        animalId
+                                                    )
+                                            },
+
+                                            onSaveLocationFeed = {
+                                                    animalId,
+                                                    destination,
+                                                    daysInDestination,
+                                                    rationName,
+                                                    rationDays,
+                                                    rationCost ->
+
+                                                locationFeedViewModel
+                                                    .saveRecord(
+                                                        animalId =
+                                                            animalId,
+                                                        destination =
+                                                            destination,
+                                                        daysInDestinationText =
+                                                            daysInDestination,
+                                                        rationName =
+                                                            rationName,
+                                                        rationDaysText =
+                                                            rationDays,
+                                                        rationCostText =
+                                                            rationCost,
+                                                        onResult = {
+                                                                _,
+                                                                message ->
+
+                                                            Toast.makeText(
+                                                                this@MainActivity,
+                                                                message,
+                                                                Toast.LENGTH_SHORT
+                                                            ).show()
+                                                        }
+                                                    )
+                                            },
+
+                                            onRetrySyncClick = {
+
+                                                /*
+                                                 * Retry calf registration sync.
+                                                 */
+                                                calfRegistrationViewModel
+                                                    .retrySync {
+                                                            success,
+                                                            message ->
+
+                                                        if (
+                                                            success &&
+                                                            message.contains(
+                                                                "synced successfully"
+                                                            )
+                                                        ) {
+                                                            lifecycleScope.launch {
+                                                                syncRepository
+                                                                    .recordSuccessfulSync()
+                                                            }
+                                                        }
+
+                                                        Toast.makeText(
+                                                            this@MainActivity,
+                                                            message,
+                                                            Toast.LENGTH_SHORT
+                                                        ).show()
+                                                    }
+
+                                                /*
+                                                 * Also retry pending animal
+                                                 * movement synchronization.
+                                                 */
+                                                movementViewModel
+                                                    .retrySync(
+                                                        animalId = ""
+                                                    ) {
                                                             _,
                                                             message ->
 
@@ -429,256 +725,9 @@ class MainActivity : ComponentActivity() {
                                                             Toast.LENGTH_SHORT
                                                         ).show()
                                                     }
-                                                )
-                                        },
-
-                                        /*
-                                         * Treatments
-                                         */
-                                        treatmentRecords =
-                                            treatmentRecords,
-
-                                        onLoadTreatments = {
-                                                animalId: String ->
-
-                                            treatmentViewModel
-                                                .loadTreatments(
-                                                    animalId
-                                                )
-                                        },
-
-                                        onSaveTreatment = {
-                                                animalId,
-                                                disease,
-                                                treatment,
-                                                batchNumber,
-                                                volumeUsed,
-                                                cost ->
-
-                                            treatmentViewModel
-                                                .saveTreatment(
-
-                                                    animalId =
-                                                        animalId,
-
-                                                    disease =
-                                                        disease,
-
-                                                    treatmentName =
-                                                        treatment,
-
-                                                    batchNumber =
-                                                        batchNumber,
-
-                                                    volumeUsed =
-                                                        volumeUsed,
-
-                                                    costText =
-                                                        cost,
-
-                                                    onResult = {
-                                                            _,
-                                                            message ->
-
-                                                        Toast.makeText(
-                                                            this@MainActivity,
-                                                            message,
-                                                            Toast.LENGTH_SHORT
-                                                        ).show()
-                                                    }
-                                                )
-                                        },
-
-                                        /*
-                                         * Mortality
-                                         */
-                                        mortalityRecords =
-                                            mortalityRecords,
-
-                                        onLoadMortalities = {
-                                                animalId: String ->
-
-                                            mortalityViewModel
-                                                .loadMortalities(
-                                                    animalId
-                                                )
-                                        },
-
-                                        onSaveMortality = {
-                                                animalId,
-                                                mortalityReason,
-                                                responsibleWorker ->
-
-                                            mortalityViewModel
-                                                .saveMortality(
-
-                                                    animalId =
-                                                        animalId,
-
-                                                    mortalityReason =
-                                                        mortalityReason,
-
-                                                    responsibleWorker =
-                                                        responsibleWorker,
-
-                                                    onResult = {
-                                                            _,
-                                                            message ->
-
-                                                        Toast.makeText(
-                                                            this@MainActivity,
-                                                            message,
-                                                            Toast.LENGTH_SHORT
-                                                        ).show()
-                                                    }
-                                                )
-                                        },
-
-                                        /*
-                                         * Cost Summary
-                                         */
-                                        transportCost =
-                                            costSummaryState.transportCost,
-
-                                        processingCost =
-                                            costSummaryState.processingCost,
-
-                                        treatmentCost =
-                                            costSummaryState.treatmentCost,
-
-                                        feedCost =
-                                            costSummaryState.feedCost,
-
-                                        handlingCost =
-                                            costSummaryState.handlingCost,
-
-                                        interestCost =
-                                            costSummaryState.interestCost,
-
-                                        totalAnimalCost =
-                                            costSummaryState.totalAnimalCost,
-
-                                        onLoadCostSummary = {
-                                                animalId: String ->
-
-                                            costSummaryViewModel
-                                                .loadCostSummary(
-                                                    animalId
-                                                )
-                                        },
-
-                                        /*
-                                         * Supplier
-                                         */
-                                        supplierRecords =
-                                            supplierRecords,
-
-                                        onLoadSuppliers = {
-                                                animalId: String ->
-
-                                            supplierViewModel
-                                                .loadSuppliers(
-                                                    animalId
-                                                )
-                                        },
-
-                                        onSaveSupplier = {
-                                                animalId,
-                                                supplierName,
-                                                glnNumber,
-                                                purchaseDate,
-                                                purchaseBatchNumber ->
-
-                                            supplierViewModel
-                                                .saveSupplier(
-
-                                                    animalId =
-                                                        animalId,
-
-                                                    supplierName =
-                                                        supplierName,
-
-                                                    glnNumber =
-                                                        glnNumber,
-
-                                                    purchaseDate =
-                                                        purchaseDate,
-
-                                                    purchaseBatchNumber =
-                                                        purchaseBatchNumber,
-
-                                                    onResult = {
-                                                            _,
-                                                            message ->
-
-                                                        Toast.makeText(
-                                                            this@MainActivity,
-                                                            message,
-                                                            Toast.LENGTH_SHORT
-                                                        ).show()
-                                                    }
-                                                )
-                                        },
-
-                                        /*
-                                         * Location & Feed
-                                         */
-                                        locationFeedRecords =
-                                            locationFeedRecords,
-
-                                        onLoadLocationFeed = {
-                                                animalId: String ->
-
-                                            locationFeedViewModel
-                                                .loadRecords(
-                                                    animalId
-                                                )
-                                        },
-
-                                        onSaveLocationFeed = {
-                                                animalId,
-                                                destination,
-                                                daysInDestination,
-                                                rationName,
-                                                rationDays,
-                                                rationCost ->
-
-                                            locationFeedViewModel
-                                                .saveRecord(
-
-                                                    animalId =
-                                                        animalId,
-
-                                                    destination =
-                                                        destination,
-
-                                                    daysInDestinationText =
-                                                        daysInDestination,
-
-                                                    rationName =
-                                                        rationName,
-
-                                                    rationDaysText =
-                                                        rationDays,
-
-                                                    rationCostText =
-                                                        rationCost,
-
-                                                    onResult = {
-                                                            _,
-                                                            message ->
-
-                                                        Toast.makeText(
-                                                            this@MainActivity,
-                                                            message,
-                                                            Toast.LENGTH_SHORT
-                                                        ).show()
-                                                    }
-                                                )
-                                        }
-                                    )
-
-                                  }
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }

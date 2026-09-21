@@ -57,6 +57,7 @@ fun AnimalMovementScreen(
         responsibleWorker: String
     ) -> Unit = { _, _ -> }
 ) {
+
     var animalReferenceState by remember(animalReference) {
         mutableStateOf(animalReference)
     }
@@ -75,6 +76,7 @@ fun AnimalMovementScreen(
             .background(BeeftechBackground)
             .verticalScroll(rememberScrollState())
     ) {
+
         TraceabilityHeader(
             eyebrow = "FARM TRACEABILITY",
             title = "Animal Movement",
@@ -89,6 +91,7 @@ fun AnimalMovementScreen(
                 .fillMaxWidth()
                 .padding(18.dp)
         ) {
+
             TraceabilitySectionTitle(
                 "Movement Details"
             )
@@ -98,12 +101,13 @@ fun AnimalMovementScreen(
             )
 
             TraceabilityCard {
+
                 TraceabilityTextField(
                     label = "Animal Tag / Reference",
                     value = animalReferenceState,
-                    onValueChange = {
-                        animalReferenceState = it
-                        onAnimalReferenceChange(it)
+                    onValueChange = { newValue ->
+                        animalReferenceState = newValue
+                        onAnimalReferenceChange(newValue)
                     },
                     icon = Icons.Outlined.Pets
                 )
@@ -115,9 +119,9 @@ fun AnimalMovementScreen(
                 TraceabilityTextField(
                     label = "Movement Details",
                     value = movementState,
-                    onValueChange = {
-                        movementState = it
-                        onMovementInformationChange(it)
+                    onValueChange = { newValue ->
+                        movementState = newValue
+                        onMovementInformationChange(newValue)
                     },
                     icon = Icons.Outlined.EditNote,
                     singleLine = false,
@@ -133,9 +137,9 @@ fun AnimalMovementScreen(
                     value = workerState,
                     options = workerOptions,
                     icon = Icons.Outlined.Person,
-                    onValueChange = {
-                        workerState = it
-                        onResponsibleWorkerChange(it)
+                    onValueChange = { newValue ->
+                        workerState = newValue
+                        onResponsibleWorkerChange(newValue)
                     }
                 )
             }
@@ -144,10 +148,22 @@ fun AnimalMovementScreen(
                 modifier = Modifier.height(20.dp)
             )
 
+            /*
+             * Add Movement Record
+             *
+             * IMPORTANT:
+             * Do NOT clear movementState or workerState here.
+             *
+             * Previously this button cleared the worker before the
+             * Save button could use it, which caused:
+             *
+             * "Please enter the responsible worker."
+             */
             TraceabilitySecondaryButton(
                 text = "Add Movement Record",
                 icon = Icons.Outlined.Add,
                 onClick = {
+
                     val reference =
                         animalReferenceState.trim()
 
@@ -162,17 +178,19 @@ fun AnimalMovementScreen(
                         movement.isNotBlank() &&
                         worker.isNotBlank()
                     ) {
+
                         onAddMovementClick(
                             reference,
                             movement,
                             worker
                         )
 
-                        movementState = ""
-                        workerState = ""
-
-                        onMovementInformationChange("")
-                        onResponsibleWorkerChange("")
+                        /*
+                         * Keep the values visible.
+                         *
+                         * The Save button can therefore use exactly
+                         * the same movement and responsible worker.
+                         */
                     }
                 }
             )
@@ -181,13 +199,29 @@ fun AnimalMovementScreen(
                 modifier = Modifier.height(12.dp)
             )
 
+            /*
+             * Save exactly what is currently visible in the fields.
+             */
             TraceabilityPrimaryButton(
                 text = "Save Movement Records",
                 icon = Icons.Outlined.Save,
                 onClick = {
+
+                    val movement =
+                        movementState.trim()
+
+                    val worker =
+                        workerState.trim()
+
+                    /*
+                     * Pass the CURRENT UI values directly.
+                     *
+                     * Validation and persistence are handled by the
+                     * ViewModel/repository.
+                     */
                     onSaveClick(
-                        movementState,
-                        workerState
+                        movement,
+                        worker
                     )
                 }
             )
@@ -205,30 +239,29 @@ fun AnimalMovementScreen(
             )
 
             if (movementRecords.isNotEmpty()) {
+
                 movementRecords.forEach { movement ->
+
                     TraceabilityCard {
+
                         Text(
                             text = movement.movementType,
-                            fontWeight =
-                                FontWeight.SemiBold,
+                            fontWeight = FontWeight.SemiBold,
                             color = BeeftechText
                         )
 
                         Spacer(
-                            modifier =
-                                Modifier.height(6.dp)
+                            modifier = Modifier.height(6.dp)
                         )
 
                         Text(
                             text =
                                 "Responsible worker: ${movement.responsibleWorker}",
-                            color =
-                                BeeftechMutedText
+                            color = BeeftechMutedText
                         )
 
                         Spacer(
-                            modifier =
-                                Modifier.height(4.dp)
+                            modifier = Modifier.height(4.dp)
                         )
 
                         val formattedDate =
@@ -248,32 +281,29 @@ fun AnimalMovementScreen(
                     }
 
                     Spacer(
-                        modifier =
-                            Modifier.height(12.dp)
+                        modifier = Modifier.height(12.dp)
                     )
                 }
+
             } else if (
                 foundAnimalReference.isNotBlank()
             ) {
+
                 TraceabilityCard {
+
                     TraceabilityInfoRow(
                         icon = Icons.Outlined.Pets,
-                        title =
-                            "Animal Tag / Reference",
-                        subtitle =
-                            foundAnimalReference
+                        title = "Animal Tag / Reference",
+                        subtitle = foundAnimalReference
                     )
 
                     Spacer(
-                        modifier =
-                            Modifier.height(14.dp)
+                        modifier = Modifier.height(14.dp)
                     )
 
                     TraceabilityInfoRow(
-                        icon =
-                            Icons.Outlined.EditNote,
-                        title =
-                            "Movement Details",
+                        icon = Icons.Outlined.EditNote,
+                        title = "Movement Details",
                         subtitle =
                             foundMovementInformation
                                 .ifBlank {
@@ -282,15 +312,12 @@ fun AnimalMovementScreen(
                     )
 
                     Spacer(
-                        modifier =
-                            Modifier.height(14.dp)
+                        modifier = Modifier.height(14.dp)
                     )
 
                     TraceabilityInfoRow(
-                        icon =
-                            Icons.Outlined.CalendarMonth,
-                        title =
-                            "Movement Date",
+                        icon = Icons.Outlined.CalendarMonth,
+                        title = "Movement Date",
                         subtitle =
                             foundMovementDate
                                 .ifBlank {
@@ -299,15 +326,12 @@ fun AnimalMovementScreen(
                     )
 
                     Spacer(
-                        modifier =
-                            Modifier.height(14.dp)
+                        modifier = Modifier.height(14.dp)
                     )
 
                     TraceabilityInfoRow(
-                        icon =
-                            Icons.Outlined.Person,
-                        title =
-                            "Responsible Worker",
+                        icon = Icons.Outlined.Person,
+                        title = "Responsible Worker",
                         subtitle =
                             foundResponsibleWorker
                                 .ifBlank {
@@ -315,13 +339,14 @@ fun AnimalMovementScreen(
                                 }
                     )
                 }
+
             } else {
+
                 TraceabilityCard {
+
                     Text(
-                        text =
-                            "No movement records found.",
-                        color =
-                            BeeftechMutedText
+                        text = "No movement records found.",
+                        color = BeeftechMutedText
                     )
                 }
             }

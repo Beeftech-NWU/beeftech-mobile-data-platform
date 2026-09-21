@@ -68,39 +68,27 @@ import com.beeftech.database.dao.SyncBatchDao
         SyncBatchEntity::class,
         SyncBackupEntity::class
     ],
-    version = 8,
+    version = 10,
     exportSchema = false
 )
 abstract class BeefTechDatabase : RoomDatabase() {
 
     abstract fun animalMovementDao(): AnimalMovementDao
-
     abstract fun treatmentDao(): TreatmentDao
-
     abstract fun mortalityDao(): MortalityDao
-
     abstract fun pendingSyncDao(): PendingSyncDao
-
     abstract fun calfRegistrationDao(): CalfRegistrationDao
-
     abstract fun supplierDao(): SupplierDao
-
     abstract fun locationFeedDao(): LocationFeedDao
-
     abstract fun animalCostDao(): AnimalCostDao
-
     abstract fun roleDao(): RoleDao
     abstract fun userDao(): UserDao
     abstract fun farmerDao(): FarmerDao
     abstract fun locationDao(): LocationDao
     abstract fun animalDao(): AnimalDao
     abstract fun animalGroupDao(): AnimalGroupDao
-
     abstract fun penDao(): PenDao
-
     abstract fun feedCribDao(): FeedCribDao
-
     abstract fun feedCribReadingDao(): FeedCribReadingDao
-
     abstract fun syncBatchDao(): SyncBatchDao
 }

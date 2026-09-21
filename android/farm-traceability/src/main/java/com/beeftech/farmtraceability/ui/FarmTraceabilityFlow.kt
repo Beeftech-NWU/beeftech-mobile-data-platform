@@ -56,6 +56,10 @@ fun FarmTraceabilityFlow(
 
     treatmentRecords: List<Treatment> = emptyList(),
 
+    diseaseOptions: List<String> = emptyList(),
+
+    treatmentOptions: List<String> = emptyList(),
+
     onLoadTreatments: (String) -> Unit = {},
 
     onSaveTreatment: (
@@ -110,7 +114,9 @@ fun FarmTraceabilityFlow(
         rationName: String,
         rationDays: String,
         rationCost: String
-    ) -> Unit = { _, _, _, _, _, _ -> }
+    ) -> Unit = { _, _, _, _, _, _ -> },
+
+    onRetrySyncClick: () -> Unit = {}
 ) {
 
     var currentScreen by remember {
@@ -331,13 +337,16 @@ fun FarmTraceabilityFlow(
                     syncStatus =
                         syncState.syncStatus,
 
-                    syncWarningLevel = 0,
+                    syncWarningLevel =
+                        syncState.syncWarningLevel,
 
-                    scheduledSync = "",
+                    scheduledSync = "Every 15 minutes when connected",
 
-                    retrySyncAvailable = false,
+                    retrySyncAvailable =
+                        (syncState.pendingRecordCount ?: 0) > 0,
 
-                    onRetrySyncClick = {},
+                    onRetrySyncClick =
+                        onRetrySyncClick,
 
                     onBackClick = {
                         navigateBack()
@@ -803,6 +812,12 @@ fun FarmTraceabilityFlow(
                 animalReference =
                     selectedAnimalReference,
 
+                diseaseOptions =
+                    diseaseOptions,
+
+                treatmentOptions =
+                    treatmentOptions,
+
                 treatmentRecords =
                     treatmentRecords,
 
@@ -952,3 +967,4 @@ fun FarmTraceabilityFlow(
 private fun FarmTraceabilityFlowPreview() {
     FarmTraceabilityFlow()
 }
+
