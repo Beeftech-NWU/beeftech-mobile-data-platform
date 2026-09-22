@@ -33,6 +33,7 @@ import com.beeftech.database.repository.SyncRepository
 import com.beeftech.demoapp.ui.theme.BeeftechTheme
 import com.beeftech.farmerregistration.ClientDetailsScreen
 import com.beeftech.farmerregistration.FarmerSyncScheduler
+import com.beeftech.feedcrib.ui.FeedCribFlow
 import com.beeftech.farmtraceability.data.TreatmentApiClient
 import com.beeftech.farmtraceability.data.TreatmentRepository
 import com.beeftech.farmtraceability.ui.FarmTraceabilityFlow
@@ -397,6 +398,19 @@ class MainActivity : ComponentActivity() {
                                                 )
                                             }
                                         )
+
+                                        Tab(
+                                            selected =
+                                                selectedDemoTab == 2,
+                                            onClick = {
+                                                selectedDemoTab = 2
+                                            },
+                                            text = {
+                                                Text(
+                                                    "Feed Crib"
+                                                )
+                                            }
+                                        )
                                     }
                                 }
                             ) { innerPadding ->
@@ -415,7 +429,7 @@ class MainActivity : ComponentActivity() {
                                                 calfRegistrationViewModel
                                         )
 
-                                    } else {
+                                    } else if (selectedDemoTab == 0) {
 
                                         FarmTraceabilityFlow(
 
@@ -769,6 +783,14 @@ class MainActivity : ComponentActivity() {
                                                         ).show()
                                                     }
                                                 }
+                                            }
+                                        )
+
+                                    } else {
+
+                                        FeedCribFlow(
+                                            onBackToHome = {
+                                                selectedDemoTab = 0
                                             }
                                         )
                                     }
