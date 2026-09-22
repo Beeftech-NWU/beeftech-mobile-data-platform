@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="BeefTech Full Stack" type="CompoundRunConfigurationType">
+    <toRun name="BeefTech Demo" type="AndroidRunConfigurationType" />
+    <toRun name="BeefTech Backend" type="GradleRunConfiguration" />
+    <method v="2" />
+  </configuration>
+</component>

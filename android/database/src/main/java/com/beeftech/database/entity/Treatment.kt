@@ -1,9 +1,20 @@
 package com.beeftech.database.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.util.UUID
 
-@Entity(tableName = "treatments")
+@Entity(
+    tableName = "treatments",
+    indices = [
+        Index(
+            value = ["recordguid"],
+            unique = true
+        )
+    ]
+)
 data class Treatment(
 
     @PrimaryKey(autoGenerate = true)
@@ -21,5 +32,17 @@ data class Treatment(
 
     val cost: Double,
 
-    val timestamp: Long
+    val timestamp: Long,
+
+    @ColumnInfo(defaultValue = "''")
+    val deviceId: String = "",
+
+    @ColumnInfo(defaultValue = "''")
+    val recordguid: String =
+        UUID.randomUUID().toString(),
+
+    @ColumnInfo(defaultValue = "'PENDING'")
+    val syncStatus: String = "PENDING",
+
+    val syncedAt: Long? = null
 )

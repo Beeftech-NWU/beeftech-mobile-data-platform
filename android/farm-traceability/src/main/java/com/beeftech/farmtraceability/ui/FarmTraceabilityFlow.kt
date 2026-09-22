@@ -17,10 +17,13 @@ import com.beeftech.database.entity.LocationFeed
 import com.beeftech.database.entity.Mortality
 import com.beeftech.database.entity.Supplier
 import com.beeftech.database.entity.Treatment
+import com.beeftech.database.repository.SyncRepository
 import com.beeftech.farmtraceability.repository.FindAnimalRepository
 import com.beeftech.farmtraceability.viewmodel.FindAnimalUiState
 import com.beeftech.farmtraceability.viewmodel.FindAnimalViewModel
 import com.beeftech.farmtraceability.viewmodel.FindAnimalViewModelFactory
+import com.beeftech.farmtraceability.viewmodel.SyncStatusViewModel
+import com.beeftech.farmtraceability.viewmodel.SyncStatusViewModelFactory
 
 private enum class TraceabilityScreen {
     HOME,
@@ -39,6 +42,8 @@ private enum class TraceabilityScreen {
 fun FarmTraceabilityFlow(
     onExitTraceability: () -> Unit = {},
 
+    onFarmerRegistrationClick: () -> Unit = {},
+
     movementRecords: List<AnimalMovement> = emptyList(),
 
     onLoadMovements: (String) -> Unit = {},
@@ -50,6 +55,10 @@ fun FarmTraceabilityFlow(
     ) -> Unit = { _, _, _ -> },
 
     treatmentRecords: List<Treatment> = emptyList(),
+
+    diseaseOptions: List<String> = emptyList(),
+
+    treatmentOptions: List<String> = emptyList(),
 
     onLoadTreatments: (String) -> Unit = {},
 
@@ -105,8 +114,11 @@ fun FarmTraceabilityFlow(
         rationName: String,
         rationDays: String,
         rationCost: String
-    ) -> Unit = { _, _, _, _, _, _ -> }
+    ) -> Unit = { _, _, _, _, _, _ -> },
+
+    onRetrySyncClick: () -> Unit = {}
 ) {
+
     var currentScreen by remember {
         mutableStateOf(
             TraceabilityScreen.HOME
@@ -167,106 +179,278 @@ fun FarmTraceabilityFlow(
 
         TraceabilityScreen.HOME -> {
 
-            FarmTraceabilityScreen(
-                onBackClick = {
-                    navigateBack()
-                },
+            val database =
+                DatabaseProvider
+                    .getDatabase()
 
-                onFarmerFarmProfileClick = {
-                    navigateTo(
-                        TraceabilityScreen
-                            .FARMER_FARM_PROFILE
+            if (database == null) {
+
+                FarmTraceabilityScreen(
+                    pendingRecordCount = null,
+                    lastSync = "",
+                    syncStatus = "Database unavailable",
+                    syncWarningLevel = 0,
+                    scheduledSync = "",
+                    retrySyncAvailable = false,
+
+                    onBackClick = {
+                        navigateBack()
+                    },
+
+                    onFarmerFarmProfileClick = {
+                        navigateTo(
+                            TraceabilityScreen
+                                .FARMER_FARM_PROFILE
+                        )
+                    },
+
+                    onFarmerRegistrationClick =
+                        onFarmerRegistrationClick,
+
+                    onFindAnimalClick = {
+                        findAnimalDestination =
+                            TraceabilityScreen
+                                .ANIMAL_RECORD
+
+                        navigateTo(
+                            TraceabilityScreen
+                                .FIND_ANIMAL
+                        )
+                    },
+
+                    onAnimalRecordClick = {
+                        findAnimalDestination =
+                            TraceabilityScreen
+                                .ANIMAL_RECORD
+
+                        navigateTo(
+                            TraceabilityScreen
+                                .FIND_ANIMAL
+                        )
+                    },
+
+                    onAnimalMovementClick = {
+                        findAnimalDestination =
+                            TraceabilityScreen
+                                .ANIMAL_MOVEMENT
+
+                        navigateTo(
+                            TraceabilityScreen
+                                .FIND_ANIMAL
+                        )
+                    },
+
+                    onSupplierClick = {
+                        findAnimalDestination =
+                            TraceabilityScreen
+                                .SUPPLIER
+
+                        navigateTo(
+                            TraceabilityScreen
+                                .FIND_ANIMAL
+                        )
+                    },
+
+                    onLocationFeedClick = {
+                        findAnimalDestination =
+                            TraceabilityScreen
+                                .LOCATION_FEED
+
+                        navigateTo(
+                            TraceabilityScreen
+                                .FIND_ANIMAL
+                        )
+                    },
+
+                    onTreatmentsClick = {
+                        findAnimalDestination =
+                            TraceabilityScreen
+                                .TREATMENTS
+
+                        navigateTo(
+                            TraceabilityScreen
+                                .FIND_ANIMAL
+                        )
+                    },
+
+                    onCostSummaryClick = {
+                        findAnimalDestination =
+                            TraceabilityScreen
+                                .COST_SUMMARY
+
+                        navigateTo(
+                            TraceabilityScreen
+                                .FIND_ANIMAL
+                        )
+                    },
+
+                    onMortalityClick = {
+                        findAnimalDestination =
+                            TraceabilityScreen
+                                .MORTALITY
+
+                        navigateTo(
+                            TraceabilityScreen
+                                .FIND_ANIMAL
+                        )
+                    }
+                )
+
+            } else {
+
+                val syncRepository =
+                    remember(database) {
+                        SyncRepository(
+                            pendingSyncDao =
+                                database.pendingSyncDao(),
+
+                            syncBatchDao =
+                                database.syncBatchDao()
+                        )
+                    }
+
+                val syncFactory =
+                    remember(syncRepository) {
+                        SyncStatusViewModelFactory(
+                            syncRepository
+                        )
+                    }
+
+                val syncStatusViewModel:
+                        SyncStatusViewModel =
+                    viewModel(
+                        factory = syncFactory
                     )
-                },
 
-                onFindAnimalClick = {
-                    findAnimalDestination =
-                        TraceabilityScreen
-                            .ANIMAL_RECORD
+                val syncState by
+                syncStatusViewModel
+                    .uiState
+                    .collectAsState()
 
-                    navigateTo(
-                        TraceabilityScreen
-                            .FIND_ANIMAL
-                    )
-                },
+                FarmTraceabilityScreen(
+                    pendingRecordCount =
+                        syncState.pendingRecordCount,
 
-                onAnimalRecordClick = {
-                    findAnimalDestination =
-                        TraceabilityScreen
-                            .ANIMAL_RECORD
+                    lastSync =
+                        syncState.lastSync,
 
-                    navigateTo(
-                        TraceabilityScreen
-                            .FIND_ANIMAL
-                    )
-                },
+                    syncStatus =
+                        syncState.syncStatus,
 
-                onAnimalMovementClick = {
-                    findAnimalDestination =
-                        TraceabilityScreen
-                            .ANIMAL_MOVEMENT
+                    syncWarningLevel =
+                        syncState.syncWarningLevel,
 
-                    navigateTo(
-                        TraceabilityScreen
-                            .FIND_ANIMAL
-                    )
-                },
+                    scheduledSync = "Every 15 minutes when connected",
 
-                onSupplierClick = {
-                    findAnimalDestination =
-                        TraceabilityScreen
-                            .SUPPLIER
+                    retrySyncAvailable =
+                        (syncState.pendingRecordCount ?: 0) > 0,
 
-                    navigateTo(
-                        TraceabilityScreen
-                            .FIND_ANIMAL
-                    )
-                },
+                    onRetrySyncClick =
+                        onRetrySyncClick,
 
-                onLocationFeedClick = {
-                    findAnimalDestination =
-                        TraceabilityScreen
-                            .LOCATION_FEED
+                    onBackClick = {
+                        navigateBack()
+                    },
 
-                    navigateTo(
-                        TraceabilityScreen
-                            .FIND_ANIMAL
-                    )
-                },
+                    onFarmerFarmProfileClick = {
+                        navigateTo(
+                            TraceabilityScreen
+                                .FARMER_FARM_PROFILE
+                        )
+                    },
 
-                onTreatmentsClick = {
-                    findAnimalDestination =
-                        TraceabilityScreen
-                            .TREATMENTS
+                    onFarmerRegistrationClick =
+                        onFarmerRegistrationClick,
 
-                    navigateTo(
-                        TraceabilityScreen
-                            .FIND_ANIMAL
-                    )
-                },
+                    onFindAnimalClick = {
+                        findAnimalDestination =
+                            TraceabilityScreen
+                                .ANIMAL_RECORD
 
-                onCostSummaryClick = {
-                    findAnimalDestination =
-                        TraceabilityScreen
-                            .COST_SUMMARY
+                        navigateTo(
+                            TraceabilityScreen
+                                .FIND_ANIMAL
+                        )
+                    },
 
-                    navigateTo(
-                        TraceabilityScreen
-                            .FIND_ANIMAL
-                    )
-                },
+                    onAnimalRecordClick = {
+                        findAnimalDestination =
+                            TraceabilityScreen
+                                .ANIMAL_RECORD
 
-                onMortalityClick = {
-                    findAnimalDestination =
-                        TraceabilityScreen
-                            .MORTALITY
+                        navigateTo(
+                            TraceabilityScreen
+                                .FIND_ANIMAL
+                        )
+                    },
 
-                    navigateTo(
-                        TraceabilityScreen
-                            .FIND_ANIMAL
-                    )
-                }
-            )
+                    onAnimalMovementClick = {
+                        findAnimalDestination =
+                            TraceabilityScreen
+                                .ANIMAL_MOVEMENT
+
+                        navigateTo(
+                            TraceabilityScreen
+                                .FIND_ANIMAL
+                        )
+                    },
+
+                    onSupplierClick = {
+                        findAnimalDestination =
+                            TraceabilityScreen
+                                .SUPPLIER
+
+                        navigateTo(
+                            TraceabilityScreen
+                                .FIND_ANIMAL
+                        )
+                    },
+
+                    onLocationFeedClick = {
+                        findAnimalDestination =
+                            TraceabilityScreen
+                                .LOCATION_FEED
+
+                        navigateTo(
+                            TraceabilityScreen
+                                .FIND_ANIMAL
+                        )
+                    },
+
+                    onTreatmentsClick = {
+                        findAnimalDestination =
+                            TraceabilityScreen
+                                .TREATMENTS
+
+                        navigateTo(
+                            TraceabilityScreen
+                                .FIND_ANIMAL
+                        )
+                    },
+
+                    onCostSummaryClick = {
+                        findAnimalDestination =
+                            TraceabilityScreen
+                                .COST_SUMMARY
+
+                        navigateTo(
+                            TraceabilityScreen
+                                .FIND_ANIMAL
+                        )
+                    },
+
+                    onMortalityClick = {
+                        findAnimalDestination =
+                            TraceabilityScreen
+                                .MORTALITY
+
+                        navigateTo(
+                            TraceabilityScreen
+                                .FIND_ANIMAL
+                        )
+                    }
+                )
+            }
         }
 
         TraceabilityScreen
@@ -628,6 +812,12 @@ fun FarmTraceabilityFlow(
                 animalReference =
                     selectedAnimalReference,
 
+                diseaseOptions =
+                    diseaseOptions,
+
+                treatmentOptions =
+                    treatmentOptions,
+
                 treatmentRecords =
                     treatmentRecords,
 
@@ -777,3 +967,4 @@ fun FarmTraceabilityFlow(
 private fun FarmTraceabilityFlowPreview() {
     FarmTraceabilityFlow()
 }
+

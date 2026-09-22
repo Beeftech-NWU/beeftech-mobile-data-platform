@@ -414,6 +414,147 @@ object DatabaseFactory {
             }
         }
 
+    /*
+     * Version 8 -> 9
+     *
+     * Adds offline-first synchronization and audit metadata
+     * to Animal Movement records.
+     */
+    private val MIGRATION_8_9 =
+        object : Migration(8, 9) {
+
+            override fun migrate(
+                db: SupportSQLiteDatabase
+            ) {
+
+                db.execSQL(
+                    """
+                    ALTER TABLE animal_movements
+                    ADD COLUMN gpsLat REAL NOT NULL DEFAULT 0.0
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    ALTER TABLE animal_movements
+                    ADD COLUMN gpsLng REAL NOT NULL DEFAULT 0.0
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    ALTER TABLE animal_movements
+                    ADD COLUMN deviceId TEXT NOT NULL DEFAULT ''
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    ALTER TABLE animal_movements
+                    ADD COLUMN recordguid TEXT NOT NULL DEFAULT ''
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    ALTER TABLE animal_movements
+                    ADD COLUMN syncStatus TEXT NOT NULL DEFAULT 'PENDING'
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    ALTER TABLE animal_movements
+                    ADD COLUMN syncedAt INTEGER
+                    """.trimIndent()
+                )
+
+                /*
+                 * Give old movement records a stable unique GUID-like
+                 * identifier so the backend can perform idempotent upserts.
+                 */
+                db.execSQL(
+                    """
+                    UPDATE animal_movements
+                    SET recordguid =
+                        'movement-' || id || '-' || timestamp
+                    WHERE recordguid = ''
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE UNIQUE INDEX IF NOT EXISTS
+                    index_animal_movements_recordguid
+                    ON animal_movements(recordguid)
+                    """.trimIndent()
+                )
+            }
+        }
+
+    /*
+     * Version 9 -> 10
+     *
+     * Adds offline-first synchronization and audit metadata
+     * to Treatment records.
+     */
+    private val MIGRATION_9_10 =
+        object : Migration(9, 10) {
+
+            override fun migrate(
+                db: SupportSQLiteDatabase
+            ) {
+
+                db.execSQL(
+                    """
+                    ALTER TABLE treatments
+                    ADD COLUMN deviceId TEXT NOT NULL DEFAULT ''
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    ALTER TABLE treatments
+                    ADD COLUMN recordguid TEXT NOT NULL DEFAULT ''
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    ALTER TABLE treatments
+                    ADD COLUMN syncStatus TEXT NOT NULL DEFAULT 'PENDING'
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    ALTER TABLE treatments
+                    ADD COLUMN syncedAt INTEGER
+                    """.trimIndent()
+                )
+
+                /*
+                 * Give existing treatment rows stable unique identifiers.
+                 */
+                db.execSQL(
+                    """
+                    UPDATE treatments
+                    SET recordguid =
+                        'treatment-' || id || '-' || timestamp
+                    WHERE recordguid = ''
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE UNIQUE INDEX IF NOT EXISTS
+                    index_treatments_recordguid
+                    ON treatments(recordguid)
+                    """.trimIndent()
+                )
+            }
+        }
+
     fun create(
         context: Context,
         passphrase: ByteArray
@@ -460,6 +601,8 @@ object DatabaseFactory {
                      * 5 -> 6
                      * 6 -> 7
                      * 7 -> 8
+                     * 8 -> 9
+                     * 9 -> 10
                      */
                     .addMigrations(
                         MIGRATION_1_2,
@@ -468,7 +611,9 @@ object DatabaseFactory {
                         MIGRATION_4_5,
                         MIGRATION_5_6,
                         MIGRATION_6_7,
-                        MIGRATION_7_8
+                        MIGRATION_7_8,
+                        MIGRATION_8_9,
+                        MIGRATION_9_10
                     )
 
                     .build()
