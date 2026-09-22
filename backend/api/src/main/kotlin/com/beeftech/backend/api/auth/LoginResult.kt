@@ -3,7 +3,9 @@ package com.beeftech.backend.api.auth
 sealed class LoginResult {
 
     data class Success(
-        val token: String
+        val token: String,
+        val expiresAt: String,
+        val profile: UserProfile
     ) : LoginResult()
 
     data class Failure(
@@ -13,4 +15,6 @@ sealed class LoginResult {
     data class Locked(
         val remainingSeconds: Long
     ) : LoginResult()
+
+    data object WrongDevice : LoginResult()
 }
