@@ -77,7 +77,7 @@ import com.beeftech.database.dao.*
         AnimalGroupMembershipEntity::class
 
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 abstract class BeefTechDatabase : RoomDatabase() {

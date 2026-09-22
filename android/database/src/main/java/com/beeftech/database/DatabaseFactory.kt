@@ -555,6 +555,46 @@ object DatabaseFactory {
             }
         }
 
+
+    /*
+     * Version 10 -> 11
+     *
+     * Adds animal weight history and animal group membership tables.
+     */
+    private val MIGRATION_10_11 =
+        object : Migration(10, 11) {
+
+            override fun migrate(
+                db: SupportSQLiteDatabase
+            ) {
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS animal_weights (
+                        weight_id TEXT NOT NULL PRIMARY KEY,
+                        animal_id TEXT NOT NULL,
+                        mass_kg REAL NOT NULL,
+                        body_condition_score REAL,
+                        weighed_at INTEGER NOT NULL,
+                        record_guid TEXT NOT NULL
+                    )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS animal_group_memberships (
+                        membership_id TEXT NOT NULL PRIMARY KEY,
+                        animal_id TEXT NOT NULL,
+                        group_id TEXT NOT NULL,
+                        joined_at INTEGER NOT NULL,
+                        left_at INTEGER,
+                        record_guid TEXT NOT NULL
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
     fun create(
         context: Context,
         passphrase: ByteArray
@@ -613,7 +653,8 @@ object DatabaseFactory {
                         MIGRATION_6_7,
                         MIGRATION_7_8,
                         MIGRATION_8_9,
-                        MIGRATION_9_10
+                        MIGRATION_9_10,
+                        MIGRATION_10_11
                     )
 
                     .build()
