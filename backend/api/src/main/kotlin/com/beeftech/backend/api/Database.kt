@@ -33,10 +33,17 @@ object DatabaseFactory {
                 AnimalMovementTable,
                 TreatmentTable,
                 DiseaseTable,
-                TreatmentTypeTable
+                TreatmentTypeTable,
+                FarmerTable,
+                FarmerAddressTable,
+                FarmerRoleTable
             )
         }
 
+        /*
+         * Seed treatment reference/master data
+         * after the reference tables exist.
+         */
         TreatmentReferenceSeeder.seed()
     }
 }

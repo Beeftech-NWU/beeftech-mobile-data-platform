@@ -6,12 +6,14 @@ import com.beeftech.database.entity.PendingSync
 class PendingSyncRepository(
     private val pendingSyncDao: PendingSyncDao
 ) {
+
     suspend fun queueOperation(
         entityType: String,
         entityId: String,
         operation: String,
         payload: String
     ): Long {
+
         return pendingSyncDao.insert(
             PendingSync(
                 entityType = entityType,
@@ -26,29 +28,71 @@ class PendingSyncRepository(
 
     suspend fun getPendingOperations(
         maxRetries: Int = DEFAULT_MAX_RETRIES
-    ): List<PendingSync> =
-        pendingSyncDao.getPendingForRetry(maxRetries)
+    ): List<PendingSync> {
 
-    // Includes records that have already reached the retry limit.
-    suspend fun getAllPendingOperations(): List<PendingSync> =
-        pendingSyncDao.getAll()
-
-    suspend fun markSyncFailed(id: Long) {
-        pendingSyncDao.incrementRetryCount(id)
+        return pendingSyncDao.getPendingForRetry(
+            maxRetries
+        )
     }
 
-    suspend fun markSyncSuccessful(id: Long) {
-        pendingSyncDao.deleteById(id)
+    suspend fun getAllPendingOperations():
+            List<PendingSync> {
+
+        return pendingSyncDao.getAll()
     }
 
-    suspend fun getPendingCount(): Int =
-        pendingSyncDao.getPendingCount()
+    suspend fun getOperationsForEntity(
+        entityType: String,
+        entityId: String
+    ): List<PendingSync> {
+
+        return pendingSyncDao.getByEntity(
+            entityType = entityType,
+            entityId = entityId
+        )
+    }
+
+    suspend fun markSyncFailed(
+        id: Long
+    ) {
+
+        pendingSyncDao.incrementRetryCount(
+            id
+        )
+    }
+
+    suspend fun markSyncSuccessful(
+        id: Long
+    ) {
+
+        pendingSyncDao.deleteById(
+            id
+        )
+    }
+
+    suspend fun markEntitySyncSuccessful(
+        entityType: String,
+        entityId: String
+    ) {
+
+        pendingSyncDao.deleteByEntity(
+            entityType = entityType,
+            entityId = entityId
+        )
+    }
+
+    suspend fun getPendingCount(): Int {
+
+        return pendingSyncDao.getPendingCount()
+    }
 
     suspend fun clearAll() {
+
         pendingSyncDao.clearAll()
     }
 
     companion object {
+
         const val DEFAULT_MAX_RETRIES = 5
     }
 }

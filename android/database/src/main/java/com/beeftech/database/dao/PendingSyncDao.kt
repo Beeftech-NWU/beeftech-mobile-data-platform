@@ -35,6 +35,19 @@ interface PendingSyncDao {
 
     @Query(
         """
+        SELECT * FROM pending_sync
+        WHERE entityType = :entityType
+        AND entityId = :entityId
+        ORDER BY createdAt ASC
+        """
+    )
+    suspend fun getByEntity(
+        entityType: String,
+        entityId: String
+    ): List<PendingSync>
+
+    @Query(
+        """
         UPDATE pending_sync
         SET retryCount = retryCount + 1
         WHERE id = :id
@@ -58,6 +71,18 @@ interface PendingSyncDao {
     )
     suspend fun deleteById(
         id: Long
+    )
+
+    @Query(
+        """
+        DELETE FROM pending_sync
+        WHERE entityType = :entityType
+        AND entityId = :entityId
+        """
+    )
+    suspend fun deleteByEntity(
+        entityType: String,
+        entityId: String
     )
 
     @Query("DELETE FROM pending_sync")

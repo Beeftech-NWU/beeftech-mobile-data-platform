@@ -2,6 +2,7 @@
 
 import android.Manifest
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
@@ -11,9 +12,9 @@ import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -60,16 +61,57 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.beeftech.database.DatabaseProvider
 import com.beeftech.database.entity.FarmerAddressEntity
 import com.beeftech.database.entity.FarmerEntity
+import com.beeftech.database.entity.FarmerRoleEntity
 import com.beeftech.database.repository.FarmerRepository
+import com.beeftech.database.repository.PendingSyncRepository
 import com.beeftech.farmerregistration.ui.theme.BeeftechTheme
+import com.beeftech.farmerregistration.worker.FarmerSyncWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 import java.util.UUID
+
+object FarmerSyncScheduler {
+
+    private const val UNIQUE_WORK_NAME =
+        "farmer-registration-sync"
+
+    fun enqueue(context: Context) {
+
+        val constraints =
+            Constraints.Builder()
+                .setRequiredNetworkType(
+                    NetworkType.CONNECTED
+                )
+                .build()
+
+        val syncRequest =
+            OneTimeWorkRequestBuilder<FarmerSyncWorker>()
+                .setConstraints(
+                    constraints
+                )
+                .build()
+
+        WorkManager
+            .getInstance(
+                context.applicationContext
+            )
+            .enqueueUniqueWork(
+                UNIQUE_WORK_NAME,
+                ExistingWorkPolicy.REPLACE,
+                syncRequest
+            )
+    }
+}
 
 data class CoordinatesSaveData(
     val latitude: String = "",
@@ -107,7 +149,8 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
 
                 val locationPermissionLauncher =
                     rememberLauncherForActivityResult(
-                        contract = ActivityResultContracts.RequestMultiplePermissions()
+                        contract =
+                            ActivityResultContracts.RequestMultiplePermissions()
                     ) { permissions ->
 
                         val fineGranted =
@@ -127,18 +170,21 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
                             fetchCurrentLocation(
                                 onLocation = { location ->
 
-                                    formData = formData.copy(
-                                        latitude = String.format(
-                                            Locale.US,
-                                            "%.6f",
-                                            location.latitude
-                                        ),
-                                        longitude = String.format(
-                                            Locale.US,
-                                            "%.6f",
-                                            location.longitude
+                                    formData =
+                                        formData.copy(
+                                            latitude =
+                                                String.format(
+                                                    Locale.US,
+                                                    "%.6f",
+                                                    location.latitude
+                                                ),
+                                            longitude =
+                                                String.format(
+                                                    Locale.US,
+                                                    "%.6f",
+                                                    location.longitude
+                                                )
                                         )
-                                    )
 
                                     isLoadingLocation = false
 
@@ -204,18 +250,21 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
                             fetchCurrentLocation(
                                 onLocation = { location ->
 
-                                    formData = formData.copy(
-                                        latitude = String.format(
-                                            Locale.US,
-                                            "%.6f",
-                                            location.latitude
-                                        ),
-                                        longitude = String.format(
-                                            Locale.US,
-                                            "%.6f",
-                                            location.longitude
+                                    formData =
+                                        formData.copy(
+                                            latitude =
+                                                String.format(
+                                                    Locale.US,
+                                                    "%.6f",
+                                                    location.latitude
+                                                ),
+                                            longitude =
+                                                String.format(
+                                                    Locale.US,
+                                                    "%.6f",
+                                                    location.longitude
+                                                )
                                         )
-                                    )
 
                                     isLoadingLocation = false
 
@@ -395,23 +444,30 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
                                                         .trim()
                                                         .ifBlank { null },
 
-                                                gps_latitude = latitude,
+                                                gps_latitude =
+                                                    latitude,
 
-                                                gps_longitude = longitude,
+                                                gps_longitude =
+                                                    longitude,
 
-                                                sync_status = "PENDING"
+                                                sync_status =
+                                                    "PENDING"
                                             )
 
                                         val address =
                                             FarmerAddressEntity(
-                                                address_id = addressId,
+                                                address_id =
+                                                    addressId,
 
-                                                farmer_id = farmerId,
+                                                farmer_id =
+                                                    farmerId,
 
-                                                address_type = "PRIMARY",
+                                                address_type =
+                                                    "PRIMARY",
 
                                                 address_line_1 =
-                                                    addressData.streetAddress.trim(),
+                                                    addressData.streetAddress
+                                                        .trim(),
 
                                                 province =
                                                     addressData.province
@@ -423,21 +479,93 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
                                                         .trim()
                                                         .ifBlank { null },
 
-                                                gps_latitude = latitude,
+                                                gps_latitude =
+                                                    latitude,
 
-                                                gps_longitude = longitude
+                                                gps_longitude =
+                                                    longitude
                                             )
 
-                                        repository.addFarmer(farmer)
-                                        repository.addAddress(address)
+                                        repository.addFarmer(
+                                            farmer
+                                        )
+
+                                        repository.addAddress(
+                                            address
+                                        )
+
+                                        /*
+                                         * Save every role selected on
+                                         * the Client Details screen.
+                                         */
+                                        clientData.selectedRoles
+                                            .forEach { selectedRole ->
+
+                                                val farmerRole =
+                                                    FarmerRoleEntity(
+                                                        farmer_role_id =
+                                                            UUID.randomUUID()
+                                                                .toString(),
+
+                                                        farmer_id =
+                                                            farmerId,
+
+                                                        role_id =
+                                                            selectedRole
+                                                    )
+
+                                                repository.addRole(
+                                                    farmerRole
+                                                )
+                                            }
+
+                                        /*
+                                         * Add Farmer Registration to the shared
+                                         * pending synchronization queue so the
+                                         * Farm Traceability Pending Records UI
+                                         * includes this unsynchronized farmer.
+                                         */
+                                        val pendingSyncRepository =
+                                            PendingSyncRepository(
+                                                database.pendingSyncDao()
+                                            )
+
+                                        pendingSyncRepository.queueOperation(
+                                            entityType =
+                                                "FARMER_REGISTRATION",
+
+                                            entityId =
+                                                farmerId,
+
+                                            operation =
+                                                "CREATE",
+
+                                            payload =
+                                                farmerId
+                                        )
 
                                         true
                                     }
 
                                 if (result) {
 
-                                    // Clear all temporary registration data
-                                    // so the next farmer starts with empty fields.
+                                    /*
+                                     * The farmer has already been safely
+                                     * persisted locally with PENDING status.
+                                     *
+                                     * WorkManager now schedules synchronization.
+                                     * If there is no connection, Android waits
+                                     * until the CONNECTED constraint is met.
+                                     */
+                                    FarmerSyncScheduler.enqueue(
+                                        applicationContext
+                                    )
+
+                                    /*
+                                     * Clear temporary registration data
+                                     * so the next farmer registration starts
+                                     * with empty fields.
+                                     */
                                     FarmerRegistrationSession.clear()
 
                                     Toast.makeText(
@@ -447,37 +575,25 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
                                     ).show()
 
                                     /*
-                                     * Return to the existing MainActivity.
-                                     *
-                                     * We use setClassName() instead of importing
-                                     * MainActivity because this registration
-                                     * module should not depend directly on the
-                                     * application module.
-                                     *
-                                     * CLEAR_TOP removes:
-                                     * CoordinatesAndSaveScreen
-                                     * AddressAndLocationScreen
-                                     * ClientDetailsScreen
-                                     *
-                                     * and brings the existing MainActivity
-                                     * back to the front.
+                                     * Return to MainActivity.
                                      */
-                                    val intent = Intent().apply {
+                                    val intent =
+                                        Intent().apply {
 
-                                        setClassName(
-                                            this@CoordinatesAndSaveScreen,
-                                            "com.beeftech.demoapp.MainActivity"
-                                        )
+                                            setClassName(
+                                                this@CoordinatesAndSaveScreen,
+                                                "com.beeftech.demoapp.MainActivity"
+                                            )
 
-                                        flags =
-                                            Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                                                    Intent.FLAG_ACTIVITY_SINGLE_TOP
-                                    }
+                                            flags =
+                                                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                                                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+                                        }
 
-                                    startActivity(intent)
+                                    startActivity(
+                                        intent
+                                    )
 
-                                    // Finish this Activity so it cannot remain
-                                    // in the back stack.
                                     finish()
                                 }
 
@@ -506,23 +622,31 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
     ) {
 
         val locationManager =
-            getSystemService(LOCATION_SERVICE) as LocationManager
+            getSystemService(
+                LOCATION_SERVICE
+            ) as LocationManager
 
         val gpsEnabled =
             try {
+
                 locationManager.isProviderEnabled(
                     LocationManager.GPS_PROVIDER
                 )
+
             } catch (_: Exception) {
+
                 false
             }
 
         val networkEnabled =
             try {
+
                 locationManager.isProviderEnabled(
                     LocationManager.NETWORK_PROVIDER
                 )
+
             } catch (_: Exception) {
+
                 false
             }
 
@@ -560,9 +684,15 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
 
             val provider =
                 when {
-                    gpsEnabled -> LocationManager.GPS_PROVIDER
-                    networkEnabled -> LocationManager.NETWORK_PROVIDER
-                    else -> null
+
+                    gpsEnabled ->
+                        LocationManager.GPS_PROVIDER
+
+                    networkEnabled ->
+                        LocationManager.NETWORK_PROVIDER
+
+                    else ->
+                        null
                 }
 
             if (provider == null) {
@@ -574,7 +704,10 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
                 return
             }
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (
+                Build.VERSION.SDK_INT >=
+                Build.VERSION_CODES.R
+            ) {
 
                 locationManager.getCurrentLocation(
                     provider,
@@ -584,7 +717,9 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
 
                     if (location != null) {
 
-                        onLocation(location)
+                        onLocation(
+                            location
+                        )
 
                     } else {
 
@@ -597,7 +732,9 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
 
                         if (fallback != null) {
 
-                            onLocation(fallback)
+                            onLocation(
+                                fallback
+                            )
 
                         } else {
 
@@ -619,7 +756,9 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
 
                 if (fallback != null) {
 
-                    onLocation(fallback)
+                    onLocation(
+                        fallback
+                    )
 
                 } else {
 
@@ -629,7 +768,7 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
                 }
             }
 
-        } catch (securityException: SecurityException) {
+        } catch (_: SecurityException) {
 
             onError(
                 "Location permission was denied by Android."
@@ -653,30 +792,41 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
             buildList {
 
                 if (gpsEnabled) {
-                    add(LocationManager.GPS_PROVIDER)
+                    add(
+                        LocationManager.GPS_PROVIDER
+                    )
                 }
 
                 if (networkEnabled) {
-                    add(LocationManager.NETWORK_PROVIDER)
+                    add(
+                        LocationManager.NETWORK_PROVIDER
+                    )
                 }
             }
 
-        var bestLocation: Location? = null
+        var bestLocation: Location? =
+            null
 
         for (provider in providers) {
 
             try {
 
                 val location =
-                    locationManager.getLastKnownLocation(provider)
+                    locationManager
+                        .getLastKnownLocation(
+                            provider
+                        )
 
                 if (location != null) {
 
                     if (
                         bestLocation == null ||
-                        location.accuracy < bestLocation!!.accuracy
+                        location.accuracy <
+                        bestLocation!!.accuracy
                     ) {
-                        bestLocation = location
+
+                        bestLocation =
+                            location
                     }
                 }
 
@@ -685,6 +835,7 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
                 return bestLocation
 
             } catch (_: Exception) {
+
                 // Ignore this provider and continue.
             }
         }
@@ -734,24 +885,32 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
         val intent =
             Intent(
                 Intent.ACTION_VIEW,
-                Uri.parse(googleMapsUrl)
+                Uri.parse(
+                    googleMapsUrl
+                )
             )
 
         try {
 
-            startActivity(intent)
+            startActivity(
+                intent
+            )
 
         } catch (_: ActivityNotFoundException) {
 
             val geoIntent =
                 Intent(
                     Intent.ACTION_VIEW,
-                    Uri.parse("geo:$lat,$lng?q=$lat,$lng")
+                    Uri.parse(
+                        "geo:$lat,$lng?q=$lat,$lng"
+                    )
                 )
 
             try {
 
-                startActivity(geoIntent)
+                startActivity(
+                    geoIntent
+                )
 
             } catch (_: ActivityNotFoundException) {
 
@@ -778,173 +937,270 @@ fun CoordinatesAndSaveContent(
 ) {
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BeeftechBackground)
-            .verticalScroll(rememberScrollState())
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(
+                    BeeftechBackground
+                )
+                .verticalScroll(
+                    rememberScrollState()
+                )
     ) {
 
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(BeeftechPrimaryDeep)
-                .padding(
-                    start = 14.dp,
-                    end = 22.dp,
-                    top = 44.dp,
-                    bottom = 20.dp
-                )
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .background(
+                        BeeftechPrimaryDeep
+                    )
+                    .padding(
+                        start = 14.dp,
+                        end = 22.dp,
+                        top = 44.dp,
+                        bottom = 20.dp
+                    )
         ) {
 
             Row(
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment =
+                    Alignment.CenterVertically
             ) {
 
                 IconButton(
-                    onClick = onBackClick,
-                    modifier = Modifier.size(42.dp)
+                    onClick =
+                        onBackClick,
+                    modifier =
+                        Modifier.size(
+                            42.dp
+                        )
                 ) {
 
                     Icon(
                         imageVector =
                             Icons.AutoMirrored.Outlined.ArrowBack,
-                        contentDescription = "Back",
-                        tint = BeeftechWhite,
-                        modifier = Modifier.size(22.dp)
+                        contentDescription =
+                            "Back",
+                        tint =
+                            BeeftechWhite,
+                        modifier =
+                            Modifier.size(
+                                22.dp
+                            )
                     )
                 }
 
                 Spacer(
-                    modifier = Modifier.width(4.dp)
+                    modifier =
+                        Modifier.width(
+                            4.dp
+                        )
                 )
 
                 Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .background(
-                            BeeftechPrimary.copy(alpha = 0.18f),
-                            RoundedCornerShape(11.dp)
-                        ),
-                    contentAlignment = Alignment.Center
+                    modifier =
+                        Modifier
+                            .size(
+                                42.dp
+                            )
+                            .background(
+                                BeeftechPrimary.copy(
+                                    alpha = 0.18f
+                                ),
+                                RoundedCornerShape(
+                                    11.dp
+                                )
+                            ),
+                    contentAlignment =
+                        Alignment.Center
                 ) {
 
                     Icon(
-                        imageVector = Icons.Outlined.LocationOn,
-                        contentDescription = null,
-                        tint = BeeftechPrimary,
-                        modifier = Modifier.size(22.dp)
+                        imageVector =
+                            Icons.Outlined.LocationOn,
+                        contentDescription =
+                            null,
+                        tint =
+                            BeeftechPrimary,
+                        modifier =
+                            Modifier.size(
+                                22.dp
+                            )
                     )
                 }
 
                 Spacer(
-                    modifier = Modifier.width(12.dp)
+                    modifier =
+                        Modifier.width(
+                            12.dp
+                        )
                 )
 
                 Column(
-                    modifier = Modifier.weight(1f)
+                    modifier =
+                        Modifier.weight(
+                            1f
+                        )
                 ) {
 
                     Text(
-                        text = "FARM LOCATION TRACKING",
-                        fontSize = 10.sp,
-                        letterSpacing = 1.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = BeeftechPrimary
+                        text =
+                            "FARM LOCATION TRACKING",
+                        fontSize =
+                            10.sp,
+                        letterSpacing =
+                            1.sp,
+                        fontWeight =
+                            FontWeight.SemiBold,
+                        color =
+                            BeeftechPrimary
                     )
 
                     Spacer(
-                        modifier = Modifier.height(3.dp)
+                        modifier =
+                            Modifier.height(
+                                3.dp
+                            )
                     )
 
                     Text(
-                        text = "Coordinates & Save",
-                        fontSize = 25.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = BeeftechWhite
+                        text =
+                            "Coordinates & Save",
+                        fontSize =
+                            25.sp,
+                        fontWeight =
+                            FontWeight.Bold,
+                        color =
+                            BeeftechWhite
                     )
                 }
             }
 
             Spacer(
-                modifier = Modifier.height(9.dp)
+                modifier =
+                    Modifier.height(
+                        9.dp
+                    )
             )
 
             Text(
-                text = "Capture precise geographic coordinates for the farmer location and save the registration securely.",
-                fontSize = 12.sp,
-                lineHeight = 17.sp,
-                color = BeeftechWhite.copy(alpha = 0.7f)
+                text =
+                    "Capture precise geographic coordinates for the farmer location and save the registration securely.",
+                fontSize =
+                    12.sp,
+                lineHeight =
+                    17.sp,
+                color =
+                    BeeftechWhite.copy(
+                        alpha = 0.7f
+                    )
             )
 
             Spacer(
-                modifier = Modifier.height(17.dp)
+                modifier =
+                    Modifier.height(
+                        17.dp
+                    )
             )
 
             HorizontalDivider(
-                thickness = 2.dp,
-                color = BeeftechPrimary
+                thickness =
+                    2.dp,
+                color =
+                    BeeftechPrimary
             )
         }
 
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(18.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        18.dp
+                    )
         ) {
 
             SafeFarmerSectionTitle(
-                title = "Where I Am"
+                title =
+                    "Where I Am"
             )
 
             Spacer(
-                modifier = Modifier.height(12.dp)
+                modifier =
+                    Modifier.height(
+                        12.dp
+                    )
             )
 
             SafeFarmerCard {
 
                 SafeFarmerTextField(
-                    label = "Latitude",
-                    value = formData.latitude,
+                    label =
+                        "Latitude",
+                    value =
+                        formData.latitude,
                     onValueChange = {
+
                         onFormDataChange(
                             formData.copy(
-                                latitude = it
+                                latitude =
+                                    it
                             )
                         )
                     },
-                    placeholder = "e.g. -26.713700"
+                    placeholder =
+                        "e.g. -26.713700"
                 )
 
                 Spacer(
-                    modifier = Modifier.height(16.dp)
+                    modifier =
+                        Modifier.height(
+                            16.dp
+                        )
                 )
 
                 SafeFarmerTextField(
-                    label = "Longitude",
-                    value = formData.longitude,
+                    label =
+                        "Longitude",
+                    value =
+                        formData.longitude,
                     onValueChange = {
+
                         onFormDataChange(
                             formData.copy(
-                                longitude = it
+                                longitude =
+                                    it
                             )
                         )
                     },
-                    placeholder = "e.g. 27.097900"
+                    placeholder =
+                        "e.g. 27.097900"
                 )
 
                 Spacer(
-                    modifier = Modifier.height(12.dp)
+                    modifier =
+                        Modifier.height(
+                            12.dp
+                        )
                 )
 
                 Text(
-                    text = "Use the current location button to automatically capture the device location.",
-                    fontSize = 12.sp,
-                    color = BeeftechMutedText,
-                    lineHeight = 16.sp
+                    text =
+                        "Use the current location button to automatically capture the device location.",
+                    fontSize =
+                        12.sp,
+                    color =
+                        BeeftechMutedText,
+                    lineHeight =
+                        16.sp
                 )
 
                 Spacer(
-                    modifier = Modifier.height(16.dp)
+                    modifier =
+                        Modifier.height(
+                            16.dp
+                        )
                 )
 
                 SafeFarmerSecondaryButton(
@@ -954,17 +1210,24 @@ fun CoordinatesAndSaveContent(
                         } else {
                             "Use current location"
                         },
-                    onClick = onUseCurrentLocationClick,
-                    enabled = !isLoadingLocation
+                    onClick =
+                        onUseCurrentLocationClick,
+                    enabled =
+                        !isLoadingLocation
                 )
 
                 Spacer(
-                    modifier = Modifier.height(12.dp)
+                    modifier =
+                        Modifier.height(
+                            12.dp
+                        )
                 )
 
                 SafeFarmerSecondaryButton(
-                    text = "View on map",
-                    onClick = onViewOnMapClick,
+                    text =
+                        "View on map",
+                    onClick =
+                        onViewOnMapClick,
                     enabled =
                         formData.latitude.isNotBlank() &&
                                 formData.longitude.isNotBlank()
@@ -972,7 +1235,10 @@ fun CoordinatesAndSaveContent(
             }
 
             Spacer(
-                modifier = Modifier.height(24.dp)
+                modifier =
+                    Modifier.height(
+                        24.dp
+                    )
             )
 
             SafeFarmerCard {
@@ -984,37 +1250,60 @@ fun CoordinatesAndSaveContent(
                                 "Farmer"
                             }
                         }",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = BeeftechPrimaryDeep
+                    fontSize =
+                        13.sp,
+                    fontWeight =
+                        FontWeight.Bold,
+                    color =
+                        BeeftechPrimaryDeep
                 )
 
                 Spacer(
-                    modifier = Modifier.height(6.dp)
+                    modifier =
+                        Modifier.height(
+                            6.dp
+                        )
                 )
 
                 Text(
-                    text = "The registration will be saved locally with a PENDING sync status.",
-                    fontSize = 12.sp,
-                    lineHeight = 17.sp,
-                    color = BeeftechText
+                    text =
+                        "The registration will be saved locally with a PENDING sync status.",
+                    fontSize =
+                        12.sp,
+                    lineHeight =
+                        17.sp,
+                    color =
+                        BeeftechText
                 )
             }
 
             Spacer(
-                modifier = Modifier.height(24.dp)
+                modifier =
+                    Modifier.height(
+                        24.dp
+                    )
             )
 
             Button(
-                onClick = onSaveClick,
-                enabled = !isSaving,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                shape = RoundedCornerShape(11.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = BeeftechPrimaryDeep
-                )
+                onClick =
+                    onSaveClick,
+                enabled =
+                    !isSaving,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(
+                            50.dp
+                        ),
+                shape =
+                    RoundedCornerShape(
+                        11.dp
+                    ),
+                colors =
+                    ButtonDefaults.buttonColors(
+                        containerColor =
+                            BeeftechPrimaryDeep
+                    )
             ) {
 
                 Text(
@@ -1024,14 +1313,20 @@ fun CoordinatesAndSaveContent(
                         } else {
                             "Save Location Data"
                         },
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    color = BeeftechWhite
+                    fontWeight =
+                        FontWeight.Bold,
+                    fontSize =
+                        15.sp,
+                    color =
+                        BeeftechWhite
                 )
             }
 
             Spacer(
-                modifier = Modifier.height(30.dp)
+                modifier =
+                    Modifier.height(
+                        30.dp
+                    )
             )
         }
     }
@@ -1043,31 +1338,45 @@ private fun SafeFarmerSectionTitle(
 ) {
 
     Row(
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment =
+            Alignment.CenterVertically
     ) {
 
         Box(
-            modifier = Modifier
-                .size(
-                    width = 4.dp,
-                    height = 18.dp
-                )
-                .background(
-                    BeeftechPrimaryDark,
-                    RoundedCornerShape(3.dp)
-                )
+            modifier =
+                Modifier
+                    .size(
+                        width =
+                            4.dp,
+                        height =
+                            18.dp
+                    )
+                    .background(
+                        BeeftechPrimaryDark,
+                        RoundedCornerShape(
+                            3.dp
+                        )
+                    )
         )
 
         Spacer(
-            modifier = Modifier.width(9.dp)
+            modifier =
+                Modifier.width(
+                    9.dp
+                )
         )
 
         Text(
-            text = title.uppercase(),
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 0.8.sp,
-            color = BeeftechPrimaryDark
+            text =
+                title.uppercase(),
+            fontSize =
+                12.sp,
+            fontWeight =
+                FontWeight.Bold,
+            letterSpacing =
+                0.8.sp,
+            color =
+                BeeftechPrimaryDark
         )
     }
 }
@@ -1078,19 +1387,31 @@ private fun SafeFarmerCard(
 ) {
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = BeeftechSurface
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 1.dp
-        )
+        modifier =
+            Modifier.fillMaxWidth(),
+        shape =
+            RoundedCornerShape(
+                14.dp
+            ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor =
+                    BeeftechSurface
+            ),
+        elevation =
+            CardDefaults.cardElevation(
+                defaultElevation =
+                    1.dp
+            )
     ) {
 
         Column(
-            modifier = Modifier.padding(17.dp),
-            content = content
+            modifier =
+                Modifier.padding(
+                    17.dp
+                ),
+            content =
+                content
         )
     }
 }
@@ -1102,66 +1423,104 @@ private fun SafeFarmerTextField(
     onValueChange: (String) -> Unit,
     placeholder: String = "—",
     modifier: Modifier = Modifier,
-    icon: ImageVector = Icons.Outlined.EditNote
+    icon: ImageVector =
+        Icons.Outlined.EditNote
 ) {
 
     Column(
-        modifier = modifier.fillMaxWidth()
+        modifier =
+            modifier.fillMaxWidth()
     ) {
 
         Text(
-            text = label.uppercase(),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 0.6.sp,
-            color = BeeftechPrimaryDark
+            text =
+                label.uppercase(),
+            fontSize =
+                10.sp,
+            fontWeight =
+                FontWeight.Bold,
+            letterSpacing =
+                0.6.sp,
+            color =
+                BeeftechPrimaryDark
         )
 
         Spacer(
-            modifier = Modifier.height(7.dp)
+            modifier =
+                Modifier.height(
+                    7.dp
+                )
         )
 
         OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
+            value =
+                value,
+            onValueChange =
+                onValueChange,
             placeholder = {
 
                 Text(
-                    text = placeholder,
-                    color = BeeftechMutedText,
-                    fontSize = 14.sp
+                    text =
+                        placeholder,
+                    color =
+                        BeeftechMutedText,
+                    fontSize =
+                        14.sp
                 )
             },
-            singleLine = true,
+            singleLine =
+                true,
             leadingIcon = {
 
                 Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .background(
-                            BeeftechSoftAccent,
-                            RoundedCornerShape(8.dp)
-                        ),
-                    contentAlignment = Alignment.Center
+                    modifier =
+                        Modifier
+                            .size(
+                                34.dp
+                            )
+                            .background(
+                                BeeftechSoftAccent,
+                                RoundedCornerShape(
+                                    8.dp
+                                )
+                            ),
+                    contentAlignment =
+                        Alignment.Center
                 ) {
 
                     Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = BeeftechPrimaryDark,
-                        modifier = Modifier.size(19.dp)
+                        imageVector =
+                            icon,
+                        contentDescription =
+                            null,
+                        tint =
+                            BeeftechPrimaryDark,
+                        modifier =
+                            Modifier.size(
+                                19.dp
+                            )
                     )
                 }
             },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(11.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = BeeftechPrimaryDark,
-                unfocusedBorderColor = BeeftechBorder,
-                cursorColor = BeeftechPrimaryDark,
-                focusedContainerColor = BeeftechWhite,
-                unfocusedContainerColor = BeeftechWhite
-            )
+            modifier =
+                Modifier.fillMaxWidth(),
+            shape =
+                RoundedCornerShape(
+                    11.dp
+                ),
+            colors =
+                OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor =
+                        BeeftechPrimaryDark,
+                    unfocusedBorderColor =
+                        BeeftechBorder,
+                    cursorColor =
+                        BeeftechPrimaryDark,
+                    focusedContainerColor =
+                        BeeftechWhite,
+                    unfocusedContainerColor =
+                        BeeftechWhite
+                )
         )
     }
 }
@@ -1175,20 +1534,32 @@ private fun SafeFarmerSecondaryButton(
 ) {
 
     OutlinedButton(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = modifier
-            .fillMaxWidth()
-            .height(50.dp),
-        shape = RoundedCornerShape(11.dp),
-        colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = BeeftechPrimaryDeep
-        )
+        onClick =
+            onClick,
+        enabled =
+            enabled,
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(
+                    50.dp
+                ),
+        shape =
+            RoundedCornerShape(
+                11.dp
+            ),
+        colors =
+            ButtonDefaults.outlinedButtonColors(
+                contentColor =
+                    BeeftechPrimaryDeep
+            )
     ) {
 
         Text(
-            text = text,
-            fontWeight = FontWeight.SemiBold
+            text =
+                text,
+            fontWeight =
+                FontWeight.SemiBold
         )
     }
 }
@@ -1202,13 +1573,19 @@ fun CoordinatesAndSaveScreenPreview() {
     BeeftechTheme {
 
         CoordinatesAndSaveContent(
-            formData = CoordinatesSaveData(
-                latitude = "-26.713700",
-                longitude = "27.097900",
-                organisationName = "Green Valley Cattle Farm"
-            ),
-            isLoadingLocation = false,
-            isSaving = false,
+            formData =
+                CoordinatesSaveData(
+                    latitude =
+                        "-26.713700",
+                    longitude =
+                        "27.097900",
+                    organisationName =
+                        "Green Valley Cattle Farm"
+                ),
+            isLoadingLocation =
+                false,
+            isSaving =
+                false,
             onFormDataChange = {},
             onBackClick = {},
             onUseCurrentLocationClick = {},
@@ -1217,6 +1594,3 @@ fun CoordinatesAndSaveScreenPreview() {
         )
     }
 }
-
-
-

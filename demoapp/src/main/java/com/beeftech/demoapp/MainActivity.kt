@@ -32,9 +32,10 @@ import com.beeftech.database.repository.PendingSyncRepository
 import com.beeftech.database.repository.SyncRepository
 import com.beeftech.demoapp.ui.theme.BeeftechTheme
 import com.beeftech.farmerregistration.ClientDetailsScreen
-import com.beeftech.farmtraceability.ui.FarmTraceabilityFlow
+import com.beeftech.farmerregistration.FarmerSyncScheduler
 import com.beeftech.farmtraceability.data.TreatmentApiClient
 import com.beeftech.farmtraceability.data.TreatmentRepository
+import com.beeftech.farmtraceability.ui.FarmTraceabilityFlow
 import com.beeftech.farmtraceability.viewmodel.AnimalMovementViewModel
 import com.beeftech.farmtraceability.viewmodel.AnimalMovementViewModelFactory
 import com.beeftech.farmtraceability.viewmodel.CostSummaryViewModel
@@ -681,50 +682,93 @@ class MainActivity : ComponentActivity() {
 
                                             onRetrySyncClick = {
 
-                                                /*
-                                                 * Retry calf registration sync.
-                                                 */
-                                                calfRegistrationViewModel
-                                                    .retrySync {
-                                                            success,
-                                                            message ->
+                                                lifecycleScope.launch {
 
-                                                        if (
-                                                            success &&
-                                                            message.contains(
-                                                                "synced successfully"
-                                                            )
-                                                        ) {
-                                                            lifecycleScope.launch {
-                                                                syncRepository
-                                                                    .recordSuccessfulSync()
-                                                            }
+                                                    val pendingOperations =
+                                                        withContext(Dispatchers.IO) {
+                                                            pendingSyncRepository
+                                                                .getAllPendingOperations()
                                                         }
 
+                                                    if (pendingOperations.isEmpty()) {
                                                         Toast.makeText(
                                                             this@MainActivity,
-                                                            message,
+                                                            "There are no pending records to sync.",
                                                             Toast.LENGTH_SHORT
                                                         ).show()
+                                                        return@launch
                                                     }
 
-                                                /*
-                                                 * Also retry pending animal
-                                                 * movement synchronization.
-                                                 */
-                                                movementViewModel
-                                                    .retrySync(
-                                                        animalId = ""
+                                                    val pendingTypes =
+                                                        pendingOperations
+                                                            .map { it.entityType }
+                                                            .toSet()
+
+                                                    if (
+                                                        "FARMER_REGISTRATION" in pendingTypes
                                                     ) {
-                                                            _,
-                                                            message ->
+                                                        FarmerSyncScheduler.enqueue(
+                                                            applicationContext
+                                                        )
+                                                    }
 
+                                                    if (
+                                                        "CALF_REGISTRATION" in pendingTypes
+                                                    ) {
+                                                        calfRegistrationViewModel
+                                                            .retrySync {
+                                                                    success,
+                                                                    message ->
+
+                                                                if (
+                                                                    success &&
+                                                                    message.contains(
+                                                                        "synced successfully",
+                                                                        ignoreCase = true
+                                                                    )
+                                                                ) {
+                                                                    lifecycleScope.launch {
+                                                                        syncRepository
+                                                                            .recordSuccessfulSync()
+                                                                    }
+                                                                }
+
+                                                                Toast.makeText(
+                                                                    this@MainActivity,
+                                                                    message,
+                                                                    Toast.LENGTH_SHORT
+                                                                ).show()
+                                                            }
+                                                    }
+
+                                                    if (
+                                                        "ANIMAL_MOVEMENT" in pendingTypes
+                                                    ) {
+                                                        movementViewModel
+                                                            .retrySync(
+                                                                animalId = ""
+                                                            ) {
+                                                                    _,
+                                                                    message ->
+
+                                                                Toast.makeText(
+                                                                    this@MainActivity,
+                                                                    message,
+                                                                    Toast.LENGTH_SHORT
+                                                                ).show()
+                                                            }
+                                                    }
+
+                                                    if (
+                                                        "FARMER_REGISTRATION" in pendingTypes
+                                                    ) {
                                                         Toast.makeText(
                                                             this@MainActivity,
-                                                            message,
+                                                            "Farmer registration sync queued.",
                                                             Toast.LENGTH_SHORT
                                                         ).show()
                                                     }
+                                                }
                                             }
                                         )
                                     }
@@ -772,4 +816,3 @@ class MainActivity : ComponentActivity() {
         DatabaseProvider.close()
     }
 }
-

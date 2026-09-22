@@ -94,6 +94,17 @@ fun Application.module() {
         TreatmentReferenceRepository()
 
     /*
+     * Farmer Registration
+     */
+    val farmerRepository =
+        FarmerRepository()
+
+    val farmerService =
+        FarmerService(
+            farmerRepository
+        )
+
+    /*
      * Feed Crib
      */
     val feedCribService =
@@ -132,6 +143,14 @@ fun Application.module() {
             jwtService,
             treatmentService,
             treatmentReferenceRepository
+        )
+
+        /*
+         * Farmer Registration routes
+         */
+        farmerRoutes(
+            jwtService,
+            farmerService
         )
 
         /*

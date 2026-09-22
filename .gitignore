@@ -1,21 +1,21 @@
+# Gradle caches
+.gradle/
+.kotlin/
 
-.idea/
-# Ignore Gradle project-specific cache directory
-.gradle
+# Build output
+build/
+**/build/
 
-# Ignore Gradle build output directory
-build
+# Android Studio local files
+# Ignore everything in .idea EXCEPT shared run configurations
+.idea/*
+!.idea/runConfigurations/
+!.idea/runConfigurations/**
 
-# Ignore Kotlin plugin data
-.kotlin
-
-#ignore .idea
-
-.idea
-
-#ignore local.properties
-
+# Local Android SDK configuration
 local.properties
+
+# JVM crash dumps
 *.hprof
 
 # Local backend database
