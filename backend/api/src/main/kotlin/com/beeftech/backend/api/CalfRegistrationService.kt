@@ -41,4 +41,13 @@ class CalfRegistrationService(private val repository: CalfRegistrationRepository
     suspend fun findByAnimalId(animalId: String): CalfRegistrationDto? {
         return repository.findByAnimalId(animalId)
     }
+
+    suspend fun updateMedia(animalId: String, photoPath: String): Boolean {
+        return repository.updatePhotoPath(animalId, photoPath)
+    }
+
+    suspend fun generateCertificatePdf(animalId: String): ByteArray? {
+        val record = repository.findByAnimalId(animalId) ?: return null
+        return PdfGenerator.generateBirthCertificate(record)
+    }
 }

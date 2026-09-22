@@ -42,6 +42,12 @@ import com.beeftech.database.dao.PenDao
 import com.beeftech.database.dao.FeedCribDao
 import com.beeftech.database.dao.FeedCribReadingDao
 import com.beeftech.database.dao.SyncBatchDao
+import com.beeftech.database.entity.AnimalWeightEntity
+import com.beeftech.database.entity.AnimalGroupMembershipEntity
+import com.beeftech.database.entity.*
+import com.beeftech.database.dao.AnimalWeightDao
+import com.beeftech.database.dao.AnimalGroupMembershipDao
+import com.beeftech.database.dao.*
 
 @Database(
     entities = [
@@ -66,7 +72,10 @@ import com.beeftech.database.dao.SyncBatchDao
         FeedCribReadingEntity::class,
         FeedCribReadingValueEntity::class,
         SyncBatchEntity::class,
-        SyncBackupEntity::class
+        SyncBackupEntity::class,
+        AnimalWeightEntity::class,
+        AnimalGroupMembershipEntity::class
+
     ],
     version = 10,
     exportSchema = false
@@ -91,4 +100,6 @@ abstract class BeefTechDatabase : RoomDatabase() {
     abstract fun feedCribDao(): FeedCribDao
     abstract fun feedCribReadingDao(): FeedCribReadingDao
     abstract fun syncBatchDao(): SyncBatchDao
+    abstract fun animalWeightDao(): AnimalWeightDao
+    abstract fun animalGroupMembershipDao(): AnimalGroupMembershipDao
 }

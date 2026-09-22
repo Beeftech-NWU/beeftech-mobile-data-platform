@@ -3,24 +3,25 @@ package com.beeftech.calfregistration.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Pets
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Tag
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.beeftech.calfregistration.util.TagNamingUtils
 
 @Composable
 fun CalvesRegisteredScreen(
@@ -29,6 +30,22 @@ fun CalvesRegisteredScreen(
     onRegisterNewCalfClick: () -> Unit,
     onBackClick: () -> Unit
 ) {
+    var searchQuery by remember { mutableStateOf("") }
+
+    val filteredCalves = remember(searchQuery, registeredCalves) {
+        if (searchQuery.isBlank()) {
+            registeredCalves
+        } else {
+            val expandedQuery = TagNamingUtils.parseAndExpand(searchQuery)
+            registeredCalves.filter { calf ->
+                calf.tagNumber.contains(searchQuery.trim(), ignoreCase = true) ||
+                calf.tagNumber.contains(expandedQuery, ignoreCase = true) ||
+                calf.animalType.contains(searchQuery.trim(), ignoreCase = true) ||
+                calf.gender.contains(searchQuery.trim(), ignoreCase = true)
+            }
+        }
+    }
+
     Column(
         modifier = Modifier.fillMaxSize().background(BeeftechBackground).verticalScroll(rememberScrollState())
     ) {
@@ -60,11 +77,37 @@ fun CalvesRegisteredScreen(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-            CalfSectionTitle("Registered calves")
+            CalfSectionTitle("Search & Quick Auto-Expansion")
             Spacer(modifier = Modifier.height(12.dp))
-            registeredCalves.forEach { calf ->
-                CalfRegisteredItemCard(calf = calf, onClick = { onSelectCalf(calf) })
-                Spacer(modifier = Modifier.height(11.dp))
+            CalfCard {
+                CalfTextField(
+                    label = "Search Tag ID or Shorthand",
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = "Search tag e.g. B64 or Blu0000064",
+                    supportingText = "Supports quick search codes (B64 -> Blu0000064, R123 -> Red0000123)",
+                    icon = Icons.Outlined.Search
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+            CalfSectionTitle("Registered calves (${filteredCalves.size})")
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (filteredCalves.isEmpty()) {
+                CalfCard {
+                    Text(
+                        text = "No calves found matching '$searchQuery'",
+                        fontSize = 13.sp,
+                        color = BeeftechMutedText,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            } else {
+                filteredCalves.forEach { calf ->
+                    CalfRegisteredItemCard(calf = calf, onClick = { onSelectCalf(calf) })
+                    Spacer(modifier = Modifier.height(11.dp))
+                }
             }
 
             Spacer(modifier = Modifier.height(15.dp))

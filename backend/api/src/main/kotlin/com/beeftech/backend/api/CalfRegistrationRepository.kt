@@ -108,4 +108,17 @@ class CalfRegistrationRepository {
             .map { it.toDto() }
             .singleOrNull()
     }
+
+    suspend fun updatePhotoPath(
+        animalId: String,
+        photoPath: String
+    ): Boolean = newSuspendedTransaction(Dispatchers.IO) {
+
+        val updatedCount = CalfRegistrationTable.update(
+            { CalfRegistrationTable.animalId eq animalId }
+        ) {
+            it[CalfRegistrationTable.photoPath] = photoPath
+        }
+        updatedCount > 0
+    }
 }

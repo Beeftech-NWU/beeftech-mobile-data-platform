@@ -51,6 +51,10 @@ class CalfRegistrationViewModel(
         }
     }
 
+    suspend fun isTagRegistered(tagNumber: String): Boolean {
+        return repository.isTagRegistered(tagNumber)
+    }
+
     fun saveCalf(
         formData: CalfRegistrationData,
         onResult: (Boolean, String) -> Unit = { _, _ -> }

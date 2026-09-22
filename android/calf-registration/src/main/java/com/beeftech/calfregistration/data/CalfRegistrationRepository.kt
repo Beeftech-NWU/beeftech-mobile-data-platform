@@ -19,6 +19,25 @@ class CalfRegistrationRepository(
             emptyList()
         }
 
+    /**
+     * Checks whether a calf registration with the given tag number
+     * (animalId) already exists locally.
+     */
+    suspend fun isTagRegistered(tagNumber: String): Boolean {
+        if (tagNumber.isBlank()) return false
+
+        return try {
+            calfRegistrationDao.existsByAnimalId(tagNumber.trim())
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Persists the calf locally, queues a pending-sync operation,
+     * and makes a best-effort immediate attempt to sync it and any
+     * other pending calf records to the backend.
+     */
     suspend fun saveCalf(
         formData: CalfRegistrationData
     ): SaveCalfOutcome {
@@ -44,18 +63,23 @@ class CalfRegistrationRepository(
             )
 
             val syncOutcome = syncPending()
+
             val saved =
                 calfRegistrationDao.findByAnimalId(entity.animalId)
 
             val formResult =
-                saved?.let { CalfRegistrationMappers.toFormData(it) }
-                    ?: formData
+                saved?.let {
+                    CalfRegistrationMappers.toFormData(it)
+                } ?: formData
 
             SaveCalfOutcome(
                 data = formResult,
                 syncErrorMessage =
-                    if (formResult.synced) null
-                    else syncOutcome.errorMessagesByAnimalId[entity.animalId]
+                    if (formResult.synced) {
+                        null
+                    } else {
+                        syncOutcome.errorMessagesByAnimalId[entity.animalId]
+                    }
             )
         } catch (exception: Exception) {
             SaveCalfOutcome(
@@ -67,7 +91,9 @@ class CalfRegistrationRepository(
 
     suspend fun syncPending(): SyncPendingOutcome {
         return try {
-            val allCalves = calfRegistrationDao.getAll()
+            val allCalves =
+                calfRegistrationDao.getAll()
+
             val pendingRecords =
                 allCalves.filter {
                     it.syncStatus != SYNC_STATUS_SYNCED
@@ -77,15 +103,22 @@ class CalfRegistrationRepository(
             cleanupStaleCalfQueueEntries(allCalves)
 
             if (pendingRecords.isEmpty()) {
-                return SyncPendingOutcome(syncedCount = 0)
+                return SyncPendingOutcome(
+                    syncedCount = 0
+                )
             }
 
             val deviceId =
                 android.os.Build.MODEL ?: "unknown-device"
 
-            apiClient.syncCalves(pendingRecords, deviceId).fold(
+            apiClient.syncCalves(
+                pendingRecords,
+                deviceId
+            ).fold(
                 onSuccess = { response ->
+
                     var syncedCount = 0
+
                     val errors =
                         mutableMapOf<String, String?>()
 
@@ -93,24 +126,34 @@ class CalfRegistrationRepository(
                     val queuedByAnimal =
                         pendingSyncRepository
                             .getAllPendingOperations()
-                            .filter { it.entityType == ENTITY_TYPE }
-                            .groupBy { it.entityId }
+                            .filter {
+                                it.entityType == ENTITY_TYPE
+                            }
+                            .groupBy {
+                                it.entityId
+                            }
 
                     response.results.forEach { syncResult ->
+
                         val queued =
                             queuedByAnimal[syncResult.animalId]
                                 .orEmpty()
 
-                        if (syncResult.status == SYNC_STATUS_SYNCED) {
+                        if (
+                            syncResult.status ==
+                            SYNC_STATUS_SYNCED
+                        ) {
                             calfRegistrationDao.updateSyncStatus(
-                                animalId = syncResult.animalId,
-                                syncStatus = SYNC_STATUS_SYNCED,
+                                animalId =
+                                    syncResult.animalId,
+                                syncStatus =
+                                    SYNC_STATUS_SYNCED,
                                 syncedAt =
                                     syncResult.serverSyncedAt
                                         ?: System.currentTimeMillis()
                             )
 
-                            // Delete ALL queue rows for this synced calf.
+                            // Delete all queue rows for this synced calf.
                             queued.forEach {
                                 pendingSyncRepository
                                     .markSyncSuccessful(it.id)
@@ -124,9 +167,11 @@ class CalfRegistrationRepository(
                             queued
                                 .filter {
                                     it.retryCount <
-                                            PendingSyncRepository.DEFAULT_MAX_RETRIES
+                                        PendingSyncRepository.DEFAULT_MAX_RETRIES
                                 }
-                                .maxByOrNull { it.createdAt }
+                                .maxByOrNull {
+                                    it.createdAt
+                                }
                                 ?.let {
                                     pendingSyncRepository
                                         .markSyncFailed(it.id)
@@ -144,7 +189,9 @@ class CalfRegistrationRepository(
                         errorMessagesByAnimalId = errors
                     )
                 },
+
                 onFailure = { exception ->
+
                     val message =
                         exception.message
                             ?: "Unable to reach the server"
@@ -159,7 +206,9 @@ class CalfRegistrationRepository(
                 }
             )
         } catch (_: Exception) {
-            SyncPendingOutcome(syncedCount = 0)
+            SyncPendingOutcome(
+                syncedCount = 0
+            )
         }
     }
 
@@ -168,25 +217,33 @@ class CalfRegistrationRepository(
     ) {
         val syncedAnimalIds =
             calves
-                .filter { it.syncStatus == SYNC_STATUS_SYNCED }
-                .map { it.animalId }
+                .filter {
+                    it.syncStatus == SYNC_STATUS_SYNCED
+                }
+                .map {
+                    it.animalId
+                }
                 .toSet()
 
-        if (syncedAnimalIds.isEmpty()) return
+        if (syncedAnimalIds.isEmpty()) {
+            return
+        }
 
         pendingSyncRepository
             .getAllPendingOperations()
             .filter {
                 it.entityType == ENTITY_TYPE &&
-                        it.entityId in syncedAnimalIds
+                    it.entityId in syncedAnimalIds
             }
             .forEach {
-                pendingSyncRepository.markSyncSuccessful(it.id)
+                pendingSyncRepository
+                    .markSyncSuccessful(it.id)
             }
     }
 
     companion object {
-        private const val ENTITY_TYPE = "CALF_REGISTRATION"
+        private const val ENTITY_TYPE =
+            "CALF_REGISTRATION"
     }
 }
 
@@ -197,5 +254,6 @@ data class SaveCalfOutcome(
 
 data class SyncPendingOutcome(
     val syncedCount: Int,
-    val errorMessagesByAnimalId: Map<String, String?> = emptyMap()
+    val errorMessagesByAnimalId:
+        Map<String, String?> = emptyMap()
 )

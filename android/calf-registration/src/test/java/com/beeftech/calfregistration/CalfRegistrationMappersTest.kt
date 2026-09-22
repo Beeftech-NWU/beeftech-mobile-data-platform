@@ -201,6 +201,25 @@ class CalfRegistrationMappersTest {
     }
 
     @Test
+    fun `toEntity and toFormData correctly preserve photoPath`() {
+        val formData = CalfRegistrationData(
+            tagNumber = "Blu0000064",
+            photoPath = "/photos/calf_Blu0000064.jpg"
+        )
+
+        val entity = CalfRegistrationMappers.toEntity(
+            formData = formData,
+            deviceId = deviceId,
+            captureAt = captureAt
+        )
+
+        assertEquals("/photos/calf_Blu0000064.jpg", entity.photoPath)
+
+        val roundTripped = CalfRegistrationMappers.toFormData(entity)
+        assertEquals("/photos/calf_Blu0000064.jpg", roundTripped.photoPath)
+    }
+
+    @Test
     fun `toDto maps every entity field 1-to-1`() {
         val entity = CalfRegistration(
             id = 1,

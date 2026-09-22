@@ -5,6 +5,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import com.beeftech.calfregistration.util.TagColour
+import com.beeftech.calfregistration.util.TagNamingUtils
 import com.beeftech.calfregistration.viewmodel.CalfRegistrationViewModel
 
 private enum class CalfFlowStep {
@@ -25,7 +27,8 @@ fun CalfRegistrationFlow(
         mutableStateOf(CalfRegistrationData())
     }
 
-    val registeredCalves by viewModel.registeredCalves.collectAsState()
+    val registeredCalves by
+        viewModel.registeredCalves.collectAsState()
 
     // Confirmation dialog state
     var showConfirmationDialog by remember {
@@ -40,20 +43,36 @@ fun CalfRegistrationFlow(
         mutableStateOf("")
     }
 
-    fun goBack() {
-        currentStep = when (currentStep) {
-            CalfFlowStep.APPEARANCE_PARENTAGE ->
-                CalfFlowStep.TAG_IDENTITY
-
-            CalfFlowStep.SESSION_LIST ->
-                CalfFlowStep.TAG_IDENTITY
-
-            else ->
-                CalfFlowStep.TAG_IDENTITY
-        }
+    fun createNextCalfForm(): CalfRegistrationData {
+        return CalfRegistrationData(
+            tagNumber =
+                TagNamingUtils.formatTag(
+                    TagColour.BLUE,
+                    (64..99).random().toLong()
+                ),
+            transponderNumber =
+                "${(41..99).random()}"
+        )
     }
 
-    if (currentStep != CalfFlowStep.TAG_IDENTITY) {
+    fun goBack() {
+        currentStep =
+            when (currentStep) {
+                CalfFlowStep.APPEARANCE_PARENTAGE ->
+                    CalfFlowStep.TAG_IDENTITY
+
+                CalfFlowStep.SESSION_LIST ->
+                    CalfFlowStep.TAG_IDENTITY
+
+                else ->
+                    CalfFlowStep.TAG_IDENTITY
+            }
+    }
+
+    if (
+        currentStep !=
+        CalfFlowStep.TAG_IDENTITY
+    ) {
         BackHandler {
             goBack()
         }
@@ -62,14 +81,13 @@ fun CalfRegistrationFlow(
     /*
      * Confirmation shown after the save operation finishes.
      *
-     * The ViewModel already tells us whether the operation completed
+     * The ViewModel tells us whether the operation completed
      * successfully and supplies the appropriate online/offline message.
      */
     if (showConfirmationDialog) {
         AlertDialog(
             onDismissRequest = {
-                // Require the farmer to acknowledge the confirmation
-                // using the OK button.
+                // Require acknowledgement using the OK button.
             },
 
             title = {
@@ -87,18 +105,14 @@ fun CalfRegistrationFlow(
             confirmButton = {
                 Button(
                     onClick = {
-                        showConfirmationDialog = false
+                        showConfirmationDialog =
+                            false
 
                         // Reset for the next calf.
-                        formData = CalfRegistrationData(
-                            tagNumber =
-                                "RMB${(25426..25499).random()}",
-                            transponderNumber =
-                                "${(41..99).random()}"
-                        )
+                        formData =
+                            createNextCalfForm()
 
-                        // Only navigate after the farmer has seen
-                        // and acknowledged the confirmation.
+                        // Navigate only after confirmation.
                         currentStep =
                             CalfFlowStep.SESSION_LIST
                     }
@@ -118,6 +132,10 @@ fun CalfRegistrationFlow(
 
                 onFormDataChange = { updated ->
                     formData = updated
+                },
+
+                onCheckTagDuplicate = { tag ->
+                    viewModel.isTagRegistered(tag)
                 },
 
                 onNextClick = {
@@ -153,7 +171,7 @@ fun CalfRegistrationFlow(
 
                     /*
                      * Keep the current tag number because the form
-                     * will be reset only after the user presses OK.
+                     * is reset only after the user presses OK.
                      */
                     val savedTagNumber =
                         formData.tagNumber
@@ -175,15 +193,16 @@ fun CalfRegistrationFlow(
                                     )
                                 ) {
                                     "Calf $savedTagNumber has been saved " +
-                                            "and synced successfully."
+                                        "and synced successfully."
                                 } else {
                                     "Calf $savedTagNumber has been saved " +
-                                            "successfully on this device.\n\n" +
-                                            "It will sync automatically when " +
-                                            "internet is available."
+                                        "successfully on this device.\n\n" +
+                                        "It will sync automatically when " +
+                                        "internet is available."
                                 }
 
-                            showConfirmationDialog = true
+                            showConfirmationDialog =
+                                true
 
                         } else {
 
@@ -195,7 +214,8 @@ fun CalfRegistrationFlow(
                                     "The calf registration could not be saved."
                                 }
 
-                            showConfirmationDialog = true
+                            showConfirmationDialog =
+                                true
                         }
                     }
                 }
@@ -216,14 +236,8 @@ fun CalfRegistrationFlow(
                 },
 
                 onRegisterNewCalfClick = {
-
                     formData =
-                        CalfRegistrationData(
-                            tagNumber =
-                                "RMB${(25426..25499).random()}",
-                            transponderNumber =
-                                "${(41..99).random()}"
-                        )
+                        createNextCalfForm()
 
                     currentStep =
                         CalfFlowStep.TAG_IDENTITY
