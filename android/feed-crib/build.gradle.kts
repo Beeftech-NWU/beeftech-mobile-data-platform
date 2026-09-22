@@ -28,6 +28,13 @@ android {
 }
 
 dependencies {
+    implementation(project(":android:database"))
+
+    // Feed Crib API communication
+    implementation("io.ktor:ktor-client-core:2.3.8")
+    implementation("io.ktor:ktor-client-okhttp:2.3.8")
+    implementation("io.ktor:ktor-client-content-negotiation:2.3.8")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.8")
     implementation(platform("androidx.compose:compose-bom:2024.02.00"))
 
     implementation("androidx.compose.ui:ui")
