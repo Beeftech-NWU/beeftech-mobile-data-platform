@@ -99,7 +99,7 @@ import com.beeftech.database.dao.UserDao
         // Phase 7 Entity
         CalfRegistrationEntity::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = true
 )
 abstract class BeefTechDatabase : RoomDatabase() {
@@ -260,6 +260,8 @@ abstract class BeefTechDatabase : RoomDatabase() {
                         `batchNumber` TEXT NOT NULL,
                         `volumeUsed` TEXT NOT NULL,
                         `cost` REAL NOT NULL,
+                        `gpsLat` REAL NOT NULL DEFAULT 0.0,
+                        `gpsLng` REAL NOT NULL DEFAULT 0.0,
                         `timestamp` INTEGER NOT NULL,
                         `deviceId` TEXT NOT NULL DEFAULT '',
                         `recordguid` TEXT NOT NULL DEFAULT '',
@@ -340,6 +342,17 @@ abstract class BeefTechDatabase : RoomDatabase() {
                 db.execSQL("DROP TABLE IF EXISTS `orphan_entity_two` ")
                 db.execSQL("DROP TABLE IF EXISTS `orphan_entity_three` ")
                 db.execSQL("DROP TABLE IF EXISTS `orphan_entity_four` ")
+            }
+        }
+
+        /**
+         * Migration (Version 11 -> 12):
+         * - Adds `gpsLat` and `gpsLng` columns to `treatments` table
+         */
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `treatments` ADD COLUMN `gpsLat` REAL NOT NULL DEFAULT 0.0")
+                db.execSQL("ALTER TABLE `treatments` ADD COLUMN `gpsLng` REAL NOT NULL DEFAULT 0.0")
             }
         }
     }
