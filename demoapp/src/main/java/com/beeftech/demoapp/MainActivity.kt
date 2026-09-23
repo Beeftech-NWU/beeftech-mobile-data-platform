@@ -27,6 +27,7 @@ import com.beeftech.calfregistration.viewmodel.CalfRegistrationViewModel
 import com.beeftech.calfregistration.viewmodel.CalfRegistrationViewModelFactory
 import com.beeftech.database.DatabaseProvider
 import com.beeftech.database.DatabaseResult
+import com.beeftech.database.entity.Animal
 import com.beeftech.database.entity.CalfRegistrationEntity
 import com.beeftech.database.repository.PendingSyncRepository
 import com.beeftech.database.repository.SyncRepository
@@ -101,21 +102,40 @@ class MainActivity : ComponentActivity() {
                      */
                     withContext(Dispatchers.IO) {
 
+                        val animalDao =
+                            database.animalDao()
+
                         val calfRegistrationDao =
                             database.calfRegistrationDao()
 
                         val existingAnimal =
-                            calfRegistrationDao.getCalfRegistrationDetails(
-                                "TEST-001"
-                            ).firstOrNull()
+                            animalDao.getById("TEST-001")
+                                ?: calfRegistrationDao.getCalfRegistrationDetails(
+                                    "TEST-001"
+                                ).firstOrNull()
 
                         if (existingAnimal == null) {
+
+                            val demoAnimalRecord =
+                                Animal(
+                                    animalId = "TEST-001",
+                                    tagNumber = "TAG-001",
+                                    birthdate = System.currentTimeMillis(),
+                                    breed = "Bonsmara",
+                                    gpsLat = -26.0,
+                                    gpsLng = 28.0,
+                                    captureAt = System.currentTimeMillis(),
+                                    deviceId = "demo-device",
+                                    recordguid = "guid-test-001"
+                                )
+
+                            animalDao.insert(demoAnimalRecord)
 
                             val demoAnimal =
                                 CalfRegistrationEntity(
                                     registeredAnimalId = "TEST-001",
-                                    damId = "DAM-001",
-                                    sireId = "SIRE-001",
+                                    damId = null,
+                                    sireId = null,
                                     registrationDate = "2026-09-18"
                                 )
 
@@ -802,10 +822,19 @@ class MainActivity : ComponentActivity() {
                                             .padding(innerPadding)
                                 ) {
 
+                                    val errorDetail = buildString {
+                                        append("Database error: ")
+                                        append(databaseResult.message)
+                                        databaseResult.cause?.let { cause ->
+                                            append("\n\nCause: ")
+                                            append(cause.message ?: cause.toString())
+                                            append("\n\n")
+                                            append(cause.stackTraceToString())
+                                        }
+                                    }
+
                                     Text(
-                                        text =
-                                            "Database error: " +
-                                                    databaseResult.message
+                                        text = errorDetail
                                     )
                                 }
                             }

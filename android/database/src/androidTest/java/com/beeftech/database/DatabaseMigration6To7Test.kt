@@ -183,10 +183,10 @@ class DatabaseMigration6To7Test {
                 )
 
             /*
-             * Confirm database is currently v8.
+             * Confirm database is currently v11.
              */
             assertEquals(
-                8,
+                11,
                 initialDatabase
                     .openHelper
                     .writableDatabase
@@ -269,10 +269,10 @@ class DatabaseMigration6To7Test {
                 }
 
             /*
-             * Database must now be version 8.
+             * Database must now be version 11.
              */
             assertEquals(
-                8,
+                11,
                 upgradedDatabase
                     .openHelper
                     .writableDatabase

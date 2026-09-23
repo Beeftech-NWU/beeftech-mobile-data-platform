@@ -229,6 +229,8 @@ abstract class BeefTechDatabase : RoomDatabase() {
                     """.trimIndent()
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_ownerships_animal_id` ON `animal_ownerships` (`animal_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_ownerships_owner_name` ON `animal_ownerships` (`owner_name`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_ownerships_start_date` ON `animal_ownerships` (`start_date`)")
 
                 db.execSQL(
                     """
@@ -245,6 +247,63 @@ abstract class BeefTechDatabase : RoomDatabase() {
                     """.trimIndent()
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_purchases_animal_id` ON `animal_purchases` (`animal_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_purchases_purchase_date` ON `animal_purchases` (`purchase_date`)")
+
+                // Ensure treatments table schema matches v11 Treatment entity
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `treatments_new` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `animalId` TEXT NOT NULL,
+                        `disease` TEXT NOT NULL,
+                        `treatmentName` TEXT NOT NULL,
+                        `batchNumber` TEXT NOT NULL,
+                        `volumeUsed` TEXT NOT NULL,
+                        `cost` REAL NOT NULL,
+                        `timestamp` INTEGER NOT NULL,
+                        `deviceId` TEXT NOT NULL DEFAULT '',
+                        `recordguid` TEXT NOT NULL DEFAULT '',
+                        `syncStatus` TEXT NOT NULL DEFAULT 'PENDING',
+                        `syncedAt` INTEGER
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `treatments_new` (
+                        `id`, `animalId`, `disease`, `treatmentName`, `batchNumber`, `volumeUsed`, `cost`, `timestamp`
+                    )
+                    SELECT `id`, `animalId`, `disease`, `treatmentName`, `batchNumber`, `volumeUsed`, `cost`, `timestamp`
+                    FROM `treatments`
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE IF EXISTS `treatments` ")
+                db.execSQL("ALTER TABLE `treatments_new` RENAME TO `treatments` ")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_treatments_recordguid` ON `treatments` (`recordguid`)")
+
+                // Ensure animal_movements table schema matches v11 AnimalMovementEntity
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `animal_movements_new` (
+                        `movement_id` TEXT NOT NULL,
+                        `animal_id` TEXT NOT NULL,
+                        `source_farm_id` TEXT,
+                        `source_pen_id` TEXT,
+                        `destination_farm_id` TEXT NOT NULL,
+                        `destination_pen_id` TEXT NOT NULL,
+                        `movement_date` TEXT NOT NULL,
+                        `feed_location_type` TEXT,
+                        `notes` TEXT,
+                        PRIMARY KEY(`movement_id`),
+                        FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE IF EXISTS `animal_movements` ")
+                db.execSQL("ALTER TABLE `animal_movements_new` RENAME TO `animal_movements` ")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_movements_animal_id` ON `animal_movements` (`animal_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_movements_destination_farm_id` ON `animal_movements` (`destination_farm_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_movements_destination_pen_id` ON `animal_movements` (`destination_pen_id`)")
 
                 // Remove obsolete tables replaced by Phase 6 changes
                 db.execSQL("DROP TABLE IF EXISTS `suppliers` ")
@@ -273,6 +332,8 @@ abstract class BeefTechDatabase : RoomDatabase() {
                 db.execSQL("DROP TABLE IF EXISTS `calf_registrations` ")
                 db.execSQL("ALTER TABLE `calf_registrations_new` RENAME TO `calf_registrations` ")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_calf_registrations_registered_animal_id` ON `calf_registrations` (`registered_animal_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_calf_registrations_dam_id` ON `calf_registrations` (`dam_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_calf_registrations_sire_id` ON `calf_registrations` (`sire_id`)")
 
                 // Remove orphan tables
                 db.execSQL("DROP TABLE IF EXISTS `orphan_entity_one` ")

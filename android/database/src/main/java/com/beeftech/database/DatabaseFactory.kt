@@ -504,6 +504,9 @@ object DatabaseFactory {
                         BeefTechDatabase.MIGRATION_10_11
                     )
 
+                    .fallbackToDestructiveMigration(dropAllTables = true)
+                    .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
+
                     .build()
 
             /*
