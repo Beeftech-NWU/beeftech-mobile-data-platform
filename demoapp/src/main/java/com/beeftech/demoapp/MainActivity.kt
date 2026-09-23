@@ -146,8 +146,6 @@ class MainActivity : ComponentActivity() {
                         AnimalMovementViewModelFactory(
                             animalMovementDao =
                                 animalMovementDao,
-                            pendingSyncRepository =
-                                pendingSyncRepository,
                             context =
                                 applicationContext
                         )

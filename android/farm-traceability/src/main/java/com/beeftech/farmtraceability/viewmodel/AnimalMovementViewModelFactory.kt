@@ -4,20 +4,11 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.beeftech.database.dao.AnimalMovementDao
-import com.beeftech.database.repository.PendingSyncRepository
-import com.beeftech.farmtraceability.data.AnimalMovementApiClient
-import com.beeftech.farmtraceability.data.AnimalMovementRepository
 
 class AnimalMovementViewModelFactory(
     private val animalMovementDao: AnimalMovementDao,
-    private val pendingSyncRepository: PendingSyncRepository,
-    context: Context,
-    private val apiClient: AnimalMovementApiClient =
-        AnimalMovementApiClient()
+    context: Context? = null
 ) : ViewModelProvider.Factory {
-
-    private val applicationContext =
-        context.applicationContext
 
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(
@@ -31,8 +22,7 @@ class AnimalMovementViewModelFactory(
         ) {
 
             return AnimalMovementViewModel(
-                animalMovementDao = animalMovementDao,
-                applicationContext = applicationContext
+                animalMovementDao = animalMovementDao
             ) as T
         }
 
