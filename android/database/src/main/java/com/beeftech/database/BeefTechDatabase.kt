@@ -428,6 +428,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
 
                 // 17. sync_backups
                 db.execSQL("CREATE TABLE IF NOT EXISTS `sync_backups` (`id` TEXT NOT NULL, `batchId` TEXT NOT NULL, `sync_status` TEXT NOT NULL, PRIMARY KEY(`id`))")
+                addColumnIfNotExists("sync_backups", "`sync_status` TEXT NOT NULL DEFAULT 'PENDING'")
 
                 // 18. treatments
                 db.execSQL("CREATE TABLE IF NOT EXISTS `treatments` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `animalId` TEXT NOT NULL, `disease` TEXT NOT NULL, `treatmentName` TEXT NOT NULL, `batchNumber` TEXT NOT NULL, `volumeUsed` TEXT NOT NULL, `cost` REAL NOT NULL, `gpsLat` REAL NOT NULL, `gpsLng` REAL NOT NULL, `timestamp` INTEGER NOT NULL, `deviceId` TEXT NOT NULL DEFAULT '', `recordguid` TEXT NOT NULL DEFAULT '', `syncStatus` TEXT NOT NULL DEFAULT 'PENDING', `syncedAt` INTEGER)")
