@@ -2,9 +2,8 @@ package com.beeftech.farmtraceability.data
 
 import android.os.Build
 import com.beeftech.database.dao.AnimalMovementDao
-import com.beeftech.database.entity.AnimalMovement
+import com.beeftech.database.entity.AnimalMovementEntity
 import com.beeftech.database.repository.PendingSyncRepository
-import java.util.UUID
 
 class AnimalMovementRepository(
     private val animalMovementDao: AnimalMovementDao,
@@ -14,7 +13,7 @@ class AnimalMovementRepository(
 
     suspend fun loadMovements(
         animalId: String
-    ): List<AnimalMovement> {
+    ): List<AnimalMovementEntity> {
 
         if (animalId.isBlank()) {
             return emptyList()
@@ -51,95 +50,41 @@ class AnimalMovementRepository(
              * Prevent accidental duplicate records caused by pressing
              * Add Movement Record followed immediately by Save Movement
              * Records, or by quickly double-tapping a save action.
-             *
-             * We deliberately use a short time window rather than making
-             * animalId + movementType + worker globally unique. The same
-             * legitimate movement can therefore be recorded again later.
              */
             val recentDuplicate =
                 animalMovementDao.findRecentDuplicate(
                     animalId = normalizedAnimalId,
-                    movementType = normalizedMovementInformation,
-                    responsibleWorker = normalizedResponsibleWorker,
-                    minimumTimestamp =
-                        now - DUPLICATE_PROTECTION_WINDOW_MS
+                    destinationFarmId = normalizedMovementInformation,
+                    notes = normalizedResponsibleWorker
                 )
 
             if (recentDuplicate != null) {
 
-                /*
-                 * Do not insert or queue a second copy.
-                 *
-                 * If the existing record is still pending, it is already
-                 * represented by its original GUID and sync queue entry.
-                 * We can still attempt synchronization again here.
-                 */
                 val syncOutcome =
-                    if (
-                        recentDuplicate.syncStatus !=
-                        SYNC_STATUS_SYNCED
-                    ) {
-                        syncPending()
-                    } else {
-                        AnimalMovementSyncPendingOutcome(
-                            syncedCount = 0
-                        )
-                    }
+                    syncPending()
 
                 val refreshedMovement =
-                    animalMovementDao.findByRecordGuid(
-                        recentDuplicate.recordguid
+                    animalMovementDao.findByMovementId(
+                        recentDuplicate.movementId
                     ) ?: recentDuplicate
 
                 return SaveAnimalMovementOutcome(
                     movement = refreshedMovement,
                     syncErrorMessage =
-                        if (
-                            refreshedMovement.syncStatus ==
-                            SYNC_STATUS_SYNCED
-                        ) {
-                            null
-                        } else {
-                            syncOutcome
-                                .errorMessagesByRecordGuid[
-                                refreshedMovement.recordguid
-                            ]
-                        },
+                        syncOutcome.errorMessagesByRecordGuid[
+                            refreshedMovement.movementId
+                        ],
                     duplicatePrevented = true
                 )
             }
 
-            val deviceId =
-                Build.MODEL ?: "unknown-device"
-
             val movement =
-                AnimalMovement(
+                AnimalMovementEntity(
                     animalId = normalizedAnimalId,
-                    movementType =
-                        normalizedMovementInformation,
-                    responsibleWorker =
-                        normalizedResponsibleWorker,
-                    timestamp = now,
-
-                    /*
-                     * GPS will remain 0.0 until we connect actual
-                     * device location capture.
-                     */
-                    gpsLat = 0.0,
-                    gpsLng = 0.0,
-
-                    deviceId = deviceId,
-
-                    /*
-                     * Immutable identifier used by the backend
-                     * for idempotent synchronization.
-                     */
-                    recordguid =
-                        UUID.randomUUID().toString(),
-
-                    syncStatus =
-                        SYNC_STATUS_PENDING,
-                    syncedAt = null
+                    destinationFarmId = normalizedMovementInformation,
+                    destinationPenId = "",
+                    movementDate = now.toString(),
+                    notes = normalizedResponsibleWorker
                 )
 
             animalMovementDao.insert(
@@ -151,39 +96,28 @@ class AnimalMovementRepository(
              */
             pendingSyncRepository.queueOperation(
                 entityType = ENTITY_TYPE,
-                entityId = movement.recordguid,
+                entityId = movement.movementId,
                 operation = "CREATE",
-                payload = movement.recordguid
+                payload = movement.movementId
             )
 
             /*
              * Try immediately.
-             *
-             * If the backend/internet is unavailable, the local
-             * movement remains safely stored as PENDING.
              */
             val syncOutcome =
                 syncPending()
 
             val savedMovement =
-                animalMovementDao.findByRecordGuid(
-                    movement.recordguid
+                animalMovementDao.findByMovementId(
+                    movement.movementId
                 ) ?: movement
 
             SaveAnimalMovementOutcome(
                 movement = savedMovement,
                 syncErrorMessage =
-                    if (
-                        savedMovement.syncStatus ==
-                        SYNC_STATUS_SYNCED
-                    ) {
-                        null
-                    } else {
-                        syncOutcome
-                            .errorMessagesByRecordGuid[
-                            movement.recordguid
-                        ]
-                    },
+                    syncOutcome.errorMessagesByRecordGuid[
+                        movement.movementId
+                    ],
                 duplicatePrevented = false
             )
 
@@ -204,17 +138,24 @@ class AnimalMovementRepository(
 
         return try {
 
-            val pendingRecords =
-                animalMovementDao.getPendingSync()
+            val pendingOperations =
+                pendingSyncRepository
+                    .getAllPendingOperations()
+                    .filter { it.entityType == ENTITY_TYPE }
 
-            /*
-             * Remove stale queue rows for records that have
-             * already been marked SYNCED.
-             */
-            cleanupStaleQueueEntries()
+            if (pendingOperations.isEmpty()) {
+                return AnimalMovementSyncPendingOutcome(
+                    syncedCount = 0
+                )
+            }
+
+            val pendingRecords =
+                pendingOperations
+                    .mapNotNull { operation ->
+                        animalMovementDao.findByMovementId(operation.entityId)
+                    }
 
             if (pendingRecords.isEmpty()) {
-
                 return AnimalMovementSyncPendingOutcome(
                     syncedCount = 0
                 )
@@ -237,94 +178,42 @@ class AnimalMovementRepository(
                         val errors =
                             mutableMapOf<String, String?>()
 
-                        /*
-                         * Include all queue entries so successful
-                         * synchronization can clean up even records
-                         * that previously reached the retry limit.
-                         */
                         val queuedByRecordGuid =
-                            pendingSyncRepository
-                                .getAllPendingOperations()
-                                .filter {
-                                    it.entityType == ENTITY_TYPE
-                                }
-                                .groupBy {
-                                    it.entityId
-                                }
+                            pendingOperations.groupBy { it.entityId }
 
-                        response.results.forEach {
-                                syncResult ->
+                        response.results.forEach { syncResult ->
 
                             val queued =
-                                queuedByRecordGuid[
-                                    syncResult.recordguid
-                                ].orEmpty()
+                                queuedByRecordGuid[syncResult.recordguid].orEmpty()
 
-                            if (
-                                syncResult.status ==
-                                SYNC_STATUS_SYNCED
-                            ) {
+                            if (syncResult.status == SYNC_STATUS_SYNCED) {
 
-                                animalMovementDao.markSynced(
-                                    recordGuid =
-                                        syncResult.recordguid,
-
-                                    syncedAt =
-                                        syncResult.serverSyncedAt
-                                            ?: System.currentTimeMillis()
+                                pendingSyncRepository.markEntitySyncSuccessful(
+                                    entityType = ENTITY_TYPE,
+                                    entityId = syncResult.recordguid
                                 )
-
-                                /*
-                                 * Remove all queue entries for the
-                                 * successfully synchronized movement.
-                                 */
-                                queued.forEach {
-                                        pendingOperation ->
-
-                                    pendingSyncRepository
-                                        .markSyncSuccessful(
-                                            pendingOperation.id
-                                        )
-                                }
 
                                 syncedCount++
 
                             } else {
 
-                                errors[
-                                    syncResult.recordguid
-                                ] =
+                                errors[syncResult.recordguid] =
                                     syncResult.message
 
-                                /*
-                                 * Increment the newest eligible queue
-                                 * entry's retry count.
-                                 */
                                 queued
                                     .filter {
                                         it.retryCount <
-                                                PendingSyncRepository
-                                                    .DEFAULT_MAX_RETRIES
+                                                PendingSyncRepository.DEFAULT_MAX_RETRIES
                                     }
-                                    .maxByOrNull {
-                                        it.createdAt
-                                    }
-                                    ?.let {
-                                            pendingOperation ->
+                                    .maxByOrNull { it.createdAt }
+                                    ?.let { pendingOperation ->
 
-                                        pendingSyncRepository
-                                            .markSyncFailed(
-                                                pendingOperation.id
-                                            )
+                                        pendingSyncRepository.markSyncFailed(
+                                            pendingOperation.id
+                                        )
                                     }
-
-                                animalMovementDao.markPending(
-                                    syncResult.recordguid
-                                )
                             }
                         }
-
-                        cleanupStaleQueueEntries()
 
                         AnimalMovementSyncPendingOutcome(
                             syncedCount = syncedCount,
@@ -342,10 +231,8 @@ class AnimalMovementRepository(
                             syncedCount = 0,
 
                             errorMessagesByRecordGuid =
-                                pendingRecords.associate {
-                                        movement ->
-
-                                    movement.recordguid to message
+                                pendingRecords.associate { movement ->
+                                    movement.movementId to message
                                 }
                         )
                     }
@@ -359,64 +246,18 @@ class AnimalMovementRepository(
         }
     }
 
-    private suspend fun cleanupStaleQueueEntries() {
-
-        val allMovements =
-            animalMovementDao.getAll()
-
-        val syncedRecordGuids =
-            allMovements
-                .filter {
-                    it.syncStatus ==
-                            SYNC_STATUS_SYNCED
-                }
-                .map {
-                    it.recordguid
-                }
-                .toSet()
-
-        if (syncedRecordGuids.isEmpty()) {
-            return
-        }
-
-        pendingSyncRepository
-            .getAllPendingOperations()
-            .filter {
-                it.entityType == ENTITY_TYPE &&
-                        it.entityId in syncedRecordGuids
-            }
-            .forEach {
-                    pendingOperation ->
-
-                pendingSyncRepository
-                    .markSyncSuccessful(
-                        pendingOperation.id
-                    )
-            }
-    }
-
     companion object {
 
         const val ENTITY_TYPE =
             "ANIMAL_MOVEMENT"
 
-        const val SYNC_STATUS_PENDING =
-            "PENDING"
-
         const val SYNC_STATUS_SYNCED =
             "SYNCED"
-
-        /*
-         * Long enough to cover Add -> Save and accidental double taps,
-         * while still allowing a genuine identical movement later.
-         */
-        private const val DUPLICATE_PROTECTION_WINDOW_MS =
-            30_000L
     }
 }
 
 data class SaveAnimalMovementOutcome(
-    val movement: AnimalMovement?,
+    val movement: AnimalMovementEntity?,
     val syncErrorMessage: String? = null,
     val duplicatePrevented: Boolean = false
 )

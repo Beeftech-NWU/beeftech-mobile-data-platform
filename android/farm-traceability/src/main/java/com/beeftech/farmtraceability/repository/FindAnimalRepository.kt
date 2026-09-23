@@ -1,7 +1,8 @@
 package com.beeftech.farmtraceability.repository
 
 import com.beeftech.database.dao.CalfRegistrationDao
-import com.beeftech.database.entity.CalfRegistration
+import com.beeftech.database.dao.CalfWithParents
+import kotlinx.coroutines.flow.firstOrNull
 
 class FindAnimalRepository(
     private val calfRegistrationDao: CalfRegistrationDao
@@ -9,9 +10,9 @@ class FindAnimalRepository(
 
     suspend fun findAnimal(
         animalReference: String
-    ): CalfRegistration? {
-        return calfRegistrationDao.findByAnimalId(
+    ): CalfWithParents? {
+        return calfRegistrationDao.getCalfRegistrationDetails(
             animalReference.trim().uppercase()
-        )
+        ).firstOrNull()
     }
 }

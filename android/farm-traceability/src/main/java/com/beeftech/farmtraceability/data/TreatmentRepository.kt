@@ -41,7 +41,9 @@ class TreatmentRepository(
         treatmentName: String,
         batchNumber: String,
         volumeUsed: String,
-        cost: Double
+        cost: Double,
+        gpsLat: Double = 0.0,
+        gpsLng: Double = 0.0
     ): SaveTreatmentOutcome {
 
         return try {
@@ -154,6 +156,12 @@ class TreatmentRepository(
 
                     cost =
                         cost,
+
+                    gpsLat =
+                        gpsLat,
+
+                    gpsLng =
+                        gpsLng,
 
                     timestamp =
                         now,

@@ -30,7 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.beeftech.database.entity.Supplier
+import com.beeftech.database.entity.AnimalPurchaseEntity
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -46,7 +46,7 @@ fun SupplierScreen(
     averageEntryMass: String = "",
     linkedFarm: String = "",
     supplierOptions: List<String> = emptyList(),
-    supplierRecords: List<Supplier> = emptyList(),
+    supplierRecords: List<AnimalPurchaseEntity> = emptyList(),
     onBackClick: () -> Unit = {},
     onSupplierNameChange: (String) -> Unit = {},
     onGlnNumberChange: (String) -> Unit = {},
@@ -249,40 +249,23 @@ fun SupplierScreen(
                 supplierRecords.forEach { record ->
                     TraceabilityCard {
                         Text(
-                            text = record.supplierName,
+                            text = record.sellerName,
                             fontWeight = FontWeight.Bold,
                             color = BeeftechText
                         )
 
                         Spacer(modifier = Modifier.height(6.dp))
 
-                        Text(
-                            text = "GLN: ${record.glnNumber}",
-                            color = BeeftechMutedText
-                        )
+                        val notes = record.notes
+                        if (!notes.isNullOrBlank()) {
+                            Text(
+                                text = notes,
+                                color = BeeftechMutedText
+                            )
+                        }
 
                         Text(
                             text = "Purchase date: ${record.purchaseDate}",
-                            color = BeeftechMutedText
-                        )
-
-                        Text(
-                            text = "Batch: ${record.purchaseBatchNumber}",
-                            color = BeeftechMutedText
-                        )
-
-                        Spacer(modifier = Modifier.height(5.dp))
-
-                        val formattedDate =
-                            SimpleDateFormat(
-                                "dd MMM yyyy HH:mm",
-                                Locale.getDefault()
-                            ).format(
-                                Date(record.timestamp)
-                            )
-
-                        Text(
-                            text = formattedDate,
                             color = BeeftechMutedText
                         )
                     }

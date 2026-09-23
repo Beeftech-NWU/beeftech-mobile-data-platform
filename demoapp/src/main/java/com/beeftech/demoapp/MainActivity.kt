@@ -27,9 +27,11 @@ import com.beeftech.calfregistration.viewmodel.CalfRegistrationViewModel
 import com.beeftech.calfregistration.viewmodel.CalfRegistrationViewModelFactory
 import com.beeftech.database.DatabaseProvider
 import com.beeftech.database.DatabaseResult
-import com.beeftech.database.entity.CalfRegistration
+import com.beeftech.database.entity.Animal
+import com.beeftech.database.entity.CalfRegistrationEntity
 import com.beeftech.database.repository.PendingSyncRepository
 import com.beeftech.database.repository.SyncRepository
+import kotlinx.coroutines.flow.firstOrNull
 import com.beeftech.demoapp.ui.theme.BeeftechTheme
 import com.beeftech.farmerregistration.ClientDetailsScreen
 import com.beeftech.farmerregistration.FarmerSyncScheduler
@@ -100,35 +102,44 @@ class MainActivity : ComponentActivity() {
                      */
                     withContext(Dispatchers.IO) {
 
+                        val animalDao =
+                            database.animalDao()
+
                         val calfRegistrationDao =
                             database.calfRegistrationDao()
 
                         val existingAnimal =
-                            calfRegistrationDao.findByAnimalId(
-                                "TEST-001"
-                            )
+                            animalDao.getById("TEST-001")
+                                ?: calfRegistrationDao.getCalfRegistrationDetails(
+                                    "TEST-001"
+                                ).firstOrNull()
 
                         if (existingAnimal == null) {
 
-                            val demoAnimal =
-                                CalfRegistration(
+                            val demoAnimalRecord =
+                                Animal(
                                     animalId = "TEST-001",
-                                    birthdate = 1725148800000L,
+                                    tagNumber = "TAG-001",
+                                    birthdate = System.currentTimeMillis(),
                                     breed = "Bonsmara",
-                                    damId = "DAM-001",
-                                    sireId = "SIRE-001",
-                                    photoPath = null,
-                                    videoPath = null,
-                                    gpsLat = -26.2041,
-                                    gpsLng = 28.0473,
-                                    captureAt = 1725148800000L,
-                                    deviceId = "DEMO-DEVICE",
-                                    recordguid = "DEMO-GUID-001",
-                                    syncStatus = "PENDING",
-                                    syncedat = null
+                                    gpsLat = -26.0,
+                                    gpsLng = 28.0,
+                                    captureAt = System.currentTimeMillis(),
+                                    deviceId = "demo-device",
+                                    recordguid = "guid-test-001"
                                 )
 
-                            calfRegistrationDao.insert(
+                            animalDao.insert(demoAnimalRecord)
+
+                            val demoAnimal =
+                                CalfRegistrationEntity(
+                                    registeredAnimalId = "TEST-001",
+                                    damId = null,
+                                    sireId = null,
+                                    registrationDate = "2026-09-18"
+                                )
+
+                            calfRegistrationDao.insertCalfRegistration(
                                 demoAnimal
                             )
                         }
@@ -155,8 +166,6 @@ class MainActivity : ComponentActivity() {
                         AnimalMovementViewModelFactory(
                             animalMovementDao =
                                 animalMovementDao,
-                            pendingSyncRepository =
-                                pendingSyncRepository,
                             context =
                                 applicationContext
                         )
@@ -219,12 +228,6 @@ class MainActivity : ComponentActivity() {
                         )[MortalityViewModel::class.java]
 
                     /*
-                     * Location & Feed DAO
-                     */
-                    val locationFeedDao =
-                        database.locationFeedDao()
-
-                    /*
                      * Animal Cost DAO
                      */
                     val animalCostDao =
@@ -232,13 +235,14 @@ class MainActivity : ComponentActivity() {
 
                     /*
                      * Cost Summary setup
+                     *
+                     * Uses Treatment and
+                     * additional Animal Cost records.
                      */
                     val costSummaryViewModelFactory =
                         CostSummaryViewModelFactory(
                             treatmentDao =
                                 treatmentDao,
-                            locationFeedDao =
-                                locationFeedDao,
                             animalCostDao =
                                 animalCostDao
                         )
@@ -252,13 +256,13 @@ class MainActivity : ComponentActivity() {
                     /*
                      * Supplier setup
                      */
-                    val supplierDao =
-                        database.supplierDao()
+                    val animalPurchaseDao =
+                        database.animalPurchaseDao()
 
                     val supplierViewModelFactory =
                         SupplierViewModelFactory(
-                            supplierDao =
-                                supplierDao
+                            animalPurchaseDao =
+                                animalPurchaseDao
                         )
 
                     val supplierViewModel =
@@ -272,8 +276,8 @@ class MainActivity : ComponentActivity() {
                      */
                     val locationFeedViewModelFactory =
                         LocationFeedViewModelFactory(
-                            locationFeedDao =
-                                locationFeedDao
+                            animalMovementDao =
+                                animalMovementDao
                         )
 
                     val locationFeedViewModel =
@@ -818,10 +822,19 @@ class MainActivity : ComponentActivity() {
                                             .padding(innerPadding)
                                 ) {
 
+                                    val errorDetail = buildString {
+                                        append("Database error: ")
+                                        append(databaseResult.message)
+                                        databaseResult.cause?.let { cause ->
+                                            append("\n\nCause: ")
+                                            append(cause.message ?: cause.toString())
+                                            append("\n\n")
+                                            append(cause.stackTraceToString())
+                                        }
+                                    }
+
                                     Text(
-                                        text =
-                                            "Database error: " +
-                                                    databaseResult.message
+                                        text = errorDetail
                                     )
                                 }
                             }

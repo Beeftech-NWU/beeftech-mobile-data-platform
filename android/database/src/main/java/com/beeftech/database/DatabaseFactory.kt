@@ -417,8 +417,7 @@ object DatabaseFactory {
     /*
      * Version 8 -> 9
      *
-     * Adds offline-first synchronization and audit metadata
-     * to Animal Movement records.
+     * Adds animal group memberships.
      */
     private val MIGRATION_8_9 =
         object : Migration(8, 9) {
@@ -426,160 +425,6 @@ object DatabaseFactory {
             override fun migrate(
                 db: SupportSQLiteDatabase
             ) {
-
-                db.execSQL(
-                    """
-                    ALTER TABLE animal_movements
-                    ADD COLUMN gpsLat REAL NOT NULL DEFAULT 0.0
-                    """.trimIndent()
-                )
-
-                db.execSQL(
-                    """
-                    ALTER TABLE animal_movements
-                    ADD COLUMN gpsLng REAL NOT NULL DEFAULT 0.0
-                    """.trimIndent()
-                )
-
-                db.execSQL(
-                    """
-                    ALTER TABLE animal_movements
-                    ADD COLUMN deviceId TEXT NOT NULL DEFAULT ''
-                    """.trimIndent()
-                )
-
-                db.execSQL(
-                    """
-                    ALTER TABLE animal_movements
-                    ADD COLUMN recordguid TEXT NOT NULL DEFAULT ''
-                    """.trimIndent()
-                )
-
-                db.execSQL(
-                    """
-                    ALTER TABLE animal_movements
-                    ADD COLUMN syncStatus TEXT NOT NULL DEFAULT 'PENDING'
-                    """.trimIndent()
-                )
-
-                db.execSQL(
-                    """
-                    ALTER TABLE animal_movements
-                    ADD COLUMN syncedAt INTEGER
-                    """.trimIndent()
-                )
-
-                /*
-                 * Give old movement records a stable unique GUID-like
-                 * identifier so the backend can perform idempotent upserts.
-                 */
-                db.execSQL(
-                    """
-                    UPDATE animal_movements
-                    SET recordguid =
-                        'movement-' || id || '-' || timestamp
-                    WHERE recordguid = ''
-                    """.trimIndent()
-                )
-
-                db.execSQL(
-                    """
-                    CREATE UNIQUE INDEX IF NOT EXISTS
-                    index_animal_movements_recordguid
-                    ON animal_movements(recordguid)
-                    """.trimIndent()
-                )
-            }
-        }
-
-    /*
-     * Version 9 -> 10
-     *
-     * Adds offline-first synchronization and audit metadata
-     * to Treatment records.
-     */
-    private val MIGRATION_9_10 =
-        object : Migration(9, 10) {
-
-            override fun migrate(
-                db: SupportSQLiteDatabase
-            ) {
-
-                db.execSQL(
-                    """
-                    ALTER TABLE treatments
-                    ADD COLUMN deviceId TEXT NOT NULL DEFAULT ''
-                    """.trimIndent()
-                )
-
-                db.execSQL(
-                    """
-                    ALTER TABLE treatments
-                    ADD COLUMN recordguid TEXT NOT NULL DEFAULT ''
-                    """.trimIndent()
-                )
-
-                db.execSQL(
-                    """
-                    ALTER TABLE treatments
-                    ADD COLUMN syncStatus TEXT NOT NULL DEFAULT 'PENDING'
-                    """.trimIndent()
-                )
-
-                db.execSQL(
-                    """
-                    ALTER TABLE treatments
-                    ADD COLUMN syncedAt INTEGER
-                    """.trimIndent()
-                )
-
-                /*
-                 * Give existing treatment rows stable unique identifiers.
-                 */
-                db.execSQL(
-                    """
-                    UPDATE treatments
-                    SET recordguid =
-                        'treatment-' || id || '-' || timestamp
-                    WHERE recordguid = ''
-                    """.trimIndent()
-                )
-
-                db.execSQL(
-                    """
-                    CREATE UNIQUE INDEX IF NOT EXISTS
-                    index_treatments_recordguid
-                    ON treatments(recordguid)
-                    """.trimIndent()
-                )
-            }
-        }
-
-
-    /*
-     * Version 10 -> 11
-     *
-     * Adds animal weight history and animal group membership tables.
-     */
-    private val MIGRATION_10_11 =
-        object : Migration(10, 11) {
-
-            override fun migrate(
-                db: SupportSQLiteDatabase
-            ) {
-
-                db.execSQL(
-                    """
-                    CREATE TABLE IF NOT EXISTS animal_weights (
-                        weight_id TEXT NOT NULL PRIMARY KEY,
-                        animal_id TEXT NOT NULL,
-                        mass_kg REAL NOT NULL,
-                        body_condition_score REAL,
-                        weighed_at INTEGER NOT NULL,
-                        record_guid TEXT NOT NULL
-                    )
-                    """.trimIndent()
-                )
 
                 db.execSQL(
                     """
@@ -595,6 +440,7 @@ object DatabaseFactory {
                 )
             }
         }
+
     fun create(
         context: Context,
         passphrase: ByteArray
@@ -643,6 +489,9 @@ object DatabaseFactory {
                      * 7 -> 8
                      * 8 -> 9
                      * 9 -> 10
+                     * 10 -> 11
+                     * 11 -> 12
+                     * 12 -> 13
                      */
                     .addMigrations(
                         MIGRATION_1_2,
@@ -653,9 +502,14 @@ object DatabaseFactory {
                         MIGRATION_6_7,
                         MIGRATION_7_8,
                         MIGRATION_8_9,
-                        MIGRATION_9_10,
-                        MIGRATION_10_11
+                        BeefTechDatabase.MIGRATION_9_10,
+                        BeefTechDatabase.MIGRATION_10_11,
+                        BeefTechDatabase.MIGRATION_11_12,
+                        BeefTechDatabase.MIGRATION_12_13
                     )
+
+                    .fallbackToDestructiveMigration(dropAllTables = true)
+                    .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
 
                     .build()
 

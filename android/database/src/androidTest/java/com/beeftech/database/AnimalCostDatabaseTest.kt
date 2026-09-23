@@ -380,9 +380,6 @@ class AnimalCostDatabaseTest {
             val treatmentDao =
                 database.treatmentDao()
 
-            val locationFeedDao =
-                database.locationFeedDao()
-
             /*
              * Transport
              */
@@ -523,34 +520,6 @@ class AnimalCostDatabaseTest {
                 )
             )
 
-            /*
-             * Feed / ration = R500
-             */
-            locationFeedDao.insert(
-                LocationFeed(
-                    animalId =
-                        "TEST-001",
-
-                    destination =
-                        "Feedlot A",
-
-                    daysInDestination =
-                        14,
-
-                    rationName =
-                        "Grower Ration",
-
-                    rationDays =
-                        14,
-
-                    rationCost =
-                        500.0,
-
-                    timestamp =
-                        6000L
-                )
-            )
-
             val transport =
                 animalCostDao.getTotalByType(
                     "TEST-001",
@@ -566,12 +535,6 @@ class AnimalCostDatabaseTest {
             val treatment =
                 treatmentDao
                     .getTotalCostByAnimalId(
-                        "TEST-001"
-                    )
-
-            val feed =
-                locationFeedDao
-                    .getTotalRationCostByAnimalId(
                         "TEST-001"
                     )
 
@@ -591,7 +554,6 @@ class AnimalCostDatabaseTest {
                 transport +
                         processing +
                         treatment +
-                        feed +
                         handling +
                         interest
 
@@ -614,12 +576,6 @@ class AnimalCostDatabaseTest {
             )
 
             assertEquals(
-                500.0,
-                feed,
-                0.001
-            )
-
-            assertEquals(
                 50.0,
                 handling,
                 0.001
@@ -632,7 +588,7 @@ class AnimalCostDatabaseTest {
             )
 
             assertEquals(
-                1075.0,
+                575.0,
                 total,
                 0.001
             )

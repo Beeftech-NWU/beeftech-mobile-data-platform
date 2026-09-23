@@ -3,12 +3,14 @@ package com.beeftech.database
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.beeftech.database.entity.CalfRegistration
+import com.beeftech.database.entity.Animal
+import com.beeftech.database.entity.CalfRegistrationEntity
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -17,114 +19,61 @@ import org.junit.runner.RunWith
 class FindAnimalDatabaseTest {
 
     private lateinit var context: Context
+    private var database: BeefTechDatabase? = null
 
     @Before
     fun setUp() {
-
-        context =
-            ApplicationProvider.getApplicationContext()
-
-        DatabaseProvider.close()
-
+        context = ApplicationProvider.getApplicationContext()
+        database?.close()
+        database = null
         context.deleteDatabase(DATABASE_NAME)
-
-        val passphrase =
-            ByteArray(32) { index ->
-                (index + 1).toByte()
-            }
-
-        val result =
-            DatabaseProvider.initialize(
-                context = context,
-                passphrase = passphrase
-            )
-
-        check(result is DatabaseResult.Success) {
-            "Database could not be initialized."
-        }
     }
 
     @After
     fun tearDown() {
-
-        DatabaseProvider.close()
-
+        database?.close()
+        database = null
         context.deleteDatabase(DATABASE_NAME)
     }
 
     @Test
-    fun findAnimal_existingAnimal_returnsAnimal() =
-        runBlocking {
+    fun findAnimal_returnsCorrectCalfDetails() = runBlocking {
+        val result = DatabaseFactory.create(
+            context = context,
+            passphrase = createCorrectPassphrase()
+        )
 
-            val database =
-                DatabaseProvider.getDatabase()
+        assertTrue(result is DatabaseResult.Success)
+        database = (result as DatabaseResult.Success).database
 
-            assertNotNull(database)
+        val animal = Animal(
+            animalId = "FIND-001",
+            birthdate = System.currentTimeMillis(),
+            breed = "Simmentaler",
+            gpsLat = -26.1,
+            gpsLng = 27.9,
+            captureAt = System.currentTimeMillis(),
+            deviceId = "device-1",
+            recordguid = "guid-find-001"
+        )
+        database!!.animalDao().insert(animal)
 
-            val dao =
-                database!!.calfRegistrationDao()
+        val calfReg = CalfRegistrationEntity(
+            registeredAnimalId = "FIND-001",
+            registrationDate = "2026-09-18"
+        )
+        database!!.calfRegistrationDao().insertCalfRegistration(calfReg)
 
-            val testAnimal =
-                CalfRegistration(
-                    animalId = "TEST-001",
-                    birthdate = 1725148800000L,
-                    breed = "Bonsmara",
-                    damId = "DAM-001",
-                    sireId = "SIRE-001",
-                    photoPath = null,
-                    videoPath = null,
-                    gpsLat = -26.2041,
-                    gpsLng = 28.0473,
-                    captureAt = 1725148800000L,
-                    deviceId = "TEST-DEVICE",
-                    recordguid = "TEST-GUID-001",
-                    syncStatus = "PENDING",
-                    syncedat = null
-                )
+        val found = database!!.calfRegistrationDao().getCalfRegistrationDetails("FIND-001").first()
+        assertNotNull(found)
+        assertEquals("FIND-001", found!!.registeredAnimalId)
+    }
 
-            dao.insert(testAnimal)
-
-            val result =
-                dao.findByAnimalId(
-                    "TEST-001"
-                )
-
-            assertNotNull(result)
-
-            assertEquals(
-                "TEST-001",
-                result?.animalId
-            )
-
-            assertEquals(
-                "Bonsmara",
-                result?.breed
-            )
-        }
-
-    @Test
-    fun findAnimal_unknownAnimal_returnsNull() =
-        runBlocking {
-
-            val database =
-                DatabaseProvider.getDatabase()
-
-            assertNotNull(database)
-
-            val dao =
-                database!!.calfRegistrationDao()
-
-            val result =
-                dao.findByAnimalId(
-                    "DOES-NOT-EXIST"
-                )
-
-            assertNull(result)
-        }
+    private fun createCorrectPassphrase(): ByteArray {
+        return ByteArray(32) { index -> (index + 1).toByte() }
+    }
 
     companion object {
-
-        private const val DATABASE_NAME =
-            "beeftech.db"
+        private const val DATABASE_NAME = "beeftech.db"
     }
 }

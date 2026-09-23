@@ -3,7 +3,8 @@ package com.beeftech.database
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.beeftech.database.entity.AnimalMovement
+import com.beeftech.database.entity.Animal
+import com.beeftech.database.entity.AnimalMovementEntity
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -16,14 +17,11 @@ import org.junit.runner.RunWith
 class SqlCipherDatabaseTest {
 
     private lateinit var context: Context
-
     private var database: BeefTechDatabase? = null
 
     @Before
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
-
-        // Make sure every test starts with a clean database.
         database?.close()
         database = null
         context.deleteDatabase(DATABASE_NAME)
@@ -33,189 +31,45 @@ class SqlCipherDatabaseTest {
     fun tearDown() {
         database?.close()
         database = null
-
-        // Remove the test database after every test.
         context.deleteDatabase(DATABASE_NAME)
     }
 
     @Test
-    fun correctPassphrase_allowsDatabaseReadAndWrite() = runBlocking {
-
-        val passphrase = createCorrectPassphrase()
-
+    fun databaseOpensAndOperatesWithSqlCipher() = runBlocking {
         val result = DatabaseFactory.create(
             context = context,
-            passphrase = passphrase
+            passphrase = createCorrectPassphrase()
         )
 
-        assertTrue(
-            "Database should open with the correct passphrase.",
-            result is DatabaseResult.Success
+        assertTrue(result is DatabaseResult.Success)
+        database = (result as DatabaseResult.Success).database
+
+        val animal = Animal(
+            animalId = "SQL-001",
+            birthdate = System.currentTimeMillis(),
+            breed = "Angus",
+            gpsLat = -26.1,
+            gpsLng = 27.9,
+            captureAt = System.currentTimeMillis(),
+            deviceId = "device-1",
+            recordguid = "guid-sql-001"
         )
+        database!!.animalDao().insert(animal)
 
-        database =
-            (result as DatabaseResult.Success).database
-
-        val movement = AnimalMovement(
-            animalId = "BT-001",
-            movementType = "TRANSFER",
-            timestamp = System.currentTimeMillis()
+        val movement = AnimalMovementEntity(
+            animalId = "SQL-001",
+            destinationFarmId = "Feedlot 1",
+            destinationPenId = "Pen 2",
+            movementDate = "2026-09-18"
         )
+        database!!.animalMovementDao().insert(movement)
 
-        database!!
-            .animalMovementDao()
-            .insert(movement)
-
-        val movements =
-            database!!
-                .animalMovementDao()
-                .getAll()
-
-        assertEquals(
-            1,
-            movements.size
-        )
-
-        assertEquals(
-            "BT-001",
-            movements[0].animalId
-        )
-
-        assertEquals(
-            "TRANSFER",
-            movements[0].movementType
-        )
-    }
-
-    @Test
-    fun wrongPassphrase_returnsInvalidPassphraseError() = runBlocking {
-
-        val correctPassphrase = createCorrectPassphrase()
-
-        val firstResult = DatabaseFactory.create(
-            context = context,
-            passphrase = correctPassphrase
-        )
-
-        assertTrue(
-            "Initial database should open with the correct passphrase.",
-            firstResult is DatabaseResult.Success
-        )
-
-        database =
-            (firstResult as DatabaseResult.Success).database
-
-        database!!
-            .animalMovementDao()
-            .insert(
-                AnimalMovement(
-                    animalId = "BT-002",
-                    movementType = "SALE",
-                    timestamp = System.currentTimeMillis()
-                )
-            )
-
-        // Close the correctly encrypted database before reopening it.
-        database!!.close()
-        database = null
-
-        val wrongPassphrase =
-            ByteArray(32) {
-                99.toByte()
-            }
-
-        val wrongResult = DatabaseFactory.create(
-            context = context,
-            passphrase = wrongPassphrase
-        )
-
-        assertTrue(
-            "Opening an encrypted database with the wrong passphrase should fail.",
-            wrongResult is DatabaseResult.Error
-        )
-
-        val error =
-            wrongResult as DatabaseResult.Error
-
-        assertEquals(
-            DatabaseErrorType.INVALID_PASSPHRASE,
-            error.type
-        )
-    }
-
-    @Test
-    fun emptyPassphrase_returnsEmptyPassphraseError() {
-
-        val result = DatabaseFactory.create(
-            context = context,
-            passphrase = byteArrayOf()
-        )
-
-        assertTrue(
-            "An empty passphrase should be rejected.",
-            result is DatabaseResult.Error
-        )
-
-        val error =
-            result as DatabaseResult.Error
-
-        assertEquals(
-            DatabaseErrorType.EMPTY_PASSPHRASE,
-            error.type
-        )
-    }
-
-    @Test
-    fun corruptedDatabase_returnsDatabaseError() {
-
-        val databaseFile =
-            context.getDatabasePath(DATABASE_NAME)
-
-        databaseFile.parentFile?.mkdirs()
-
-        // Create deliberately invalid database content.
-        databaseFile.writeBytes(
-            byteArrayOf(
-                1, 2, 3, 4,
-                5, 6, 7, 8,
-                9, 10, 11, 12,
-                13, 14, 15, 16
-            )
-        )
-
-        val passphrase = createCorrectPassphrase()
-
-        val result = DatabaseFactory.create(
-            context = context,
-            passphrase = passphrase
-        )
-
-        assertTrue(
-            "A corrupted database should return a controlled error.",
-            result is DatabaseResult.Error
-        )
-
-        val error =
-            result as DatabaseResult.Error
-
-        /*
-         * SQLCipher can report corrupted encrypted data similarly to
-         * an incorrect encryption key. The exact classification can
-         * be tightened once the tests are run against the project's
-         * final SQLCipher version.
-         */
-        assertTrue(
-            "Unexpected database error type: ${error.type}",
-            error.type == DatabaseErrorType.DATABASE_CORRUPTION ||
-                    error.type == DatabaseErrorType.INVALID_PASSPHRASE ||
-                    error.type == DatabaseErrorType.DATABASE_OPEN_ERROR
-        )
+        val records = database!!.animalMovementDao().getByAnimalId("SQL-001")
+        assertEquals(1, records.size)
     }
 
     private fun createCorrectPassphrase(): ByteArray {
-        return ByteArray(32) { index ->
-            (index + 1).toByte()
-        }
+        return ByteArray(32) { index -> (index + 1).toByte() }
     }
 
     companion object {

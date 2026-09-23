@@ -33,6 +33,7 @@ dependencies {
 
     implementation("org.xerial:sqlite-jdbc:3.46.1.3")
     implementation("org.apache.pdfbox:pdfbox:2.0.30")
+    implementation("org.mindrot:jbcrypt:0.4")
 
     testImplementation("io.ktor:ktor-server-test-host-jvm:3.0.3")
 }

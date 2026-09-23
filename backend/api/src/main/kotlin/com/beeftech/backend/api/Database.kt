@@ -1,5 +1,6 @@
 ﻿package com.beeftech.backend.api
 
+import com.beeftech.backend.api.auth.UsersTable
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -7,10 +8,13 @@ import java.io.File
 
 object DatabaseFactory {
 
+    @Volatile
+    private var db: Database? = null
+
     fun init(
         jdbcUrl: String =
             "jdbc:sqlite:./data/beeftech-backend.db"
-    ) {
+    ): Database {
 
         val filePath =
             jdbcUrl.removePrefix("jdbc:sqlite:")
@@ -21,12 +25,13 @@ object DatabaseFactory {
                 ?.mkdirs()
         }
 
-        Database.connect(
+        val database = Database.connect(
             url = jdbcUrl,
             driver = "org.sqlite.JDBC"
         )
+        db = database
 
-        transaction {
+        transaction(database) {
 
             SchemaUtils.create(
                 CalfRegistrationTable,
@@ -36,7 +41,8 @@ object DatabaseFactory {
                 TreatmentTypeTable,
                 FarmerTable,
                 FarmerAddressTable,
-                FarmerRoleTable
+                FarmerRoleTable,
+                UsersTable
             )
         }
 
@@ -45,5 +51,9 @@ object DatabaseFactory {
          * after the reference tables exist.
          */
         TreatmentReferenceSeeder.seed()
+
+        return database
     }
+
+    fun getDatabase(): Database? = db
 }

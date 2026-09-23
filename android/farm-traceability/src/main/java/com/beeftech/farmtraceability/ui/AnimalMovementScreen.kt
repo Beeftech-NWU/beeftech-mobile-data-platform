@@ -27,7 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.beeftech.database.entity.AnimalMovement
+import com.beeftech.database.entity.AnimalMovementEntity
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -42,7 +42,7 @@ fun AnimalMovementScreen(
     foundMovementInformation: String = "",
     foundMovementDate: String = "",
     foundResponsibleWorker: String = "",
-    movementRecords: List<AnimalMovement> = emptyList(),
+    movementRecords: List<AnimalMovementEntity> = emptyList(),
     onBackClick: () -> Unit = {},
     onAnimalReferenceChange: (String) -> Unit = {},
     onMovementInformationChange: (String) -> Unit = {},

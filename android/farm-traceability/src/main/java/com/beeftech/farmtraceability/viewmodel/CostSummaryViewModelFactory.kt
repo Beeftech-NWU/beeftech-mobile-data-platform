@@ -3,12 +3,10 @@ package com.beeftech.farmtraceability.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.beeftech.database.dao.AnimalCostDao
-import com.beeftech.database.dao.LocationFeedDao
 import com.beeftech.database.dao.TreatmentDao
 
 class CostSummaryViewModelFactory(
     private val treatmentDao: TreatmentDao,
-    private val locationFeedDao: LocationFeedDao,
     private val animalCostDao: AnimalCostDao
 ) : ViewModelProvider.Factory {
 
@@ -24,14 +22,8 @@ class CostSummaryViewModelFactory(
         ) {
 
             return CostSummaryViewModel(
-                treatmentDao =
-                    treatmentDao,
-
-                locationFeedDao =
-                    locationFeedDao,
-
-                animalCostDao =
-                    animalCostDao
+                treatmentDao = treatmentDao,
+                animalCostDao = animalCostDao
             ) as T
         }
 

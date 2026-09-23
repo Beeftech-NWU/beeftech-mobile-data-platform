@@ -10,6 +10,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.server.testing.testApplication
 import java.nio.file.Files
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -25,6 +26,11 @@ class CalfRegistrationRoutesTest {
         tempFile.toFile().deleteOnExit()
 
         return "jdbc:sqlite:${tempFile}"
+    }
+
+    @BeforeTest
+    fun setUp() {
+        System.setProperty("beeftech.seed.dev", "true")
     }
 
     @Test
@@ -52,7 +58,7 @@ class CalfRegistrationRoutesTest {
 
         val loginResponse = client.post("/api/auth/login") {
             contentType(ContentType.Application.Json)
-            setBody("""{"username":"admin","password":"admin123"}""")
+            setBody("""{"username":"admin","pin":"10001","device_id":"TEST_DEV_01"}""")
         }
 
         val loginBody = Json.parseToJsonElement(loginResponse.bodyAsText())
@@ -113,7 +119,7 @@ class CalfRegistrationRoutesTest {
 
         val loginResponse = client.post("/api/auth/login") {
             contentType(ContentType.Application.Json)
-            setBody("""{"username":"admin","password":"admin123"}""")
+            setBody("""{"username":"admin","pin":"10001","device_id":"TEST_DEV_02"}""")
         }
 
         val loginBody = Json.parseToJsonElement(loginResponse.bodyAsText())

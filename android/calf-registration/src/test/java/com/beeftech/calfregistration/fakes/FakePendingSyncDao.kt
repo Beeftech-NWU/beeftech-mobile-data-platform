@@ -2,6 +2,8 @@ package com.beeftech.calfregistration.fakes
 
 import com.beeftech.database.dao.PendingSyncDao
 import com.beeftech.database.entity.PendingSync
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 
 /**
  * Simple in-memory fake of [PendingSyncDao] used to unit test
@@ -27,6 +29,10 @@ class FakePendingSyncDao : PendingSyncDao {
         return items.filter { it.retryCount < maxRetries }.sortedBy { it.createdAt }
     }
 
+    override suspend fun getByEntity(entityType: String, entityId: String): List<PendingSync> {
+        return items.filter { it.entityType == entityType && it.entityId == entityId }.sortedBy { it.createdAt }
+    }
+
     override suspend fun incrementRetryCount(id: Long) {
         val index = items.indexOfFirst { it.id == id }
         if (index >= 0) {
@@ -49,12 +55,20 @@ class FakePendingSyncDao : PendingSyncDao {
         items.removeAll { it.id == id }
     }
 
+    override suspend fun deleteByEntity(entityType: String, entityId: String) {
+        items.removeAll { it.entityType == entityType && it.entityId == entityId }
+    }
+
     override suspend fun clearAll() {
         items.clear()
     }
 
     override suspend fun getPendingCount(): Int {
         return items.size
+    }
+
+    override fun observePendingCount(): Flow<Int> {
+        return flowOf(items.size)
     }
 
     fun snapshot(): List<PendingSync> = items.toList()

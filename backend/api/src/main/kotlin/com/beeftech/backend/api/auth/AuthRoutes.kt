@@ -1,13 +1,13 @@
 package com.beeftech.backend.api.auth
 
-import io.ktor.http.HttpStatusCode
-import io.ktor.server.request.receive
-import io.ktor.server.routing.Route
-import io.ktor.server.routing.post
 import com.beeftech.backend.api.common.ApiResponse
 import com.beeftech.backend.api.requireBearerToken
-import io.ktor.server.response.*
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.request.receive
+import io.ktor.server.response.respond
+import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
+import io.ktor.server.routing.post
 
 fun Route.authRoutes(
     authService: AuthService,
@@ -19,7 +19,8 @@ fun Route.authRoutes(
 
         val result = authService.login(
             request.username,
-            request.password
+            request.pin,
+            request.deviceId
         )
 
         when (result) {
@@ -31,7 +32,9 @@ fun Route.authRoutes(
                         success = true,
                         message = "Login successful",
                         data = LoginResponse(
-                            result.token
+                            token = result.token,
+                            expiresAt = result.expiresAt,
+                            user = result.profile
                         )
                     )
                 )
@@ -61,6 +64,17 @@ fun Route.authRoutes(
                     )
                 )
             }
+
+            is LoginResult.WrongDevice -> {
+
+                call.respond(
+                    HttpStatusCode.Conflict,
+                    ApiResponse<String>(
+                        success = false,
+                        message = "This phone is registered to another worker"
+                    )
+                )
+            }
         }
     }
 
@@ -81,13 +95,21 @@ fun Route.authRoutes(
                     message = "User registered successfully"
                 )
             )
+        } else {
+
+            call.respond(
+                HttpStatusCode.NotImplemented,
+                ApiResponse<String>(
+                    success = false,
+                    message = "Registration is not implemented"
+                )
+            )
         }
     }
 
     get("/api/profile") {
 
-        val username =
-            call.requireBearerToken(jwtService) ?: return@get
+        val username = call.requireBearerToken(jwtService) ?: return@get
 
         call.respond(
             ApiResponse(
@@ -99,5 +121,4 @@ fun Route.authRoutes(
             )
         )
     }
-
 }
