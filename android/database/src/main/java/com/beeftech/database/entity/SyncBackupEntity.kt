@@ -1,5 +1,6 @@
 package com.beeftech.database.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -7,5 +8,8 @@ import androidx.room.PrimaryKey
 data class SyncBackupEntity(
     @PrimaryKey
     val id: String,
-    val batchId: String
+    val batchId: String,
+
+    @ColumnInfo(name = "sync_status")
+    val syncStatus: String = "PENDING"
 )

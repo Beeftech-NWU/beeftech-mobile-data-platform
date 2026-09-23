@@ -22,8 +22,10 @@ data class AnimalMovement(
 
     val animalId: String,
 
+    // Stores the movement information entered on the screen
     val movementType: String,
 
+    // Worker responsible for the movement
     @ColumnInfo(defaultValue = "''")
     val responsibleWorker: String = "",
 

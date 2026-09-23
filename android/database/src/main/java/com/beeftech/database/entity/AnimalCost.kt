@@ -2,9 +2,16 @@ package com.beeftech.database.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.util.UUID
 
-@Entity(tableName = "animal_costs")
+@Entity(
+    tableName = "animal_costs",
+    indices = [
+        Index(value = ["record_guid"], unique = true)
+    ]
+)
 data class AnimalCost(
 
     @PrimaryKey(autoGenerate = true)
@@ -19,5 +26,12 @@ data class AnimalCost(
     @ColumnInfo(defaultValue = "''")
     val description: String = "",
 
-    val timestamp: Long
+    val gpsLat: Double,
+
+    val gpsLng: Double,
+
+    val timestamp: Long,
+
+    @ColumnInfo(name = "record_guid")
+    val recordGuid: String = UUID.randomUUID().toString()
 )

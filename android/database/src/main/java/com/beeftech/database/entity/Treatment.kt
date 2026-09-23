@@ -32,6 +32,10 @@ data class Treatment(
 
     val cost: Double,
 
+    val gpsLat: Double,
+
+    val gpsLng: Double,
+
     val timestamp: Long,
 
     @ColumnInfo(defaultValue = "''")
