@@ -347,7 +347,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
 
         /**
          * Migration (Version 11 -> 12):
-         * - Ensures all missing columns and unique indices match Room entity specs
+         * - Ensures all 26 tables, columns, and indices match Room entity specs
          */
         val MIGRATION_11_12 = object : Migration(11, 12) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -360,29 +360,119 @@ abstract class BeefTechDatabase : RoomDatabase() {
                 }
 
                 // 1. animals
+                db.execSQL("CREATE TABLE IF NOT EXISTS `animals` (`animalId` TEXT NOT NULL, `tagNumber` TEXT, `oldTagNumber` TEXT, `temperatureNumber` TEXT, `referenceNumber` TEXT, `massKg` REAL, `birthdate` INTEGER NOT NULL, `breed` TEXT NOT NULL, `gender` TEXT, `age` INTEGER, `condition` TEXT, `hideColour` TEXT, `brandMark` TEXT, `parentId` TEXT, `animalGroupId` TEXT, `photoPath` TEXT, `videoPath` TEXT, `gpsLat` REAL NOT NULL, `gpsLng` REAL NOT NULL, `captureAt` INTEGER NOT NULL, `deviceId` TEXT NOT NULL, `recordguid` TEXT NOT NULL, `syncStatus` TEXT NOT NULL, `syncedat` INTEGER, PRIMARY KEY(`animalId`))")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_tagNumber` ON `animals` (`tagNumber`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_temperatureNumber` ON `animals` (`temperatureNumber`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_parentId` ON `animals` (`parentId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_animalGroupId` ON `animals` (`animalGroupId`)")
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_animals_recordguid` ON `animals` (`recordguid`)")
 
                 // 2. animal_costs
+                db.execSQL("CREATE TABLE IF NOT EXISTS `animal_costs` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `animalId` TEXT NOT NULL, `costType` TEXT NOT NULL, `amount` REAL NOT NULL, `description` TEXT NOT NULL DEFAULT '', `gpsLat` REAL NOT NULL, `gpsLng` REAL NOT NULL, `timestamp` INTEGER NOT NULL, `record_guid` TEXT NOT NULL)")
                 addColumnIfNotExists("animal_costs", "`gpsLat` REAL NOT NULL DEFAULT 0.0")
                 addColumnIfNotExists("animal_costs", "`gpsLng` REAL NOT NULL DEFAULT 0.0")
                 addColumnIfNotExists("animal_costs", "`record_guid` TEXT NOT NULL DEFAULT ''")
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_costs_record_guid` ON `animal_costs` (`record_guid`)")
 
                 // 3. animal_group_memberships
+                db.execSQL("CREATE TABLE IF NOT EXISTS `animal_group_memberships` (`membership_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `group_id` TEXT NOT NULL, `joined_at` INTEGER NOT NULL, `left_at` INTEGER, `record_guid` TEXT NOT NULL, PRIMARY KEY(`membership_id`))")
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_group_memberships_record_guid` ON `animal_group_memberships` (`record_guid`)")
 
-                // 4. farmers
+                // 4. animal_movements
+                db.execSQL("CREATE TABLE IF NOT EXISTS `animal_movements` (`movement_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `source_farm_id` TEXT, `source_pen_id` TEXT, `destination_farm_id` TEXT NOT NULL, `destination_pen_id` TEXT NOT NULL, `movement_date` TEXT NOT NULL, `feed_location_type` TEXT, `notes` TEXT, PRIMARY KEY(`movement_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_movements_animal_id` ON `animal_movements` (`animal_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_movements_destination_farm_id` ON `animal_movements` (`destination_farm_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_movements_destination_pen_id` ON `animal_movements` (`destination_pen_id`)")
+
+                // 5. animal_groups
+                db.execSQL("CREATE TABLE IF NOT EXISTS `animal_groups` (`animalGroupId` TEXT NOT NULL, `groupName` TEXT NOT NULL, `description` TEXT, PRIMARY KEY(`animalGroupId`))")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_groups_groupName` ON `animal_groups` (`groupName`)")
+
+                // 6. farmers
+                db.execSQL("CREATE TABLE IF NOT EXISTS `farmers` (`farmer_id` TEXT NOT NULL, `client_code` TEXT, `organisation_name` TEXT, `vat_number` TEXT, `email_address` TEXT, `gps_latitude` REAL, `gps_longitude` REAL, `sync_status` TEXT NOT NULL, `record_guid` TEXT NOT NULL, PRIMARY KEY(`farmer_id`))")
                 addColumnIfNotExists("farmers", "`record_guid` TEXT NOT NULL DEFAULT ''")
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_farmers_record_guid` ON `farmers` (`record_guid`)")
 
-                // 5. mortalities
-                addColumnIfNotExists("mortalities", "`record_guid` TEXT NOT NULL DEFAULT ''")
-                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_mortalities_record_guid` ON `mortalities` (`record_guid`)")
+                // 7. farmer_addresses
+                db.execSQL("CREATE TABLE IF NOT EXISTS `farmer_addresses` (`address_id` TEXT NOT NULL, `farmer_id` TEXT NOT NULL, `address_type` TEXT, `address_line_1` TEXT, `province` TEXT, `postal_code` TEXT, `gps_latitude` REAL, `gps_longitude` REAL, PRIMARY KEY(`address_id`))")
 
-                // 6. treatments
+                // 8. farmer_roles
+                db.execSQL("CREATE TABLE IF NOT EXISTS `farmer_roles` (`farmer_role_id` TEXT NOT NULL, `farmer_id` TEXT NOT NULL, `role_id` TEXT NOT NULL, PRIMARY KEY(`farmer_role_id`))")
+
+                // 9. locations
+                db.execSQL("CREATE TABLE IF NOT EXISTS `locations` (`location_id` TEXT NOT NULL, `location_code` TEXT, `location_name` TEXT, `location_type` TEXT, PRIMARY KEY(`location_id`))")
+
+                // 10. pens
+                db.execSQL("CREATE TABLE IF NOT EXISTS `pens` (`id` TEXT NOT NULL, `name` TEXT, PRIMARY KEY(`id`))")
+
+                // 11. feed_cribs
+                db.execSQL("CREATE TABLE IF NOT EXISTS `feed_cribs` (`id` TEXT NOT NULL, `name` TEXT, PRIMARY KEY(`id`))")
+
+                // 12. feed_crib_readings
+                db.execSQL("CREATE TABLE IF NOT EXISTS `feed_crib_readings` (`id` TEXT NOT NULL, `cribId` TEXT NOT NULL, PRIMARY KEY(`id`))")
+
+                // 13. feed_crib_reading_values
+                db.execSQL("CREATE TABLE IF NOT EXISTS `feed_crib_reading_values` (`id` TEXT NOT NULL, `readingId` TEXT NOT NULL, `value` REAL NOT NULL, PRIMARY KEY(`id`))")
+
+                // 14. roles
+                db.execSQL("CREATE TABLE IF NOT EXISTS `roles` (`role_id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `role_name` TEXT NOT NULL)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_roles_role_name` ON `roles` (`role_name`)")
+
+                // 15. users
+                db.execSQL("CREATE TABLE IF NOT EXISTS `users` (`user_id` TEXT NOT NULL, `username` TEXT NOT NULL, `pin_hash` TEXT, `failed_pin_attempts` INTEGER NOT NULL, `role` INTEGER, `device_assigned_id` TEXT, `device_last_sync` INTEGER, `failed_sync_attempts` INTEGER NOT NULL, PRIMARY KEY(`user_id`), FOREIGN KEY(`role`) REFERENCES `roles`(`role_id`) ON UPDATE NO ACTION ON DELETE SET NULL)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_users_username` ON `users` (`username`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_users_role` ON `users` (`role`)")
+
+                // 16. sync_batches
+                db.execSQL("CREATE TABLE IF NOT EXISTS `sync_batches` (`id` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, PRIMARY KEY(`id`))")
+
+                // 17. sync_backups
+                db.execSQL("CREATE TABLE IF NOT EXISTS `sync_backups` (`id` TEXT NOT NULL, `batchId` TEXT NOT NULL, `sync_status` TEXT NOT NULL, PRIMARY KEY(`id`))")
+
+                // 18. treatments
+                db.execSQL("CREATE TABLE IF NOT EXISTS `treatments` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `animalId` TEXT NOT NULL, `disease` TEXT NOT NULL, `treatmentName` TEXT NOT NULL, `batchNumber` TEXT NOT NULL, `volumeUsed` TEXT NOT NULL, `cost` REAL NOT NULL, `gpsLat` REAL NOT NULL, `gpsLng` REAL NOT NULL, `timestamp` INTEGER NOT NULL, `deviceId` TEXT NOT NULL DEFAULT '', `recordguid` TEXT NOT NULL DEFAULT '', `syncStatus` TEXT NOT NULL DEFAULT 'PENDING', `syncedAt` INTEGER)")
                 addColumnIfNotExists("treatments", "`gpsLat` REAL NOT NULL DEFAULT 0.0")
                 addColumnIfNotExists("treatments", "`gpsLng` REAL NOT NULL DEFAULT 0.0")
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_treatments_recordguid` ON `treatments` (`recordguid`)")
+
+                // 19. mortalities
+                db.execSQL("CREATE TABLE IF NOT EXISTS `mortalities` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `animalId` TEXT NOT NULL, `causeOfDeath` TEXT NOT NULL, `responsibleWorker` TEXT NOT NULL DEFAULT '', `notes` TEXT, `timestamp` INTEGER NOT NULL, `record_guid` TEXT NOT NULL)")
+                addColumnIfNotExists("mortalities", "`record_guid` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_mortalities_record_guid` ON `mortalities` (`record_guid`)")
+
+                // 20. pending_sync
+                db.execSQL("CREATE TABLE IF NOT EXISTS `pending_sync` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `entityType` TEXT NOT NULL, `entityId` TEXT NOT NULL, `operation` TEXT NOT NULL, `payload` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `retryCount` INTEGER NOT NULL)")
+
+                // 21. animal_identifiers
+                db.execSQL("CREATE TABLE IF NOT EXISTS `animal_identifiers` (`identifier_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `identifier_type` TEXT NOT NULL, `identifier_value` TEXT NOT NULL, `valid_from` TEXT, `valid_to` TEXT, PRIMARY KEY(`identifier_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_identifiers_animal_id` ON `animal_identifiers` (`animal_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_identifiers_identifier_type_identifier_value` ON `animal_identifiers` (`identifier_type`, `identifier_value`)")
+
+                // 22. animal_media
+                db.execSQL("CREATE TABLE IF NOT EXISTS `animal_media` (`media_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `file_path` TEXT NOT NULL, `media_type` TEXT NOT NULL, `created_at` TEXT NOT NULL, PRIMARY KEY(`media_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_media_animal_id` ON `animal_media` (`animal_id`)")
+
+                // 23. animal_weights
+                db.execSQL("CREATE TABLE IF NOT EXISTS `animal_weights` (`weight_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `weight_kg` REAL NOT NULL, `weigh_date` TEXT NOT NULL, `notes` TEXT, PRIMARY KEY(`weight_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_weights_animal_id` ON `animal_weights` (`animal_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_weights_weigh_date` ON `animal_weights` (`weigh_date`)")
+
+                // 24. animal_ownerships
+                db.execSQL("CREATE TABLE IF NOT EXISTS `animal_ownerships` (`ownership_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `owner_name` TEXT NOT NULL, `ownership_percentage` REAL NOT NULL, `start_date` TEXT NOT NULL, `end_date` TEXT, PRIMARY KEY(`ownership_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_ownerships_animal_id` ON `animal_ownerships` (`animal_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_ownerships_owner_name` ON `animal_ownerships` (`owner_name`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_ownerships_start_date` ON `animal_ownerships` (`start_date`)")
+
+                // 25. animal_purchases
+                db.execSQL("CREATE TABLE IF NOT EXISTS `animal_purchases` (`purchase_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `purchase_price` REAL NOT NULL, `purchase_date` TEXT NOT NULL, `seller_name` TEXT NOT NULL, `notes` TEXT, PRIMARY KEY(`purchase_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_purchases_animal_id` ON `animal_purchases` (`animal_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_purchases_purchase_date` ON `animal_purchases` (`purchase_date`)")
+
+                // 26. calf_registrations
+                db.execSQL("CREATE TABLE IF NOT EXISTS `calf_registrations` (`registration_id` TEXT NOT NULL, `registered_animal_id` TEXT NOT NULL, `dam_id` TEXT, `sire_id` TEXT, `birth_weight_kg` REAL, `calving_ease` TEXT, `registration_date` TEXT NOT NULL, PRIMARY KEY(`registration_id`), FOREIGN KEY(`registered_animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(`dam_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE SET NULL, FOREIGN KEY(`sire_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE SET NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_calf_registrations_registered_animal_id` ON `calf_registrations` (`registered_animal_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_calf_registrations_dam_id` ON `calf_registrations` (`dam_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_calf_registrations_sire_id` ON `calf_registrations` (`sire_id`)")
             }
         }
     }
