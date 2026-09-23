@@ -12,6 +12,14 @@ application {
     mainClass.set("com.beeftech.backend.api.ApplicationKt")
 }
 
+// `-D` flags on the Gradle command line only reach the Gradle JVM, not the forked app JVM.
+// Forward the beeftech.* properties (e.g. beeftech.seed.dev, beeftech.db.url) to `run`.
+tasks.named<JavaExec>("run") {
+    System.getProperties()
+        .filterKeys { (it as String).startsWith("beeftech.") }
+        .forEach { (key, value) -> systemProperty(key as String, value) }
+}
+
 dependencies {
     implementation("io.ktor:ktor-server-core-jvm:3.0.3")
     implementation("io.ktor:ktor-server-netty-jvm:3.0.3")

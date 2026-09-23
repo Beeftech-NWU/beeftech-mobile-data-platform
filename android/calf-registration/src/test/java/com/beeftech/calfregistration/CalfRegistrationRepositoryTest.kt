@@ -4,6 +4,7 @@ import com.beeftech.calfregistration.data.CalfRegistrationApiClient
 import com.beeftech.calfregistration.data.CalfRegistrationRepository
 import com.beeftech.calfregistration.fakes.FakeCalfRegistrationDao
 import com.beeftech.calfregistration.fakes.FakePendingSyncDao
+import com.beeftech.calfregistration.fakes.FakeTokenProvider
 import com.beeftech.calfregistration.ui.CalfRegistrationData
 import com.beeftech.database.repository.PendingSyncRepository
 import io.ktor.client.HttpClient
@@ -25,12 +26,6 @@ class CalfRegistrationRepositoryTest {
     private fun successfulApiClient(): CalfRegistrationApiClient {
         val mockEngine = MockEngine { request ->
             when {
-                request.url.encodedPath.endsWith("/api/auth/login") -> respond(
-                    content = """{"success":true,"message":"ok","data":{"token":"tok"}}""",
-                    status = HttpStatusCode.OK,
-                    headers = headersOf(HttpHeaders.ContentType, "application/json")
-                )
-
                 request.url.encodedPath.endsWith("/api/calf-registrations/sync") -> respond(
                     content = """
                         {"success":true,"message":"ok","data":{"results":[
@@ -49,7 +44,11 @@ class CalfRegistrationRepositoryTest {
             install(ContentNegotiation) { json() }
         }
 
-        return CalfRegistrationApiClient(baseUrl = "http://test-host/", httpClient = httpClient)
+        return CalfRegistrationApiClient(
+            tokenProvider = FakeTokenProvider("tok"),
+            baseUrl = "http://test-host/",
+            httpClient = httpClient
+        )
     }
 
     private fun failingApiClient(): CalfRegistrationApiClient {
@@ -61,7 +60,11 @@ class CalfRegistrationRepositoryTest {
             install(ContentNegotiation) { json() }
         }
 
-        return CalfRegistrationApiClient(baseUrl = "http://test-host/", httpClient = httpClient)
+        return CalfRegistrationApiClient(
+            tokenProvider = FakeTokenProvider("tok"),
+            baseUrl = "http://test-host/",
+            httpClient = httpClient
+        )
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.beeftech.calfregistration.data
 
 import com.beeftech.database.entity.CalfRegistrationEntity
+import com.beeftech.database.security.TokenProvider
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
@@ -10,12 +11,9 @@ import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
-import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 
 /**
@@ -23,9 +21,8 @@ import kotlinx.serialization.json.Json
  * calf-registration sync endpoint.
  */
 class CalfRegistrationApiClient(
+    private val tokenProvider: TokenProvider,
     private val baseUrl: String = DEFAULT_BASE_URL,
-    private val demoUsername: String = DEFAULT_DEMO_USERNAME,
-    private val demoPassword: String = DEFAULT_DEMO_PASSWORD,
     private val httpClient: HttpClient = HttpClient(OkHttp) {
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true })
@@ -33,53 +30,19 @@ class CalfRegistrationApiClient(
     }
 ) {
 
-    @Volatile
-    private var cachedToken: String? = null
-    private val loginMutex = Mutex()
-
-    private suspend fun login(): String {
-        val response = httpClient.post("${baseUrl}api/auth/login") {
-            contentType(ContentType.Application.Json)
-            setBody(LoginRequest(username = demoUsername, password = demoPassword))
-        }
-
-        if (!response.status.isSuccess()) {
-            throw IllegalStateException("Login failed with status ${response.status}")
-        }
-
-        val body: ApiResponse<LoginResponse> = response.body()
-
-        val token = body.data?.token
-            ?: throw IllegalStateException("Login failed: ${body.message}")
-
-        cachedToken = token
-        return token
-    }
-
-    private suspend fun ensureLoggedIn(): String {
-        cachedToken?.let { return it }
-
-        return loginMutex.withLock {
-            cachedToken ?: login()
-        }
-    }
-
-    private suspend fun forceRelogin(): String = loginMutex.withLock { login() }
-
     suspend fun syncCalves(
         records: List<CalfRegistrationEntity>,
         deviceId: String
     ): Result<CalfRegistrationSyncResponse> {
         return try {
+            val token = tokenProvider.token()
+                ?: return Result.failure(
+                    IllegalStateException("No authentication token available")
+                )
+
             val dtoRecords = records.map { CalfRegistrationMappers.toDto(it) }
 
-            var token = ensureLoggedIn()
-            var response = postSync(dtoRecords, deviceId, token)
-
-            if (response.status == HttpStatusCode.Unauthorized) {
-                token = forceRelogin()
-                response = postSync(dtoRecords, deviceId, token)
-            }
+            val response = postSync(dtoRecords, deviceId, token)
 
             if (!response.status.isSuccess()) {
                 return Result.failure(
@@ -112,7 +75,5 @@ class CalfRegistrationApiClient(
 
     companion object {
         const val DEFAULT_BASE_URL = "http://10.0.2.2:8081/"
-        const val DEFAULT_DEMO_USERNAME = "admin"
-        const val DEFAULT_DEMO_PASSWORD = "admin123"
     }
 }

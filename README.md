@@ -20,6 +20,7 @@ This repository is a single Gradle build containing **seven Android modules**, a
   - [Running the demo app](#running-the-demo-app)
   - [Running the backend](#running-the-backend)
   - [Connecting the app to the backend](#connecting-the-app-to-the-backend)
+  - [Testing the app step-by-step](#testing-the-app-step-by-step)
   - [Testing](#testing)
   - [Useful Gradle commands](#useful-gradle-commands)
 - [Architecture](#architecture)
@@ -40,8 +41,8 @@ cd beeftech-mobile-data-platform
 # 1. Point Gradle at your Android SDK
 echo "sdk.dir=$HOME/Android/Sdk" > local.properties   # macOS: $HOME/Library/Android/sdk
 
-# 2. Start the backend (terminal 1)
-./gradlew :backend:api:run                            # serves on http://0.0.0.0:8081
+# 2. Start the backend with dev users seeded (terminal 1)
+./gradlew :backend:api:run -Dbeeftech.seed.dev=true   # serves on http://0.0.0.0:8081 (admin / 10001)
 
 # 3. Build and install the demo app on a running emulator (terminal 2)
 ./gradlew :demoapp:installDebug
@@ -112,13 +113,13 @@ nothing.
 
 | Gradle path | Type | Namespace | Depends on | Status |
 |---|---|---|---|---|
-| `:demoapp` | app | `com.beeftech.demoapp` | `farm-traceability`, `calf-registration`, `database` | Runnable |
+| `:demoapp` | app | `com.beeftech.demoapp` | `farm-traceability`, `calf-registration`, `farmer-registration`, `database`, `feed-crib`, `authentication` | Runnable (gated behind PIN login) |
 | `:android:database` | library | `com.beeftech.database` | — | Core; Room + SQLCipher |
-| `:android:calf-registration` | library | `com.beeftech.calfregistration` | `database` | Wired into demoapp; has backend sync |
-| `:android:farm-traceability` | library | `com.beeftech.farmtraceability` | `database` | Wired into demoapp |
-| `:android:farmer-registration` | library | `com.beeftech.farmerregistration` | `database` | Not yet wired into any app |
-| `:android:feed-crib` | library | `com.beeftech.feedcrib` | — (UI only, in-memory data) | Not yet wired into any app |
-| `:android:authentication` | library | `com.beeftech.authentication` | — | Not yet wired into any app |
+| `:android:calf-registration` | library | `com.beeftech.calfregistration` | `database` | Wired into demoapp; authenticated backend sync |
+| `:android:farm-traceability` | library | `com.beeftech.farmtraceability` | `database` | Wired into demoapp; authenticated backend sync |
+| `:android:farmer-registration` | library | `com.beeftech.farmerregistration` | `database` | Authenticated backend sync |
+| `:android:feed-crib` | library | `com.beeftech.feedcrib` | — (UI only, in-memory data) | Wired into demoapp |
+| `:android:authentication` | library | `com.beeftech.authentication` | `database` | PIN auth, `AuthGate`, `SessionStore` (wired into demoapp) |
 | `:backend:api` | JVM app | `com.beeftech.backend.api` | — | Runnable Ktor server |
 | `:android:app`, `:backend:authentication`, `:backend:sync` | — | — | — | Empty placeholders |
 
@@ -180,15 +181,22 @@ initialises the encrypted database on a background thread, and seeds a demo anim
 ### Running the backend
 
 ```bash
-./gradlew :backend:api:run
+./gradlew :backend:api:run -Dbeeftech.seed.dev=true
 ```
 
 - Listens on **`0.0.0.0:8081`**
-- Creates a SQLite database at **`./data/beeftech-backend.db`** (relative to the
-  working directory), creating the directory if needed
+- Creates a SQLite database at **`./data/beeftech-backend.db`** (relative to the working directory)
+- Passing `-Dbeeftech.seed.dev=true` seeds default development users into the backend database if they do not exist:
+
+| Username | 5-Digit PIN | Role ID | Role Description |
+|---|---|---|---|
+| **`admin`** | `10001` | 1 | Administrator |
+| **`fmanager`** | `20002` | 2 | Farm Manager |
+| **`jvdm`** | `30003` | 3 | Worker / User |
+
 - Override the database location with:
   ```bash
-  ./gradlew :backend:api:run -Dbeeftech.db.url="jdbc:sqlite:/tmp/beeftech.db"
+  ./gradlew :backend:api:run -Dbeeftech.seed.dev=true -Dbeeftech.db.url="jdbc:sqlite:/tmp/beeftech.db"
   ```
 
 Smoke-test it:
@@ -199,24 +207,64 @@ curl http://localhost:8081/
 
 curl -X POST http://localhost:8081/api/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"username":"admin","password":"admin123"}'
+  -d '{"username":"jvdm","pin":"30003","device_id":"TEST_DEV"}'
 ```
-
-> ⚠️ The backend currently ships **hard-coded demo credentials** (`admin` / `admin123`
-> in `AuthService`) and a **hard-coded JWT secret** (`beeftech-secret` in `JwtService`).
-> Both must move to configuration/secret storage before deployment. Failed logins are
-> rate-limited by `LoginSecurityState`.
 
 ### Connecting the app to the backend
 
-`CalfRegistrationApiClient` defaults to `http://10.0.2.2:8081/` — the loopback alias
-an **Android emulator** uses to reach the host machine. On a physical device you must
-pass your workstation's LAN address to the client's `baseUrl` constructor parameter
-(e.g. `http://192.168.1.20:8081/`), and note that cleartext HTTP to a non-localhost
-host needs a network security config.
+All feature API clients (`CalfRegistrationApiClient`, `TreatmentApiClient`, `AnimalMovementApiClient`, `FarmerApiClient`) default to `http://10.0.2.2:8081/` — the loopback alias an **Android emulator** uses to reach the host machine. On a physical device, pass your workstation's LAN address to the client's `baseUrl` constructor parameter (e.g. `http://192.168.1.20:8081/`).
 
-Demo credentials used by the sync client are the `DEFAULT_DEMO_USERNAME` /
-`DEFAULT_DEMO_PASSWORD` constants — also injectable via the constructor.
+API clients obtain their JWT token dynamically from the logged-in session (`SessionStore` / `TokenProviderRegistry`), so feature operations communicate securely under the authenticated user's credentials.
+
+### Testing the app step-by-step
+
+Follow these steps to test online PIN login, data capture, backend synchronization, offline caching, and security lockout:
+
+#### Step 1: Start the backend server with dev user seeding
+In terminal 1, start the Ktor backend with dev seeding enabled:
+```bash
+./gradlew :backend:api:run -Dbeeftech.seed.dev=true
+```
+Verify the server is running:
+```bash
+curl http://localhost:8081/
+# Output: BeefTech Backend API is running
+```
+
+#### Step 2: Launch the demo app
+Start an Android emulator (or connect a USB-debugging-enabled device) and run terminal 2:
+```bash
+./gradlew :demoapp:installDebug
+adb shell am start -n com.beeftech.demoapp/.MainActivity
+```
+*(Or click **Run demoapp** in Android Studio).*
+
+#### Step 3: Log in via PIN authentication (`AuthGate`)
+1. On launch, the app initializes the encrypted SQLCipher database and displays the **PIN Login Screen**.
+2. Enter one of the seeded test credentials:
+   - **Username**: `jvdm` | **PIN**: `30003` (Worker)
+   - **Username**: `fmanager` | **PIN**: `20002` (Farm Manager)
+   - **Username**: `admin` | **PIN**: `10001` (Administrator)
+3. Tap **Sign In**. The app posts credentials to `POST /api/auth/login`.
+4. Upon successful authentication, the backend returns a JWT token. The token and BCrypt PIN hash are stored securely in `EncryptedSessionStore` / Room, opening the main tab interface.
+
+#### Step 4: Capture data & test backend sync
+1. **Calf Registration**: Select the *Calf Registration* tab, fill in animal tag/breed details, and tap **Save**.
+   - The record is persisted locally to SQLCipher and automatically posted to `POST /api/calf-registrations/sync` using `Authorization: Bearer <jwt>`.
+2. **Farm Traceability**: Select the *Farm Traceability* tab to record animal movements, treatments, and mortalities.
+3. **Manual Sync Retry**: Tap **Retry Sync** in the top menu to manually process any queued `PENDING` records.
+
+#### Step 5: Test offline support
+1. Enable **Airplane Mode** on the emulator or stop the backend server (`Ctrl+C`).
+2. Close and relaunch the app.
+3. Enter username `jvdm` and PIN `30003`.
+4. The app verifies the PIN locally against the Room-cached BCrypt hash and grants offline access immediately.
+5. Save a new calf or treatment record. The record is stored locally with status `PENDING` and queued in `PendingSync`.
+6. Re-enable network connectivity / restart the backend server. Background workers (`CalfRegistrationSyncWorker`, `TreatmentSyncWorker`, etc.) auto-sync using the session token registered in `TokenProviderRegistry`.
+
+#### Step 6: Test PIN lockout protection
+1. On the PIN login screen, enter 5 consecutive wrong PINs.
+2. The app enforces a **5-minute lockout period**, displaying a security notification and blocking further PIN attempts until the timer expires.
 
 ### Testing
 
@@ -409,7 +457,5 @@ Add the same exclusion to a new module if it consumes SQLCipher or BouncyCastle.
 - `android/app`, `backend/authentication` and `backend/sync` are empty placeholders.
 - `docs/` subdirectories contain only `.gitkeep` files.
 - No CI workflow (`.github/`) is configured yet.
-- `:android:authentication`, `:android:feed-crib` and `:android:farmer-registration`
-  are not yet consumed by any application module.
-- Demo credentials, the JWT secret and the demo SQLCipher passphrase are hard-coded.
-- Stale standalone Gradle files remain under `android/`.## Building
+- Demo credentials, the JWT secret and the demo SQLCipher passphrase are hard-coded for development.
+- Stale standalone Gradle files remain under `android/`.

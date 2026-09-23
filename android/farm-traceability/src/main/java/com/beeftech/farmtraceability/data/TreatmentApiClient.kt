@@ -1,6 +1,7 @@
 package com.beeftech.farmtraceability.data
 
 import com.beeftech.database.entity.Treatment
+import com.beeftech.database.security.TokenProvider
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
@@ -11,12 +12,9 @@ import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
-import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -67,17 +65,6 @@ data class TreatmentReferenceDataDto(
 )
 
 @Serializable
-private data class TreatmentLoginRequest(
-    val username: String,
-    val password: String
-)
-
-@Serializable
-private data class TreatmentLoginResponse(
-    val token: String
-)
-
-@Serializable
 private data class TreatmentApiResponse<T>(
     val success: Boolean,
     val message: String,
@@ -85,14 +72,9 @@ private data class TreatmentApiResponse<T>(
 )
 
 class TreatmentApiClient(
+    private val tokenProvider: TokenProvider,
     private val baseUrl: String =
-        DEFAULT_BASE_URL,
-
-    private val demoUsername: String =
-        DEFAULT_DEMO_USERNAME,
-
-    private val demoPassword: String =
-        DEFAULT_DEMO_PASSWORD
+        DEFAULT_BASE_URL
 ) {
 
     /*
@@ -114,72 +96,6 @@ class TreatmentApiClient(
             }
         }
 
-    @Volatile
-    private var cachedToken: String? = null
-
-    private val loginMutex =
-        Mutex()
-
-    private suspend fun login(): String {
-
-        val response =
-            httpClient.post(
-                "${baseUrl}api/auth/login"
-            ) {
-
-                contentType(
-                    ContentType.Application.Json
-                )
-
-                setBody(
-                    TreatmentLoginRequest(
-                        username = demoUsername,
-                        password = demoPassword
-                    )
-                )
-            }
-
-        if (!response.status.isSuccess()) {
-
-            throw IllegalStateException(
-                "Login failed with status ${response.status}"
-            )
-        }
-
-        val body:
-                TreatmentApiResponse<TreatmentLoginResponse> =
-            response.body()
-
-        val token =
-            body.data?.token
-                ?: throw IllegalStateException(
-                    "Login failed: ${body.message}"
-                )
-
-        cachedToken = token
-
-        return token
-    }
-
-    private suspend fun ensureLoggedIn(): String {
-
-        cachedToken?.let {
-            return it
-        }
-
-        return loginMutex.withLock {
-
-            cachedToken
-                ?: login()
-        }
-    }
-
-    private suspend fun forceRelogin(): String =
-        loginMutex.withLock {
-
-            login()
-        }
-
     /*
      * Load Disease and Treatment Type reference data
      * from the backend database.
@@ -189,31 +105,18 @@ class TreatmentApiClient(
 
         return try {
 
-            var token =
-                ensureLoggedIn()
+            val token =
+                tokenProvider.token()
+                    ?: return Result.failure(
+                        IllegalStateException(
+                            "No authentication token available"
+                        )
+                    )
 
-            var response =
+            val response =
                 getReferenceDataRequest(
                     token = token
                 )
-
-            /*
-             * Token may have expired.
-             * Log in again once and retry.
-             */
-            if (
-                response.status ==
-                HttpStatusCode.Unauthorized
-            ) {
-
-                token =
-                    forceRelogin()
-
-                response =
-                    getReferenceDataRequest(
-                        token = token
-                    )
-            }
 
             if (!response.status.isSuccess()) {
 
@@ -282,6 +185,14 @@ class TreatmentApiClient(
                 )
             }
 
+            val token =
+                tokenProvider.token()
+                    ?: return Result.failure(
+                        IllegalStateException(
+                            "No authentication token available"
+                        )
+                    )
+
             val dtoRecords =
                 records.map { treatment ->
 
@@ -321,35 +232,12 @@ class TreatmentApiClient(
                     )
                 }
 
-            var token =
-                ensureLoggedIn()
-
-            var response =
+            val response =
                 postSync(
                     records = dtoRecords,
                     deviceId = deviceId,
                     token = token
                 )
-
-            /*
-             * Authentication token may have expired.
-             * Re-authenticate once and retry.
-             */
-            if (
-                response.status ==
-                HttpStatusCode.Unauthorized
-            ) {
-
-                token =
-                    forceRelogin()
-
-                response =
-                    postSync(
-                        records = dtoRecords,
-                        deviceId = deviceId,
-                        token = token
-                    )
-            }
 
             if (!response.status.isSuccess()) {
 
@@ -416,11 +304,5 @@ class TreatmentApiClient(
 
         const val DEFAULT_BASE_URL =
             "http://10.0.2.2:8081/"
-
-        const val DEFAULT_DEMO_USERNAME =
-            "admin"
-
-        const val DEFAULT_DEMO_PASSWORD =
-            "admin123"
     }
 }

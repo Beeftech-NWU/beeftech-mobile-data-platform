@@ -6,6 +6,7 @@ import androidx.work.WorkerParameters
 import com.beeftech.database.DatabaseProvider
 import com.beeftech.database.repository.FarmerRepository
 import com.beeftech.database.repository.PendingSyncRepository
+import com.beeftech.database.security.TokenProviderRegistry
 import com.beeftech.farmerregistration.data.FarmerApiClient
 
 class FarmerSyncWorker(
@@ -24,6 +25,10 @@ class FarmerSyncWorker(
                 DatabaseProvider.getDatabase()
                     ?: return Result.retry()
 
+            val tokenProvider =
+                TokenProviderRegistry.get()
+                    ?: return Result.retry()
+
             val farmerRepository =
                 FarmerRepository(
                     database.farmerDao()
@@ -36,7 +41,8 @@ class FarmerSyncWorker(
 
             val apiClient =
                 FarmerApiClient(
-                    context = applicationContext
+                    context = applicationContext,
+                    tokenProvider = tokenProvider
                 )
 
             val pendingFarmers =

@@ -7,6 +7,7 @@ import com.beeftech.calfregistration.data.CalfRegistrationApiClient
 import com.beeftech.calfregistration.data.CalfRegistrationRepository
 import com.beeftech.database.DatabaseProvider
 import com.beeftech.database.repository.PendingSyncRepository
+import com.beeftech.database.security.TokenProviderRegistry
 
 class CalfRegistrationSyncWorker(
     appContext: Context,
@@ -29,6 +30,10 @@ class CalfRegistrationSyncWorker(
             DatabaseProvider.getDatabase()
                 ?: return Result.failure()
 
+        val tokenProvider =
+            TokenProviderRegistry.get()
+                ?: return Result.retry()
+
         return try {
 
             val pendingSyncRepository =
@@ -43,7 +48,9 @@ class CalfRegistrationSyncWorker(
                     pendingSyncRepository =
                         pendingSyncRepository,
                     apiClient =
-                        CalfRegistrationApiClient()
+                        CalfRegistrationApiClient(
+                            tokenProvider = tokenProvider
+                        )
                 )
 
             /*

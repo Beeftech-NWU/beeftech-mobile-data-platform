@@ -7,6 +7,7 @@ import com.beeftech.calfregistration.data.CalfRegistrationApiClient
 import com.beeftech.calfregistration.data.CalfRegistrationRepository
 import com.beeftech.database.dao.CalfRegistrationDao
 import com.beeftech.database.repository.PendingSyncRepository
+import com.beeftech.database.security.TokenProvider
 
 /**
  * Creates [CalfRegistrationViewModel] with the dependencies required
@@ -16,8 +17,9 @@ class CalfRegistrationViewModelFactory(
     context: Context,
     private val calfRegistrationDao: CalfRegistrationDao,
     private val pendingSyncRepository: PendingSyncRepository,
+    private val tokenProvider: TokenProvider,
     private val apiClient: CalfRegistrationApiClient =
-        CalfRegistrationApiClient()
+        CalfRegistrationApiClient(tokenProvider = tokenProvider)
 ) : ViewModelProvider.Factory {
 
     private val applicationContext: Context =

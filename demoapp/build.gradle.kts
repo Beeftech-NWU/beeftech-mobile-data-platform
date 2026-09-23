@@ -58,6 +58,10 @@ dependencies {
     implementation(project(":android:farmer-registration"))
     implementation(project(":android:database"))
     implementation(project(":android:feed-crib"))
+    implementation(project(":android:authentication"))
+
+    // Ktor client
+    implementation("io.ktor:ktor-client-core:3.0.3")
 
     // Room
     implementation("androidx.room:room-runtime:2.8.4")

@@ -4,9 +4,8 @@ import kotlinx.serialization.Serializable
 
 /**
  * Network DTOs mirroring the `backend:api` contract for calf registration
- * sync (`POST /api/calf-registrations/sync`) and login
- * (`POST /api/auth/login`). These are intentionally kept identical in shape
- * to `com.beeftech.backend.api.*` so that Kotlinx serialization round-trips
+ * sync (`POST /api/calf-registrations/sync`). These are intentionally kept identical
+ * in shape to `com.beeftech.backend.api.*` so that Kotlinx serialization round-trips
  * cleanly against the real server; the backend module is not a compile-time
  * dependency of this Android module, so the shapes are duplicated here.
  */
@@ -16,17 +15,6 @@ data class ApiResponse<T>(
     val success: Boolean,
     val message: String,
     val data: T? = null
-)
-
-@Serializable
-data class LoginRequest(
-    val username: String,
-    val password: String
-)
-
-@Serializable
-data class LoginResponse(
-    val token: String
 )
 
 @Serializable
