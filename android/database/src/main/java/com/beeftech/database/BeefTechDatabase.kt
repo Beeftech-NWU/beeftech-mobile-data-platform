@@ -347,12 +347,42 @@ abstract class BeefTechDatabase : RoomDatabase() {
 
         /**
          * Migration (Version 11 -> 12):
-         * - Adds `gpsLat` and `gpsLng` columns to `treatments` table
+         * - Ensures all missing columns and unique indices match Room entity specs
          */
         val MIGRATION_11_12 = object : Migration(11, 12) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE `treatments` ADD COLUMN `gpsLat` REAL NOT NULL DEFAULT 0.0")
-                db.execSQL("ALTER TABLE `treatments` ADD COLUMN `gpsLng` REAL NOT NULL DEFAULT 0.0")
+                fun addColumnIfNotExists(table: String, columnDef: String) {
+                    try {
+                        db.execSQL("ALTER TABLE `$table` ADD COLUMN $columnDef")
+                    } catch (_: Exception) {
+                        // Column already exists
+                    }
+                }
+
+                // 1. animals
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_animals_recordguid` ON `animals` (`recordguid`)")
+
+                // 2. animal_costs
+                addColumnIfNotExists("animal_costs", "`gpsLat` REAL NOT NULL DEFAULT 0.0")
+                addColumnIfNotExists("animal_costs", "`gpsLng` REAL NOT NULL DEFAULT 0.0")
+                addColumnIfNotExists("animal_costs", "`record_guid` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_costs_record_guid` ON `animal_costs` (`record_guid`)")
+
+                // 3. animal_group_memberships
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_group_memberships_record_guid` ON `animal_group_memberships` (`record_guid`)")
+
+                // 4. farmers
+                addColumnIfNotExists("farmers", "`record_guid` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_farmers_record_guid` ON `farmers` (`record_guid`)")
+
+                // 5. mortalities
+                addColumnIfNotExists("mortalities", "`record_guid` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_mortalities_record_guid` ON `mortalities` (`record_guid`)")
+
+                // 6. treatments
+                addColumnIfNotExists("treatments", "`gpsLat` REAL NOT NULL DEFAULT 0.0")
+                addColumnIfNotExists("treatments", "`gpsLng` REAL NOT NULL DEFAULT 0.0")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_treatments_recordguid` ON `treatments` (`recordguid`)")
             }
         }
     }
