@@ -99,7 +99,7 @@ import com.beeftech.database.dao.UserDao
         // Phase 7 Entity
         CalfRegistrationEntity::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = true
 )
 abstract class BeefTechDatabase : RoomDatabase() {
@@ -473,6 +473,17 @@ abstract class BeefTechDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_calf_registrations_registered_animal_id` ON `calf_registrations` (`registered_animal_id`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_calf_registrations_dam_id` ON `calf_registrations` (`dam_id`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_calf_registrations_sire_id` ON `calf_registrations` (`sire_id`)")
+            }
+        }
+
+        /**
+         * Migration (Version 12 -> 13):
+         * - Ensures all 26 tables, columns, and indices match Room entity specs
+         *   for databases whose user_version was set to 12 prior to schema fix.
+         */
+        val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                MIGRATION_11_12.migrate(db)
             }
         }
     }

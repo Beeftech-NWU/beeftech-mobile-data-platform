@@ -491,6 +491,7 @@ object DatabaseFactory {
                      * 9 -> 10
                      * 10 -> 11
                      * 11 -> 12
+                     * 12 -> 13
                      */
                     .addMigrations(
                         MIGRATION_1_2,
@@ -503,7 +504,8 @@ object DatabaseFactory {
                         MIGRATION_8_9,
                         BeefTechDatabase.MIGRATION_9_10,
                         BeefTechDatabase.MIGRATION_10_11,
-                        BeefTechDatabase.MIGRATION_11_12
+                        BeefTechDatabase.MIGRATION_11_12,
+                        BeefTechDatabase.MIGRATION_12_13
                     )
 
                     .fallbackToDestructiveMigration(dropAllTables = true)
