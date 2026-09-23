@@ -2,9 +2,16 @@ package com.beeftech.database.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.util.UUID
 
-@Entity(tableName = "mortalities")
+@Entity(
+    tableName = "mortalities",
+    indices = [
+        Index(value = ["record_guid"], unique = true)
+    ]
+)
 data class Mortality(
 
     @PrimaryKey(autoGenerate = true)
@@ -19,5 +26,8 @@ data class Mortality(
 
     val notes: String? = null,
 
-    val timestamp: Long
+    val timestamp: Long,
+
+    @ColumnInfo(name = "record_guid")
+    val recordGuid: String = UUID.randomUUID().toString()
 )

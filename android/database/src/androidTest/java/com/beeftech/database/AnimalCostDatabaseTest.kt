@@ -118,6 +118,12 @@ class AnimalCostDatabaseTest {
                     description =
                         "Transport to feedlot",
 
+                    gpsLat =
+                        -26.2041,
+
+                    gpsLng =
+                        28.0473,
+
                     timestamp =
                         1000L
                 )
@@ -136,6 +142,12 @@ class AnimalCostDatabaseTest {
 
                     description =
                         "Processing cost",
+
+                    gpsLat =
+                        -26.2041,
+
+                    gpsLng =
+                        28.0473,
 
                     timestamp =
                         2000L
@@ -197,6 +209,12 @@ class AnimalCostDatabaseTest {
                     description =
                         "Trip 1",
 
+                    gpsLat =
+                        -26.2041,
+
+                    gpsLng =
+                        28.0473,
+
                     timestamp =
                         1000L
                 )
@@ -215,6 +233,12 @@ class AnimalCostDatabaseTest {
 
                     description =
                         "Trip 2",
+
+                    gpsLat =
+                        -26.2041,
+
+                    gpsLng =
+                        28.0473,
 
                     timestamp =
                         2000L
@@ -264,6 +288,12 @@ class AnimalCostDatabaseTest {
                     description =
                         "TEST-001 handling",
 
+                    gpsLat =
+                        -26.2041,
+
+                    gpsLng =
+                        28.0473,
+
                     timestamp =
                         1000L
                 )
@@ -282,6 +312,12 @@ class AnimalCostDatabaseTest {
 
                     description =
                         "TEST-002 handling",
+
+                    gpsLat =
+                        -26.2041,
+
+                    gpsLng =
+                        28.0473,
 
                     timestamp =
                         2000L
@@ -364,6 +400,12 @@ class AnimalCostDatabaseTest {
                     description =
                         "Transport",
 
+                    gpsLat =
+                        -26.2041,
+
+                    gpsLng =
+                        28.0473,
+
                     timestamp =
                         1000L
                 )
@@ -385,6 +427,12 @@ class AnimalCostDatabaseTest {
 
                     description =
                         "Processing",
+
+                    gpsLat =
+                        -26.2041,
+
+                    gpsLng =
+                        28.0473,
 
                     timestamp =
                         2000L
@@ -408,6 +456,12 @@ class AnimalCostDatabaseTest {
                     description =
                         "Handling",
 
+                    gpsLat =
+                        -26.2041,
+
+                    gpsLng =
+                        28.0473,
+
                     timestamp =
                         3000L
                 )
@@ -429,6 +483,12 @@ class AnimalCostDatabaseTest {
 
                     description =
                         "Interest",
+
+                    gpsLat =
+                        -26.2041,
+
+                    gpsLng =
+                        28.0473,
 
                     timestamp =
                         4000L

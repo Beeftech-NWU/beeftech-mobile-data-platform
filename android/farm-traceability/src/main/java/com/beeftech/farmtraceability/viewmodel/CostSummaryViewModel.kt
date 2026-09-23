@@ -130,6 +130,8 @@ class CostSummaryViewModel(
         costType: String,
         amountText: String,
         description: String = "",
+        gpsLat: Double,
+        gpsLng: Double,
         onResult: (
             Boolean,
             String
@@ -208,6 +210,12 @@ class CostSummaryViewModel(
 
                         description =
                             description.trim(),
+
+                        gpsLat =
+                            gpsLat,
+
+                        gpsLng =
+                            gpsLng,
 
                         timestamp =
                             System.currentTimeMillis()

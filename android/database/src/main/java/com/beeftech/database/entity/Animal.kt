@@ -3,6 +3,7 @@ package com.beeftech.database.entity
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.util.UUID
 
 @Entity(
     tableName = "animals",
@@ -10,7 +11,8 @@ import androidx.room.PrimaryKey
         Index(value = ["tagNumber"]),
         Index(value = ["temperatureNumber"]),
         Index(value = ["parentId"]),
-        Index(value = ["animalGroupId"])
+        Index(value = ["animalGroupId"]),
+        Index(value = ["recordguid"], unique = true)
     ]
 )
 data class Animal(
@@ -41,7 +43,7 @@ data class Animal(
     val gpsLng: Double,
     val captureAt: Long,
     val deviceId: String,
-    val recordguid: String,
+    val recordguid: String = UUID.randomUUID().toString(),
 
     val syncStatus: String = "PENDING",
     val syncedat: Long? = null

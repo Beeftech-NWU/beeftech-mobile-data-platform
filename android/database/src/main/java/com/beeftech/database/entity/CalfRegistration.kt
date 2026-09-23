@@ -3,6 +3,7 @@ package com.beeftech.database.entity
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.util.UUID
 
 @Entity(
     tableName = "calf_registrations",
@@ -28,7 +29,7 @@ data class CalfRegistration(
     val gpsLng: Double,
     val captureAt: Long,
     val deviceId: String,
-    val recordguid: String,
+    val recordguid: String = UUID.randomUUID().toString(),
 
     val syncStatus: String = "PENDING",
     val syncedat: Long? = null

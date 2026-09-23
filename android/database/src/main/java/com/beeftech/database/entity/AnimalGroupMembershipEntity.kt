@@ -2,10 +2,16 @@ package com.beeftech.database.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.UUID
 
-@Entity(tableName = "animal_group_memberships")
+@Entity(
+    tableName = "animal_group_memberships",
+    indices = [
+        Index(value = ["record_guid"], unique = true)
+    ]
+)
 data class AnimalGroupMembershipEntity(
     @PrimaryKey
     @ColumnInfo(name = "membership_id")
