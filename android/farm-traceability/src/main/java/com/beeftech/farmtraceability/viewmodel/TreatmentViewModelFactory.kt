@@ -1,11 +1,13 @@
 package com.beeftech.farmtraceability.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.beeftech.database.dao.TreatmentDao
+import com.beeftech.farmtraceability.data.TreatmentRepository
 
 class TreatmentViewModelFactory(
-    private val treatmentDao: TreatmentDao
+    private val repository: TreatmentRepository,
+    private val applicationContext: Context
 ) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
@@ -20,7 +22,11 @@ class TreatmentViewModelFactory(
         ) {
 
             return TreatmentViewModel(
-                treatmentDao = treatmentDao
+                repository =
+                    repository,
+
+                applicationContext =
+                    applicationContext
             ) as T
         }
 

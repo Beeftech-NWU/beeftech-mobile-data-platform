@@ -14,16 +14,16 @@ class PendingSyncRepository(
         payload: String
     ): Long {
 
-        val pendingSync = PendingSync(
-            entityType = entityType,
-            entityId = entityId,
-            operation = operation,
-            payload = payload,
-            createdAt = System.currentTimeMillis(),
-            retryCount = 0
+        return pendingSyncDao.insert(
+            PendingSync(
+                entityType = entityType,
+                entityId = entityId,
+                operation = operation,
+                payload = payload,
+                createdAt = System.currentTimeMillis(),
+                retryCount = 0
+            )
         )
-
-        return pendingSyncDao.insert(pendingSync)
     }
 
     suspend fun getPendingOperations(
@@ -35,27 +35,64 @@ class PendingSyncRepository(
         )
     }
 
+    suspend fun getAllPendingOperations():
+            List<PendingSync> {
+
+        return pendingSyncDao.getAll()
+    }
+
+    suspend fun getOperationsForEntity(
+        entityType: String,
+        entityId: String
+    ): List<PendingSync> {
+
+        return pendingSyncDao.getByEntity(
+            entityType = entityType,
+            entityId = entityId
+        )
+    }
+
     suspend fun markSyncFailed(
         id: Long
     ) {
-        pendingSyncDao.incrementRetryCount(id)
+
+        pendingSyncDao.incrementRetryCount(
+            id
+        )
     }
 
     suspend fun markSyncSuccessful(
         id: Long
     ) {
-        pendingSyncDao.deleteById(id)
+
+        pendingSyncDao.deleteById(
+            id
+        )
+    }
+
+    suspend fun markEntitySyncSuccessful(
+        entityType: String,
+        entityId: String
+    ) {
+
+        pendingSyncDao.deleteByEntity(
+            entityType = entityType,
+            entityId = entityId
+        )
     }
 
     suspend fun getPendingCount(): Int {
+
         return pendingSyncDao.getPendingCount()
     }
 
     suspend fun clearAll() {
+
         pendingSyncDao.clearAll()
     }
 
     companion object {
+
         const val DEFAULT_MAX_RETRIES = 5
     }
 }

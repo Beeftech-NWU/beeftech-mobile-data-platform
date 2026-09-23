@@ -55,7 +55,9 @@ dependencies {
     // BeefTech modules
     implementation(project(":android:farm-traceability"))
     implementation(project(":android:calf-registration"))
+    implementation(project(":android:farmer-registration"))
     implementation(project(":android:database"))
+    implementation(project(":android:feed-crib"))
 
     // Room
     implementation("androidx.room:room-runtime:2.8.4")

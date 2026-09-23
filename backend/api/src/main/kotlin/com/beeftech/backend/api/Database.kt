@@ -1,4 +1,4 @@
-package com.beeftech.backend.api
+﻿package com.beeftech.backend.api
 
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
@@ -7,16 +7,18 @@ import java.io.File
 
 object DatabaseFactory {
 
-    fun init(jdbcUrl: String = "jdbc:sqlite:./data/beeftech-backend.db") {
+    fun init(
+        jdbcUrl: String =
+            "jdbc:sqlite:./data/beeftech-backend.db"
+    ) {
 
-        val filePath = jdbcUrl.removePrefix("jdbc:sqlite:")
+        val filePath =
+            jdbcUrl.removePrefix("jdbc:sqlite:")
 
-        // Skip directory creation for in-memory databases (e.g. ":memory:",
-        // or SQLite's shared-cache "file::memory:?cache=shared" form) - there
-        // is no file on disk to create a parent directory for.
         if (!filePath.contains(":memory:")) {
-
-            File(filePath).parentFile?.mkdirs()
+            File(filePath)
+                .parentFile
+                ?.mkdirs()
         }
 
         Database.connect(
@@ -25,7 +27,23 @@ object DatabaseFactory {
         )
 
         transaction {
-            SchemaUtils.create(CalfRegistrationTable)
+
+            SchemaUtils.create(
+                CalfRegistrationTable,
+                AnimalMovementTable,
+                TreatmentTable,
+                DiseaseTable,
+                TreatmentTypeTable,
+                FarmerTable,
+                FarmerAddressTable,
+                FarmerRoleTable
+            )
         }
+
+        /*
+         * Seed treatment reference/master data
+         * after the reference tables exist.
+         */
+        TreatmentReferenceSeeder.seed()
     }
 }

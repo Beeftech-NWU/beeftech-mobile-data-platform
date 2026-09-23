@@ -1,5 +1,6 @@
 package com.beeftech.calfregistration.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.beeftech.calfregistration.data.CalfRegistrationApiClient
@@ -8,16 +9,19 @@ import com.beeftech.database.dao.CalfRegistrationDao
 import com.beeftech.database.repository.PendingSyncRepository
 
 /**
- * Mirrors [com.beeftech.farmtraceability.viewmodel.TreatmentViewModelFactory]:
- * takes the DAOs/collaborators needed to build a [CalfRegistrationRepository]
- * and constructs it internally, so callers (e.g. `demoapp`'s `MainActivity`)
- * only need to reach for DAOs obtained from the shared `BeefTechDatabase`.
+ * Creates [CalfRegistrationViewModel] with the dependencies required
+ * for local persistence, immediate sync, and WorkManager background sync.
  */
 class CalfRegistrationViewModelFactory(
+    context: Context,
     private val calfRegistrationDao: CalfRegistrationDao,
     private val pendingSyncRepository: PendingSyncRepository,
-    private val apiClient: CalfRegistrationApiClient = CalfRegistrationApiClient()
+    private val apiClient: CalfRegistrationApiClient =
+        CalfRegistrationApiClient()
 ) : ViewModelProvider.Factory {
+
+    private val applicationContext: Context =
+        context.applicationContext
 
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(
@@ -30,12 +34,19 @@ class CalfRegistrationViewModelFactory(
             )
         ) {
 
-            return CalfRegistrationViewModel(
-                repository = CalfRegistrationRepository(
-                    calfRegistrationDao = calfRegistrationDao,
-                    pendingSyncRepository = pendingSyncRepository,
-                    apiClient = apiClient
+            val repository =
+                CalfRegistrationRepository(
+                    calfRegistrationDao =
+                        calfRegistrationDao,
+                    pendingSyncRepository =
+                        pendingSyncRepository,
+                    apiClient =
+                        apiClient
                 )
+
+            return CalfRegistrationViewModel(
+                repository = repository,
+                applicationContext = applicationContext
             ) as T
         }
 

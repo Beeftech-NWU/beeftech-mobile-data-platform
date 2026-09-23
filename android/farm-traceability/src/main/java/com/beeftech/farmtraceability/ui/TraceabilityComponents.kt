@@ -388,9 +388,9 @@ fun TraceabilitySearchableDropdown(
                     searchText = input
                     expanded = true
 
-                    if (input != value) {
-                        onValueChange("")
-                    }
+                    // Keep the actual parent value synchronized with
+                    // exactly what the user types into this field.
+                    onValueChange(input)
                 },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
