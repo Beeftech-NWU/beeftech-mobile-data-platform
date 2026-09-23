@@ -1,6 +1,6 @@
 package com.beeftech.farmtraceability.data
 
-import com.beeftech.database.entity.AnimalMovement
+import com.beeftech.database.entity.AnimalMovementEntity
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
@@ -154,7 +154,7 @@ class AnimalMovementApiClient(
         }
 
     suspend fun syncMovements(
-        records: List<AnimalMovement>,
+        records: List<AnimalMovementEntity>,
         deviceId: String
     ): Result<AnimalMovementSyncResponse> {
 
@@ -185,23 +185,18 @@ class AnimalMovementApiClient(
                         timestamp =
                             movement.timestamp,
 
-                        gpsLat =
-                            movement.gpsLat,
+                        gpsLat = 0.0,
 
-                        gpsLng =
-                            movement.gpsLng,
+                        gpsLng = 0.0,
 
-                        deviceId =
-                            movement.deviceId,
+                        deviceId = deviceId,
 
                         recordguid =
-                            movement.recordguid,
+                            movement.movementId,
 
-                        syncStatus =
-                            movement.syncStatus,
+                        syncStatus = "PENDING",
 
-                        syncedAt =
-                            movement.syncedAt
+                        syncedAt = null
                     )
                 }
 
