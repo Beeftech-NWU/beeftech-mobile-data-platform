@@ -5,6 +5,7 @@ import android.provider.Settings
 import com.beeftech.database.entity.FarmerAddressEntity
 import com.beeftech.database.entity.FarmerEntity
 import com.beeftech.database.entity.FarmerRoleEntity
+import com.beeftech.database.security.TokenProvider
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
@@ -18,24 +19,6 @@ import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-
-@Serializable
-private data class LoginRequest(
-    val username: String,
-    val password: String
-)
-
-@Serializable
-private data class LoginData(
-    val token: String
-)
-
-@Serializable
-private data class LoginResponse(
-    val success: Boolean,
-    val message: String,
-    val data: LoginData? = null
-)
 
 @Serializable
 data class FarmerAddressPayload(
@@ -98,6 +81,7 @@ private data class ApiResponse<T>(
 
 class FarmerApiClient(
     private val context: Context,
+    private val tokenProvider: TokenProvider,
     private val baseUrl: String = "http://10.0.2.2:8081"
 ) {
 
@@ -113,45 +97,6 @@ class FarmerApiClient(
                 json(json)
             }
         }
-
-    private var cachedToken: String? = null
-
-    private suspend fun login(): String? {
-
-        val response =
-            client.post(
-                "$baseUrl/api/auth/login"
-            ) {
-                contentType(ContentType.Application.Json)
-
-                setBody(
-                    LoginRequest(
-                        username = "admin",
-                        password = "admin123"
-                    )
-                )
-            }
-
-        if (response.status != HttpStatusCode.OK) {
-            return null
-        }
-
-        val body =
-            response.body<LoginResponse>()
-
-        val token =
-            body.data?.token
-
-        cachedToken = token
-
-        return token
-    }
-
-    private suspend fun getToken(): String? {
-
-        return cachedToken
-            ?: login()
-    }
 
     private fun getDeviceId(): String {
 
@@ -239,17 +184,17 @@ class FarmerApiClient(
                     }
             )
 
+        val token =
+            tokenProvider.token()
+                ?: return null
+
         val request =
             FarmerSyncRequest(
                 deviceId = getDeviceId(),
                 records = listOf(payload)
             )
 
-        var token =
-            getToken()
-                ?: return null
-
-        var response =
+        val response =
             client.post(
                 "$baseUrl/api/farmers/sync"
             ) {
@@ -262,33 +207,6 @@ class FarmerApiClient(
 
                 setBody(request)
             }
-
-        /*
-         * Token may have expired.
-         * Clear it, authenticate once more and retry.
-         */
-        if (response.status == HttpStatusCode.Unauthorized) {
-
-            cachedToken = null
-
-            token =
-                login()
-                    ?: return null
-
-            response =
-                client.post(
-                    "$baseUrl/api/farmers/sync"
-                ) {
-
-                    bearerAuth(token)
-
-                    contentType(
-                        ContentType.Application.Json
-                    )
-
-                    setBody(request)
-                }
-        }
 
         if (response.status != HttpStatusCode.OK) {
             return null

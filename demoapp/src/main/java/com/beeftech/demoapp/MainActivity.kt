@@ -32,6 +32,14 @@ import com.beeftech.database.entity.CalfRegistrationEntity
 import com.beeftech.database.repository.PendingSyncRepository
 import com.beeftech.database.repository.SyncRepository
 import kotlinx.coroutines.flow.firstOrNull
+import com.beeftech.authentication.data.AuthApiClient
+import com.beeftech.authentication.data.AuthRepository
+import com.beeftech.authentication.data.EncryptedDeviceIdProvider
+import com.beeftech.authentication.data.EncryptedSessionStore
+import com.beeftech.authentication.ui.AuthGate
+import com.beeftech.authentication.viewmodel.LoginViewModelFactory
+import com.beeftech.database.security.PinLockoutManager
+import com.beeftech.database.security.TokenProviderRegistry
 import com.beeftech.demoapp.ui.theme.BeeftechTheme
 import com.beeftech.farmerregistration.ClientDetailsScreen
 import com.beeftech.farmerregistration.FarmerSyncScheduler
@@ -93,6 +101,31 @@ class MainActivity : ComponentActivity() {
 
                     val database =
                         databaseResult.database
+
+                    /*
+                     * Authentication setup
+                     */
+                    val sessionStore =
+                        EncryptedSessionStore(applicationContext)
+
+                    TokenProviderRegistry.register(sessionStore)
+
+                    val authRepository =
+                        AuthRepository(
+                            apiClient =
+                                AuthApiClient(),
+                            sessionStore =
+                                sessionStore,
+                            userDao =
+                                database.userDao(),
+                            lockoutManager =
+                                PinLockoutManager(applicationContext),
+                            deviceIdProvider =
+                                EncryptedDeviceIdProvider(applicationContext)
+                        )
+
+                    val loginViewModelFactory =
+                        LoginViewModelFactory(authRepository)
 
                     /*
                      * TEMPORARY DEMO DATA
@@ -183,7 +216,10 @@ class MainActivity : ComponentActivity() {
                         database.treatmentDao()
 
                     val treatmentApiClient =
-                        TreatmentApiClient()
+                        TreatmentApiClient(
+                            tokenProvider =
+                                sessionStore
+                        )
 
                     val treatmentRepository =
                         TreatmentRepository(
@@ -295,7 +331,9 @@ class MainActivity : ComponentActivity() {
                             calfRegistrationDao =
                                 database.calfRegistrationDao(),
                             pendingSyncRepository =
-                                pendingSyncRepository
+                                pendingSyncRepository,
+                            tokenProvider =
+                                sessionStore
                         )
 
                     val calfRegistrationViewModel =
@@ -319,10 +357,15 @@ class MainActivity : ComponentActivity() {
 
                         BeeftechTheme {
 
-                            val movementRecords by
-                            movementViewModel
-                                .movements
-                                .collectAsState()
+                            AuthGate(
+                                sessionStore = sessionStore,
+                                viewModelFactory = loginViewModelFactory
+                            ) { loggedInUser ->
+
+                                val movementRecords by
+                                movementViewModel
+                                    .movements
+                                    .collectAsState()
 
                             val treatmentRecords by
                             treatmentViewModel
@@ -802,6 +845,7 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
+                }
                 }
 
                 is DatabaseResult.Error -> {

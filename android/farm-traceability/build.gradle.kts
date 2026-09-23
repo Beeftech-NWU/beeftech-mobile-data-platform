@@ -26,6 +26,10 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    lint {
+        disable += "StateFlowValueCalledInComposition"
+    }
 }
 
 dependencies {

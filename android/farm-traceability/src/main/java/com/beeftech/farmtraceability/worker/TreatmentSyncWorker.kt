@@ -5,6 +5,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.beeftech.database.DatabaseProvider
 import com.beeftech.database.repository.PendingSyncRepository
+import com.beeftech.database.security.TokenProviderRegistry
 import com.beeftech.farmtraceability.data.TreatmentApiClient
 import com.beeftech.farmtraceability.data.TreatmentRepository
 
@@ -28,6 +29,10 @@ class TreatmentSyncWorker(
             DatabaseProvider.getDatabase()
                 ?: return Result.failure()
 
+        val tokenProvider =
+            TokenProviderRegistry.get()
+                ?: return Result.retry()
+
         return try {
 
             val pendingSyncRepository =
@@ -44,7 +49,9 @@ class TreatmentSyncWorker(
                         pendingSyncRepository,
 
                     apiClient =
-                        TreatmentApiClient()
+                        TreatmentApiClient(
+                            tokenProvider = tokenProvider
+                        )
                 )
 
             /*
