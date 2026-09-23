@@ -3,41 +3,25 @@ package com.beeftech.farmtraceability.viewmodel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.work.Constraints
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
-import com.beeftech.database.entity.AnimalMovement
-import com.beeftech.farmtraceability.data.AnimalMovementRepository
-import com.beeftech.farmtraceability.worker.AnimalMovementSyncWorker
+import com.beeftech.database.dao.AnimalMovementDao
+import com.beeftech.database.entity.AnimalMovementEntity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.util.concurrent.TimeUnit
 
 class AnimalMovementViewModel(
-    private val repository: AnimalMovementRepository,
+    private val animalMovementDao: AnimalMovementDao,
     private val applicationContext: Context
 ) : ViewModel() {
 
     private val _movements =
-        MutableStateFlow<List<AnimalMovement>>(emptyList())
+        MutableStateFlow<List<AnimalMovementEntity>>(emptyList())
 
-    val movements: StateFlow<List<AnimalMovement>> =
+    val movements: StateFlow<List<AnimalMovementEntity>> =
         _movements.asStateFlow()
 
     init {
-        /*
-         * Safety-net synchronization.
-         *
-         * WorkManager will periodically check for pending movement
-         * records whenever network connectivity is available.
-         */
-        schedulePeriodicSync()
     }
 
     fun loadMovements(
@@ -52,7 +36,7 @@ class AnimalMovementViewModel(
         viewModelScope.launch {
 
             _movements.value =
-                repository.loadMovements(
+                animalMovementDao.getByAnimalId(
                     animalId
                 )
         }
@@ -91,210 +75,36 @@ class AnimalMovementViewModel(
 
         viewModelScope.launch {
 
-            val outcome =
-                repository.saveMovement(
-                    animalId = animalId,
-                    movementInformation = movementInformation,
-                    responsibleWorker = responsibleWorker
+            try {
+
+                val movement =
+                    AnimalMovementEntity(
+                        animalId = animalId,
+                        destinationFarmId = movementInformation,
+                        destinationPenId = "",
+                        movementDate = System.currentTimeMillis().toString(),
+                        notes = responsibleWorker
+                    )
+
+                animalMovementDao.insert(
+                    movement
                 )
-
-            /*
-             * Always reload from Room.
-             *
-             * This means the UI continues working even when
-             * the device has no internet connection.
-             */
-            _movements.value =
-                repository.loadMovements(
-                    animalId
-                )
-
-            val movement =
-                outcome.movement
-
-            if (movement == null) {
-
-                onResult(
-                    false,
-                    outcome.syncErrorMessage
-                        ?: "Unable to save movement record."
-                )
-
-                return@launch
-            }
-
-            if (
-                movement.syncStatus ==
-                AnimalMovementRepository.SYNC_STATUS_SYNCED
-            ) {
-
-                onResult(
-                    true,
-                    "Movement saved and synced successfully."
-                )
-
-            } else {
-
-                /*
-                 * The record is safely stored locally.
-                 *
-                 * Schedule a network-constrained worker. If the
-                 * device is offline, WorkManager waits. When
-                 * connectivity becomes available, Android can
-                 * execute the worker automatically.
-                 */
-                scheduleNetworkAvailableSync()
-
-                onResult(
-                    true,
-                    "Movement saved offline. It will sync automatically when internet is available."
-                )
-            }
-        }
-    }
-
-    fun retrySync(
-        animalId: String,
-        onResult: (Boolean, String) -> Unit = { _, _ -> }
-    ) {
-
-        viewModelScope.launch {
-
-            val outcome =
-                repository.syncPending()
-
-            if (animalId.isNotBlank()) {
 
                 _movements.value =
-                    repository.loadMovements(
+                    animalMovementDao.getByAnimalId(
                         animalId
                     )
-            }
-
-            if (outcome.syncedCount > 0) {
-
-                val message =
-                    if (outcome.syncedCount == 1) {
-                        "1 movement synced successfully."
-                    } else {
-                        "${outcome.syncedCount} movements synced successfully."
-                    }
 
                 onResult(
                     true,
-                    message
+                    "Movement record saved successfully."
                 )
-
-            } else if (
-                outcome.errorMessagesByRecordGuid.isNotEmpty()
-            ) {
-
-                /*
-                 * Keep an automatic retry waiting for connectivity.
-                 */
-                scheduleNetworkAvailableSync()
-
-                val message =
-                    outcome
-                        .errorMessagesByRecordGuid
-                        .values
-                        .filterNotNull()
-                        .firstOrNull {
-                            it.isNotBlank()
-                        }
-                        ?: "Pending movements could not be synced."
-
+            } catch (exception: Exception) {
                 onResult(
                     false,
-                    message
-                )
-
-            } else {
-
-                onResult(
-                    true,
-                    "There are no pending movements to sync."
+                    "Failed to save movement: ${exception.message}"
                 )
             }
         }
-    }
-
-    /*
-     * Immediate connectivity-triggered synchronization.
-     *
-     * If this is scheduled while offline, WorkManager waits
-     * until CONNECTED becomes true.
-     */
-    private fun scheduleNetworkAvailableSync() {
-
-        val constraints =
-            Constraints.Builder()
-                .setRequiredNetworkType(
-                    NetworkType.CONNECTED
-                )
-                .build()
-
-        val request =
-            OneTimeWorkRequestBuilder<AnimalMovementSyncWorker>()
-                .setConstraints(
-                    constraints
-                )
-                .build()
-
-        WorkManager
-            .getInstance(
-                applicationContext
-            )
-            .enqueueUniqueWork(
-                NETWORK_AVAILABLE_SYNC_WORK_NAME,
-                ExistingWorkPolicy.REPLACE,
-                request
-            )
-    }
-
-    /*
-     * 15-minute safety net.
-     *
-     * This is not relied upon for the first synchronization
-     * after connectivity returns. The one-time worker above
-     * handles that case.
-     */
-    private fun schedulePeriodicSync() {
-
-        val constraints =
-            Constraints.Builder()
-                .setRequiredNetworkType(
-                    NetworkType.CONNECTED
-                )
-                .build()
-
-        val request =
-            PeriodicWorkRequestBuilder<AnimalMovementSyncWorker>(
-                15,
-                TimeUnit.MINUTES
-            )
-                .setConstraints(
-                    constraints
-                )
-                .build()
-
-        WorkManager
-            .getInstance(
-                applicationContext
-            )
-            .enqueueUniquePeriodicWork(
-                PERIODIC_SYNC_WORK_NAME,
-                ExistingPeriodicWorkPolicy.KEEP,
-                request
-            )
-    }
-
-    companion object {
-
-        private const val NETWORK_AVAILABLE_SYNC_WORK_NAME =
-            "animal_movement_network_available_sync"
-
-        private const val PERIODIC_SYNC_WORK_NAME =
-            "animal_movement_periodic_sync"
     }
 }

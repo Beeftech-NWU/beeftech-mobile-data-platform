@@ -30,18 +30,8 @@ class AnimalMovementViewModelFactory(
             )
         ) {
 
-            val repository =
-                AnimalMovementRepository(
-                    animalMovementDao =
-                        animalMovementDao,
-                    pendingSyncRepository =
-                        pendingSyncRepository,
-                    apiClient =
-                        apiClient
-                )
-
             return AnimalMovementViewModel(
-                repository = repository,
+                animalMovementDao = animalMovementDao,
                 applicationContext = applicationContext
             ) as T
         }

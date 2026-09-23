@@ -8,7 +8,7 @@ import androidx.room.PrimaryKey
 import java.util.UUID
 
 @Entity(
-    tableName = "animal_weights",
+    tableName = "animal_media",
     foreignKeys = [
         ForeignKey(
             entity = AnimalEntity::class,
@@ -18,24 +18,23 @@ import java.util.UUID
         )
     ],
     indices = [
-        Index(value = ["animal_id"]),
-        Index(value = ["weigh_date"])
+        Index(value = ["animal_id"])
     ]
 )
-data class AnimalWeightEntity(
+data class AnimalMediaEntity(
     @PrimaryKey
-    @ColumnInfo(name = "weight_id")
-    val weightId: String = UUID.randomUUID().toString(),
+    @ColumnInfo(name = "media_id")
+    val mediaId: String = UUID.randomUUID().toString(),
 
     @ColumnInfo(name = "animal_id")
     val animalId: String,
 
-    @ColumnInfo(name = "weight_kg")
-    val weightKg: Double,
+    @ColumnInfo(name = "file_path")
+    val filePath: String,
 
-    @ColumnInfo(name = "weigh_date")
-    val weighDate: String,
+    @ColumnInfo(name = "media_type")
+    val mediaType: String, // e.g., "PHOTO", "VIDEO"
 
-    @ColumnInfo(name = "notes")
-    val notes: String? = null
+    @ColumnInfo(name = "created_at")
+    val createdAt: String
 )

@@ -8,7 +8,7 @@ import androidx.room.PrimaryKey
 import java.util.UUID
 
 @Entity(
-    tableName = "animal_weights",
+    tableName = "animal_purchases",
     foreignKeys = [
         ForeignKey(
             entity = AnimalEntity::class,
@@ -19,23 +19,28 @@ import java.util.UUID
     ],
     indices = [
         Index(value = ["animal_id"]),
-        Index(value = ["weigh_date"])
+        Index(value = ["purchase_date"])
     ]
 )
-data class AnimalWeightEntity(
+data class AnimalPurchaseEntity(
     @PrimaryKey
-    @ColumnInfo(name = "weight_id")
-    val weightId: String = UUID.randomUUID().toString(),
+    @ColumnInfo(name = "purchase_id")
+    val purchaseId: String = UUID.randomUUID().toString(),
 
     @ColumnInfo(name = "animal_id")
     val animalId: String,
 
-    @ColumnInfo(name = "weight_kg")
-    val weightKg: Double,
+    @ColumnInfo(name = "purchase_price")
+    val purchasePrice: Double,
 
-    @ColumnInfo(name = "weigh_date")
-    val weighDate: String,
+    @ColumnInfo(name = "purchase_date")
+    val purchaseDate: String,
+
+    @ColumnInfo(name = "seller_name")
+    val sellerName: String, // Replaces Supplier entity
 
     @ColumnInfo(name = "notes")
     val notes: String? = null
-)
+) {
+    val supplierName: String get() = sellerName
+}

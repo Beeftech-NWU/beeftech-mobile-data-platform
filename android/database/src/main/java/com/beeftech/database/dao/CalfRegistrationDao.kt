@@ -4,55 +4,46 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import com.beeftech.database.entity.CalfRegistration
+import com.beeftech.database.entity.CalfRegistrationEntity
+import kotlinx.coroutines.flow.Flow
+
+data class CalfWithParents(
+    val registrationId: String,
+    val registeredAnimalId: String,
+    val damId: String?,
+    val sireId: String?,
+    val birthWeightKg: Double?,
+    val calvingEase: String?,
+    val registrationDate: String
+) {
+    val animalId: String get() = registeredAnimalId
+}
 
 @Dao
 interface CalfRegistrationDao {
 
-    @Insert
-    suspend fun insert(calf: CalfRegistration)
-
-    /**
-     * Inserts a new calf registration, or replaces the existing row when a
-     * conflict occurs on the primary key or a unique index (e.g. `animalId`
-     * or `recordguid`). Used by callers that need "save or update" semantics
-     * (e.g. re-saving/editing an already-registered animal) without having
-     * to first delete the previous row.
-     */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsert(calf: CalfRegistration): Long
+    suspend fun insertCalfRegistration(registration: CalfRegistrationEntity)
 
-    @Query("SELECT * FROM calf_registrations")
-    suspend fun getAll(): List<CalfRegistration>
-
+    // Acceptance Criteria Query: "A join from calf registration to animal returns correct rows"
     @Query("""
-        SELECT EXISTS(
-            SELECT 1 
-            FROM calf_registrations 
-            WHERE animalId = :animalId 
-            LIMIT 1
-        )
+        SELECT 
+            cr.registration_id AS registrationId,
+            cr.registered_animal_id AS registeredAnimalId,
+            cr.dam_id AS damId,
+            cr.sire_id AS sireId,
+            cr.birth_weight_kg AS birthWeightKg,
+            cr.calving_ease AS calvingEase,
+            cr.registration_date AS registrationDate
+        FROM calf_registrations cr
+        INNER JOIN animals a ON cr.registered_animal_id = a.animalId
+        WHERE cr.registered_animal_id = :animalId
     """)
-    suspend fun existsByAnimalId(animalId: String): Boolean
+    fun getCalfRegistrationDetails(animalId: String): Flow<CalfWithParents?>
 
-    @Query("""
-        SELECT * 
-        FROM calf_registrations
-        WHERE animalId = :animalId
-        LIMIT 1
-    """)
-    suspend fun findByAnimalId(
-        animalId: String
-    ): CalfRegistration?
+    @Query("SELECT * FROM calf_registrations WHERE dam_id = :damId")
+    fun getOffspringByDam(damId: String): Flow<List<CalfRegistrationEntity>>
 
-    @Query("""
-        UPDATE calf_registrations
-        SET syncStatus = :syncStatus, syncedat = :syncedAt
-        WHERE animalId = :animalId
-    """)
-    suspend fun updateSyncStatus(
-        animalId: String,
-        syncStatus: String,
-        syncedAt: Long?
-    ): Int
+    @Query("SELECT * FROM calf_registrations WHERE sire_id = :sireId")
+    fun getOffspringBySire(sireId: String): Flow<List<CalfRegistrationEntity>>
 }

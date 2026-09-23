@@ -12,10 +12,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.beeftech.database.DatabaseProvider
-import com.beeftech.database.entity.AnimalMovement
-import com.beeftech.database.entity.LocationFeed
+import com.beeftech.database.entity.AnimalMovementEntity
+import com.beeftech.database.entity.AnimalPurchaseEntity
 import com.beeftech.database.entity.Mortality
-import com.beeftech.database.entity.Supplier
 import com.beeftech.database.entity.Treatment
 import com.beeftech.database.repository.SyncRepository
 import com.beeftech.farmtraceability.repository.FindAnimalRepository
@@ -44,7 +43,7 @@ fun FarmTraceabilityFlow(
 
     onFarmerRegistrationClick: () -> Unit = {},
 
-    movementRecords: List<AnimalMovement> = emptyList(),
+    movementRecords: List<AnimalMovementEntity> = emptyList(),
 
     onLoadMovements: (String) -> Unit = {},
 
@@ -91,7 +90,7 @@ fun FarmTraceabilityFlow(
 
     onLoadCostSummary: (String) -> Unit = {},
 
-    supplierRecords: List<Supplier> = emptyList(),
+    supplierRecords: List<AnimalPurchaseEntity> = emptyList(),
 
     onLoadSuppliers: (String) -> Unit = {},
 
@@ -103,7 +102,7 @@ fun FarmTraceabilityFlow(
         purchaseBatchNumber: String
     ) -> Unit = { _, _, _, _, _ -> },
 
-    locationFeedRecords: List<LocationFeed> = emptyList(),
+    locationFeedRecords: List<AnimalMovementEntity> = emptyList(),
 
     onLoadLocationFeed: (String) -> Unit = {},
 

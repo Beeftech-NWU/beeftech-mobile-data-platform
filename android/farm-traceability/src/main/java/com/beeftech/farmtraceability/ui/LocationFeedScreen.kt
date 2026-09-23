@@ -26,7 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.beeftech.database.entity.LocationFeed
+import com.beeftech.database.entity.AnimalMovementEntity
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -41,7 +41,7 @@ fun LocationFeedScreen(
     rationCost: String = "",
     destinationOptions: List<String> = emptyList(),
     rationOptions: List<String> = emptyList(),
-    locationFeedRecords: List<LocationFeed> = emptyList(),
+    locationFeedRecords: List<AnimalMovementEntity> = emptyList(),
     onBackClick: () -> Unit = {},
     onDestinationChange: (String) -> Unit = {},
     onDaysInDestinationChange: (String) -> Unit = {},
@@ -270,90 +270,40 @@ fun LocationFeedScreen(
                     )
                 }
             } else {
-                locationFeedRecords
-                    .forEach { record ->
+                locationFeedRecords.forEach { record ->
+                    TraceabilityCard {
+                        Text(
+                            text = record.destinationFarmId,
+                            fontWeight = FontWeight.Bold,
+                            color = BeeftechText
+                        )
 
-                        TraceabilityCard {
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        val feedType = record.feedLocationType
+                        if (!feedType.isNullOrEmpty()) {
                             Text(
-                                text =
-                                    record.destination,
-                                fontWeight =
-                                    FontWeight.Bold,
-                                color =
-                                    BeeftechText
-                            )
-
-                            Spacer(
-                                modifier =
-                                    Modifier.height(
-                                        6.dp
-                                    )
-                            )
-
-                            Text(
-                                text =
-                                    "Days in destination: ${record.daysInDestination}",
-                                color =
-                                    BeeftechMutedText
-                            )
-
-                            Text(
-                                text =
-                                    "Ration: ${record.rationName}",
-                                color =
-                                    BeeftechMutedText
-                            )
-
-                            Text(
-                                text =
-                                    "Ration days: ${record.rationDays}",
-                                color =
-                                    BeeftechMutedText
-                            )
-
-                            Text(
-                                text =
-                                    "Ration cost: R%.2f"
-                                        .format(
-                                            record.rationCost
-                                        ),
-                                color =
-                                    BeeftechMutedText
-                            )
-
-                            Spacer(
-                                modifier =
-                                    Modifier.height(
-                                        5.dp
-                                    )
-                            )
-
-                            val formattedDate =
-                                SimpleDateFormat(
-                                    "dd MMM yyyy HH:mm",
-                                    Locale
-                                        .getDefault()
-                                ).format(
-                                    Date(
-                                        record.timestamp
-                                    )
-                                )
-
-                            Text(
-                                text =
-                                    formattedDate,
-                                color =
-                                    BeeftechMutedText
+                                text = "Ration: $feedType",
+                                color = BeeftechMutedText
                             )
                         }
 
-                        Spacer(
-                            modifier =
-                                Modifier.height(
-                                    12.dp
-                                )
+                        val notes = record.notes
+                        if (!notes.isNullOrEmpty()) {
+                            Text(
+                                text = notes,
+                                color = BeeftechMutedText
+                            )
+                        }
+
+                        Text(
+                            text = "Date: ${record.movementDate}",
+                            color = BeeftechMutedText
                         )
                     }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
             }
 
             Spacer(

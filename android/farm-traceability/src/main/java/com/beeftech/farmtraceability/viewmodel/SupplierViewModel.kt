@@ -2,29 +2,31 @@ package com.beeftech.farmtraceability.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.beeftech.database.dao.SupplierDao
-import com.beeftech.database.entity.Supplier
+import com.beeftech.database.dao.AnimalPurchaseDao
+import com.beeftech.database.entity.AnimalPurchaseEntity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class SupplierViewModel(
-    private val supplierDao: SupplierDao
+    private val animalPurchaseDao: AnimalPurchaseDao
 ) : ViewModel() {
 
-    private val _suppliers =
-        MutableStateFlow<List<Supplier>>(emptyList())
+    private val _purchases =
+        MutableStateFlow<List<AnimalPurchaseEntity>>(emptyList())
 
-    val suppliers: StateFlow<List<Supplier>> =
-        _suppliers.asStateFlow()
+    val purchases: StateFlow<List<AnimalPurchaseEntity>> =
+        _purchases.asStateFlow()
+
+    val suppliers: StateFlow<List<AnimalPurchaseEntity>> get() = purchases
 
     fun loadSuppliers(
         animalId: String
     ) {
 
         if (animalId.isBlank()) {
-            _suppliers.value = emptyList()
+            _purchases.value = emptyList()
             return
         }
 
@@ -32,15 +34,14 @@ class SupplierViewModel(
 
             try {
 
-                _suppliers.value =
-                    supplierDao.getByAnimalId(
-                        animalId
-                    )
+                animalPurchaseDao.getPurchasesForAnimal(animalId)
+                    .collect { list ->
+                        _purchases.value = list
+                    }
 
             } catch (exception: Exception) {
 
-                _suppliers.value =
-                    emptyList()
+                _purchases.value = emptyList()
             }
         }
     }
@@ -55,42 +56,12 @@ class SupplierViewModel(
     ) {
 
         if (animalId.isBlank()) {
-            onResult(
-                false,
-                "Please select an animal first."
-            )
+            onResult(false, "Please select an animal first.")
             return
         }
 
         if (supplierName.isBlank()) {
-            onResult(
-                false,
-                "Please enter the supplier name."
-            )
-            return
-        }
-
-        if (glnNumber.isBlank()) {
-            onResult(
-                false,
-                "Please enter the GLN number."
-            )
-            return
-        }
-
-        if (purchaseDate.isBlank()) {
-            onResult(
-                false,
-                "Please enter the purchase date."
-            )
-            return
-        }
-
-        if (purchaseBatchNumber.isBlank()) {
-            onResult(
-                false,
-                "Please enter the purchase batch number."
-            )
+            onResult(false, "Please enter the seller/supplier name.")
             return
         }
 
@@ -98,41 +69,21 @@ class SupplierViewModel(
 
             try {
 
-                val supplier =
-                    Supplier(
-                        animalId = animalId,
-                        supplierName =
-                            supplierName.trim(),
-                        glnNumber =
-                            glnNumber.trim(),
-                        purchaseDate =
-                            purchaseDate.trim(),
-                        purchaseBatchNumber =
-                            purchaseBatchNumber.trim(),
-                        timestamp =
-                            System.currentTimeMillis()
-                    )
-
-                supplierDao.insert(
-                    supplier
+                val purchase = AnimalPurchaseEntity(
+                    animalId = animalId,
+                    purchasePrice = 0.0,
+                    purchaseDate = purchaseDate.ifBlank { System.currentTimeMillis().toString() },
+                    sellerName = supplierName.trim(),
+                    notes = "GLN: $glnNumber, Batch: $purchaseBatchNumber"
                 )
 
-                _suppliers.value =
-                    supplierDao.getByAnimalId(
-                        animalId
-                    )
+                animalPurchaseDao.insertPurchase(purchase)
 
-                onResult(
-                    true,
-                    "Supplier record saved successfully."
-                )
+                onResult(true, "Purchase record saved successfully.")
 
             } catch (exception: Exception) {
 
-                onResult(
-                    false,
-                    "Unable to save supplier record."
-                )
+                onResult(false, "Unable to save purchase record.")
             }
         }
     }

@@ -3,7 +3,6 @@ package com.beeftech.farmtraceability.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.beeftech.database.dao.AnimalCostDao
-import com.beeftech.database.dao.LocationFeedDao
 import com.beeftech.database.dao.TreatmentDao
 import com.beeftech.database.entity.AnimalCost
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,7 +22,6 @@ data class CostSummaryUiState(
 
 class CostSummaryViewModel(
     private val treatmentDao: TreatmentDao,
-    private val locationFeedDao: LocationFeedDao,
     private val animalCostDao: AnimalCostDao
 ) : ViewModel() {
 
@@ -40,10 +38,7 @@ class CostSummaryViewModel(
     ) {
 
         if (animalId.isBlank()) {
-
-            _uiState.value =
-                CostSummaryUiState()
-
+            _uiState.value = CostSummaryUiState()
             return
         }
 
@@ -68,10 +63,7 @@ class CostSummaryViewModel(
                         animalId
                     )
 
-                val feedCost =
-                    locationFeedDao.getTotalRationCostByAnimalId(
-                        animalId
-                    )
+                val feedCost = 0.0
 
                 val handlingCost =
                     animalCostDao.getTotalByType(
@@ -95,26 +87,13 @@ class CostSummaryViewModel(
 
                 _uiState.value =
                     CostSummaryUiState(
-                        transportCost =
-                            transportCost,
-
-                        processingCost =
-                            processingCost,
-
-                        treatmentCost =
-                            treatmentCost,
-
-                        feedCost =
-                            feedCost,
-
-                        handlingCost =
-                            handlingCost,
-
-                        interestCost =
-                            interestCost,
-
-                        totalAnimalCost =
-                            totalAnimalCost
+                        transportCost = transportCost,
+                        processingCost = processingCost,
+                        treatmentCost = treatmentCost,
+                        feedCost = feedCost,
+                        handlingCost = handlingCost,
+                        interestCost = interestCost,
+                        totalAnimalCost = totalAnimalCost
                     )
 
             } catch (exception: Exception) {
@@ -139,57 +118,32 @@ class CostSummaryViewModel(
     ) {
 
         if (animalId.isBlank()) {
-
-            onResult(
-                false,
-                "Please select an animal first."
-            )
-
+            onResult(false, "Please select an animal first.")
             return
         }
 
-        val allowedTypes =
-            listOf(
-                COST_TRANSPORT,
-                COST_PROCESSING,
-                COST_HANDLING,
-                COST_INTEREST
-            )
+        val allowedTypes = listOf(
+            COST_TRANSPORT,
+            COST_PROCESSING,
+            COST_HANDLING,
+            COST_INTEREST
+        )
 
         if (costType !in allowedTypes) {
-
-            onResult(
-                false,
-                "Invalid cost type."
-            )
-
+            onResult(false, "Invalid cost type.")
             return
         }
 
-        val cleanedAmount =
-            amountText
-                .replace(
-                    "R",
-                    "",
-                    ignoreCase = true
-                )
-                .replace(" ", "")
-                .replace(",", ".")
-                .trim()
+        val cleanedAmount = amountText
+            .replace("R", "", ignoreCase = true)
+            .replace(" ", "")
+            .replace(",", ".")
+            .trim()
 
-        val amount =
-            cleanedAmount.toDoubleOrNull()
+        val amount = cleanedAmount.toDoubleOrNull()
 
-        if (
-            amount == null ||
-            amount < 0
-        ) {
-
-            onResult(
-                false,
-                "Please enter a valid cost amount."
-            )
-
+        if (amount == null || amount < 0) {
+            onResult(false, "Please enter a valid cost amount.")
             return
         }
 
@@ -199,60 +153,31 @@ class CostSummaryViewModel(
 
                 animalCostDao.insert(
                     AnimalCost(
-                        animalId =
-                            animalId,
-
-                        costType =
-                            costType,
-
-                        amount =
-                            amount,
-
-                        description =
-                            description.trim(),
-
-                        gpsLat =
-                            gpsLat,
-
-                        gpsLng =
-                            gpsLng,
-
-                        timestamp =
-                            System.currentTimeMillis()
+                        animalId = animalId,
+                        costType = costType,
+                        amount = amount,
+                        description = description.trim(),
+                        gpsLat = gpsLat,
+                        gpsLng = gpsLng,
+                        timestamp = System.currentTimeMillis()
                     )
                 )
 
-                loadCostSummary(
-                    animalId
-                )
+                loadCostSummary(animalId)
 
-                onResult(
-                    true,
-                    "Cost saved successfully."
-                )
+                onResult(true, "Cost saved successfully.")
 
             } catch (exception: Exception) {
 
-                onResult(
-                    false,
-                    "Unable to save cost."
-                )
+                onResult(false, "Unable to save cost.")
             }
         }
     }
 
     companion object {
-
-        const val COST_TRANSPORT =
-            "TRANSPORT"
-
-        const val COST_PROCESSING =
-            "PROCESSING"
-
-        const val COST_HANDLING =
-            "HANDLING"
-
-        const val COST_INTEREST =
-            "INTEREST"
+        const val COST_TRANSPORT = "TRANSPORT"
+        const val COST_PROCESSING = "PROCESSING"
+        const val COST_HANDLING = "HANDLING"
+        const val COST_INTEREST = "INTEREST"
     }
 }

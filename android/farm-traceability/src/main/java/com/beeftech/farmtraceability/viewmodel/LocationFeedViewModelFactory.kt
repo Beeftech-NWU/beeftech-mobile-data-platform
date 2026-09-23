@@ -2,10 +2,10 @@ package com.beeftech.farmtraceability.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.beeftech.database.dao.LocationFeedDao
+import com.beeftech.database.dao.AnimalMovementDao
 
 class LocationFeedViewModelFactory(
-    private val locationFeedDao: LocationFeedDao
+    private val animalMovementDao: AnimalMovementDao
 ) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
@@ -20,8 +20,7 @@ class LocationFeedViewModelFactory(
         ) {
 
             return LocationFeedViewModel(
-                locationFeedDao =
-                    locationFeedDao
+                animalMovementDao = animalMovementDao
             ) as T
         }
 

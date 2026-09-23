@@ -4,10 +4,8 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.beeftech.database.entity.AnimalCost
-import com.beeftech.database.entity.AnimalMovement
-import com.beeftech.database.entity.LocationFeed
+import com.beeftech.database.entity.AnimalMovementEntity
 import com.beeftech.database.entity.Mortality
-import com.beeftech.database.entity.Supplier
 import com.beeftech.database.entity.Treatment
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -118,18 +116,21 @@ class DatabaseMigration6To7Test {
             initialDatabase
                 .animalMovementDao()
                 .insert(
-                    AnimalMovement(
+                    AnimalMovementEntity(
                         animalId =
                             "MIG-001",
 
-                        movementType =
+                        destinationFarmId =
                             "Moved to Feedlot A",
 
-                        responsibleWorker =
-                            "Migration Worker",
+                        destinationPenId =
+                            "",
 
-                        timestamp =
-                            1000L
+                        movementDate =
+                            "1000",
+
+                        notes =
+                            "Migration Worker"
                     )
                 )
 
@@ -178,57 +179,6 @@ class DatabaseMigration6To7Test {
 
                         timestamp =
                             3000L
-                    )
-                )
-
-            initialDatabase
-                .supplierDao()
-                .insert(
-                    Supplier(
-                        animalId =
-                            "MIG-001",
-
-                        supplierName =
-                            "Migration Farm",
-
-                        glnNumber =
-                            "6001234567890",
-
-                        purchaseDate =
-                            "13/09/2026",
-
-                        purchaseBatchNumber =
-                            "MIG-SUP-001",
-
-                        timestamp =
-                            4000L
-                    )
-                )
-
-            initialDatabase
-                .locationFeedDao()
-                .insert(
-                    LocationFeed(
-                        animalId =
-                            "MIG-001",
-
-                        destination =
-                            "Feedlot A",
-
-                        daysInDestination =
-                            14,
-
-                        rationName =
-                            "Grower Ration",
-
-                        rationDays =
-                            14,
-
-                        rationCost =
-                            500.0,
-
-                        timestamp =
-                            5000L
                     )
                 )
 
@@ -389,45 +339,6 @@ class DatabaseMigration6To7Test {
                 mortalities
                     .first()
                     .responsibleWorker
-            )
-
-            val suppliers =
-                upgradedDatabase
-                    .supplierDao()
-                    .getByAnimalId(
-                        "MIG-001"
-                    )
-
-            assertEquals(
-                1,
-                suppliers.size
-            )
-
-            assertEquals(
-                "Migration Farm",
-                suppliers
-                    .first()
-                    .supplierName
-            )
-
-            val locationFeedRecords =
-                upgradedDatabase
-                    .locationFeedDao()
-                    .getByAnimalId(
-                        "MIG-001"
-                    )
-
-            assertEquals(
-                1,
-                locationFeedRecords.size
-            )
-
-            assertEquals(
-                500.0,
-                locationFeedRecords
-                    .first()
-                    .rationCost,
-                0.001
             )
 
             /*
