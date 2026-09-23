@@ -1,51 +1,52 @@
 package com.beeftech.calfregistration.fakes
 
 import com.beeftech.database.dao.CalfRegistrationDao
-import com.beeftech.database.entity.CalfRegistration
+import com.beeftech.database.dao.CalfWithParents
+import com.beeftech.database.entity.CalfRegistrationEntity
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 
 /**
- * Simple in-memory fake of [CalfRegistrationDao], keyed by `animalId`
- * (mirroring the real table's unique index), used to unit test the
- * calf-registration repository/viewmodel without pulling in Room/Robolectric.
+ * Simple in-memory fake of [CalfRegistrationDao], keyed by `registeredAnimalId`,
+ * used to unit test the calf-registration repository/viewmodel without Room/Robolectric.
  */
 class FakeCalfRegistrationDao : CalfRegistrationDao {
 
-    private val storageByAnimalId = mutableMapOf<String, CalfRegistration>()
-    private var nextId = 1L
+    private val storageByAnimalId = mutableMapOf<String, CalfRegistrationEntity>()
 
-    override suspend fun insert(calf: CalfRegistration) {
-        require(!storageByAnimalId.containsKey(calf.animalId)) {
-            "UNIQUE constraint failed: animalId already exists"
-        }
-        storageByAnimalId[calf.animalId] = calf.copy(id = nextId++)
+    override suspend fun insertCalfRegistration(registration: CalfRegistrationEntity) {
+        storageByAnimalId[registration.registeredAnimalId] = registration
     }
 
-    override suspend fun upsert(calf: CalfRegistration): Long {
-        val id = if (calf.id != 0L) calf.id else nextId++
-        val withId = calf.copy(id = id)
-        storageByAnimalId[calf.animalId] = withId
-        return id
+    override fun getCalfRegistrationDetails(animalId: String): Flow<CalfWithParents?> {
+        val entity = storageByAnimalId[animalId] ?: return flowOf(null)
+        return flowOf(
+            CalfWithParents(
+                registrationId = entity.registrationId,
+                registeredAnimalId = entity.registeredAnimalId,
+                damId = entity.damId,
+                sireId = entity.sireId,
+                birthWeightKg = entity.birthWeightKg,
+                calvingEase = entity.calvingEase,
+                registrationDate = entity.registrationDate
+            )
+        )
     }
 
-    override suspend fun getAll(): List<CalfRegistration> {
-        return storageByAnimalId.values.toList()
+    override fun getOffspringByDam(damId: String): Flow<List<CalfRegistrationEntity>> {
+        val list = storageByAnimalId.values.filter { it.damId == damId }
+        return flowOf(list)
     }
 
-    override suspend fun existsByAnimalId(animalId: String): Boolean {
-        return storageByAnimalId.containsKey(animalId)
+    override fun getOffspringBySire(sireId: String): Flow<List<CalfRegistrationEntity>> {
+        val list = storageByAnimalId.values.filter { it.sireId == sireId }
+        return flowOf(list)
     }
 
-    override suspend fun findByAnimalId(animalId: String): CalfRegistration? {
-        return storageByAnimalId[animalId]
+    override fun getAllCalfRegistrations(): Flow<List<CalfRegistrationEntity>> {
+        return flowOf(storageByAnimalId.values.toList())
     }
 
-    override suspend fun updateSyncStatus(
-        animalId: String,
-        syncStatus: String,
-        syncedAt: Long?
-    ): Int {
-        val existing = storageByAnimalId[animalId] ?: return 0
-        storageByAnimalId[animalId] = existing.copy(syncStatus = syncStatus, syncedat = syncedAt)
-        return 1
-    }
+    fun existsByAnimalId(animalId: String): Boolean = storageByAnimalId.containsKey(animalId)
+    fun findByAnimalId(animalId: String): CalfRegistrationEntity? = storageByAnimalId[animalId]
 }

@@ -1,7 +1,7 @@
 package com.beeftech.calfregistration
 
 import com.beeftech.calfregistration.data.CalfRegistrationApiClient
-import com.beeftech.database.entity.CalfRegistration
+import com.beeftech.database.entity.CalfRegistrationEntity
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -17,18 +17,14 @@ import org.junit.Test
 
 class CalfRegistrationApiClientTest {
 
-    private fun buildCalf(animalId: String = "RMB12345") = CalfRegistration(
-        id = 1,
-        animalId = animalId,
-        birthdate = 111L,
-        breed = "Bonsmara",
-        gpsLat = 0.0,
-        gpsLng = 0.0,
-        captureAt = 222L,
-        deviceId = "TEST-DEVICE",
-        recordguid = "guid-1",
-        syncStatus = "PENDING",
-        syncedat = null
+    private fun buildCalf(animalId: String = "RMB12345") = CalfRegistrationEntity(
+        registrationId = "guid-1",
+        registeredAnimalId = animalId,
+        damId = null,
+        sireId = null,
+        birthWeightKg = null,
+        calvingEase = null,
+        registrationDate = "2023-01-01"
     )
 
     @Test

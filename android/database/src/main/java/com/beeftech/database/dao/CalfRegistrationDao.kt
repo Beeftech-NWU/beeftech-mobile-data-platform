@@ -46,4 +46,7 @@ interface CalfRegistrationDao {
 
     @Query("SELECT * FROM calf_registrations WHERE sire_id = :sireId")
     fun getOffspringBySire(sireId: String): Flow<List<CalfRegistrationEntity>>
+
+    @Query("SELECT * FROM calf_registrations")
+    fun getAllCalfRegistrations(): Flow<List<CalfRegistrationEntity>>
 }

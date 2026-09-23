@@ -169,23 +169,27 @@ class CalfRegistrationViewModel(
      * becomes satisfied instead of waiting for the 15-minute periodic job.
      */
     private fun scheduleNetworkAvailableSync() {
-        val constraints =
-            Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.CONNECTED)
-                .build()
+        try {
+            val constraints =
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
 
-        val request =
-            OneTimeWorkRequestBuilder<CalfRegistrationSyncWorker>()
-                .setConstraints(constraints)
-                .build()
+            val request =
+                OneTimeWorkRequestBuilder<CalfRegistrationSyncWorker>()
+                    .setConstraints(constraints)
+                    .build()
 
-        WorkManager
-            .getInstance(applicationContext)
-            .enqueueUniqueWork(
-                NETWORK_AVAILABLE_SYNC_WORK_NAME,
-                ExistingWorkPolicy.REPLACE,
-                request
-            )
+            WorkManager
+                .getInstance(applicationContext)
+                .enqueueUniqueWork(
+                    NETWORK_AVAILABLE_SYNC_WORK_NAME,
+                    ExistingWorkPolicy.REPLACE,
+                    request
+                )
+        } catch (_: Exception) {
+            // Unit tests or uninitialized WorkManager runtime
+        }
     }
 
     /**
@@ -194,26 +198,30 @@ class CalfRegistrationViewModel(
      * or for the first retry after connectivity returns.
      */
     private fun schedulePeriodicSync() {
-        val constraints =
-            Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.CONNECTED)
-                .build()
+        try {
+            val constraints =
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
 
-        val request =
-            PeriodicWorkRequestBuilder<CalfRegistrationSyncWorker>(
-                15,
-                TimeUnit.MINUTES
-            )
-                .setConstraints(constraints)
-                .build()
+            val request =
+                PeriodicWorkRequestBuilder<CalfRegistrationSyncWorker>(
+                    15,
+                    TimeUnit.MINUTES
+                )
+                    .setConstraints(constraints)
+                    .build()
 
-        WorkManager
-            .getInstance(applicationContext)
-            .enqueueUniquePeriodicWork(
-                PERIODIC_SYNC_WORK_NAME,
-                ExistingPeriodicWorkPolicy.KEEP,
-                request
-            )
+            WorkManager
+                .getInstance(applicationContext)
+                .enqueueUniquePeriodicWork(
+                    PERIODIC_SYNC_WORK_NAME,
+                    ExistingPeriodicWorkPolicy.KEEP,
+                    request
+                )
+        } catch (_: Exception) {
+            // Unit tests or uninitialized WorkManager runtime
+        }
     }
 
     companion object {

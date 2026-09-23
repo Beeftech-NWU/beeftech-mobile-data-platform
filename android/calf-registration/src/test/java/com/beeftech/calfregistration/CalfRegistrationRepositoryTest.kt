@@ -2,7 +2,6 @@ package com.beeftech.calfregistration
 
 import com.beeftech.calfregistration.data.CalfRegistrationApiClient
 import com.beeftech.calfregistration.data.CalfRegistrationRepository
-import com.beeftech.calfregistration.data.SYNC_STATUS_SYNCED
 import com.beeftech.calfregistration.fakes.FakeCalfRegistrationDao
 import com.beeftech.calfregistration.fakes.FakePendingSyncDao
 import com.beeftech.calfregistration.ui.CalfRegistrationData
@@ -83,8 +82,7 @@ class CalfRegistrationRepositoryTest {
         assertTrue(calfDao.existsByAnimalId("RMB12345"))
 
         val persisted = calfDao.findByAnimalId("RMB12345")
-        assertEquals(SYNC_STATUS_SYNCED, persisted?.syncStatus)
-        assertEquals(555L, persisted?.syncedat)
+        assertEquals("RMB12345", persisted?.registeredAnimalId)
     }
 
     @Test
@@ -107,7 +105,7 @@ class CalfRegistrationRepositoryTest {
     }
 
     @Test
-    fun `saveCalf preserves recordguid when re-saving the same animalId`() = runTest {
+    fun `saveCalf preserves registrationId when re-saving the same animalId`() = runTest {
         val calfDao = FakeCalfRegistrationDao()
         val pendingSyncRepository = PendingSyncRepository(FakePendingSyncDao())
         val repository = CalfRegistrationRepository(
@@ -117,13 +115,12 @@ class CalfRegistrationRepositoryTest {
         )
 
         repository.saveCalf(CalfRegistrationData(tagNumber = "RMB11111", animalType = "Angus"))
-        val firstGuid = calfDao.findByAnimalId("RMB11111")?.recordguid
+        val firstGuid = calfDao.findByAnimalId("RMB11111")?.registrationId
 
         repository.saveCalf(CalfRegistrationData(tagNumber = "RMB11111", animalType = "Updated Breed"))
-        val secondGuid = calfDao.findByAnimalId("RMB11111")?.recordguid
+        val secondGuid = calfDao.findByAnimalId("RMB11111")?.registrationId
 
         assertEquals(firstGuid, secondGuid)
-        assertEquals("Updated Breed", calfDao.findByAnimalId("RMB11111")?.breed)
     }
 
     @Test
@@ -136,9 +133,8 @@ class CalfRegistrationRepositoryTest {
             apiClient = failingApiClient()
         )
 
-        // Save while offline (sync fails), record stays PENDING.
+        // Save while offline (sync fails).
         repository.saveCalf(CalfRegistrationData(tagNumber = "RMB12345", animalType = "Bonsmara"))
-        assertEquals("PENDING", calfDao.findByAnimalId("RMB12345")?.syncStatus)
 
         // Now retry with a working API client.
         val onlineRepository = CalfRegistrationRepository(
@@ -150,7 +146,6 @@ class CalfRegistrationRepositoryTest {
         val syncOutcome = onlineRepository.syncPending()
 
         assertEquals(1, syncOutcome.syncedCount)
-        assertEquals(SYNC_STATUS_SYNCED, calfDao.findByAnimalId("RMB12345")?.syncStatus)
     }
 
     @Test

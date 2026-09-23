@@ -1,5 +1,6 @@
 package com.beeftech.calfregistration
 
+import android.content.Context
 import com.beeftech.calfregistration.data.CalfRegistrationApiClient
 import com.beeftech.calfregistration.data.CalfRegistrationRepository
 import com.beeftech.calfregistration.fakes.FakeCalfRegistrationDao
@@ -27,24 +28,17 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.mockito.Mockito
 
-/**
- * These tests avoid virtual-time [kotlinx.coroutines.test.TestDispatcher]s
- * on purpose: [CalfRegistrationApiClient] exercises a real Ktor
- * `HttpClient` (backed by [MockEngine]), which internally dispatches work
- * on real dispatchers rather than a controllable [kotlinx.coroutines.test.TestCoroutineScheduler].
- * Mixing that with virtual time leads to flaky "did the coroutine finish
- * yet?" races. Instead, Main is swapped for the real
- * [Dispatchers.Unconfined], and each test synchronizes on the ViewModel's
- * `onResult` callback (or, where there is none, on the fact that the
- * fakes/mapper never truly suspend) using real coroutine primitives.
- */
 @OptIn(ExperimentalCoroutinesApi::class)
 class CalfRegistrationViewModelTest {
+
+    private val mockContext = Mockito.mock(Context::class.java)
 
     @Before
     fun setUp() {
         Dispatchers.setMain(Dispatchers.Unconfined)
+        Mockito.`when`(mockContext.applicationContext).thenReturn(mockContext)
     }
 
     @After
@@ -88,7 +82,7 @@ class CalfRegistrationViewModelTest {
             pendingSyncRepository = PendingSyncRepository(FakePendingSyncDao()),
             apiClient = apiClient
         )
-        return CalfRegistrationViewModel(repository)
+        return CalfRegistrationViewModel(repository, mockContext)
     }
 
     @Test
@@ -122,7 +116,7 @@ class CalfRegistrationViewModelTest {
 
         repository.saveCalf(CalfRegistrationData(tagNumber = "RMB1"))
 
-        val viewModel = CalfRegistrationViewModel(repository)
+        val viewModel = CalfRegistrationViewModel(repository, mockContext)
 
         assertEquals(1, viewModel.registeredCalves.value.size)
         assertEquals("RMB1", viewModel.registeredCalves.value.first().tagNumber)
