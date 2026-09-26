@@ -31,6 +31,9 @@ object DatabaseFactory {
         )
         db = database
 
+        // Must run before SchemaUtils.create, which never alters an existing table.
+        CalfRegistrationSchemaMigration.run(database)
+
         transaction(database) {
 
             SchemaUtils.create(
