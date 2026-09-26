@@ -22,16 +22,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import com.beeftech.calfregistration.data.CalfCaptureContext
+import com.beeftech.calfregistration.data.CalfRegistrationMappers
+import com.beeftech.calfregistration.ui.CalfRegistrationData
 import com.beeftech.calfregistration.ui.CalfRegistrationFlow
 import com.beeftech.calfregistration.viewmodel.CalfRegistrationViewModel
 import com.beeftech.calfregistration.viewmodel.CalfRegistrationViewModelFactory
 import com.beeftech.database.DatabaseProvider
 import com.beeftech.database.DatabaseResult
-import com.beeftech.database.entity.Animal
-import com.beeftech.database.entity.CalfRegistrationEntity
 import com.beeftech.database.repository.PendingSyncRepository
 import com.beeftech.database.repository.SyncRepository
-import kotlinx.coroutines.flow.firstOrNull
 import com.beeftech.authentication.data.AuthApiClient
 import com.beeftech.authentication.data.AuthRepository
 import com.beeftech.authentication.data.EncryptedDeviceIdProvider
@@ -130,50 +130,38 @@ class MainActivity : ComponentActivity() {
                     /*
                      * TEMPORARY DEMO DATA
                      *
-                     * Create TEST-001 only if it does not
-                     * already exist.
+                     * Seed one demo calf through the same transactional path
+                     * real registrations use, only if its tag is not taken.
                      */
                     withContext(Dispatchers.IO) {
-
-                        val animalDao =
-                            database.animalDao()
 
                         val calfRegistrationDao =
                             database.calfRegistrationDao()
 
-                        val existingAnimal =
-                            animalDao.getById("TEST-001")
-                                ?: calfRegistrationDao.getCalfRegistrationDetails(
-                                    "TEST-001"
-                                ).firstOrNull()
+                        if (calfRegistrationDao.findAnimalIdByTag(DEMO_TAG) == null) {
 
-                        if (existingAnimal == null) {
-
-                            val demoAnimalRecord =
-                                Animal(
-                                    animalId = "TEST-001",
-                                    tagNumber = "TAG-001",
-                                    birthdate = System.currentTimeMillis(),
-                                    breed = "Bonsmara",
-                                    gpsLat = -26.0,
-                                    gpsLng = 28.0,
-                                    captureAt = System.currentTimeMillis(),
-                                    deviceId = "demo-device",
-                                    recordguid = "guid-test-001"
+                            val seed =
+                                CalfRegistrationMappers.toNewCalf(
+                                    formData =
+                                        CalfRegistrationData(
+                                            tagNumber = DEMO_TAG,
+                                            animalType = "BNM — Bonsmara"
+                                        ),
+                                    capture =
+                                        CalfCaptureContext(
+                                            deviceId = "demo-device",
+                                            gpsLat = -26.0,
+                                            gpsLng = 28.0
+                                        ),
+                                    damAnimalId = null,
+                                    sireAnimalId = null
                                 )
 
-                            animalDao.insert(demoAnimalRecord)
-
-                            val demoAnimal =
-                                CalfRegistrationEntity(
-                                    registeredAnimalId = "TEST-001",
-                                    damId = null,
-                                    sireId = null,
-                                    registrationDate = "2026-09-18"
-                                )
-
-                            calfRegistrationDao.insertCalfRegistration(
-                                demoAnimal
+                            calfRegistrationDao.registerCalf(
+                                seed.animal,
+                                seed.identifiers,
+                                seed.media,
+                                seed.registration
                             )
                         }
                     }
@@ -333,7 +321,10 @@ class MainActivity : ComponentActivity() {
                             pendingSyncRepository =
                                 pendingSyncRepository,
                             tokenProvider =
-                                sessionStore
+                                sessionStore,
+                            deviceIdProvider = {
+                                EncryptedDeviceIdProvider(applicationContext).getDeviceId()
+                            }
                         )
 
                     val calfRegistrationViewModel =
@@ -898,3 +889,5 @@ class MainActivity : ComponentActivity() {
         DatabaseProvider.close()
     }
 }
+
+private const val DEMO_TAG = "Blu0000001"
