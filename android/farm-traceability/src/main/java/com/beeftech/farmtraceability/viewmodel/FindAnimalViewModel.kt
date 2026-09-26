@@ -2,7 +2,7 @@ package com.beeftech.farmtraceability.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.beeftech.database.dao.CalfWithParents
+import com.beeftech.database.dao.CalfRegistrationView
 import com.beeftech.farmtraceability.repository.FindAnimalRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,7 +16,7 @@ sealed interface FindAnimalUiState {
     data object Loading : FindAnimalUiState
 
     data class Found(
-        val animal: CalfWithParents
+        val animal: CalfRegistrationView
     ) : FindAnimalUiState
 
     data class NotFound(
@@ -40,9 +40,7 @@ class FindAnimalViewModel(
 
     fun findAnimal(animalReference: String) {
 
-        val reference = animalReference
-            .trim()
-            .uppercase()
+        val reference = animalReference.trim()
 
         if (reference.isBlank()) {
             _uiState.value =

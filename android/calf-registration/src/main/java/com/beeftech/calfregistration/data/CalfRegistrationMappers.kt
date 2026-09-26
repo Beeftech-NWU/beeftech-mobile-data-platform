@@ -1,7 +1,7 @@
 package com.beeftech.calfregistration.data
 
 import com.beeftech.calfregistration.ui.CalfRegistrationData
-import com.beeftech.calfregistration.util.TagNamingUtils
+import com.beeftech.database.util.TagNamingUtils
 import com.beeftech.database.dao.CalfRegistrationView
 import com.beeftech.database.entity.Animal
 import com.beeftech.database.entity.AnimalIdentifierEntity

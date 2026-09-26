@@ -132,7 +132,13 @@ fun FarmTraceabilityFlow(
                     >()
         }
 
+    // animals.animalId (UUID): the key movements, treatments and costs use.
     var selectedAnimalReference by remember {
+        mutableStateOf("")
+    }
+
+    // Human-readable tag for display only.
+    var selectedTagNumber by remember {
         mutableStateOf("")
     }
 
@@ -526,6 +532,11 @@ fun FarmTraceabilityFlow(
                                 .animal
                                 .animalId
 
+                        selectedTagNumber =
+                            state
+                                .animal
+                                .tagNumber
+
                         findAnimalViewModel
                             .resetState()
 
@@ -599,8 +610,8 @@ fun FarmTraceabilityFlow(
             .ANIMAL_RECORD -> {
 
             AnimalRecordScreen(
-                animalReference =
-                    selectedAnimalReference,
+                tagNumber =
+                    selectedTagNumber,
 
                 onBackClick = {
                     navigateBack()

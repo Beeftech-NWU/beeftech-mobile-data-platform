@@ -1,7 +1,7 @@
 package com.beeftech.calfregistration.data
 
 import com.beeftech.calfregistration.ui.CalfRegistrationData
-import com.beeftech.calfregistration.util.TagNamingUtils
+import com.beeftech.database.util.TagNamingUtils
 import com.beeftech.database.dao.CalfRegistrationDao
 import com.beeftech.database.dao.DuplicateTagException
 import com.beeftech.database.entity.IdentifierTypes

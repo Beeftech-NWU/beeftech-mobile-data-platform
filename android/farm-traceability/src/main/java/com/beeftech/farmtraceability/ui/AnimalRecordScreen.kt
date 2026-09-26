@@ -43,7 +43,7 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun AnimalRecordScreen(
-    animalReference: String = "",
+    tagNumber: String = "",
     breed: String = "",
     gender: String = "",
     entryMass: String = "",
@@ -95,7 +95,7 @@ fun AnimalRecordScreen(
                 TraceabilityInfoRow(
                     icon = Icons.Outlined.Tag,
                     title = "Tag Reference",
-                    subtitle = animalReference.ifBlank {
+                    subtitle = tagNumber.ifBlank {
                         "No animal selected"
                     }
                 )
