@@ -3,6 +3,7 @@ package com.beeftech.calfregistration.worker
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.beeftech.calfregistration.data.CalfCaptureContext
 import com.beeftech.calfregistration.data.CalfRegistrationApiClient
 import com.beeftech.calfregistration.data.CalfRegistrationRepository
 import com.beeftech.database.DatabaseProvider
@@ -50,7 +51,12 @@ class CalfRegistrationSyncWorker(
                     apiClient =
                         CalfRegistrationApiClient(
                             tokenProvider = tokenProvider
-                        )
+                        ),
+                    // The worker only syncs existing records; this context is
+                    // never used to create one, so an empty deviceId is safe.
+                    captureContextProvider = {
+                        CalfCaptureContext(deviceId = "")
+                    }
                 )
 
             /*

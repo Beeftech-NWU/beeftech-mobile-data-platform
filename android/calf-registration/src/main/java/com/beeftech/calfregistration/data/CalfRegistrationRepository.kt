@@ -1,21 +1,25 @@
 package com.beeftech.calfregistration.data
 
 import com.beeftech.calfregistration.ui.CalfRegistrationData
+import com.beeftech.calfregistration.util.TagNamingUtils
 import com.beeftech.database.dao.CalfRegistrationDao
-import com.beeftech.database.entity.CalfRegistrationEntity
+import com.beeftech.database.dao.DuplicateTagException
+import com.beeftech.database.entity.IdentifierTypes
 import com.beeftech.database.repository.PendingSyncRepository
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 
 class CalfRegistrationRepository(
     private val calfRegistrationDao: CalfRegistrationDao,
     private val pendingSyncRepository: PendingSyncRepository,
-    private val apiClient: CalfRegistrationApiClient
+    private val apiClient: CalfRegistrationApiClient,
+    private val captureContextProvider: () -> CalfCaptureContext
 ) {
 
     suspend fun loadAll(): List<CalfRegistrationData> {
         return try {
-            val entities = calfRegistrationDao.getAllCalfRegistrations().firstOrNull() ?: emptyList()
-            entities.map { CalfRegistrationMappers.toFormData(it) }
+            val views = calfRegistrationDao.getAllRegistrationViews().firstOrNull() ?: emptyList()
+            views.map { CalfRegistrationMappers.toFormData(it) }
         } catch (_: Exception) {
             emptyList()
         }
@@ -25,48 +29,65 @@ class CalfRegistrationRepository(
         if (tagNumber.isBlank()) return false
 
         return try {
-            val details = calfRegistrationDao.getCalfRegistrationDetails(tagNumber.trim()).firstOrNull()
-            details != null
-        } catch (exception: Exception) {
+            calfRegistrationDao.findAnimalIdByTag(TagNamingUtils.parseAndExpand(tagNumber)) != null
+        } catch (_: Exception) {
             false
         }
     }
 
     suspend fun saveCalf(formData: CalfRegistrationData): SaveCalfOutcome {
         return try {
-            val existingDetails = calfRegistrationDao.getCalfRegistrationDetails(formData.tagNumber.trim()).firstOrNull()
-            val existingEntity = existingDetails?.let {
-                CalfRegistrationEntity(
-                    registrationId = it.registrationId,
-                    registeredAnimalId = it.registeredAnimalId,
-                    damId = it.damId,
-                    sireId = it.sireId,
-                    birthWeightKg = it.birthWeightKg,
-                    calvingEase = it.calvingEase,
-                    registrationDate = it.registrationDate
-                )
+            val warnings = mutableListOf<String>()
+
+            suspend fun resolveParent(label: String, value: String): String? {
+                val tag = CalfRegistrationMappers.parentTag(value) ?: return null
+                return calfRegistrationDao.findAnimalIdByTag(tag)
+                    ?: null.also { warnings += "$label $tag is not registered; saved without $label." }
             }
 
-            val entity = CalfRegistrationMappers.toEntity(
-                formData = formData,
-                existing = existingEntity
-            )
-            calfRegistrationDao.insertCalfRegistration(entity)
+            val damId = resolveParent("Dam", formData.dameTagNumber)
+            val sireId = resolveParent("Sire", formData.sireTagNumber)
 
-            val syncResult = apiClient.syncCalves(listOf(entity), deviceId = "")
-            if (syncResult.isSuccess) {
-                val formDataResult = CalfRegistrationMappers.toFormData(entity).copy(synced = true)
-                SaveCalfOutcome(data = formDataResult)
+            val newCalf = try {
+                CalfRegistrationMappers.toNewCalf(formData, captureContextProvider(), damId, sireId)
+            } catch (e: IllegalArgumentException) {
+                return SaveCalfOutcome(formData.copy(synced = false), validationError = e.message)
+            }
+
+            try {
+                calfRegistrationDao.registerCalf(
+                    newCalf.animal,
+                    newCalf.identifiers,
+                    newCalf.media,
+                    newCalf.registration
+                )
+            } catch (e: DuplicateTagException) {
+                return SaveCalfOutcome(formData.copy(synced = false), validationError = e.message)
+            }
+
+            val tag = newCalf.identifiers.first { it.identifierType == IdentifierTypes.TAG }.identifierValue
+            val view = calfRegistrationDao.getRegistrationByTag(tag).first()
+                ?: error("Calf $tag was saved but could not be read back")
+
+            val sync = apiClient.syncCalves(listOf(view), deviceId = view.deviceId)
+            if (sync.isSuccess) {
+                calfRegistrationDao.markSynced(listOf(view.recordGuid), System.currentTimeMillis())
+                SaveCalfOutcome(
+                    data = CalfRegistrationMappers.toFormData(view).copy(synced = true),
+                    warnings = warnings
+                )
             } else {
-                val errorMsg = syncResult.exceptionOrNull()?.message ?: "Sync failed"
                 pendingSyncRepository.queueOperation(
                     entityType = ENTITY_TYPE,
-                    entityId = entity.registrationId,
+                    entityId = view.recordGuid,
                     operation = "UPSERT",
                     payload = ""
                 )
-                val formDataResult = CalfRegistrationMappers.toFormData(entity).copy(synced = false)
-                SaveCalfOutcome(data = formDataResult, syncErrorMessage = errorMsg)
+                SaveCalfOutcome(
+                    data = CalfRegistrationMappers.toFormData(view),
+                    syncErrorMessage = sync.exceptionOrNull()?.message ?: "Sync failed",
+                    warnings = warnings
+                )
             }
         } catch (exception: Exception) {
             SaveCalfOutcome(
@@ -85,24 +106,36 @@ class CalfRegistrationRepository(
                 return SyncPendingOutcome(syncedCount = 0)
             }
 
-            val allEntities = calfRegistrationDao.getAllCalfRegistrations().firstOrNull() ?: emptyList()
-            val pendingIds = pendingOperations.map { it.entityId }.toSet()
-            val entitiesToSync = allEntities.filter { it.registrationId in pendingIds }
+            val views = calfRegistrationDao.getPendingRegistrationViews()
+            val pendingGuids = views.map { it.recordGuid }.toSet()
 
-            if (entitiesToSync.isEmpty()) {
+            // Operations whose record is already SYNCED (or gone) have nothing left to send.
+            pendingOperations.filter { it.entityId !in pendingGuids }
+                .forEach { pendingSyncRepository.markSyncSuccessful(it.id) }
+
+            if (views.isEmpty()) {
                 return SyncPendingOutcome(syncedCount = 0)
             }
 
-            val syncResult = apiClient.syncCalves(entitiesToSync, deviceId = "")
+            val syncResult = apiClient.syncCalves(views, deviceId = views.first().deviceId)
             if (syncResult.isSuccess) {
-                for (op in pendingOperations) {
-                    pendingSyncRepository.markSyncSuccessful(op.id)
+                val results = syncResult.getOrThrow().results
+                val syncedGuids = results.filter { it.status == SYNC_STATUS_SYNCED }.map { it.recordguid }
+
+                if (syncedGuids.isNotEmpty()) {
+                    calfRegistrationDao.markSynced(syncedGuids, System.currentTimeMillis())
+                    pendingOperations.filter { it.entityId in syncedGuids }
+                        .forEach { pendingSyncRepository.markSyncSuccessful(it.id) }
                 }
-                SyncPendingOutcome(syncedCount = entitiesToSync.size)
+
+                val errors = results
+                    .filter { it.status != SYNC_STATUS_SYNCED }
+                    .associate { it.tagNumber to it.message }
+                SyncPendingOutcome(syncedCount = syncedGuids.size, errorMessagesByTagNumber = errors)
             } else {
                 val errorMsg = syncResult.exceptionOrNull()?.message ?: "Sync failed"
-                val errors = entitiesToSync.associate { it.registeredAnimalId to (errorMsg as String?) }
-                SyncPendingOutcome(syncedCount = 0, errorMessagesByAnimalId = errors)
+                val errors = views.associate { it.tagNumber to (errorMsg as String?) }
+                SyncPendingOutcome(syncedCount = 0, errorMessagesByTagNumber = errors)
             }
         } catch (_: Exception) {
             SyncPendingOutcome(syncedCount = 0)
@@ -116,10 +149,12 @@ class CalfRegistrationRepository(
 
 data class SaveCalfOutcome(
     val data: CalfRegistrationData,
-    val syncErrorMessage: String? = null
+    val syncErrorMessage: String? = null,
+    val warnings: List<String> = emptyList(),
+    val validationError: String? = null
 )
 
 data class SyncPendingOutcome(
     val syncedCount: Int,
-    val errorMessagesByAnimalId: Map<String, String?> = emptyMap()
+    val errorMessagesByTagNumber: Map<String, String?> = emptyMap()
 )

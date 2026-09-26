@@ -69,12 +69,23 @@ class CalfRegistrationViewModel(
                  */
                 val outcome = repository.saveCalf(formData)
 
+                outcome.validationError?.let {
+                    onResult(false, it)
+                    return@launch
+                }
+
                 _registeredCalves.value = repository.loadAll()
+
+                val warningSuffix =
+                    outcome.warnings
+                        .takeIf { it.isNotEmpty() }
+                        ?.joinToString(" ", prefix = " ")
+                        ?: ""
 
                 if (outcome.data.synced) {
                     onResult(
                         true,
-                        "Calf registration saved and synced successfully."
+                        "Calf registration saved and synced successfully.$warningSuffix"
                     )
                 } else {
                     /*
@@ -94,7 +105,7 @@ class CalfRegistrationViewModel(
 
                     onResult(
                         true,
-                        "Calf registration saved locally. Automatic sync is waiting for internet.$reason"
+                        "Calf registration saved locally. Automatic sync is waiting for internet.$reason$warningSuffix"
                     )
                 }
             } catch (exception: Exception) {
@@ -130,13 +141,13 @@ class CalfRegistrationViewModel(
                                     "s synced successfully."
                                 }
                     )
-                } else if (outcome.errorMessagesByAnimalId.isNotEmpty()) {
+                } else if (outcome.errorMessagesByTagNumber.isNotEmpty()) {
                     // Manual retry failed, so leave an automatic retry waiting
                     // for a valid network connection.
                     scheduleNetworkAvailableSync()
 
                     val message =
-                        outcome.errorMessagesByAnimalId
+                        outcome.errorMessagesByTagNumber
                             .values
                             .filterNotNull()
                             .firstOrNull { it.isNotBlank() }

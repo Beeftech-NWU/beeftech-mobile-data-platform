@@ -1,6 +1,6 @@
 package com.beeftech.calfregistration.data
 
-import com.beeftech.database.entity.CalfRegistrationEntity
+import com.beeftech.database.dao.CalfRegistrationView
 import com.beeftech.database.security.TokenProvider
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -31,7 +31,7 @@ class CalfRegistrationApiClient(
 ) {
 
     suspend fun syncCalves(
-        records: List<CalfRegistrationEntity>,
+        records: List<CalfRegistrationView>,
         deviceId: String
     ): Result<CalfRegistrationSyncResponse> {
         return try {
