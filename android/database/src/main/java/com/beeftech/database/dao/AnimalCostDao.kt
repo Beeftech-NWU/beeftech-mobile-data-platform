@@ -5,6 +5,11 @@ import androidx.room.Insert
 import androidx.room.Query
 import com.beeftech.database.entity.AnimalCost
 
+data class CostTypeTotal(
+    val costType: String,
+    val total: Double
+)
+
 @Dao
 interface AnimalCostDao {
 
@@ -37,4 +42,16 @@ interface AnimalCostDao {
         animalId: String,
         costType: String
     ): Double
+
+    @Query(
+        """
+        SELECT costType, COALESCE(SUM(amount), 0.0) AS total
+        FROM animal_costs
+        WHERE animalId = :animalId
+        GROUP BY costType
+        """
+    )
+    suspend fun getTotalsByType(
+        animalId: String
+    ): List<CostTypeTotal>
 }

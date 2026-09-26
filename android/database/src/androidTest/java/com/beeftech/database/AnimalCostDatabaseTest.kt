@@ -5,7 +5,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.beeftech.database.entity.AnimalCost
-import com.beeftech.database.entity.LocationFeed
+import com.beeftech.database.entity.CostType
 import com.beeftech.database.entity.Treatment
 import kotlinx.coroutines.runBlocking
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
@@ -15,6 +15,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.UUID
 
 @RunWith(AndroidJUnit4::class)
 class AnimalCostDatabaseTest {
@@ -35,17 +36,10 @@ class AnimalCostDatabaseTest {
             ApplicationProvider
                 .getApplicationContext<Context>()
 
-        /*
-         * Remove any database left over
-         * from a previous test run.
-         */
         context.deleteDatabase(
             databaseName
         )
 
-        /*
-         * Load SQLCipher.
-         */
         System.loadLibrary(
             "sqlcipher"
         )
@@ -55,9 +49,6 @@ class AnimalCostDatabaseTest {
                 passphrase
             )
 
-        /*
-         * Create a real encrypted test database.
-         */
         database =
             Room.databaseBuilder(
                 context,
@@ -67,11 +58,11 @@ class AnimalCostDatabaseTest {
                 .openHelperFactory(
                     factory
                 )
+                .addCallback(
+                    BeefTechDatabase.SEED_CALLBACK
+                )
                 .build()
 
-        /*
-         * Force the encrypted database to open.
-         */
         database
             .openHelper
             .writableDatabase
@@ -91,12 +82,6 @@ class AnimalCostDatabaseTest {
         )
     }
 
-    /*
-     * TEST 1
-     *
-     * Confirm that AnimalCost records can be
-     * inserted and retrieved from SQLCipher.
-     */
     @Test
     fun insertAnimalCosts_andReadThemBack() =
         runBlocking {
@@ -183,11 +168,6 @@ class AnimalCostDatabaseTest {
             )
         }
 
-    /*
-     * TEST 2
-     *
-     * Confirm that costs are summed by type.
-     */
     @Test
     fun calculateTotalCostByType() =
         runBlocking {
@@ -261,12 +241,6 @@ class AnimalCostDatabaseTest {
             )
         }
 
-    /*
-     * TEST 3
-     *
-     * Confirm that one animal's costs
-     * cannot be mixed with another animal.
-     */
     @Test
     fun costsDoNotMixBetweenAnimals() =
         runBlocking {
@@ -355,21 +329,6 @@ class AnimalCostDatabaseTest {
             )
         }
 
-    /*
-     * TEST 4
-     *
-     * Test the same calculation that the
-     * Cost Summary backend performs.
-     *
-     * Transport   = R250
-     * Processing  = R100
-     * Treatment   = R150
-     * Feed        = R500
-     * Handling    = R50
-     * Interest    = R25
-     *
-     * Expected total = R1 075
-     */
     @Test
     fun calculateCompleteAnimalCostSummary() =
         runBlocking {
@@ -380,9 +339,6 @@ class AnimalCostDatabaseTest {
             val treatmentDao =
                 database.treatmentDao()
 
-            /*
-             * Transport
-             */
             animalCostDao.insert(
                 AnimalCost(
                     animalId =
@@ -408,9 +364,6 @@ class AnimalCostDatabaseTest {
                 )
             )
 
-            /*
-             * Processing
-             */
             animalCostDao.insert(
                 AnimalCost(
                     animalId =
@@ -436,9 +389,6 @@ class AnimalCostDatabaseTest {
                 )
             )
 
-            /*
-             * Handling
-             */
             animalCostDao.insert(
                 AnimalCost(
                     animalId =
@@ -464,9 +414,6 @@ class AnimalCostDatabaseTest {
                 )
             )
 
-            /*
-             * Interest
-             */
             animalCostDao.insert(
                 AnimalCost(
                     animalId =
@@ -492,10 +439,7 @@ class AnimalCostDatabaseTest {
                 )
             )
 
-            /*
-             * Treatment = R150
-             */
-            treatmentDao.insert(
+            treatmentDao.insertWithCost(
                 Treatment(
                     animalId =
                         "TEST-001",
@@ -515,82 +459,108 @@ class AnimalCostDatabaseTest {
                     cost =
                         150.0,
 
+                    gpsLat =
+                        -26.2041,
+
+                    gpsLng =
+                        28.0473,
+
                     timestamp =
                         5000L
                 )
             )
 
-            val transport =
-                animalCostDao.getTotalByType(
-                    "TEST-001",
-                    "TRANSPORT"
-                )
+            val totalsMap = animalCostDao.getTotalsByType("TEST-001").associate { it.costType to it.total }
 
-            val processing =
-                animalCostDao.getTotalByType(
-                    "TEST-001",
-                    "PROCESSING"
-                )
+            val transport = totalsMap["TRANSPORT"] ?: 0.0
+            val processing = totalsMap["PROCESSING"] ?: 0.0
+            val treatment = totalsMap["TREATMENT"] ?: 0.0
+            val handling = totalsMap["HANDLING"] ?: 0.0
+            val interest = totalsMap["INTEREST"] ?: 0.0
+            val total = totalsMap.values.sum()
 
-            val treatment =
-                treatmentDao
-                    .getTotalCostByAnimalId(
-                        "TEST-001"
+            assertEquals(250.0, transport, 0.001)
+            assertEquals(100.0, processing, 0.001)
+            assertEquals(150.0, treatment, 0.001)
+            assertEquals(50.0, handling, 0.001)
+            assertEquals(25.0, interest, 0.001)
+            assertEquals(575.0, total, 0.001)
+        }
+
+    @Test(expected = Exception::class)
+    fun insertDuplicateRecordGuid_throwsException() =
+        runBlocking {
+            val dao = database.animalCostDao()
+            val guid = UUID.randomUUID().toString()
+            dao.insert(
+                AnimalCost(
+                    animalId = "TEST-001",
+                    costType = "TRANSPORT",
+                    amount = 100.0,
+                    gpsLat = -26.0,
+                    gpsLng = 28.0,
+                    timestamp = 1000L,
+                    recordGuid = guid
+                )
+            )
+            dao.insert(
+                AnimalCost(
+                    animalId = "TEST-001",
+                    costType = "PROCESSING",
+                    amount = 50.0,
+                    gpsLat = -26.0,
+                    gpsLng = 28.0,
+                    timestamp = 2000L,
+                    recordGuid = guid
+                )
+            )
+        }
+
+    @Test(expected = Exception::class)
+    fun insertInvalidCostType_throwsForeignKeyException() =
+        runBlocking {
+            val dao = database.animalCostDao()
+            dao.insert(
+                AnimalCost(
+                    animalId = "TEST-001",
+                    costType = "NOPE",
+                    amount = 100.0,
+                    gpsLat = -26.0,
+                    gpsLng = 28.0,
+                    timestamp = 1000L
+                )
+            )
+        }
+
+    @Test
+    fun addNewCostType_allowsInsertingCostOfNewType() =
+        runBlocking {
+            val costTypeDao = database.costTypeDao()
+            val animalCostDao = database.animalCostDao()
+
+            costTypeDao.insertAll(
+                listOf(
+                    CostType(
+                        code = "CUSTOM_LABOR",
+                        displayName = "Custom Labor",
+                        sortOrder = 10
                     )
-
-            val handling =
-                animalCostDao.getTotalByType(
-                    "TEST-001",
-                    "HANDLING"
                 )
+            )
 
-            val interest =
-                animalCostDao.getTotalByType(
-                    "TEST-001",
-                    "INTEREST"
+            animalCostDao.insert(
+                AnimalCost(
+                    animalId = "TEST-001",
+                    costType = "CUSTOM_LABOR",
+                    amount = 300.0,
+                    gpsLat = -26.0,
+                    gpsLng = 28.0,
+                    timestamp = 1000L
                 )
-
-            val total =
-                transport +
-                        processing +
-                        treatment +
-                        handling +
-                        interest
-
-            assertEquals(
-                250.0,
-                transport,
-                0.001
             )
 
-            assertEquals(
-                100.0,
-                processing,
-                0.001
-            )
-
-            assertEquals(
-                150.0,
-                treatment,
-                0.001
-            )
-
-            assertEquals(
-                50.0,
-                handling,
-                0.001
-            )
-
-            assertEquals(
-                25.0,
-                interest,
-                0.001
-            )
-
-            assertEquals(
-                575.0,
-                total,
-                0.001
-            )
+            val totals = animalCostDao.getTotalsByType("TEST-001")
+            val customLaborTotal = totals.find { it.costType == "CUSTOM_LABOR" }?.total
+            assertEquals(300.0, customLaborTotal!!, 0.001)
         }
 }

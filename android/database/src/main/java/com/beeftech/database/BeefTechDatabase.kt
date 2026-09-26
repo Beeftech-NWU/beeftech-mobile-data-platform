@@ -4,6 +4,7 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import java.util.UUID
 
 // Existing Base Entities
 import com.beeftech.database.entity.Animal
@@ -32,6 +33,9 @@ import com.beeftech.database.entity.AnimalIdentifierEntity
 import com.beeftech.database.entity.AnimalMediaEntity
 import com.beeftech.database.entity.AnimalWeightEntity
 
+// Phase 5 Entities
+import com.beeftech.database.entity.CostType
+
 // Phase 6 Entities
 import com.beeftech.database.entity.AnimalOwnershipEntity
 import com.beeftech.database.entity.AnimalPurchaseEntity
@@ -42,6 +46,7 @@ import com.beeftech.database.entity.CalfRegistrationEntity
 // DAOs
 import com.beeftech.database.dao.AnimalDao
 import com.beeftech.database.dao.AnimalCostDao
+import com.beeftech.database.dao.CostTypeDao
 import com.beeftech.database.dao.AnimalGroupDao
 import com.beeftech.database.dao.AnimalGroupMembershipDao
 import com.beeftech.database.dao.AnimalMovementDao
@@ -97,9 +102,12 @@ import com.beeftech.database.dao.UserDao
         AnimalPurchaseEntity::class,
         
         // Phase 7 Entity
-        CalfRegistrationEntity::class
+        CalfRegistrationEntity::class,
+
+        // Phase 5 Entity
+        CostType::class
     ],
-    version = 13,
+    version = 14,
     exportSchema = true
 )
 abstract class BeefTechDatabase : RoomDatabase() {
@@ -136,6 +144,9 @@ abstract class BeefTechDatabase : RoomDatabase() {
 
     // Phase 7 DAO
     abstract fun calfRegistrationDao(): CalfRegistrationDao
+
+    // Phase 5 DAO
+    abstract fun costTypeDao(): CostTypeDao
 
 
     // =========================================================================
@@ -485,6 +496,77 @@ abstract class BeefTechDatabase : RoomDatabase() {
         val MIGRATION_12_13 = object : Migration(12, 13) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 MIGRATION_11_12.migrate(db)
+            }
+        }
+
+        /**
+         * Phase 5 Migration (Version 13 -> 14): Rebuild animal_costs
+         * - Creates and seeds `cost_types`
+         * - Rebuilds `animal_costs` with FK costType -> cost_types(code),
+         *   source_entity / source_record_id, and unique record_guid
+         * - Backfills one TREATMENT cost row per treatment with cost > 0
+         */
+        val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+
+                // 1. Lookup + seed
+                db.execSQL("CREATE TABLE IF NOT EXISTS `cost_types` (`code` TEXT NOT NULL, `display_name` TEXT NOT NULL, `sort_order` INTEGER NOT NULL DEFAULT 0, `is_active` INTEGER NOT NULL DEFAULT 1, PRIMARY KEY(`code`))")
+                CostTypeSeed.execute(db)
+
+                // 2. Keep every existing costType valid under the new FK.
+                //    Unexpected values surface here as a data-quality list.
+                db.execSQL("INSERT OR IGNORE INTO `cost_types` (`code`, `display_name`, `sort_order`, `is_active`) SELECT DISTINCT `costType`, `costType`, 1000, 1 FROM `animal_costs`")
+
+                // 3. Rebuild animal_costs
+                db.execSQL("CREATE TABLE IF NOT EXISTS `animal_costs_new` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `animalId` TEXT NOT NULL, `costType` TEXT NOT NULL, `amount` REAL NOT NULL, `description` TEXT NOT NULL DEFAULT '', `gpsLat` REAL NOT NULL, `gpsLng` REAL NOT NULL, `timestamp` INTEGER NOT NULL, `source_entity` TEXT, `source_record_id` TEXT, `record_guid` TEXT NOT NULL, FOREIGN KEY(`costType`) REFERENCES `cost_types`(`code`) ON UPDATE CASCADE ON DELETE RESTRICT )")
+                db.execSQL("INSERT INTO `animal_costs_new` (`id`, `animalId`, `costType`, `amount`, `description`, `gpsLat`, `gpsLng`, `timestamp`, `source_entity`, `source_record_id`, `record_guid`) SELECT `id`, `animalId`, `costType`, `amount`, `description`, `gpsLat`, `gpsLng`, `timestamp`, NULL, NULL, `record_guid` FROM `animal_costs`")
+                db.execSQL("DROP TABLE `animal_costs`")
+                db.execSQL("ALTER TABLE `animal_costs_new` RENAME TO `animal_costs`")
+
+                // 4. Give any blank GUID (left by MIGRATION_11_12's DEFAULT '') a real one
+                val blankIds = mutableListOf<Long>()
+                db.query("SELECT `id` FROM `animal_costs` WHERE `record_guid` = ''").use { c ->
+                    while (c.moveToNext()) blankIds += c.getLong(0)
+                }
+                blankIds.forEach { id ->
+                    db.execSQL("UPDATE `animal_costs` SET `record_guid` = ? WHERE `id` = ?", arrayOf<Any>(UUID.randomUUID().toString(), id))
+                }
+
+                // 5. Indexes (names must match Room's generated names)
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_costs_record_guid` ON `animal_costs` (`record_guid`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_costs_costType` ON `animal_costs` (`costType`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_costs_animalId_costType_timestamp` ON `animal_costs` (`animalId`, `costType`, `timestamp`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_costs_source_entity_source_record_id` ON `animal_costs` (`source_entity`, `source_record_id`)")
+
+                // 6. Backfill derived treatment costs
+                val treatmentRows = mutableListOf<Array<Any>>()
+                db.query("SELECT `animalId`, `cost`, `treatmentName`, `gpsLat`, `gpsLng`, `timestamp`, `recordguid` FROM `treatments` WHERE `cost` > 0").use { c ->
+                    while (c.moveToNext()) {
+                        treatmentRows.add(
+                            arrayOf(
+                                c.getString(0), c.getDouble(1), c.getString(2),
+                                c.getDouble(3), c.getDouble(4), c.getLong(5),
+                                c.getString(6), UUID.randomUUID().toString()
+                            )
+                        )
+                    }
+                }
+                treatmentRows.forEach { args ->
+                    db.execSQL(
+                        "INSERT OR IGNORE INTO `animal_costs` (`animalId`, `costType`, `amount`, `description`, `gpsLat`, `gpsLng`, `timestamp`, `source_entity`, `source_record_id`, `record_guid`) VALUES (?, 'TREATMENT', ?, ?, ?, ?, ?, 'TREATMENT', ?, ?)",
+                        args
+                    )
+                }
+            }
+        }
+
+        /*
+         * Seeds lookup tables on a fresh install.
+         * Migrations do not run when the database is created from scratch.
+         */
+        val SEED_CALLBACK = object : Callback() {
+            override fun onCreate(db: SupportSQLiteDatabase) {
+                CostTypeSeed.execute(db)
             }
         }
     }

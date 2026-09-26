@@ -1,11 +1,9 @@
 package com.beeftech.database.repository
 
 import androidx.lifecycle.LiveData
-import com.beeftech.database.dao.Animal_CostDao
 import com.beeftech.database.dao.AnimalMortalityDao
 import com.beeftech.database.dao.Animal_MovementDao
 import com.beeftech.database.dao.AnimalTreatmentDao
-import com.beeftech.database.entity.AnimalCostEntity
 import com.beeftech.database.entity.AnimalMortalityEntity
 import com.beeftech.database.entity.AnimalMovementEntity
 import com.beeftech.database.entity.AnimalTreatmentEntity
@@ -13,8 +11,7 @@ import com.beeftech.database.entity.AnimalTreatmentEntity
 class AnimalTraceabilityRepository(
     private val movementDao: Animal_MovementDao,
     private val treatmentDao: AnimalTreatmentDao,
-    private val mortalityDao: AnimalMortalityDao,
-    private val costDao: Animal_CostDao
+    private val mortalityDao: AnimalMortalityDao
 ) {
 
     // ------------------ Movements ------------------
@@ -42,14 +39,5 @@ class AnimalTraceabilityRepository(
 
     suspend fun getMortalityForAnimal(animalGuid: String): LiveData<AnimalMortalityEntity?> {
         return mortalityDao.getMortalityForAnimal(animalGuid)
-    }
-
-    // ------------------ Costs ------------------
-    suspend fun upsertCost(cost: AnimalCostEntity) {
-        costDao.upsertCost(cost)
-    }
-
-    suspend fun getCostsForAnimal(animalGuid: String): LiveData<List<AnimalCostEntity>> {
-        return costDao.getCostsForAnimal(animalGuid) as LiveData<List<AnimalCostEntity>>
     }
 }

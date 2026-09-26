@@ -156,6 +156,12 @@ class DatabaseMigration6To7Test {
                         cost =
                             150.0,
 
+                        gpsLat =
+                            -26.2041,
+
+                        gpsLng =
+                            28.0473,
+
                         timestamp =
                             2000L
                     )
@@ -186,7 +192,7 @@ class DatabaseMigration6To7Test {
              * Confirm database is currently v11.
              */
             assertEquals(
-                11,
+                14,
                 initialDatabase
                     .openHelper
                     .writableDatabase
@@ -272,7 +278,7 @@ class DatabaseMigration6To7Test {
              * Database must now be version 11.
              */
             assertEquals(
-                11,
+                14,
                 upgradedDatabase
                     .openHelper
                     .writableDatabase
@@ -389,6 +395,12 @@ class DatabaseMigration6To7Test {
 
                         description =
                             "Transport after migration",
+
+                        gpsLat =
+                            -26.2041,
+
+                        gpsLng =
+                            28.0473,
 
                         timestamp =
                             6000L
