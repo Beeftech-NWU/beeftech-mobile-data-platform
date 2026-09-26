@@ -44,12 +44,26 @@ class AnimalCostDatabaseTest {
             "sqlcipher"
         )
 
+        database =
+            openDatabase()
+    }
+
+    /*
+     * Opens (or reopens) the encrypted test database
+     * with the same seed callback production uses.
+     */
+    private fun openDatabase(): BeefTechDatabase {
+
+        val context =
+            ApplicationProvider
+                .getApplicationContext<Context>()
+
         val factory =
             SupportOpenHelperFactory(
                 passphrase
             )
 
-        database =
+        val opened =
             Room.databaseBuilder(
                 context,
                 BeefTechDatabase::class.java,
@@ -63,9 +77,11 @@ class AnimalCostDatabaseTest {
                 )
                 .build()
 
-        database
+        opened
             .openHelper
             .writableDatabase
+
+        return opened
     }
 
     @After
@@ -562,5 +578,41 @@ class AnimalCostDatabaseTest {
             val totals = animalCostDao.getTotalsByType("TEST-001")
             val customLaborTotal = totals.find { it.costType == "CUSTOM_LABOR" }?.total
             assertEquals(300.0, customLaborTotal!!, 0.001)
+        }
+
+    /*
+     * A destructive migration recreates the tables without
+     * calling onCreate, leaving cost_types empty. The seed
+     * callback must restore it the next time the database opens.
+     */
+    @Test
+    fun emptiedCostTypes_areReseededOnNextOpen() =
+        runBlocking {
+            database
+                .openHelper
+                .writableDatabase
+                .execSQL("DELETE FROM cost_types")
+
+            assertTrue(
+                database.costTypeDao().getActive().isEmpty()
+            )
+
+            database.close()
+
+            database =
+                openDatabase()
+
+            val codes =
+                database
+                    .costTypeDao()
+                    .getActive()
+                    .map { it.code }
+
+            CostTypeSeed.TYPES.forEach { (code, _) ->
+                assertTrue(
+                    "cost_types must contain seed code $code after reopening",
+                    codes.contains(code)
+                )
+            }
         }
 }

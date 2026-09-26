@@ -638,6 +638,9 @@ class MainActivity : ComponentActivity() {
                                             interestCost =
                                                 costSummaryState.interestCost,
 
+                                            otherCost =
+                                                costSummaryState.otherCost,
+
                                             totalAnimalCost =
                                                 costSummaryState.totalAnimalCost,
 

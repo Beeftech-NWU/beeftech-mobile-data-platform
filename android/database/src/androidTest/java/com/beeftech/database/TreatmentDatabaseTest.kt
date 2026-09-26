@@ -267,7 +267,16 @@ class TreatmentDatabaseTest {
             )
 
             treatmentDao.insertDerivedCost(costRow)
-            treatmentDao.insertDerivedCost(costRow)
+
+            /*
+             * A fresh record GUID, so only the unique
+             * (source_entity, source_record_id) index can stop it.
+             */
+            treatmentDao.insertDerivedCost(
+                costRow.copy(
+                    recordGuid = UUID.randomUUID().toString()
+                )
+            )
 
             val costs = animalCostDao.getByAnimalId("TEST-003")
             assertEquals(1, costs.size)

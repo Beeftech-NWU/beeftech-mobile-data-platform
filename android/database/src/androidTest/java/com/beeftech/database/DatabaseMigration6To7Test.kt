@@ -3,6 +3,7 @@ package com.beeftech.database
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.beeftech.database.entity.Animal
 import com.beeftech.database.entity.AnimalCost
 import com.beeftech.database.entity.AnimalMovementEntity
 import com.beeftech.database.entity.Mortality
@@ -112,6 +113,37 @@ class DatabaseMigration6To7Test {
              * stored before the version 7 upgrade.
              * ------------------------------------------------
              */
+
+            /*
+             * animal_movements.animal_id is a foreign key
+             * to animals, so the animal must exist first.
+             */
+            initialDatabase
+                .animalDao()
+                .insert(
+                    Animal(
+                        animalId =
+                            "MIG-001",
+
+                        birthdate =
+                            1000L,
+
+                        breed =
+                            "Bonsmara",
+
+                        gpsLat =
+                            -26.2041,
+
+                        gpsLng =
+                            28.0473,
+
+                        captureAt =
+                            1000L,
+
+                        deviceId =
+                            "migration-test"
+                    )
+                )
 
             initialDatabase
                 .animalMovementDao()

@@ -145,6 +145,16 @@ class AnimalCostMigration13To14Test {
         }
         assertTrue("cost_types must contain preserved unexpected code 'Misc'", costTypeCodes.contains("Misc"))
 
+        // Legacy codes stay valid for existing rows but are not offered for new costs
+        migratedDb.query("SELECT `is_active` FROM `cost_types` WHERE `code` = 'Misc'").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("Legacy code 'Misc' must be inactive", 0, c.getInt(0))
+        }
+        migratedDb.query("SELECT COUNT(*) FROM `cost_types` WHERE `is_active` = 0 AND `code` IN ('TRANSPORT', 'TREATMENT')").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals("Seeded codes must stay active", 0, c.getInt(0))
+        }
+
         // Assert foreign key check returns no rows
         migratedDb.query("PRAGMA foreign_key_check").use { c ->
             assertEquals("PRAGMA foreign_key_check should find 0 violations", 0, c.count)

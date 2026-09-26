@@ -86,6 +86,7 @@ fun FarmTraceabilityFlow(
     feedCost: Double = 0.0,
     handlingCost: Double = 0.0,
     interestCost: Double = 0.0,
+    otherCost: Double = 0.0,
     totalAnimalCost: Double = 0.0,
 
     onLoadCostSummary: (String) -> Unit = {},
@@ -891,6 +892,11 @@ fun FarmTraceabilityFlow(
                 interestCost =
                     "%.2f".format(
                         interestCost
+                    ),
+
+                otherCost =
+                    "%.2f".format(
+                        otherCost
                     ),
 
                 totalAnimalCost =

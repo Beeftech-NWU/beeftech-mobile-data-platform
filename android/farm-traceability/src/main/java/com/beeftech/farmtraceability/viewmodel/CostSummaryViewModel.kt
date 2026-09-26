@@ -17,6 +17,8 @@ data class CostSummaryUiState(
     val feedCost: Double = 0.0,
     val handlingCost: Double = 0.0,
     val interestCost: Double = 0.0,
+    /* Every category without its own line (e.g. DIRECT, legacy codes). */
+    val otherCost: Double = 0.0,
     val totalAnimalCost: Double = 0.0
 )
 
@@ -59,6 +61,15 @@ class CostSummaryViewModel(
 
                 val totalAnimalCost = totals.values.sum()
 
+                /*
+                 * Keeps the visible lines adding up to the total
+                 * when costs exist in categories with no line of their own.
+                 */
+                val otherCost =
+                    totalAnimalCost -
+                            (transportCost + processingCost + treatmentCost +
+                                    feedCost + handlingCost + interestCost)
+
                 _uiState.value =
                     CostSummaryUiState(
                         transportCost = transportCost,
@@ -67,6 +78,7 @@ class CostSummaryViewModel(
                         feedCost = feedCost,
                         handlingCost = handlingCost,
                         interestCost = interestCost,
+                        otherCost = otherCost,
                         totalAnimalCost = totalAnimalCost
                     )
 

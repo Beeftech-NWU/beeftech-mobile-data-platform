@@ -515,7 +515,9 @@ abstract class BeefTechDatabase : RoomDatabase() {
 
                 // 2. Keep every existing costType valid under the new FK.
                 //    Unexpected values surface here as a data-quality list.
-                db.execSQL("INSERT OR IGNORE INTO `cost_types` (`code`, `display_name`, `sort_order`, `is_active`) SELECT DISTINCT `costType`, `costType`, 1000, 1 FROM `animal_costs`")
+                //    They are inactive: valid for existing rows, but not
+                //    offered for new costs until someone reconciles them.
+                db.execSQL("INSERT OR IGNORE INTO `cost_types` (`code`, `display_name`, `sort_order`, `is_active`) SELECT DISTINCT `costType`, `costType`, 1000, 0 FROM `animal_costs`")
 
                 // 3. Rebuild animal_costs
                 db.execSQL("CREATE TABLE IF NOT EXISTS `animal_costs_new` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `animalId` TEXT NOT NULL, `costType` TEXT NOT NULL, `amount` REAL NOT NULL, `description` TEXT NOT NULL DEFAULT '', `gpsLat` REAL NOT NULL, `gpsLng` REAL NOT NULL, `timestamp` INTEGER NOT NULL, `source_entity` TEXT, `source_record_id` TEXT, `record_guid` TEXT NOT NULL, FOREIGN KEY(`costType`) REFERENCES `cost_types`(`code`) ON UPDATE CASCADE ON DELETE RESTRICT )")
@@ -561,11 +563,19 @@ abstract class BeefTechDatabase : RoomDatabase() {
         }
 
         /*
-         * Seeds lookup tables on a fresh install.
-         * Migrations do not run when the database is created from scratch.
+         * Seeds lookup tables.
+         *
+         * onCreate covers a fresh install, where migrations do not run.
+         * onOpen also covers a destructive migration (e.g. a downgrade),
+         * which recreates the tables without calling onCreate. The seed
+         * is INSERT OR IGNORE, so running it on every open is safe.
          */
         val SEED_CALLBACK = object : Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {
+                CostTypeSeed.execute(db)
+            }
+
+            override fun onOpen(db: SupportSQLiteDatabase) {
                 CostTypeSeed.execute(db)
             }
         }
