@@ -122,7 +122,16 @@ class CalfRegistrationDaoTest {
         )
         dao.registerCalf(calf, calfIdentifiers, emptyList(), calfRegistration)
 
-        // 3. Assert
+        // 3. Assert: 3 animals, 3 TAG identifiers, 3 registrations (dam, sire, calf)
+        assertEquals(3, count("animals"))
+        assertEquals(3, count("animal_identifiers", "identifier_type = 'TAG'"))
+        assertEquals(1, count("calf_registrations", "registered_animal_id = '$calfUuid'"))
+        assertEquals(
+            "Registration must reference the calf, dam and sire by animal UUID.",
+            1,
+            count("calf_registrations", "registered_animal_id = '$calfUuid' AND dam_id = '$damUuid' AND sire_id = '$sireUuid'")
+        )
+
         val view = dao.getRegistrationByTag("Blu1234567").first()
         assertNotNull(view)
         assertEquals("Blu0000011", view!!.damTagNumber)
@@ -155,9 +164,23 @@ class CalfRegistrationDaoTest {
             assertEquals(calfTag, e.tagNumber)
         }
 
-        // Verify duplicate registration was rolled back (view is still the original calf)
+        // Nothing was written by the rejected registration
+        assertEquals(3, count("animals"))
+        assertEquals(3, count("animal_identifiers", "identifier_type = 'TAG'"))
+        assertEquals(3, count("calf_registrations"))
+        assertEquals(0, count("animals", "animalId = '$dupUuid'"))
+
+        // Verify the original calf is untouched
         val viewAfterDup = dao.getRegistrationByTag("Blu1234567").first()
         assertEquals(calfUuid, viewAfterDup!!.animalId)
+    }
+
+    private fun count(table: String, where: String? = null): Int {
+        val sql = "SELECT COUNT(*) FROM `$table`" + (where?.let { " WHERE $it" } ?: "")
+        return database!!.openHelper.readableDatabase.query(sql).use { c ->
+            c.moveToFirst()
+            c.getInt(0)
+        }
     }
 
     private fun createCorrectPassphrase(): ByteArray {

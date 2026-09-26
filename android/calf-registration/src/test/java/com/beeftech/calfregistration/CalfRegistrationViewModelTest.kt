@@ -1,22 +1,15 @@
 package com.beeftech.calfregistration
 
 import android.content.Context
+import com.beeftech.calfregistration.data.CalfCaptureContext
 import com.beeftech.calfregistration.data.CalfRegistrationApiClient
 import com.beeftech.calfregistration.data.CalfRegistrationRepository
 import com.beeftech.calfregistration.fakes.FakeCalfRegistrationDao
 import com.beeftech.calfregistration.fakes.FakePendingSyncDao
-import com.beeftech.calfregistration.fakes.FakeTokenProvider
+import com.beeftech.calfregistration.fakes.successfulApiClient
 import com.beeftech.calfregistration.ui.CalfRegistrationData
 import com.beeftech.calfregistration.viewmodel.CalfRegistrationViewModel
 import com.beeftech.database.repository.PendingSyncRepository
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.mock.MockEngine
-import io.ktor.client.engine.mock.respond
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.headersOf
-import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -47,39 +40,12 @@ class CalfRegistrationViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun successfulApiClient(): CalfRegistrationApiClient {
-        val mockEngine = MockEngine { request ->
-            when {
-                request.url.encodedPath.endsWith("/api/calf-registrations/sync") -> respond(
-                    content = """
-                        {"success":true,"message":"ok","data":{"results":[
-                            {"recordguid":"any","animalId":"RMB12345","status":"SYNCED","serverSyncedAt":555,"message":null}
-                        ]}}
-                    """.trimIndent(),
-                    status = HttpStatusCode.OK,
-                    headers = headersOf(HttpHeaders.ContentType, "application/json")
-                )
-
-                else -> error("Unhandled request: ${request.url}")
-            }
-        }
-
-        val httpClient = HttpClient(mockEngine) {
-            install(ContentNegotiation) { json() }
-        }
-
-        return CalfRegistrationApiClient(
-            tokenProvider = FakeTokenProvider("tok"),
-            baseUrl = "http://test-host/",
-            httpClient = httpClient
-        )
-    }
-
     private fun buildViewModel(apiClient: CalfRegistrationApiClient): CalfRegistrationViewModel {
         val repository = CalfRegistrationRepository(
             calfRegistrationDao = FakeCalfRegistrationDao(),
             pendingSyncRepository = PendingSyncRepository(FakePendingSyncDao()),
-            apiClient = apiClient
+            apiClient = apiClient,
+            captureContextProvider = { CalfCaptureContext(deviceId = "TEST-DEVICE") }
         )
         return CalfRegistrationViewModel(repository, mockContext)
     }
@@ -90,7 +56,7 @@ class CalfRegistrationViewModelTest {
         val resultDeferred = CompletableDeferred<Pair<Boolean, String>>()
 
         viewModel.saveCalf(
-            CalfRegistrationData(tagNumber = "RMB12345", animalType = "Bonsmara")
+            CalfRegistrationData(tagNumber = "Blu1234567", animalType = "Bonsmara")
         ) { success, message ->
             resultDeferred.complete(success to message)
         }
@@ -100,7 +66,7 @@ class CalfRegistrationViewModelTest {
         assertEquals(true, success)
         assertTrue(message.isNotBlank())
         assertEquals(1, viewModel.registeredCalves.value.size)
-        assertEquals("RMB12345", viewModel.registeredCalves.value.first().tagNumber)
+        assertEquals("Blu1234567", viewModel.registeredCalves.value.first().tagNumber)
         assertTrue(viewModel.registeredCalves.value.first().synced)
     }
 
@@ -110,15 +76,16 @@ class CalfRegistrationViewModelTest {
         val repository = CalfRegistrationRepository(
             calfRegistrationDao = calfDao,
             pendingSyncRepository = PendingSyncRepository(FakePendingSyncDao()),
-            apiClient = successfulApiClient()
+            apiClient = successfulApiClient(),
+            captureContextProvider = { CalfCaptureContext(deviceId = "TEST-DEVICE") }
         )
 
-        repository.saveCalf(CalfRegistrationData(tagNumber = "RMB1"))
+        repository.saveCalf(CalfRegistrationData(tagNumber = "Blu0000001"))
 
         val viewModel = CalfRegistrationViewModel(repository, mockContext)
 
         assertEquals(1, viewModel.registeredCalves.value.size)
-        assertEquals("RMB1", viewModel.registeredCalves.value.first().tagNumber)
+        assertEquals("Blu0000001", viewModel.registeredCalves.value.first().tagNumber)
     }
 
     @Test
@@ -137,5 +104,41 @@ class CalfRegistrationViewModelTest {
 
         assertEquals(true, viewModel.isTagRegistered("Blu0000064"))
         assertEquals(false, viewModel.isTagRegistered("Red0000123"))
+    }
+
+    @Test
+    fun `saveCalf reports a duplicate tag as a failure`() = runBlocking {
+        val viewModel = buildViewModel(successfulApiClient())
+
+        suspend fun save(): Pair<Boolean, String> {
+            val result = CompletableDeferred<Pair<Boolean, String>>()
+            viewModel.saveCalf(CalfRegistrationData(tagNumber = "Blu1234567")) { ok, msg ->
+                result.complete(ok to msg)
+            }
+            return withTimeout(5_000) { result.await() }
+        }
+
+        assertEquals(true, save().first)
+
+        val (success, message) = save()
+
+        assertEquals(false, success)
+        assertTrue(message.contains("Blu1234567"))
+        assertEquals(1, viewModel.registeredCalves.value.size)
+    }
+
+    @Test
+    fun `saveCalf appends the unregistered dam warning to the success message`() = runBlocking {
+        val viewModel = buildViewModel(successfulApiClient())
+        val result = CompletableDeferred<Pair<Boolean, String>>()
+
+        viewModel.saveCalf(
+            CalfRegistrationData(tagNumber = "Blu1234567", dameTagNumber = "Blu0000011 (Bonsmara)")
+        ) { ok, msg -> result.complete(ok to msg) }
+
+        val (success, message) = withTimeout(5_000) { result.await() }
+
+        assertEquals(true, success)
+        assertTrue(message.contains("Dam Blu0000011 is not registered"))
     }
 }

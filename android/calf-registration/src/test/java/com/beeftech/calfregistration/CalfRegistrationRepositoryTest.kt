@@ -1,173 +1,170 @@
 package com.beeftech.calfregistration
 
+import com.beeftech.calfregistration.data.CalfCaptureContext
 import com.beeftech.calfregistration.data.CalfRegistrationApiClient
 import com.beeftech.calfregistration.data.CalfRegistrationRepository
 import com.beeftech.calfregistration.fakes.FakeCalfRegistrationDao
 import com.beeftech.calfregistration.fakes.FakePendingSyncDao
-import com.beeftech.calfregistration.fakes.FakeTokenProvider
+import com.beeftech.calfregistration.fakes.failingApiClient
+import com.beeftech.calfregistration.fakes.successfulApiClient
 import com.beeftech.calfregistration.ui.CalfRegistrationData
 import com.beeftech.database.repository.PendingSyncRepository
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.mock.MockEngine
-import io.ktor.client.engine.mock.respond
-import io.ktor.client.engine.mock.respondError
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.headersOf
-import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CalfRegistrationRepositoryTest {
 
-    private fun successfulApiClient(): CalfRegistrationApiClient {
-        val mockEngine = MockEngine { request ->
-            when {
-                request.url.encodedPath.endsWith("/api/calf-registrations/sync") -> respond(
-                    content = """
-                        {"success":true,"message":"ok","data":{"results":[
-                            {"recordguid":"any","animalId":"RMB12345","status":"SYNCED","serverSyncedAt":555,"message":null}
-                        ]}}
-                    """.trimIndent(),
-                    status = HttpStatusCode.OK,
-                    headers = headersOf(HttpHeaders.ContentType, "application/json")
-                )
+    private val calfDao = FakeCalfRegistrationDao()
+    private val pendingSyncDao = FakePendingSyncDao()
 
-                else -> error("Unhandled request: ${request.url}")
-            }
-        }
+    private fun repository(apiClient: CalfRegistrationApiClient) = CalfRegistrationRepository(
+        calfRegistrationDao = calfDao,
+        pendingSyncRepository = PendingSyncRepository(pendingSyncDao),
+        apiClient = apiClient,
+        captureContextProvider = { CalfCaptureContext(deviceId = "TEST-DEVICE") }
+    )
 
-        val httpClient = HttpClient(mockEngine) {
-            install(ContentNegotiation) { json() }
-        }
+    private fun form(tag: String, dam: String = "Select dame", sire: String = "Select sire") =
+        CalfRegistrationData(tagNumber = tag, animalType = "BNM — Bonsmara", dameTagNumber = dam, sireTagNumber = sire)
 
-        return CalfRegistrationApiClient(
-            tokenProvider = FakeTokenProvider("tok"),
-            baseUrl = "http://test-host/",
-            httpClient = httpClient
-        )
-    }
+    @Test
+    fun `saveCalf creates one animal, one TAG and one registration, then syncs`() = runTest {
+        val outcome = repository(successfulApiClient()).saveCalf(form("Blu1234567"))
 
-    private fun failingApiClient(): CalfRegistrationApiClient {
-        val mockEngine = MockEngine { _ ->
-            respondError(HttpStatusCode.InternalServerError)
-        }
-
-        val httpClient = HttpClient(mockEngine) {
-            install(ContentNegotiation) { json() }
-        }
-
-        return CalfRegistrationApiClient(
-            tokenProvider = FakeTokenProvider("tok"),
-            baseUrl = "http://test-host/",
-            httpClient = httpClient
-        )
+        assertTrue(outcome.data.synced)
+        assertNull(outcome.validationError)
+        assertEquals(1, calfDao.animals.size)
+        assertEquals(1, calfDao.tagIdentifierCount())
+        assertEquals(1, calfDao.registrations.size)
+        assertEquals(calfDao.animals.single().animalId, calfDao.registrations.single().registeredAnimalId)
+        assertEquals("SYNCED", calfDao.registrations.single().syncStatus)
     }
 
     @Test
-    fun `saveCalf persists locally and syncs successfully`() = runTest {
-        val calfDao = FakeCalfRegistrationDao()
-        val pendingSyncRepository = PendingSyncRepository(FakePendingSyncDao())
-        val repository = CalfRegistrationRepository(
-            calfRegistrationDao = calfDao,
-            pendingSyncRepository = pendingSyncRepository,
-            apiClient = successfulApiClient()
-        )
+    fun `saveCalf rejects a duplicate tag as a validation error and writes nothing`() = runTest {
+        val repository = repository(successfulApiClient())
+        repository.saveCalf(form("Blu1234567"))
 
-        val formData = CalfRegistrationData(tagNumber = "RMB12345", animalType = "Bonsmara")
+        val outcome = repository.saveCalf(form("Blu1234567"))
 
-        val saved = repository.saveCalf(formData)
-
-        assertTrue(saved.data.synced)
-        assertTrue(calfDao.existsByAnimalId("RMB12345"))
-
-        val persisted = calfDao.findByAnimalId("RMB12345")
-        assertEquals("RMB12345", persisted?.registeredAnimalId)
+        assertNotNull(outcome.validationError)
+        assertNull(outcome.syncErrorMessage)
+        assertFalse(outcome.data.synced)
+        assertEquals(1, calfDao.animals.size)
+        assertEquals(1, calfDao.tagIdentifierCount())
+        assertEquals(1, calfDao.registrations.size)
     }
 
     @Test
-    fun `saveCalf leaves record pending when sync fails`() = runTest {
-        val calfDao = FakeCalfRegistrationDao()
-        val pendingSyncRepository = PendingSyncRepository(FakePendingSyncDao())
-        val repository = CalfRegistrationRepository(
-            calfRegistrationDao = calfDao,
-            pendingSyncRepository = pendingSyncRepository,
-            apiClient = failingApiClient()
-        )
+    fun `saveCalf rejects a duplicate entered in shorthand`() = runTest {
+        val repository = repository(successfulApiClient())
+        repository.saveCalf(form("Blu1234567"))
 
-        val formData = CalfRegistrationData(tagNumber = "RMB99999", animalType = "Angus")
+        val outcome = repository.saveCalf(form("b1234567"))
 
-        val saved = repository.saveCalf(formData)
-
-        assertTrue(calfDao.existsByAnimalId("RMB99999"))
-        assertEquals(false, saved.data.synced)
-        assertTrue(saved.syncErrorMessage?.isNotBlank() == true)
+        assertNotNull(outcome.validationError)
+        assertEquals(1, calfDao.animals.size)
     }
 
     @Test
-    fun `saveCalf preserves registrationId when re-saving the same animalId`() = runTest {
-        val calfDao = FakeCalfRegistrationDao()
-        val pendingSyncRepository = PendingSyncRepository(FakePendingSyncDao())
-        val repository = CalfRegistrationRepository(
-            calfRegistrationDao = calfDao,
-            pendingSyncRepository = pendingSyncRepository,
-            apiClient = failingApiClient()
-        )
+    fun `saveCalf rejects a malformed tag as a validation error`() = runTest {
+        val outcome = repository(successfulApiClient()).saveCalf(form("RMB12345"))
 
-        repository.saveCalf(CalfRegistrationData(tagNumber = "RMB11111", animalType = "Angus"))
-        val firstGuid = calfDao.findByAnimalId("RMB11111")?.registrationId
-
-        repository.saveCalf(CalfRegistrationData(tagNumber = "RMB11111", animalType = "Updated Breed"))
-        val secondGuid = calfDao.findByAnimalId("RMB11111")?.registrationId
-
-        assertEquals(firstGuid, secondGuid)
+        assertNotNull(outcome.validationError)
+        assertTrue(calfDao.animals.isEmpty())
     }
 
     @Test
-    fun `syncPending updates sync status for successfully synced records`() = runTest {
-        val calfDao = FakeCalfRegistrationDao()
-        val pendingSyncRepository = PendingSyncRepository(FakePendingSyncDao())
-        val repository = CalfRegistrationRepository(
-            calfRegistrationDao = calfDao,
-            pendingSyncRepository = pendingSyncRepository,
-            apiClient = failingApiClient()
-        )
+    fun `saveCalf saves with a null dam and a warning when the dam is not registered`() = runTest {
+        val outcome = repository(successfulApiClient())
+            .saveCalf(form("Blu1234567", dam = "Blu0000011 (Bonsmara)"))
 
-        // Save while offline (sync fails).
-        repository.saveCalf(CalfRegistrationData(tagNumber = "RMB12345", animalType = "Bonsmara"))
-
-        // Now retry with a working API client.
-        val onlineRepository = CalfRegistrationRepository(
-            calfRegistrationDao = calfDao,
-            pendingSyncRepository = pendingSyncRepository,
-            apiClient = successfulApiClient()
-        )
-
-        val syncOutcome = onlineRepository.syncPending()
-
-        assertEquals(1, syncOutcome.syncedCount)
+        assertNull(outcome.validationError)
+        assertNull(calfDao.registrations.single().damId)
+        assertEquals(1, outcome.warnings.size)
+        assertTrue(outcome.warnings.single().contains("Blu0000011"))
     }
 
     @Test
-    fun `loadAll returns all locally persisted records mapped to form data`() = runTest {
-        val calfDao = FakeCalfRegistrationDao()
-        val pendingSyncRepository = PendingSyncRepository(FakePendingSyncDao())
-        val repository = CalfRegistrationRepository(
-            calfRegistrationDao = calfDao,
-            pendingSyncRepository = pendingSyncRepository,
-            apiClient = failingApiClient()
+    fun `saveCalf links a registered dam and sire by animal id`() = runTest {
+        val repository = repository(successfulApiClient())
+        repository.saveCalf(form("Blu0000011"))
+        repository.saveCalf(form("Blu0000902"))
+        val damId = calfDao.findAnimalIdByTag("Blu0000011")
+        val sireId = calfDao.findAnimalIdByTag("Blu0000902")
+
+        val outcome = repository.saveCalf(
+            form("Blu1234567", dam = "Blu0000011 (Bonsmara)", sire = "Blu0000902 (Bonsmara Stud)")
         )
 
-        repository.saveCalf(CalfRegistrationData(tagNumber = "RMB1"))
-        repository.saveCalf(CalfRegistrationData(tagNumber = "RMB2"))
+        val registration = calfDao.registrations.last()
+        assertEquals(damId, registration.damId)
+        assertEquals(sireId, registration.sireId)
+        assertTrue(outcome.warnings.isEmpty())
+        assertEquals("Blu0000011", outcome.data.dameTagNumber)
+    }
 
-        val all = repository.loadAll()
+    @Test
+    fun `saveCalf queues a pending operation keyed by record guid when sync fails`() = runTest {
+        val outcome = repository(failingApiClient()).saveCalf(form("Blu1234567"))
+
+        assertFalse(outcome.data.synced)
+        assertTrue(outcome.syncErrorMessage?.isNotBlank() == true)
+        assertEquals("PENDING", calfDao.registrations.single().syncStatus)
+
+        val queued = pendingSyncDao.snapshot().single()
+        assertEquals("CALF_REGISTRATION", queued.entityType)
+        assertEquals(calfDao.registrations.single().recordGuid, queued.entityId)
+    }
+
+    @Test
+    fun `syncPending marks records SYNCED and clears the queue`() = runTest {
+        repository(failingApiClient()).saveCalf(form("Blu1234567"))
+
+        val outcome = repository(successfulApiClient()).syncPending()
+
+        assertEquals(1, outcome.syncedCount)
+        assertEquals("SYNCED", calfDao.registrations.single().syncStatus)
+        assertNotNull(calfDao.registrations.single().syncedAt)
+        assertTrue(PendingSyncRepository(pendingSyncDao).getPendingOperations().isEmpty())
+    }
+
+    @Test
+    fun `syncPending reports errors by tag number when the server is down`() = runTest {
+        repository(failingApiClient()).saveCalf(form("Blu1234567"))
+
+        val outcome = repository(failingApiClient()).syncPending()
+
+        assertEquals(0, outcome.syncedCount)
+        assertTrue("Blu1234567" in outcome.errorMessagesByTagNumber)
+        assertEquals("PENDING", calfDao.registrations.single().syncStatus)
+    }
+
+    @Test
+    fun `isTagRegistered matches full and shorthand tags`() = runTest {
+        val repository = repository(successfulApiClient())
+        repository.saveCalf(form("Blu1234567"))
+
+        assertTrue(repository.isTagRegistered("Blu1234567"))
+        assertTrue(repository.isTagRegistered("B1234567"))
+        assertFalse(repository.isTagRegistered("Red0000123"))
+        assertFalse(repository.isTagRegistered(""))
+    }
+
+    @Test
+    fun `loadAll returns saved calves with their real sync state`() = runTest {
+        repository(failingApiClient()).saveCalf(form("Blu0000001"))
+        repository(successfulApiClient()).saveCalf(form("Blu0000002"))
+
+        val all = repository(failingApiClient()).loadAll()
 
         assertEquals(2, all.size)
-        assertTrue(all.any { it.tagNumber == "RMB1" })
-        assertTrue(all.any { it.tagNumber == "RMB2" })
+        assertFalse(all.single { it.tagNumber == "Blu0000001" }.synced)
+        assertTrue(all.single { it.tagNumber == "Blu0000002" }.synced)
     }
 }
