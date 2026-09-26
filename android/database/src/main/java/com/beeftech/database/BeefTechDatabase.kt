@@ -107,7 +107,7 @@ import com.beeftech.database.dao.UserDao
         // Phase 5 Entity
         CostType::class
     ],
-    version = 16,
+    version = 17,
     exportSchema = true
 )
 abstract class BeefTechDatabase : RoomDatabase() {
@@ -897,6 +897,40 @@ abstract class BeefTechDatabase : RoomDatabase() {
 
                 // 3. Foreign Key Integrity Check
                 db.query("PRAGMA foreign_key_check").use { check(it.count == 0) { "FK violations after 14->16" } }
+            }
+        }
+
+        /**
+         * D1 (Version 16 -> 17): calf_registrations becomes a sync-able event.
+         * - Adds record_guid (UNIQUE), sync_status, synced_at
+         * - Makes registered_animal_id UNIQUE (one registration per animal)
+         * record_guid is set to registration_id for existing rows because that is the
+         * value already sent to the backend as recordguid, so sync stays idempotent.
+         */
+        val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `calf_registrations_new` (`registration_id` TEXT NOT NULL, `registered_animal_id` TEXT NOT NULL, `dam_id` TEXT, `sire_id` TEXT, `birth_weight_kg` REAL, `calving_ease` TEXT, `registration_date` TEXT NOT NULL, `record_guid` TEXT NOT NULL, `sync_status` TEXT NOT NULL DEFAULT 'PENDING', `synced_at` INTEGER, PRIMARY KEY(`registration_id`), FOREIGN KEY(`registered_animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(`dam_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE SET NULL, FOREIGN KEY(`sire_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE SET NULL)")
+
+                // Keep only the newest registration per animal so the new UNIQUE index cannot fail.
+                db.execSQL("""
+                    INSERT INTO `calf_registrations_new`
+                        (`registration_id`, `registered_animal_id`, `dam_id`, `sire_id`,
+                         `birth_weight_kg`, `calving_ease`, `registration_date`,
+                         `record_guid`, `sync_status`, `synced_at`)
+                    SELECT `registration_id`, `registered_animal_id`, `dam_id`, `sire_id`,
+                           `birth_weight_kg`, `calving_ease`, `registration_date`,
+                           `registration_id`, 'PENDING', NULL
+                    FROM `calf_registrations` cr
+                    WHERE cr.rowid = (SELECT MAX(rowid) FROM `calf_registrations`
+                                      WHERE `registered_animal_id` = cr.`registered_animal_id`)
+                """.trimIndent())
+
+                db.execSQL("DROP TABLE `calf_registrations`")
+                db.execSQL("ALTER TABLE `calf_registrations_new` RENAME TO `calf_registrations`")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_calf_registrations_registered_animal_id` ON `calf_registrations` (`registered_animal_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_calf_registrations_dam_id` ON `calf_registrations` (`dam_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_calf_registrations_sire_id` ON `calf_registrations` (`sire_id`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_calf_registrations_record_guid` ON `calf_registrations` (`record_guid`)")
             }
         }
 

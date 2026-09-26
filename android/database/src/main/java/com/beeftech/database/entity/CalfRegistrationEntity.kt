@@ -30,9 +30,10 @@ import java.util.UUID
         )
     ],
     indices = [
-        Index(value = ["registered_animal_id"]),
+        Index(value = ["registered_animal_id"], unique = true),
         Index(value = ["dam_id"]),
-        Index(value = ["sire_id"])
+        Index(value = ["sire_id"]),
+        Index(value = ["record_guid"], unique = true)
     ]
 )
 data class CalfRegistrationEntity(
@@ -57,5 +58,14 @@ data class CalfRegistrationEntity(
     val calvingEase: String? = null,
 
     @ColumnInfo(name = "registration_date")
-    val registrationDate: String
+    val registrationDate: String,
+
+    @ColumnInfo(name = "record_guid")
+    val recordGuid: String = UUID.randomUUID().toString(),
+
+    @ColumnInfo(name = "sync_status", defaultValue = "'PENDING'")
+    val syncStatus: String = "PENDING",
+
+    @ColumnInfo(name = "synced_at")
+    val syncedAt: Long? = null
 )
