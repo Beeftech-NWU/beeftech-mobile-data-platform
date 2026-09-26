@@ -277,10 +277,10 @@ class MainActivity : ComponentActivity() {
                      */
                     val costSummaryViewModelFactory =
                         CostSummaryViewModelFactory(
-                            treatmentDao =
-                                treatmentDao,
                             animalCostDao =
-                                animalCostDao
+                                animalCostDao,
+                            costTypeDao =
+                                database.costTypeDao()
                         )
 
                     val costSummaryViewModel =
@@ -637,6 +637,9 @@ class MainActivity : ComponentActivity() {
 
                                             interestCost =
                                                 costSummaryState.interestCost,
+
+                                            otherCost =
+                                                costSummaryState.otherCost,
 
                                             totalAnimalCost =
                                                 costSummaryState.totalAnimalCost,
