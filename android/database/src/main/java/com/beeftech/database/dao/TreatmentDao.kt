@@ -2,7 +2,11 @@ package com.beeftech.database.dao
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
+import com.beeftech.database.entity.AnimalCost
+import com.beeftech.database.entity.CostSource
 import com.beeftech.database.entity.Treatment
 
 @Dao
@@ -12,6 +16,46 @@ interface TreatmentDao {
     suspend fun insert(
         treatment: Treatment
     ): Long
+
+    /*
+     * Inserts the derived cost row for a treatment.
+     * IGNORE + the unique (source_entity, source_record_id) index
+     * make this safe to call more than once.
+     */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertDerivedCost(
+        cost: AnimalCost
+    ): Long
+
+    /*
+     * Saves a treatment and, when it has a cost, its matching
+     * animal_costs row in one transaction (remediation plan, Phase 5).
+     *
+     * Any future edit/delete of a treatment must update/delete
+     * the derived cost row with source_record_id = recordguid.
+     */
+    @Transaction
+    suspend fun insertWithCost(
+        treatment: Treatment
+    ): Long {
+        val id = insert(treatment)
+        if (treatment.cost > 0) {
+            insertDerivedCost(
+                AnimalCost(
+                    animalId = treatment.animalId,
+                    costType = "TREATMENT",
+                    amount = treatment.cost,
+                    description = treatment.treatmentName,
+                    gpsLat = treatment.gpsLat,
+                    gpsLng = treatment.gpsLng,
+                    timestamp = treatment.timestamp,
+                    sourceEntity = CostSource.TREATMENT,
+                    sourceRecordId = treatment.recordguid
+                )
+            )
+        }
+        return id
+    }
 
     @Query(
         """

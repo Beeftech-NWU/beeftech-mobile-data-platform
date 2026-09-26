@@ -3,7 +3,7 @@ package com.beeftech.farmtraceability.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.beeftech.database.dao.AnimalCostDao
-import com.beeftech.database.dao.TreatmentDao
+import com.beeftech.database.dao.CostTypeDao
 import com.beeftech.database.entity.AnimalCost
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,12 +17,14 @@ data class CostSummaryUiState(
     val feedCost: Double = 0.0,
     val handlingCost: Double = 0.0,
     val interestCost: Double = 0.0,
+    /* Every category without its own line (e.g. DIRECT, legacy codes). */
+    val otherCost: Double = 0.0,
     val totalAnimalCost: Double = 0.0
 )
 
 class CostSummaryViewModel(
-    private val treatmentDao: TreatmentDao,
-    private val animalCostDao: AnimalCostDao
+    private val animalCostDao: AnimalCostDao,
+    private val costTypeDao: CostTypeDao
 ) : ViewModel() {
 
     private val _uiState =
@@ -46,44 +48,27 @@ class CostSummaryViewModel(
 
             try {
 
-                val transportCost =
-                    animalCostDao.getTotalByType(
-                        animalId,
-                        COST_TRANSPORT
-                    )
+                val totals = animalCostDao.getTotalsByType(animalId)
+                    .associate { it.costType to it.total }
 
-                val processingCost =
-                    animalCostDao.getTotalByType(
-                        animalId,
-                        COST_PROCESSING
-                    )
+                val transportCost = totals[COST_TRANSPORT] ?: 0.0
+                val processingCost = totals[COST_PROCESSING] ?: 0.0
+                val treatmentCost = totals[COST_TREATMENT] ?: 0.0
+                // TODO: feed rows will be derived from LocationFeed in a later phase.
+                val feedCost = totals[COST_FEED] ?: 0.0
+                val handlingCost = totals[COST_HANDLING] ?: 0.0
+                val interestCost = totals[COST_INTEREST] ?: 0.0
 
-                val treatmentCost =
-                    treatmentDao.getTotalCostByAnimalId(
-                        animalId
-                    )
+                val totalAnimalCost = totals.values.sum()
 
-                val feedCost = 0.0
-
-                val handlingCost =
-                    animalCostDao.getTotalByType(
-                        animalId,
-                        COST_HANDLING
-                    )
-
-                val interestCost =
-                    animalCostDao.getTotalByType(
-                        animalId,
-                        COST_INTEREST
-                    )
-
-                val totalAnimalCost =
-                    transportCost +
-                            processingCost +
-                            treatmentCost +
-                            feedCost +
-                            handlingCost +
-                            interestCost
+                /*
+                 * Keeps the visible lines adding up to the total
+                 * when costs exist in categories with no line of their own.
+                 */
+                val otherCost =
+                    totalAnimalCost -
+                            (transportCost + processingCost + treatmentCost +
+                                    feedCost + handlingCost + interestCost)
 
                 _uiState.value =
                     CostSummaryUiState(
@@ -93,6 +78,7 @@ class CostSummaryViewModel(
                         feedCost = feedCost,
                         handlingCost = handlingCost,
                         interestCost = interestCost,
+                        otherCost = otherCost,
                         totalAnimalCost = totalAnimalCost
                     )
 
@@ -122,18 +108,6 @@ class CostSummaryViewModel(
             return
         }
 
-        val allowedTypes = listOf(
-            COST_TRANSPORT,
-            COST_PROCESSING,
-            COST_HANDLING,
-            COST_INTEREST
-        )
-
-        if (costType !in allowedTypes) {
-            onResult(false, "Invalid cost type.")
-            return
-        }
-
         val cleanedAmount = amountText
             .replace("R", "", ignoreCase = true)
             .replace(" ", "")
@@ -150,6 +124,13 @@ class CostSummaryViewModel(
         viewModelScope.launch {
 
             try {
+
+                val allowedTypes = costTypeDao.getActive().map { it.code }
+
+                if (costType !in allowedTypes) {
+                    onResult(false, "Invalid cost type.")
+                    return@launch
+                }
 
                 animalCostDao.insert(
                     AnimalCost(
@@ -179,5 +160,7 @@ class CostSummaryViewModel(
         const val COST_PROCESSING = "PROCESSING"
         const val COST_HANDLING = "HANDLING"
         const val COST_INTEREST = "INTEREST"
+        const val COST_TREATMENT = "TREATMENT"
+        const val COST_FEED = "FEED"
     }
 }

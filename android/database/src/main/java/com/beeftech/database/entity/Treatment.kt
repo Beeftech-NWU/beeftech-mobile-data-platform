@@ -30,6 +30,7 @@ data class Treatment(
 
     val volumeUsed: String,
 
+    /** Mirrored into animal_costs by TreatmentDao.insertWithCost. */
     val cost: Double,
 
     val gpsLat: Double,

@@ -3,11 +3,11 @@ package com.beeftech.farmtraceability.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.beeftech.database.dao.AnimalCostDao
-import com.beeftech.database.dao.TreatmentDao
+import com.beeftech.database.dao.CostTypeDao
 
 class CostSummaryViewModelFactory(
-    private val treatmentDao: TreatmentDao,
-    private val animalCostDao: AnimalCostDao
+    private val animalCostDao: AnimalCostDao,
+    private val costTypeDao: CostTypeDao
 ) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
@@ -22,8 +22,8 @@ class CostSummaryViewModelFactory(
         ) {
 
             return CostSummaryViewModel(
-                treatmentDao = treatmentDao,
-                animalCostDao = animalCostDao
+                animalCostDao = animalCostDao,
+                costTypeDao = costTypeDao
             ) as T
         }
 

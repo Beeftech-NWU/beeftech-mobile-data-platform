@@ -180,7 +180,7 @@ class TreatmentRepository(
                         null
                 )
 
-            treatmentDao.insert(
+            treatmentDao.insertWithCost(
                 treatment
             )
 

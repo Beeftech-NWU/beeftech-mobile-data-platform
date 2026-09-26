@@ -47,6 +47,7 @@ fun CostSummaryScreen(
     feedCost: String = "",
     handlingCost: String = "",
     interestCost: String = "",
+    otherCost: String = "",
     totalAnimalCost: String = "",
     costPerKg: String = "",
     lastMassDate: String = "",
@@ -142,6 +143,21 @@ fun CostSummaryScreen(
                     title = "Interest",
                     value = displayCost(interestCost)
                 )
+
+                /*
+                 * Only shown when costs exist in categories
+                 * without their own line, so the rows add up to the total.
+                 */
+                if ((otherCost.toDoubleOrNull() ?: 0.0) > 0.0) {
+
+                    CostDivider()
+
+                    CostSummaryRow(
+                        icon = Icons.AutoMirrored.Outlined.ReceiptLong,
+                        title = "Other",
+                        value = displayCost(otherCost)
+                    )
+                }
             }
 
             Spacer(
