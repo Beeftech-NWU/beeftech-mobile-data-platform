@@ -15,6 +15,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -65,7 +66,8 @@ class CalfRegistrationRoutesTest {
         val token = loginBody.jsonObject["data"]!!.jsonObject["token"]!!.jsonPrimitive.content
 
         val recordGuid = "test-guid-${System.nanoTime()}"
-        val animalId = "test-animal-${System.nanoTime()}"
+        val tagNumber = "Blu${System.nanoTime() % 10_000_000L}".padEnd(10, '0')
+        val animalUuid = java.util.UUID.randomUUID().toString()
 
         val syncResponse = client.post("/api/calf-registrations/sync") {
             header("Authorization", "Bearer $token")
@@ -76,7 +78,8 @@ class CalfRegistrationRoutesTest {
                   "deviceId": "device-test",
                   "records": [
                     {
-                      "animalId": "$animalId",
+                      "tagNumber": "$tagNumber",
+                      "animalUuid": "$animalUuid",
                       "birthdate": 1700000000000,
                       "breed": "Angus",
                       "gpsLat": -26.1,
@@ -98,9 +101,9 @@ class CalfRegistrationRoutesTest {
         }
 
         assertEquals(HttpStatusCode.OK, listResponse.status)
-        assertTrue(listResponse.bodyAsText().contains(animalId))
+        assertTrue(listResponse.bodyAsText().contains(tagNumber))
 
-        val getResponse = client.get("/api/calf-registrations/$animalId") {
+        val getResponse = client.get("/api/calf-registrations/$tagNumber") {
             header("Authorization", "Bearer $token")
         }
 
@@ -126,7 +129,8 @@ class CalfRegistrationRoutesTest {
         val token = loginBody.jsonObject["data"]!!.jsonObject["token"]!!.jsonPrimitive.content
 
         val recordGuid = "guid-cert-${System.nanoTime()}"
-        val animalId = "Blu0000064"
+        val tagNumber = "Blu0000064"
+        val animalUuid = java.util.UUID.randomUUID().toString()
 
         client.post("/api/calf-registrations/sync") {
             header("Authorization", "Bearer $token")
@@ -137,11 +141,12 @@ class CalfRegistrationRoutesTest {
                   "deviceId": "device-test",
                   "records": [
                     {
-                      "animalId": "$animalId",
+                      "tagNumber": "$tagNumber",
+                      "animalUuid": "$animalUuid",
                       "birthdate": 1700000000000,
                       "breed": "BRN — Brangus",
-                      "damId": "Blu0000011",
-                      "sireId": "Blu0000902",
+                      "damTagNumber": "Blu0000011",
+                      "sireTagNumber": "Blu0000902",
                       "gpsLat": -26.1,
                       "gpsLng": 27.9,
                       "captureAt": 1700000100000,
@@ -154,18 +159,71 @@ class CalfRegistrationRoutesTest {
             )
         }
 
-        val mediaResponse = client.post("/api/calf-registrations/$animalId/media") {
+        val mediaResponse = client.post("/api/calf-registrations/$tagNumber/media") {
             header("Authorization", "Bearer $token")
         }
 
         assertEquals(HttpStatusCode.OK, mediaResponse.status)
-        assertTrue(mediaResponse.bodyAsText().contains("/media/photos/calf_$animalId.jpg"))
+        assertTrue(mediaResponse.bodyAsText().contains("/media/photos/calf_$tagNumber.jpg"))
 
-        val certResponse = client.get("/api/calf-registrations/$animalId/certificate") {
+        val certResponse = client.get("/api/calf-registrations/$tagNumber/certificate") {
             header("Authorization", "Bearer $token")
         }
 
         assertEquals(HttpStatusCode.OK, certResponse.status)
         assertEquals("application/pdf", certResponse.headers["Content-Type"])
+    }
+
+    @Test
+    fun `syncing the same recordguid twice keeps a single row`() = testApplication {
+
+        System.setProperty("beeftech.db.url", uniqueTestDbUrl())
+
+        application { module() }
+
+        val client = createClient { }
+
+        val loginResponse = client.post("/api/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"username":"admin","pin":"10001","device_id":"TEST_DEV_03"}""")
+        }
+        val token = Json.parseToJsonElement(loginResponse.bodyAsText())
+            .jsonObject["data"]!!.jsonObject["token"]!!.jsonPrimitive.content
+
+        val body = """
+            {
+              "deviceId": "device-test",
+              "records": [
+                {
+                  "tagNumber": "Blu1234567",
+                  "animalUuid": "11111111-1111-1111-1111-111111111111",
+                  "birthdate": 1700000000000,
+                  "breed": "Brangus",
+                  "gpsLat": 0.0,
+                  "gpsLng": 0.0,
+                  "captureAt": 1700000100000,
+                  "deviceId": "device-test",
+                  "recordguid": "idempotent-guid"
+                }
+              ]
+            }
+        """.trimIndent()
+
+        repeat(2) {
+            val response = client.post("/api/calf-registrations/sync") {
+                header("Authorization", "Bearer $token")
+                contentType(ContentType.Application.Json)
+                setBody(body)
+            }
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertTrue(response.bodyAsText().contains("\"status\":\"SYNCED\""))
+        }
+
+        val list = client.get("/api/calf-registrations") {
+            header("Authorization", "Bearer $token")
+        }
+        val records = Json.parseToJsonElement(list.bodyAsText())
+            .jsonObject["data"]!!.jsonArray
+        assertEquals(1, records.size)
     }
 }

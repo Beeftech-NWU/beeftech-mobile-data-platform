@@ -43,10 +43,10 @@ object PdfGenerator {
             val dateStr = dateFormat.format(Date(calf.captureAt))
 
             val details = listOf(
-                "Ear Tag ID (Animal ID):" to calf.animalId,
+                "Ear Tag ID:" to calf.tagNumber,
                 "Breed / Animal Type:" to calf.breed,
-                "Dam Tag Number:" to (calf.damId ?: "N/A"),
-                "Sire Tag Number:" to (calf.sireId ?: "N/A"),
+                "Dam Tag Number:" to (calf.damTagNumber ?: "N/A"),
+                "Sire Tag Number:" to (calf.sireTagNumber ?: "N/A"),
                 "Capture Timestamp:" to dateStr,
                 "Device Identifier:" to calf.deviceId,
                 "Record GUID:" to calf.recordguid,

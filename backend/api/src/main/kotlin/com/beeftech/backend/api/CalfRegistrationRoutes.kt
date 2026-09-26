@@ -49,13 +49,13 @@ fun Route.calfRegistrationRoutes(
         )
     }
 
-    get("/api/calf-registrations/{animalId}") {
+    get("/api/calf-registrations/{tagNumber}") {
 
         call.requireBearerToken(jwtService) ?: return@get
 
-        val animalId = call.parameters["animalId"]
+        val tagNumber = call.parameters["tagNumber"]
 
-        val record = animalId?.let { service.findByAnimalId(it) }
+        val record = tagNumber?.let { service.findByTagNumber(it) }
 
         if (record == null) {
             call.respond(
@@ -77,21 +77,21 @@ fun Route.calfRegistrationRoutes(
         )
     }
 
-    post("/api/calf-registrations/{animalId}/media") {
+    post("/api/calf-registrations/{tagNumber}/media") {
 
         call.requireBearerToken(jwtService) ?: return@post
 
-        val animalId = call.parameters["animalId"]
-        if (animalId.isNullOrBlank()) {
+        val tagNumber = call.parameters["tagNumber"]
+        if (tagNumber.isNullOrBlank()) {
             call.respond(
                 HttpStatusCode.BadRequest,
-                ApiResponse<String>(success = false, message = "Missing animalId parameter")
+                ApiResponse<String>(success = false, message = "Missing tagNumber parameter")
             )
             return@post
         }
 
-        val photoPath = "/media/photos/calf_${animalId}.jpg"
-        val updated = service.updateMedia(animalId, photoPath)
+        val photoPath = "/media/photos/calf_${tagNumber}.jpg"
+        val updated = service.updateMedia(tagNumber, photoPath)
 
         if (updated) {
             call.respond(
@@ -106,26 +106,26 @@ fun Route.calfRegistrationRoutes(
                 HttpStatusCode.NotFound,
                 ApiResponse<String>(
                     success = false,
-                    message = "Calf registration record not found for animalId: $animalId"
+                    message = "Calf registration record not found for tagNumber: $tagNumber"
                 )
             )
         }
     }
 
-    get("/api/calf-registrations/{animalId}/certificate") {
+    get("/api/calf-registrations/{tagNumber}/certificate") {
 
         call.requireBearerToken(jwtService) ?: return@get
 
-        val animalId = call.parameters["animalId"]
-        if (animalId.isNullOrBlank()) {
+        val tagNumber = call.parameters["tagNumber"]
+        if (tagNumber.isNullOrBlank()) {
             call.respond(
                 HttpStatusCode.BadRequest,
-                ApiResponse<String>(success = false, message = "Missing animalId parameter")
+                ApiResponse<String>(success = false, message = "Missing tagNumber parameter")
             )
             return@get
         }
 
-        val pdfBytes = service.generateCertificatePdf(animalId)
+        val pdfBytes = service.generateCertificatePdf(tagNumber)
         if (pdfBytes == null) {
             call.respond(
                 HttpStatusCode.NotFound,
@@ -141,7 +141,7 @@ fun Route.calfRegistrationRoutes(
             HttpHeaders.ContentDisposition,
             ContentDisposition.Inline.withParameter(
                 ContentDisposition.Parameters.FileName,
-                "birth_certificate_${animalId}.pdf"
+                "birth_certificate_${tagNumber}.pdf"
             ).toString()
         )
 
