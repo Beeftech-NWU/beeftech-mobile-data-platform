@@ -945,10 +945,12 @@ abstract class BeefTechDatabase : RoomDatabase() {
         val SEED_CALLBACK = object : Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {
                 CostTypeSeed.execute(db)
+                RoleSeed.execute(db)
             }
 
             override fun onOpen(db: SupportSQLiteDatabase) {
                 CostTypeSeed.execute(db)
+                RoleSeed.execute(db)
             }
         }
     }
