@@ -89,4 +89,6 @@ dependencies {
     androidTestImplementation(
         "androidx.test:runner:1.7.0"
     )
+
+    androidTestImplementation("androidx.room:room-testing:2.8.4")
 }

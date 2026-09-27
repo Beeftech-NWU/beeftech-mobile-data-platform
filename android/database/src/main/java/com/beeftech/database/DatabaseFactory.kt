@@ -493,7 +493,9 @@ object DatabaseFactory {
                      * 11 -> 12
                      * 12 -> 13
                      * 13 -> 14
-                     * 14 -> 16 (15 is claimed by fix/D1-calf-registration-animal-record)
+                     * 14 -> 16 (phase 2 referential integrity; 15 was reassigned, see below)
+                     * 16 -> 17 (D1 calf_registrations record_guid/sync state; renumbered
+                     *           from 14->15 to rebase on top of the phase 2 migration)
                      */
                     .addMigrations(
                         MIGRATION_1_2,
@@ -509,7 +511,8 @@ object DatabaseFactory {
                         BeefTechDatabase.MIGRATION_11_12,
                         BeefTechDatabase.MIGRATION_12_13,
                         BeefTechDatabase.MIGRATION_13_14,
-                        BeefTechDatabase.MIGRATION_14_16
+                        BeefTechDatabase.MIGRATION_14_16,
+                        BeefTechDatabase.MIGRATION_16_17
                     )
 
                     .addCallback(

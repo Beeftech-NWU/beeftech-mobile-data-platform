@@ -1,4 +1,4 @@
-package com.beeftech.calfregistration.util
+package com.beeftech.database.util
 
 /**
  * Standard tag colours and associated prefix metadata for animal ear tags.

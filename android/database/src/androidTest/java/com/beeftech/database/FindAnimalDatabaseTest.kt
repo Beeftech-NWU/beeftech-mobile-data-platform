@@ -4,7 +4,9 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.beeftech.database.entity.Animal
+import com.beeftech.database.entity.AnimalIdentifierEntity
 import com.beeftech.database.entity.CalfRegistrationEntity
+import com.beeftech.database.entity.IdentifierTypes
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -14,6 +16,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.UUID
 
 @RunWith(AndroidJUnit4::class)
 class FindAnimalDatabaseTest {
@@ -46,8 +49,12 @@ class FindAnimalDatabaseTest {
         assertTrue(result is DatabaseResult.Success)
         database = (result as DatabaseResult.Success).database
 
+        val animalUuid = UUID.randomUUID().toString()
+        val tagNumber = "Blu0000001"
+
         val animal = Animal(
-            animalId = "FIND-001",
+            animalId = animalUuid,
+            tagNumber = tagNumber,
             birthdate = System.currentTimeMillis(),
             breed = "Simmentaler",
             gpsLat = -26.1,
@@ -56,17 +63,20 @@ class FindAnimalDatabaseTest {
             deviceId = "device-1",
             recordguid = "guid-find-001"
         )
-        database!!.animalDao().insert(animal)
-
+        val identifiers = listOf(
+            AnimalIdentifierEntity(animalId = animalUuid, identifierType = IdentifierTypes.TAG, identifierValue = tagNumber)
+        )
         val calfReg = CalfRegistrationEntity(
-            registeredAnimalId = "FIND-001",
+            registeredAnimalId = animalUuid,
             registrationDate = "2026-09-18"
         )
-        database!!.calfRegistrationDao().insertCalfRegistration(calfReg)
 
-        val found = database!!.calfRegistrationDao().getCalfRegistrationDetails("FIND-001").first()
+        database!!.calfRegistrationDao().registerCalf(animal, identifiers, emptyList(), calfReg)
+
+        val found = database!!.calfRegistrationDao().getRegistrationByTag(tagNumber).first()
         assertNotNull(found)
-        assertEquals("FIND-001", found!!.registeredAnimalId)
+        assertEquals(animalUuid, found!!.animalId)
+        assertEquals(tagNumber, found.tagNumber)
     }
 
     private fun createCorrectPassphrase(): ByteArray {

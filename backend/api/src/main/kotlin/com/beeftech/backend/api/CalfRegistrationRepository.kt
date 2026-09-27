@@ -20,11 +20,14 @@ class CalfRegistrationRepository {
     private fun ResultRow.toDto(): CalfRegistrationDto {
 
         return CalfRegistrationDto(
-            animalId = this[CalfRegistrationTable.animalId],
+            tagNumber = this[CalfRegistrationTable.tagNumber],
+            animalUuid = this[CalfRegistrationTable.animalUuid],
             birthdate = this[CalfRegistrationTable.birthdate],
             breed = this[CalfRegistrationTable.breed],
-            damId = this[CalfRegistrationTable.damId],
-            sireId = this[CalfRegistrationTable.sireId],
+            damTagNumber = this[CalfRegistrationTable.damTagNumber],
+            sireTagNumber = this[CalfRegistrationTable.sireTagNumber],
+            damAnimalUuid = this[CalfRegistrationTable.damAnimalUuid],
+            sireAnimalUuid = this[CalfRegistrationTable.sireAnimalUuid],
             photoPath = this[CalfRegistrationTable.photoPath],
             videoPath = this[CalfRegistrationTable.videoPath],
             gpsLat = this[CalfRegistrationTable.gpsLat],
@@ -52,11 +55,14 @@ class CalfRegistrationRepository {
             CalfRegistrationTable.update(
                 { CalfRegistrationTable.recordguid eq dto.recordguid }
             ) {
-                it[animalId] = dto.animalId
+                it[tagNumber] = dto.tagNumber
+                it[animalUuid] = dto.animalUuid
                 it[birthdate] = dto.birthdate
                 it[breed] = dto.breed
-                it[damId] = dto.damId
-                it[sireId] = dto.sireId
+                it[damTagNumber] = dto.damTagNumber
+                it[sireTagNumber] = dto.sireTagNumber
+                it[damAnimalUuid] = dto.damAnimalUuid
+                it[sireAnimalUuid] = dto.sireAnimalUuid
                 it[photoPath] = dto.photoPath
                 it[videoPath] = dto.videoPath
                 it[gpsLat] = dto.gpsLat
@@ -70,11 +76,14 @@ class CalfRegistrationRepository {
         } else {
 
             CalfRegistrationTable.insert {
-                it[animalId] = dto.animalId
+                it[tagNumber] = dto.tagNumber
+                it[animalUuid] = dto.animalUuid
                 it[birthdate] = dto.birthdate
                 it[breed] = dto.breed
-                it[damId] = dto.damId
-                it[sireId] = dto.sireId
+                it[damTagNumber] = dto.damTagNumber
+                it[sireTagNumber] = dto.sireTagNumber
+                it[damAnimalUuid] = dto.damAnimalUuid
+                it[sireAnimalUuid] = dto.sireAnimalUuid
                 it[photoPath] = dto.photoPath
                 it[videoPath] = dto.videoPath
                 it[gpsLat] = dto.gpsLat
@@ -100,22 +109,22 @@ class CalfRegistrationRepository {
             .map { it.toDto() }
     }
 
-    suspend fun findByAnimalId(animalId: String): CalfRegistrationDto? = newSuspendedTransaction(Dispatchers.IO) {
+    suspend fun findByTagNumber(tagNumber: String): CalfRegistrationDto? = newSuspendedTransaction(Dispatchers.IO) {
 
         CalfRegistrationTable
             .selectAll()
-            .where { CalfRegistrationTable.animalId eq animalId }
+            .where { CalfRegistrationTable.tagNumber eq tagNumber }
             .map { it.toDto() }
             .singleOrNull()
     }
 
     suspend fun updatePhotoPath(
-        animalId: String,
+        tagNumber: String,
         photoPath: String
     ): Boolean = newSuspendedTransaction(Dispatchers.IO) {
 
         val updatedCount = CalfRegistrationTable.update(
-            { CalfRegistrationTable.animalId eq animalId }
+            { CalfRegistrationTable.tagNumber eq tagNumber }
         ) {
             it[CalfRegistrationTable.photoPath] = photoPath
         }

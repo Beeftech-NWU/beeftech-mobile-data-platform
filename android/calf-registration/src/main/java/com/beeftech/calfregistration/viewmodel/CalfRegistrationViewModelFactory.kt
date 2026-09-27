@@ -3,6 +3,7 @@ package com.beeftech.calfregistration.viewmodel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.beeftech.calfregistration.data.CalfCaptureContext
 import com.beeftech.calfregistration.data.CalfRegistrationApiClient
 import com.beeftech.calfregistration.data.CalfRegistrationRepository
 import com.beeftech.database.dao.CalfRegistrationDao
@@ -18,6 +19,7 @@ class CalfRegistrationViewModelFactory(
     private val calfRegistrationDao: CalfRegistrationDao,
     private val pendingSyncRepository: PendingSyncRepository,
     private val tokenProvider: TokenProvider,
+    private val deviceIdProvider: () -> String,
     private val apiClient: CalfRegistrationApiClient =
         CalfRegistrationApiClient(tokenProvider = tokenProvider)
 ) : ViewModelProvider.Factory {
@@ -43,7 +45,10 @@ class CalfRegistrationViewModelFactory(
                     pendingSyncRepository =
                         pendingSyncRepository,
                     apiClient =
-                        apiClient
+                        apiClient,
+                    captureContextProvider = {
+                        CalfCaptureContext(deviceId = deviceIdProvider())
+                    }
                 )
 
             return CalfRegistrationViewModel(

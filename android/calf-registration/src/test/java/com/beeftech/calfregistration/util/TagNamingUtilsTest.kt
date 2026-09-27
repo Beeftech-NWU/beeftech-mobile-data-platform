@@ -1,5 +1,7 @@
 package com.beeftech.calfregistration.util
 
+import com.beeftech.database.util.TagColour
+import com.beeftech.database.util.TagNamingUtils
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull

@@ -5,8 +5,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import com.beeftech.calfregistration.util.TagColour
-import com.beeftech.calfregistration.util.TagNamingUtils
+import com.beeftech.database.util.TagColour
+import com.beeftech.database.util.TagNamingUtils
 import com.beeftech.calfregistration.viewmodel.CalfRegistrationViewModel
 
 private enum class CalfFlowStep {

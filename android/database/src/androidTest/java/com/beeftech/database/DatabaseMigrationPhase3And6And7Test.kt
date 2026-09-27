@@ -143,15 +143,31 @@ class DatabaseMigrationPhase3And6And7Test {
         assertEquals(1, movements.size)
 
         // Phase 7: Calf Registration
-        val calfReg = CalfRegistrationEntity(
-            registeredAnimalId = "ANIMAL-001",
-            registrationDate = "2026-09-18"
+        db.calfRegistrationDao().registerCalf(
+            animal = Animal(
+                animalId = "CALF-TEST-001",
+                tagNumber = "CALF-TAG-001",
+                birthdate = System.currentTimeMillis(),
+                breed = "Bonsmara",
+                gpsLat = -26.0,
+                gpsLng = 28.0,
+                captureAt = System.currentTimeMillis(),
+                deviceId = "dev-1",
+                recordguid = "guid-calf-1"
+            ),
+            identifiers = listOf(
+                AnimalIdentifierEntity(animalId = "CALF-TEST-001", identifierType = "TAG", identifierValue = "CALF-TAG-001")
+            ),
+            media = emptyList(),
+            registration = CalfRegistrationEntity(
+                registeredAnimalId = "CALF-TEST-001",
+                registrationDate = "2026-09-18"
+            )
         )
-        db.calfRegistrationDao().insertCalfRegistration(calfReg)
 
-        val calfDetails = db.calfRegistrationDao().getCalfRegistrationDetails("ANIMAL-001").first()
+        val calfDetails = db.calfRegistrationDao().getRegistrationByTag("CALF-TAG-001").first()
         assertNotNull(calfDetails)
-        assertEquals("ANIMAL-001", calfDetails!!.registeredAnimalId)
+        assertEquals("CALF-TEST-001", calfDetails!!.animalId)
 
         db.close()
     }

@@ -4,11 +4,14 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class CalfRegistrationDto(
-    val animalId: String,
+    val tagNumber: String,
+    val animalUuid: String? = null,
     val birthdate: Long,
     val breed: String,
-    val damId: String? = null,
-    val sireId: String? = null,
+    val damTagNumber: String? = null,
+    val sireTagNumber: String? = null,
+    val damAnimalUuid: String? = null,
+    val sireAnimalUuid: String? = null,
     val photoPath: String? = null,
     val videoPath: String? = null,
     val gpsLat: Double,
@@ -29,7 +32,7 @@ data class CalfRegistrationSyncRequest(
 @Serializable
 data class CalfRegistrationSyncResult(
     val recordguid: String,
-    val animalId: String,
+    val tagNumber: String,
     val status: String, // "SYNCED" or "ERROR"
     val serverSyncedAt: Long? = null,
     val message: String? = null

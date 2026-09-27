@@ -21,7 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.beeftech.calfregistration.util.TagNamingUtils
+import com.beeftech.database.util.TagNamingUtils
 
 @Composable
 fun CalvesRegisteredScreen(

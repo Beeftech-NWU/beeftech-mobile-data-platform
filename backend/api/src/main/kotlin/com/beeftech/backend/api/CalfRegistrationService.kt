@@ -15,7 +15,7 @@ class CalfRegistrationService(private val repository: CalfRegistrationRepository
 
                 CalfRegistrationSyncResult(
                     recordguid = persisted.recordguid,
-                    animalId = persisted.animalId,
+                    tagNumber = persisted.tagNumber,
                     status = "SYNCED",
                     serverSyncedAt = persisted.syncedAt
                 )
@@ -24,7 +24,7 @@ class CalfRegistrationService(private val repository: CalfRegistrationRepository
 
                 CalfRegistrationSyncResult(
                     recordguid = dto.recordguid,
-                    animalId = dto.animalId,
+                    tagNumber = dto.tagNumber,
                     status = "ERROR",
                     message = e.message
                 )
@@ -38,16 +38,16 @@ class CalfRegistrationService(private val repository: CalfRegistrationRepository
         return repository.findAll()
     }
 
-    suspend fun findByAnimalId(animalId: String): CalfRegistrationDto? {
-        return repository.findByAnimalId(animalId)
+    suspend fun findByTagNumber(tagNumber: String): CalfRegistrationDto? {
+        return repository.findByTagNumber(tagNumber)
     }
 
-    suspend fun updateMedia(animalId: String, photoPath: String): Boolean {
-        return repository.updatePhotoPath(animalId, photoPath)
+    suspend fun updateMedia(tagNumber: String, photoPath: String): Boolean {
+        return repository.updatePhotoPath(tagNumber, photoPath)
     }
 
-    suspend fun generateCertificatePdf(animalId: String): ByteArray? {
-        val record = repository.findByAnimalId(animalId) ?: return null
+    suspend fun generateCertificatePdf(tagNumber: String): ByteArray? {
+        val record = repository.findByTagNumber(tagNumber) ?: return null
         return PdfGenerator.generateBirthCertificate(record)
     }
 }

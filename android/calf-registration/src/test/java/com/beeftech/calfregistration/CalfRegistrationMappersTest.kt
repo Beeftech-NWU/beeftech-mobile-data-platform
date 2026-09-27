@@ -1,189 +1,176 @@
 package com.beeftech.calfregistration
 
+import com.beeftech.calfregistration.data.CalfCaptureContext
 import com.beeftech.calfregistration.data.CalfRegistrationMappers
+import com.beeftech.calfregistration.data.SYNC_STATUS_PENDING
 import com.beeftech.calfregistration.data.SYNC_STATUS_SYNCED
 import com.beeftech.calfregistration.ui.CalfRegistrationData
-import com.beeftech.database.entity.CalfRegistrationEntity
+import com.beeftech.database.dao.CalfRegistrationView
+import com.beeftech.database.entity.IdentifierTypes
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.UUID
 
 class CalfRegistrationMappersTest {
 
-    private val deviceId = "TEST-DEVICE"
-    private val captureAt = 1_735_689_600_000L // 2025-01-01T00:00:00Z
+    private val capture = CalfCaptureContext(
+        deviceId = "TEST-DEVICE",
+        captureAt = 1_735_732_800_000L // 2025-01-01T12:00:00Z
+    )
+
+    private fun newCalf(
+        form: CalfRegistrationData = CalfRegistrationData(tagNumber = "Blu1234567"),
+        dam: String? = null,
+        sire: String? = null
+    ) = CalfRegistrationMappers.toNewCalf(form, capture, dam, sire)
+
+    private fun view(syncStatus: String = SYNC_STATUS_PENDING) = CalfRegistrationView(
+        registrationId = "reg-1",
+        animalId = "animal-uuid",
+        tagNumber = "Blu1234567",
+        breed = "Brangus",
+        gender = "Female",
+        birthdate = 1_000L,
+        damAnimalId = "dam-uuid",
+        damTagNumber = "Blu0000011",
+        sireAnimalId = null,
+        sireTagNumber = null,
+        birthWeightKg = null,
+        calvingEase = null,
+        registrationDate = "2025-01-01",
+        gpsLat = -26.0,
+        gpsLng = 28.0,
+        deviceId = "dev-1",
+        captureAt = 2_000L,
+        photoPath = null,
+        recordGuid = "guid-1",
+        syncStatus = syncStatus,
+        syncedAt = null
+    )
 
     @Test
-    fun `toEntity maps tagNumber to registeredAnimalId`() {
-        val formData = CalfRegistrationData(
-            tagNumber = "RMB12345",
-            animalType = "BRN — Brangus"
-        )
-
-        val entity = CalfRegistrationMappers.toEntity(
-            formData = formData,
-            deviceId = deviceId,
-            captureAt = captureAt
-        )
-
-        assertEquals("RMB12345", entity.registeredAnimalId)
-        assertTrue(entity.registrationId.isNotBlank())
+    fun `breedName strips the code prefix`() {
+        assertEquals("Brangus", CalfRegistrationMappers.breedName("BRN — Brangus"))
+        assertEquals("Brangus", CalfRegistrationMappers.breedName("Brangus"))
     }
 
     @Test
-    fun `toEntity maps placeholder dame and sire selections to null`() {
-        val formData = CalfRegistrationData(
-            dameTagNumber = "Select dame",
-            sireTagNumber = "Select sire"
-        )
+    fun `parentTag extracts the tag from a dropdown value`() {
+        assertEquals("Blu0000011", CalfRegistrationMappers.parentTag("Blu0000011 (Bonsmara)"))
+        assertNull(CalfRegistrationMappers.parentTag("Select dame"))
+        assertNull(CalfRegistrationMappers.parentTag(""))
+    }
 
-        val entity = CalfRegistrationMappers.toEntity(
-            formData = formData,
-            deviceId = deviceId,
-            captureAt = captureAt
-        )
-
-        assertNull(entity.damId)
-        assertNull(entity.sireId)
+    @Test(expected = IllegalArgumentException::class)
+    fun `toNewCalf rejects a tag that breaks the naming standard`() {
+        newCalf(CalfRegistrationData(tagNumber = "RMB12345"))
     }
 
     @Test
-    fun `toEntity preserves real dame and sire selections`() {
-        val formData = CalfRegistrationData(
-            dameTagNumber = "RMB-DAM-011",
-            sireTagNumber = "BULL-BNM-902"
-        )
+    fun `toNewCalf keys the registration by a UUID, not the tag`() {
+        val calf = newCalf()
 
-        val entity = CalfRegistrationMappers.toEntity(
-            formData = formData,
-            deviceId = deviceId,
-            captureAt = captureAt
-        )
-
-        assertEquals("RMB-DAM-011", entity.damId)
-        assertEquals("BULL-BNM-902", entity.sireId)
+        assertEquals(calf.animal.animalId, calf.registration.registeredAnimalId)
+        assertNotEquals("Blu1234567", calf.animal.animalId)
+        UUID.fromString(calf.animal.animalId) // throws if not a UUID
     }
 
     @Test
-    fun `toEntity generates a fresh registrationId for a brand new record`() {
-        val formData = CalfRegistrationData(tagNumber = "RMB99999")
+    fun `toNewCalf writes the TAG identifier and dual-writes the legacy column`() {
+        val calf = newCalf()
 
-        val entity = CalfRegistrationMappers.toEntity(
-            formData = formData,
-            deviceId = deviceId,
-            captureAt = captureAt,
-            existing = null
-        )
-
-        assertTrue(entity.registrationId.isNotBlank())
+        val tags = calf.identifiers.filter { it.identifierType == IdentifierTypes.TAG }
+        assertEquals(1, tags.size)
+        assertEquals("Blu1234567", tags.single().identifierValue)
+        assertEquals(calf.animal.animalId, tags.single().animalId)
+        assertEquals("Blu1234567", calf.animal.tagNumber)
     }
 
     @Test
-    fun `toEntity preserves registrationId of an existing record`() {
-        val existing = CalfRegistrationEntity(
-            registrationId = "existing-guid-123",
-            registeredAnimalId = "RMB99999",
-            damId = null,
-            sireId = null,
-            birthWeightKg = null,
-            calvingEase = null,
-            registrationDate = "2025-01-01"
-        )
+    fun `toNewCalf expands shorthand tags`() {
+        val calf = newCalf(CalfRegistrationData(tagNumber = "B1234567"))
 
-        val formData = CalfRegistrationData(
-            tagNumber = "RMB99999",
-            animalType = "Updated breed"
-        )
-
-        val entity = CalfRegistrationMappers.toEntity(
-            formData = formData,
-            deviceId = deviceId,
-            captureAt = captureAt + 1_000,
-            existing = existing
-        )
-
-        assertEquals("existing-guid-123", entity.registrationId)
-        assertEquals("RMB99999", entity.registeredAnimalId)
+        assertEquals("Blu1234567", calf.animal.tagNumber)
     }
 
     @Test
-    fun `toFormData maps entity fields back to the UI form model`() {
-        val entity = CalfRegistrationEntity(
-            registrationId = "guid-1",
-            registeredAnimalId = "RMB12345",
-            damId = "RMB-DAM-011",
-            sireId = "BULL-BNM-902",
-            birthWeightKg = 35.0,
-            calvingEase = "Normal",
-            registrationDate = "2025-01-01"
+    fun `toNewCalf adds optional identifiers only when given`() {
+        val calf = newCalf(
+            CalfRegistrationData(
+                tagNumber = "Blu1234567",
+                oldTagNumber = "OLD-1",
+                referenceNumber = "",
+                transponderNumber = "9820001"
+            )
         )
 
-        val formData = CalfRegistrationMappers.toFormData(entity)
-
-        assertEquals("RMB12345", formData.tagNumber)
-        assertEquals("RMB-DAM-011", formData.dameTagNumber)
-        assertEquals("BULL-BNM-902", formData.sireTagNumber)
-        assertTrue(formData.synced)
+        val types = calf.identifiers.map { it.identifierType }
+        assertTrue(IdentifierTypes.OLD_TAG in types)
+        assertTrue(IdentifierTypes.TRANSPONDER in types)
+        assertFalse(IdentifierTypes.REFERENCE in types)
     }
 
     @Test
-    fun `toFormData maps null damId and sireId to select placeholders`() {
-        val entity = CalfRegistrationEntity(
-            registrationId = "guid-1",
-            registeredAnimalId = "RMB12345",
-            damId = null,
-            sireId = null,
-            birthWeightKg = null,
-            calvingEase = null,
-            registrationDate = "2025-01-01"
-        )
+    fun `toNewCalf takes breed and capture data from the form and context`() {
+        val calf = newCalf(CalfRegistrationData(tagNumber = "Blu1234567", animalType = "BNM — Bonsmara"))
 
-        val formData = CalfRegistrationMappers.toFormData(entity)
-
-        assertEquals("Select dame", formData.dameTagNumber)
-        assertEquals("Select sire", formData.sireTagNumber)
+        assertEquals("Bonsmara", calf.animal.breed)
+        assertEquals("TEST-DEVICE", calf.animal.deviceId)
+        assertEquals(capture.captureAt, calf.animal.captureAt)
+        assertTrue(calf.animal.birthdate <= capture.captureAt)
+        assertEquals(0.0, calf.animal.gpsLat, 0.0)
     }
 
     @Test
-    fun `round trip form to entity to form preserves key fields`() {
-        val original = CalfRegistrationData(
-            tagNumber = "RMB54321",
-            dameTagNumber = "RMB-DAM-052",
-            sireTagNumber = "BULL-NGN-301"
-        )
+    fun `toNewCalf attaches a photo only when there is one`() {
+        assertTrue(newCalf().media.isEmpty())
 
-        val entity = CalfRegistrationMappers.toEntity(
-            formData = original,
-            deviceId = deviceId,
-            captureAt = captureAt
-        )
-
-        val roundTripped = CalfRegistrationMappers.toFormData(entity)
-
-        assertEquals(original.tagNumber, roundTripped.tagNumber)
-        assertEquals(original.dameTagNumber, roundTripped.dameTagNumber)
-        assertEquals(original.sireTagNumber, roundTripped.sireTagNumber)
+        val withPhoto = newCalf(CalfRegistrationData(tagNumber = "Blu1234567", photoPath = "/p.jpg"))
+        assertEquals("/p.jpg", withPhoto.media.single().filePath)
+        assertEquals(withPhoto.animal.animalId, withPhoto.media.single().animalId)
     }
 
     @Test
-    fun `toDto maps entity fields to Dto`() {
-        val entity = CalfRegistrationEntity(
-            registrationId = "guid-1",
-            registeredAnimalId = "RMB12345",
-            damId = "DAM-1",
-            sireId = "SIRE-1",
-            birthWeightKg = 32.5,
-            calvingEase = "Easy",
-            registrationDate = "2025-01-01"
-        )
+    fun `toNewCalf stores the resolved parent animal ids and starts pending`() {
+        val calf = newCalf(dam = "dam-uuid", sire = "sire-uuid")
 
-        val dto = CalfRegistrationMappers.toDto(entity)
+        assertEquals("dam-uuid", calf.registration.damId)
+        assertEquals("sire-uuid", calf.registration.sireId)
+        assertEquals(SYNC_STATUS_PENDING, calf.registration.syncStatus)
+    }
 
-        assertEquals(entity.registeredAnimalId, dto.animalId)
-        assertEquals(entity.damId, dto.damId)
-        assertEquals(entity.sireId, dto.sireId)
-        assertEquals(entity.registrationId, dto.recordguid)
-        assertEquals(SYNC_STATUS_SYNCED, dto.syncStatus)
+    @Test
+    fun `toFormData reports the real sync state`() {
+        assertFalse(CalfRegistrationMappers.toFormData(view(SYNC_STATUS_PENDING)).synced)
+        assertTrue(CalfRegistrationMappers.toFormData(view(SYNC_STATUS_SYNCED)).synced)
+    }
+
+    @Test
+    fun `toFormData maps tags and falls back to select placeholders`() {
+        val form = CalfRegistrationMappers.toFormData(view())
+
+        assertEquals("Blu1234567", form.tagNumber)
+        assertEquals("Blu0000011", form.dameTagNumber)
+        assertEquals("Select sire", form.sireTagNumber)
+    }
+
+    @Test
+    fun `toDto sends tag and uuid separately with real values`() {
+        val dto = CalfRegistrationMappers.toDto(view())
+
+        assertEquals("Blu1234567", dto.tagNumber)
+        assertEquals("animal-uuid", dto.animalUuid)
+        assertEquals("Brangus", dto.breed)
+        assertEquals(1_000L, dto.birthdate)
+        assertEquals("Blu0000011", dto.damTagNumber)
+        assertEquals("dam-uuid", dto.damAnimalUuid)
+        assertNull(dto.sireAnimalUuid)
+        assertEquals("guid-1", dto.recordguid)
+        assertEquals("dev-1", dto.deviceId)
+        assertEquals(SYNC_STATUS_PENDING, dto.syncStatus)
     }
 }
