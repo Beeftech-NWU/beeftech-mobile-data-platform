@@ -493,7 +493,7 @@ object DatabaseFactory {
                      * 11 -> 12
                      * 12 -> 13
                      * 13 -> 14
-                     * 14 -> 15
+                     * 14 -> 16 (15 is claimed by fix/D1-calf-registration-animal-record)
                      */
                     .addMigrations(
                         MIGRATION_1_2,
@@ -509,7 +509,7 @@ object DatabaseFactory {
                         BeefTechDatabase.MIGRATION_11_12,
                         BeefTechDatabase.MIGRATION_12_13,
                         BeefTechDatabase.MIGRATION_13_14,
-                        BeefTechDatabase.MIGRATION_14_15
+                        BeefTechDatabase.MIGRATION_14_16
                     )
 
                     .addCallback(
