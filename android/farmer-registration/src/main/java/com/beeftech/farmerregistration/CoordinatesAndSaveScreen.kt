@@ -511,7 +511,7 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
                                                             farmerId,
 
                                                         role_id =
-                                                            selectedRole
+                                                            selectedRole.toLongOrNull() ?: 0L
                                                     )
 
                                                 repository.addRole(

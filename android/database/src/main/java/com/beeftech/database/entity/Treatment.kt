@@ -2,13 +2,23 @@ package com.beeftech.database.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.UUID
 
 @Entity(
     tableName = "treatments",
+    foreignKeys = [
+        ForeignKey(
+            entity = AnimalEntity::class,
+            parentColumns = ["animalId"],
+            childColumns = ["animalId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
     indices = [
+        Index(value = ["animalId"]),
         Index(
             value = ["recordguid"],
             unique = true

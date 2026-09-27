@@ -107,7 +107,7 @@ import com.beeftech.database.dao.UserDao
         // Phase 5 Entity
         CostType::class
     ],
-    version = 14,
+    version = 15,
     exportSchema = true
 )
 abstract class BeefTechDatabase : RoomDatabase() {
@@ -559,6 +559,337 @@ abstract class BeefTechDatabase : RoomDatabase() {
                         args
                     )
                 }
+            }
+        }
+
+        /**
+         * Phase 2 Migration (Version 14 -> 15): Referential Integrity Constraints
+         * - Adds foreign keys to treatments, mortalities, animal_group_memberships, animals,
+         *   farmer_addresses, farmer_roles, feed_crib_readings, feed_crib_reading_values, sync_backups
+         * - Retypes farmer_roles.role_id to INTEGER (Long)
+         * - Cleans up orphan records before applying constraints
+         * - Verifies foreign keys at completion via PRAGMA foreign_key_check
+         */
+        val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 1. Clean up orphan rows prior to constraint enforcement
+
+                // CASCADE Orphans
+                db.execSQL("DELETE FROM `treatments` WHERE `animalId` NOT IN (SELECT `animalId` FROM `animals`)")
+
+                db.execSQL("DELETE FROM `mortalities` WHERE `animalId` NOT IN (SELECT `animalId` FROM `animals`)")
+                // Keep only one mortality record per animalId if duplicates exist before enforcing UNIQUE(animalId)
+                db.execSQL("DELETE FROM `mortalities` WHERE `id` NOT IN (SELECT MIN(`id`) FROM `mortalities` GROUP BY `animalId`)")
+
+                db.execSQL("DELETE FROM `animal_group_memberships` WHERE `animal_id` NOT IN (SELECT `animalId` FROM `animals`)")
+                // RESTRICT Orphans: Delete memberships referencing non-existent animal_groups
+                db.execSQL("DELETE FROM `animal_group_memberships` WHERE `group_id` NOT IN (SELECT `animalGroupId` FROM `animal_groups`)")
+
+                // SET_NULL Orphans
+                db.execSQL("UPDATE `animals` SET `animalGroupId` = NULL WHERE `animalGroupId` IS NOT NULL AND `animalGroupId` NOT IN (SELECT `animalGroupId` FROM `animal_groups`)")
+
+                db.execSQL("DELETE FROM `farmer_addresses` WHERE `farmer_id` NOT IN (SELECT `farmer_id` FROM `farmers`)")
+
+                db.execSQL("DELETE FROM `farmer_roles` WHERE `farmer_id` NOT IN (SELECT `farmer_id` FROM `farmers`)")
+                db.execSQL("DELETE FROM `farmer_roles` WHERE CAST(`role_id` AS INTEGER) NOT IN (SELECT `role_id` FROM `roles`)")
+                // Keep only one record per (farmer_id, role_id) if duplicates exist before enforcing UNIQUE(farmer_id, role_id)
+                db.execSQL("DELETE FROM `farmer_roles` WHERE `farmer_role_id` NOT IN (SELECT MIN(`farmer_role_id`) FROM `farmer_roles` GROUP BY `farmer_id`, `role_id`)")
+
+                db.execSQL("DELETE FROM `feed_crib_readings` WHERE `cribId` NOT IN (SELECT `id` FROM `feed_cribs`)")
+
+                db.execSQL("DELETE FROM `feed_crib_reading_values` WHERE `readingId` NOT IN (SELECT `id` FROM `feed_crib_readings`)")
+
+                db.execSQL("DELETE FROM `sync_backups` WHERE `batchId` NOT IN (SELECT `id` FROM `sync_batches`)")
+
+                // 2. Rebuild tables to declare foreign keys and indices
+
+                // animals
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `animals_new` (
+                        `animalId` TEXT NOT NULL,
+                        `tagNumber` TEXT,
+                        `oldTagNumber` TEXT,
+                        `temperatureNumber` TEXT,
+                        `referenceNumber` TEXT,
+                        `massKg` REAL,
+                        `birthdate` INTEGER NOT NULL,
+                        `breed` TEXT NOT NULL,
+                        `gender` TEXT,
+                        `age` INTEGER,
+                        `condition` TEXT,
+                        `hideColour` TEXT,
+                        `brandMark` TEXT,
+                        `parentId` TEXT,
+                        `animalGroupId` TEXT,
+                        `photoPath` TEXT,
+                        `videoPath` TEXT,
+                        `gpsLat` REAL NOT NULL,
+                        `gpsLng` REAL NOT NULL,
+                        `captureAt` INTEGER NOT NULL,
+                        `deviceId` TEXT NOT NULL,
+                        `recordguid` TEXT NOT NULL,
+                        `syncStatus` TEXT NOT NULL,
+                        `syncedat` INTEGER,
+                        PRIMARY KEY(`animalId`),
+                        FOREIGN KEY(`animalGroupId`) REFERENCES `animal_groups`(`animalGroupId`) ON UPDATE NO ACTION ON DELETE SET NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `animals_new` (
+                        `animalId`, `tagNumber`, `oldTagNumber`, `temperatureNumber`, `referenceNumber`,
+                        `massKg`, `birthdate`, `breed`, `gender`, `age`, `condition`, `hideColour`,
+                        `brandMark`, `parentId`, `animalGroupId`, `photoPath`, `videoPath`, `gpsLat`,
+                        `gpsLng`, `captureAt`, `deviceId`, `recordguid`, `syncStatus`, `syncedat`
+                    )
+                    SELECT
+                        `animalId`, `tagNumber`, `oldTagNumber`, `temperatureNumber`, `referenceNumber`,
+                        `massKg`, `birthdate`, `breed`, `gender`, `age`, `condition`, `hideColour`,
+                        `brandMark`, `parentId`, `animalGroupId`, `photoPath`, `videoPath`, `gpsLat`,
+                        `gpsLng`, `captureAt`, `deviceId`, `recordguid`, `syncStatus`, `syncedat`
+                    FROM `animals`
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE `animals`")
+                db.execSQL("ALTER TABLE `animals_new` RENAME TO `animals`")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_tagNumber` ON `animals` (`tagNumber`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_temperatureNumber` ON `animals` (`temperatureNumber`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_parentId` ON `animals` (`parentId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_animalGroupId` ON `animals` (`animalGroupId`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_animals_recordguid` ON `animals` (`recordguid`)")
+
+                // treatments
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `treatments_new` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `animalId` TEXT NOT NULL,
+                        `disease` TEXT NOT NULL,
+                        `treatmentName` TEXT NOT NULL,
+                        `batchNumber` TEXT NOT NULL,
+                        `volumeUsed` TEXT NOT NULL,
+                        `cost` REAL NOT NULL,
+                        `gpsLat` REAL NOT NULL,
+                        `gpsLng` REAL NOT NULL,
+                        `timestamp` INTEGER NOT NULL,
+                        `deviceId` TEXT NOT NULL DEFAULT '',
+                        `recordguid` TEXT NOT NULL DEFAULT '',
+                        `syncStatus` TEXT NOT NULL DEFAULT 'PENDING',
+                        `syncedAt` INTEGER,
+                        FOREIGN KEY(`animalId`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `treatments_new` (
+                        `id`, `animalId`, `disease`, `treatmentName`, `batchNumber`, `volumeUsed`,
+                        `cost`, `gpsLat`, `gpsLng`, `timestamp`, `deviceId`, `recordguid`, `syncStatus`, `syncedAt`
+                    )
+                    SELECT
+                        `id`, `animalId`, `disease`, `treatmentName`, `batchNumber`, `volumeUsed`,
+                        `cost`, `gpsLat`, `gpsLng`, `timestamp`, `deviceId`, `recordguid`, `syncStatus`, `syncedAt`
+                    FROM `treatments`
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE `treatments`")
+                db.execSQL("ALTER TABLE `treatments_new` RENAME TO `treatments`")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_treatments_animalId` ON `treatments` (`animalId`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_treatments_recordguid` ON `treatments` (`recordguid`)")
+
+                // mortalities
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `mortalities_new` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `animalId` TEXT NOT NULL,
+                        `causeOfDeath` TEXT NOT NULL,
+                        `responsibleWorker` TEXT NOT NULL DEFAULT '',
+                        `notes` TEXT,
+                        `timestamp` INTEGER NOT NULL,
+                        `record_guid` TEXT NOT NULL,
+                        FOREIGN KEY(`animalId`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `mortalities_new` (
+                        `id`, `animalId`, `causeOfDeath`, `responsibleWorker`, `notes`, `timestamp`, `record_guid`
+                    )
+                    SELECT
+                        `id`, `animalId`, `causeOfDeath`, `responsibleWorker`, `notes`, `timestamp`, `record_guid`
+                    FROM `mortalities`
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE `mortalities`")
+                db.execSQL("ALTER TABLE `mortalities_new` RENAME TO `mortalities`")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_mortalities_animalId` ON `mortalities` (`animalId`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_mortalities_record_guid` ON `mortalities` (`record_guid`)")
+
+                // animal_group_memberships
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `animal_group_memberships_new` (
+                        `membership_id` TEXT NOT NULL,
+                        `animal_id` TEXT NOT NULL,
+                        `group_id` TEXT NOT NULL,
+                        `joined_at` INTEGER NOT NULL,
+                        `left_at` INTEGER,
+                        `record_guid` TEXT NOT NULL,
+                        PRIMARY KEY(`membership_id`),
+                        FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(`group_id`) REFERENCES `animal_groups`(`animalGroupId`) ON UPDATE NO ACTION ON DELETE RESTRICT
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `animal_group_memberships_new` (
+                        `membership_id`, `animal_id`, `group_id`, `joined_at`, `left_at`, `record_guid`
+                    )
+                    SELECT
+                        `membership_id`, `animal_id`, `group_id`, `joined_at`, `left_at`, `record_guid`
+                    FROM `animal_group_memberships`
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE `animal_group_memberships`")
+                db.execSQL("ALTER TABLE `animal_group_memberships_new` RENAME TO `animal_group_memberships`")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_group_memberships_animal_id` ON `animal_group_memberships` (`animal_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_group_memberships_group_id` ON `animal_group_memberships` (`group_id`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_group_memberships_record_guid` ON `animal_group_memberships` (`record_guid`)")
+
+                // farmer_addresses
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `farmer_addresses_new` (
+                        `address_id` TEXT NOT NULL,
+                        `farmer_id` TEXT NOT NULL,
+                        `address_type` TEXT,
+                        `address_line_1` TEXT,
+                        `province` TEXT,
+                        `postal_code` TEXT,
+                        `gps_latitude` REAL,
+                        `gps_longitude` REAL,
+                        PRIMARY KEY(`address_id`),
+                        FOREIGN KEY(`farmer_id`) REFERENCES `farmers`(`farmer_id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `farmer_addresses_new` (
+                        `address_id`, `farmer_id`, `address_type`, `address_line_1`, `province`,
+                        `postal_code`, `gps_latitude`, `gps_longitude`
+                    )
+                    SELECT
+                        `address_id`, `farmer_id`, `address_type`, `address_line_1`, `province`,
+                        `postal_code`, `gps_latitude`, `gps_longitude`
+                    FROM `farmer_addresses`
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE `farmer_addresses`")
+                db.execSQL("ALTER TABLE `farmer_addresses_new` RENAME TO `farmer_addresses`")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farmer_addresses_farmer_id` ON `farmer_addresses` (`farmer_id`)")
+
+                // farmer_roles
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `farmer_roles_new` (
+                        `farmer_role_id` TEXT NOT NULL,
+                        `farmer_id` TEXT NOT NULL,
+                        `role_id` INTEGER NOT NULL,
+                        PRIMARY KEY(`farmer_role_id`),
+                        FOREIGN KEY(`farmer_id`) REFERENCES `farmers`(`farmer_id`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(`role_id`) REFERENCES `roles`(`role_id`) ON UPDATE NO ACTION ON DELETE RESTRICT
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `farmer_roles_new` (
+                        `farmer_role_id`, `farmer_id`, `role_id`
+                    )
+                    SELECT
+                        `farmer_role_id`, `farmer_id`, CAST(`role_id` AS INTEGER)
+                    FROM `farmer_roles`
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE `farmer_roles`")
+                db.execSQL("ALTER TABLE `farmer_roles_new` RENAME TO `farmer_roles`")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farmer_roles_farmer_id` ON `farmer_roles` (`farmer_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farmer_roles_role_id` ON `farmer_roles` (`role_id`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_farmer_roles_farmer_id_role_id` ON `farmer_roles` (`farmer_id`, `role_id`)")
+
+                // feed_crib_readings
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `feed_crib_readings_new` (
+                        `id` TEXT NOT NULL,
+                        `cribId` TEXT NOT NULL,
+                        PRIMARY KEY(`id`),
+                        FOREIGN KEY(`cribId`) REFERENCES `feed_cribs`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `feed_crib_readings_new` (`id`, `cribId`)
+                    SELECT `id`, `cribId` FROM `feed_crib_readings`
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE `feed_crib_readings`")
+                db.execSQL("ALTER TABLE `feed_crib_readings_new` RENAME TO `feed_crib_readings`")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_feed_crib_readings_cribId` ON `feed_crib_readings` (`cribId`)")
+
+                // feed_crib_reading_values
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `feed_crib_reading_values_new` (
+                        `id` TEXT NOT NULL,
+                        `readingId` TEXT NOT NULL,
+                        `value` REAL NOT NULL,
+                        PRIMARY KEY(`id`),
+                        FOREIGN KEY(`readingId`) REFERENCES `feed_crib_readings`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `feed_crib_reading_values_new` (`id`, `readingId`, `value`)
+                    SELECT `id`, `readingId`, `value` FROM `feed_crib_reading_values`
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE `feed_crib_reading_values`")
+                db.execSQL("ALTER TABLE `feed_crib_reading_values_new` RENAME TO `feed_crib_reading_values`")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_feed_crib_reading_values_readingId` ON `feed_crib_reading_values` (`readingId`)")
+
+                // sync_backups
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `sync_backups_new` (
+                        `id` TEXT NOT NULL,
+                        `batchId` TEXT NOT NULL,
+                        `sync_status` TEXT NOT NULL,
+                        PRIMARY KEY(`id`),
+                        FOREIGN KEY(`batchId`) REFERENCES `sync_batches`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `sync_backups_new` (`id`, `batchId`, `sync_status`)
+                    SELECT `id`, `batchId`, `sync_status` FROM `sync_backups`
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE `sync_backups`")
+                db.execSQL("ALTER TABLE `sync_backups_new` RENAME TO `sync_backups`")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_sync_backups_batchId` ON `sync_backups` (`batchId`)")
+
+                // 3. Foreign Key Integrity Check
+                db.query("PRAGMA foreign_key_check").use { check(it.count == 0) { "FK violations after 14->15" } }
             }
         }
 

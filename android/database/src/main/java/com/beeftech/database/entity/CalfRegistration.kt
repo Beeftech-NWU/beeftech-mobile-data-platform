@@ -16,6 +16,7 @@ data class CalfRegistration(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
 
+    // TODO(phase 7): CalfRegistration.animalId holds the tag number, not animals.animalId.
     val animalId: String,
     val birthdate: Long,
     val breed: String,

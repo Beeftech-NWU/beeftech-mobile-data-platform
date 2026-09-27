@@ -22,6 +22,12 @@ android {
             "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    sourceSets {
+        getByName("androidTest") {
+            assets.srcDir("$projectDir/schemas")
+        }
+    }
+
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -70,6 +76,10 @@ dependencies {
     // Android tests
     androidTestImplementation(
         "androidx.test.ext:junit:1.3.0"
+    )
+
+    androidTestImplementation(
+        "androidx.room:room-testing:2.8.4"
     )
 
     androidTestImplementation(
