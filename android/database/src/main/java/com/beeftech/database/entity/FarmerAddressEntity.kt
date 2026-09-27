@@ -1,9 +1,24 @@
 package com.beeftech.database.entity
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "farmer_addresses")
+@Entity(
+    tableName = "farmer_addresses",
+    foreignKeys = [
+        ForeignKey(
+            entity = FarmerEntity::class,
+            parentColumns = ["farmer_id"],
+            childColumns = ["farmer_id"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [
+        Index(value = ["farmer_id"])
+    ]
+)
 data class FarmerAddressEntity(
     @PrimaryKey
     val address_id: String,

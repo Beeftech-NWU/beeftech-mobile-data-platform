@@ -3,6 +3,7 @@ package com.beeftech.database
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.beeftech.database.entity.Animal
 import com.beeftech.database.entity.AnimalCost
 import com.beeftech.database.entity.CostSource
 import com.beeftech.database.entity.Treatment
@@ -55,6 +56,22 @@ class TreatmentDatabaseTest {
         context.deleteDatabase(DATABASE_NAME)
     }
 
+    private suspend fun insertAnimal(animalId: String) {
+        val database = DatabaseProvider.getDatabase()!!
+        database.animalDao().insert(
+            Animal(
+                animalId = animalId,
+                birthdate = 1725148800000L,
+                breed = "Bonsmara",
+                gpsLat = -26.0,
+                gpsLng = 28.0,
+                captureAt = 1725148800000L,
+                deviceId = "device-1",
+                recordguid = "guid-animal-$animalId"
+            )
+        )
+    }
+
     @Test
     fun insertTreatment_savesTreatmentRecord() =
         runBlocking {
@@ -63,6 +80,8 @@ class TreatmentDatabaseTest {
                 DatabaseProvider.getDatabase()
 
             assertNotNull(database)
+
+            insertAnimal("TEST-001")
 
             val dao =
                 database!!.treatmentDao()
@@ -140,6 +159,9 @@ class TreatmentDatabaseTest {
 
             assertNotNull(database)
 
+            insertAnimal("TEST-001")
+            insertAnimal("TEST-002")
+
             val dao =
                 database!!.treatmentDao()
 
@@ -191,6 +213,8 @@ class TreatmentDatabaseTest {
     fun insertWithCost_createsAnimalCostRowForPositiveCost() =
         runBlocking {
             val database = DatabaseProvider.getDatabase()!!
+            insertAnimal("TEST-001")
+
             val treatmentDao = database.treatmentDao()
             val animalCostDao = database.animalCostDao()
 
@@ -225,6 +249,8 @@ class TreatmentDatabaseTest {
     fun insertWithCost_createsNoAnimalCostRowForZeroCost() =
         runBlocking {
             val database = DatabaseProvider.getDatabase()!!
+            insertAnimal("TEST-002")
+
             val treatmentDao = database.treatmentDao()
             val animalCostDao = database.animalCostDao()
 
@@ -250,6 +276,8 @@ class TreatmentDatabaseTest {
     fun insertDerivedCost_isIdempotent() =
         runBlocking {
             val database = DatabaseProvider.getDatabase()!!
+            insertAnimal("TEST-003")
+
             val treatmentDao = database.treatmentDao()
             val animalCostDao = database.animalCostDao()
 

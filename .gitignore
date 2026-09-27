@@ -20,3 +20,6 @@ local.properties
 
 # Local backend database
 backend/api/data/
+
+# Artifacts
+.artifacts/

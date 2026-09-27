@@ -493,6 +493,7 @@ object DatabaseFactory {
                      * 11 -> 12
                      * 12 -> 13
                      * 13 -> 14
+                     * 14 -> 15
                      */
                     .addMigrations(
                         MIGRATION_1_2,
@@ -507,7 +508,8 @@ object DatabaseFactory {
                         BeefTechDatabase.MIGRATION_10_11,
                         BeefTechDatabase.MIGRATION_11_12,
                         BeefTechDatabase.MIGRATION_12_13,
-                        BeefTechDatabase.MIGRATION_13_14
+                        BeefTechDatabase.MIGRATION_13_14,
+                        BeefTechDatabase.MIGRATION_14_15
                     )
 
                     .addCallback(

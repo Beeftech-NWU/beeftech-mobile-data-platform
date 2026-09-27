@@ -1,15 +1,25 @@
 package com.beeftech.database.entity
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.UUID
 
 @Entity(
     tableName = "animals",
+    foreignKeys = [
+        ForeignKey(
+            entity = AnimalGroup::class,
+            parentColumns = ["animalGroupId"],
+            childColumns = ["animalGroupId"],
+            onDelete = ForeignKey.SET_NULL
+        )
+    ],
     indices = [
         Index(value = ["tagNumber"]),
         Index(value = ["temperatureNumber"]),
+        // TODO(phase 7): parentId left unconstrained because a single column can't hold both dam and sire.
         Index(value = ["parentId"]),
         Index(value = ["animalGroupId"]),
         Index(value = ["recordguid"], unique = true)
