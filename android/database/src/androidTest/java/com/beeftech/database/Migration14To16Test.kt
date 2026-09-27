@@ -13,7 +13,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class Migration14To15Test {
+class Migration14To16Test {
 
     private val TEST_DB = "migration-test"
 
@@ -26,7 +26,7 @@ class Migration14To15Test {
     )
 
     @Test
-    fun migrate14To15_cleansOrphans_andEnforcesForeignKeys() {
+    fun migrate14To16_cleansOrphans_andEnforcesForeignKeys() {
         // 1. Create database in version 14 schema
         helper.createDatabase(TEST_DB, 14).apply {
             // Insert parent animal
@@ -98,8 +98,8 @@ class Migration14To15Test {
             close()
         }
 
-        // 2. Run migration 14 -> 15 and validate schema
-        val db = helper.runMigrationsAndValidate(TEST_DB, 15, true, BeefTechDatabase.MIGRATION_14_15)
+        // 2. Run migration 14 -> 16 and validate schema
+        val db = helper.runMigrationsAndValidate(TEST_DB, 16, true, BeefTechDatabase.MIGRATION_14_16)
 
         // 3. Assert: orphan treatment is gone, valid treatment survived
         db.query("SELECT id FROM treatments WHERE animalId = 'ANIMAL-999'").use { cursor ->

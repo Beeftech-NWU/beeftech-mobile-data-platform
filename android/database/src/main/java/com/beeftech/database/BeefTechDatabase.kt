@@ -107,7 +107,7 @@ import com.beeftech.database.dao.UserDao
         // Phase 5 Entity
         CostType::class
     ],
-    version = 15,
+    version = 16,
     exportSchema = true
 )
 abstract class BeefTechDatabase : RoomDatabase() {
@@ -563,14 +563,21 @@ abstract class BeefTechDatabase : RoomDatabase() {
         }
 
         /**
-         * Phase 2 Migration (Version 14 -> 15): Referential Integrity Constraints
+         * Phase 2 Migration (Version 14 -> 16): Referential Integrity Constraints
+         *
+         * Bumped to 16 (not 15) because branch fix/D1-calf-registration-animal-record
+         * independently claimed version 15 with an unrelated schema (record_guid/sync
+         * state on calf_registrations). Whichever of the two branches merges second
+         * would otherwise collide with a same-version/different-schema database on
+         * devices that installed a build from the other branch first.
+         *
          * - Adds foreign keys to treatments, mortalities, animal_group_memberships, animals,
          *   farmer_addresses, farmer_roles, feed_crib_readings, feed_crib_reading_values, sync_backups
          * - Retypes farmer_roles.role_id to INTEGER (Long)
          * - Cleans up orphan records before applying constraints
          * - Verifies foreign keys at completion via PRAGMA foreign_key_check
          */
-        val MIGRATION_14_15 = object : Migration(14, 15) {
+        val MIGRATION_14_16 = object : Migration(14, 16) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // 1. Clean up orphan rows prior to constraint enforcement
 
@@ -889,7 +896,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_sync_backups_batchId` ON `sync_backups` (`batchId`)")
 
                 // 3. Foreign Key Integrity Check
-                db.query("PRAGMA foreign_key_check").use { check(it.count == 0) { "FK violations after 14->15" } }
+                db.query("PRAGMA foreign_key_check").use { check(it.count == 0) { "FK violations after 14->16" } }
             }
         }
 
