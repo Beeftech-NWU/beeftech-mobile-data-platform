@@ -12,9 +12,9 @@ import org.junit.runner.RunWith
 import java.util.UUID
 
 @RunWith(AndroidJUnit4::class)
-class Migration14To15Test {
+class Migration16To17Test {
 
-    private val TEST_DB = "migration-test-14-15"
+    private val TEST_DB = "migration-test-16-17"
 
     @get:Rule
     val helper: MigrationTestHelper = MigrationTestHelper(
@@ -25,13 +25,13 @@ class Migration14To15Test {
     )
 
     @Test
-    fun testMigration14To15_addsColumns_andPreservesRows() {
+    fun testMigration16To17_addsColumns_andPreservesRows() {
         val animal1 = UUID.randomUUID().toString()
         val animal2 = UUID.randomUUID().toString()
         val reg1 = UUID.randomUUID().toString()
         val reg2 = UUID.randomUUID().toString()
 
-        helper.createDatabase(TEST_DB, 14).use { db ->
+        helper.createDatabase(TEST_DB, 16).use { db ->
             // Insert 2 animals
             db.execSQL(
                 "INSERT INTO `animals` (`animalId`, `birthdate`, `breed`, `gpsLat`, `gpsLng`, `captureAt`, `deviceId`, `recordguid`, `syncStatus`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -53,8 +53,8 @@ class Migration14To15Test {
             )
         }
 
-        // Run migration to v15 and validate
-        val db = helper.runMigrationsAndValidate(TEST_DB, 15, true, BeefTechDatabase.MIGRATION_14_15)
+        // Run migration to v17 and validate
+        val db = helper.runMigrationsAndValidate(TEST_DB, 17, true, BeefTechDatabase.MIGRATION_16_17)
 
         val regIds = mutableListOf<String>()
 
