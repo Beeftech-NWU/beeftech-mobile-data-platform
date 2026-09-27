@@ -127,7 +127,8 @@ nothing.
 
 Everything persistent lives here:
 
-- `BeefTechDatabase` — Room database, **schema version 8**
+- `BeefTechDatabase` — Room database, **schema version 18** (see
+  [Database & migrations](#database--migrations))
 - `entity/` — Room entities (animals, groups, weights, treatments, mortalities,
   movements, costs, farmers, feed cribs, pens, locations, suppliers, users, roles,
   pending sync records)
@@ -336,20 +337,33 @@ Run a single test class:
 
 ## Database & migrations
 
-- **Room schema version: 8** (`BeefTechDatabase`)
-- Migrations `1→2` … `7→8` are defined explicitly in
-  `android/database/src/main/java/com/beeftech/database/DatabaseFactory.kt`
+- **Room schema version: 18** (`BeefTechDatabase`)
+- Migrations `1→2` … `8→9` are defined in
+  `android/database/src/main/java/com/beeftech/database/DatabaseFactory.kt`.
+  Migrations `9→10` and later (`9→10`, `10→11`, `11→12`, `12→13`, `13→14`,
+  `14→16`, `16→17`, `17→18`) live in the `BeefTechDatabase` companion object
+  in `BeefTechDatabase.kt`. Version 15 is deliberately unused (see the
+  comment above `MIGRATION_14_16`).
+- Exported schema JSON for each version is committed under
+  `android/database/schemas/com.beeftech.database.BeefTechDatabase/`.
 - Encryption: SQLCipher for Android 4.17.0, key material via Android KeyStore
   (`AndroidKeyStoreSecurityProvider`)
+
+**Before changing anything here, read
+[`AGENT.md`](AGENT.md)** — it has the full list of non-negotiable rules
+(never lose data, no destructive fallback, fill GUIDs before making them
+unique, and more) and the traps that have already bitten this schema once.
 
 **When you change an entity you must:**
 
 1. Add or edit the entity in `entity/` and its DAO in `dao/`.
 2. Bump `version` in the `@Database` annotation on `BeefTechDatabase`.
-3. Add a `Migration(n, n+1)` object in `DatabaseFactory.kt` and register it in
-   `.addMigrations(...)`.
-4. Add a migration test alongside `DatabaseMigration6To7Test.kt`.
-5. Run `./gradlew :android:database:connectedAndroidTest`.
+3. Add a `Migration(n, n+1)` object in the `BeefTechDatabase` companion and
+   register it in `DatabaseFactory.kt`'s `.addMigrations(...)`.
+4. Add a migration test using `MigrationTestHelper`, following the template
+   in `android/database/src/androidTest/java/com/beeftech/database/Migration16To17Test.kt`.
+5. Run `./gradlew :android:database:connectedAndroidTest` (this also runs in CI,
+   on an emulator, via the `instrumented-tests` job in `.github/workflows/ci.yml`).
 
 Never rely on destructive migration — field devices hold up to 30 days of unsynced data.
 
