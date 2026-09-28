@@ -186,3 +186,84 @@ SELECT registration_id, sire_id
 FROM calf_registrations
 WHERE sire_id IS NOT NULL
   AND sire_id NOT IN (SELECT animalId FROM animals);
+
+-- ============================================================
+-- animals.breed -> breeds.breedId (RESTRICT, not null) -- R7
+-- ============================================================
+SELECT animalId, breed
+FROM animals
+WHERE breed NOT IN (SELECT breedId FROM breeds);
+
+-- ============================================================
+-- animals.hideColour -> hide_colours.colourId (SET NULL, nullable) -- R7
+-- ============================================================
+SELECT animalId, hideColour
+FROM animals
+WHERE hideColour IS NOT NULL
+  AND hideColour NOT IN (SELECT colourId FROM hide_colours);
+
+-- ============================================================
+-- animals.deviceId -> devices.deviceId (RESTRICT, not null) -- R7
+-- ============================================================
+SELECT animalId, deviceId
+FROM animals
+WHERE deviceId NOT IN (SELECT deviceId FROM devices);
+
+-- ============================================================
+-- treatments.disease -> diseases.diseaseId (RESTRICT, not null) -- R7
+-- ============================================================
+SELECT id, disease
+FROM treatments
+WHERE disease NOT IN (SELECT diseaseId FROM diseases);
+
+-- ============================================================
+-- treatments.deviceId -> devices.deviceId (RESTRICT, not null) -- R7
+-- ============================================================
+SELECT id, deviceId
+FROM treatments
+WHERE deviceId NOT IN (SELECT deviceId FROM devices);
+
+-- ============================================================
+-- mortalities.necropsy_code_id -> necropsy_codes.necropsyCodeId (SET NULL, nullable) -- R7
+-- ============================================================
+SELECT id, necropsy_code_id
+FROM mortalities
+WHERE necropsy_code_id IS NOT NULL
+  AND necropsy_code_id NOT IN (SELECT necropsyCodeId FROM necropsy_codes);
+
+-- ============================================================
+-- farmer_addresses.province -> provinces.provinceId (SET NULL, nullable) -- R7
+-- ============================================================
+SELECT address_id, province
+FROM farmer_addresses
+WHERE province IS NOT NULL
+  AND province NOT IN (SELECT provinceId FROM provinces);
+
+-- ============================================================
+-- animal_movements.device_id -> devices.deviceId (RESTRICT, not null) -- R7
+-- ============================================================
+SELECT movement_id, device_id
+FROM animal_movements
+WHERE device_id NOT IN (SELECT deviceId FROM devices);
+
+-- ============================================================
+-- animal_weights.device_id -> devices.deviceId (RESTRICT, not null) -- R7
+-- ============================================================
+SELECT weight_id, device_id
+FROM animal_weights
+WHERE device_id NOT IN (SELECT deviceId FROM devices);
+
+-- ============================================================
+-- medication_batches.medicationId -> medications.medicationId (CASCADE, not null) -- R7
+-- ============================================================
+SELECT batchId, medicationId
+FROM medication_batches
+WHERE medicationId NOT IN (SELECT medicationId FROM medications);
+
+-- ============================================================
+-- provinces.countryId -> countries.countryId (CASCADE, not null) -- R7
+-- ============================================================
+SELECT provinceId, countryId
+FROM provinces
+WHERE countryId NOT IN (SELECT countryId FROM countries);
+

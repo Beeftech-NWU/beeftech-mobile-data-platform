@@ -15,14 +15,34 @@ import java.util.UUID
             parentColumns = ["animalGroupId"],
             childColumns = ["animalGroupId"],
             onDelete = ForeignKey.SET_NULL
+        ),
+        ForeignKey(
+            entity = Breed::class,
+            parentColumns = ["breedId"],
+            childColumns = ["breed"],
+            onDelete = ForeignKey.RESTRICT
+        ),
+        ForeignKey(
+            entity = HideColour::class,
+            parentColumns = ["colourId"],
+            childColumns = ["hideColour"],
+            onDelete = ForeignKey.SET_NULL
+        ),
+        ForeignKey(
+            entity = Device::class,
+            parentColumns = ["deviceId"],
+            childColumns = ["deviceId"],
+            onDelete = ForeignKey.RESTRICT
         )
     ],
     indices = [
         Index(value = ["tagNumber"]),
         Index(value = ["temperatureNumber"]),
-        // TODO(phase 7): parentId left unconstrained because a single column can't hold both dam and sire.
         Index(value = ["parentId"]),
         Index(value = ["animalGroupId"]),
+        Index(value = ["breed"]),
+        Index(value = ["hideColour"]),
+        Index(value = ["deviceId"]),
         Index(value = ["record_guid"], unique = true)
     ]
 )

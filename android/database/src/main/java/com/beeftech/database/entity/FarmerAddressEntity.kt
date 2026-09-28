@@ -15,10 +15,17 @@ import java.util.UUID
             parentColumns = ["farmer_id"],
             childColumns = ["farmer_id"],
             onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = Province::class,
+            parentColumns = ["provinceId"],
+            childColumns = ["province"],
+            onDelete = ForeignKey.SET_NULL
         )
     ],
     indices = [
         Index(value = ["farmer_id"]),
+        Index(value = ["province"]),
         Index(value = ["record_guid"], unique = true)
     ]
 )
