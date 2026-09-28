@@ -83,7 +83,7 @@ class AnimalMovementRepository(
                     animalId = normalizedAnimalId,
                     destinationFarmId = normalizedMovementInformation,
                     destinationPenId = "",
-                    movementDate = now.toString(),
+                    movementDate = now,
                     notes = normalizedResponsibleWorker
                 )
 

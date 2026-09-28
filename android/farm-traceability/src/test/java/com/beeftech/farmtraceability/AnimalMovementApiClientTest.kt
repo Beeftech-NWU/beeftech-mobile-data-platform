@@ -25,7 +25,7 @@ class AnimalMovementApiClientTest {
             animalId = "A1",
             destinationFarmId = "F1",
             destinationPenId = "P1",
-            movementDate = "2023-01-01",
+            movementDate = 1_672_531_200_000L,
             notes = "Worker1"
         )
 

@@ -543,7 +543,8 @@ object DatabaseFactory {
                         guarded(BeefTechDatabase.MIGRATION_17_18),
                         guarded(BeefTechDatabase.MIGRATION_18_19),
                         guarded(BeefTechDatabase.MIGRATION_19_20),
-                        guarded(BeefTechDatabase.MIGRATION_20_21)
+                        guarded(BeefTechDatabase.MIGRATION_20_21),
+                        guarded(BeefTechDatabase.MIGRATION_21_22)
                     )
 
                     .addCallback(

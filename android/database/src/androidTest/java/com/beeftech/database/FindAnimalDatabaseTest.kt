@@ -68,7 +68,7 @@ class FindAnimalDatabaseTest {
         )
         val calfReg = CalfRegistrationEntity(
             registeredAnimalId = animalUuid,
-            registrationDate = "2026-09-18"
+            registrationDate = 1789689600000L
         )
 
         database!!.calfRegistrationDao().registerCalf(animal, identifiers, emptyList(), calfReg)

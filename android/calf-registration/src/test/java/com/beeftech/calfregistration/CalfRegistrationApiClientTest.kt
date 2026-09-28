@@ -32,7 +32,7 @@ class CalfRegistrationApiClientTest {
         sireTagNumber = null,
         birthWeightKg = null,
         calvingEase = null,
-        registrationDate = "2023-01-01",
+        registrationDate = 1_672_531_200_000L,
         gpsLat = 0.0,
         gpsLng = 0.0,
         deviceId = "TEST-DEVICE",

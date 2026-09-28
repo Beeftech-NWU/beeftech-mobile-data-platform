@@ -38,10 +38,10 @@ data class AnimalIdentifierEntity(
     val identifierValue: String,
 
     @ColumnInfo(name = "valid_from")
-    val validFrom: String? = null,
+    val validFrom: Long? = null,
 
     @ColumnInfo(name = "valid_to")
-    val validTo: String? = null,
+    val validTo: Long? = null,
 
     @ColumnInfo(name = "record_guid", defaultValue = "''")
     val recordGuid: String = UUID.randomUUID().toString()

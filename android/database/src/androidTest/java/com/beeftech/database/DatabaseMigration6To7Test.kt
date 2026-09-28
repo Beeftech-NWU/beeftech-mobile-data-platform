@@ -159,7 +159,7 @@ class DatabaseMigration6To7Test {
                             "",
 
                         movementDate =
-                            "1000",
+                            1000L,
 
                         notes =
                             "Migration Worker"
@@ -224,7 +224,7 @@ class DatabaseMigration6To7Test {
              * Confirm database is currently at the latest version.
              */
             assertEquals(
-                21,
+                22,
                 initialDatabase
                     .openHelper
                     .writableDatabase
@@ -440,7 +440,7 @@ class DatabaseMigration6To7Test {
              * Database must now be at the latest version.
              */
             assertEquals(
-                21,
+                22,
                 upgradedDatabase
                     .openHelper
                     .writableDatabase

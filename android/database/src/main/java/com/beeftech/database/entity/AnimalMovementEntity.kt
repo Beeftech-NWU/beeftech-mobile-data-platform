@@ -45,7 +45,7 @@ data class AnimalMovementEntity(
     val destinationPenId: String,
 
     @ColumnInfo(name = "movement_date")
-    val movementDate: String,
+    val movementDate: Long,
 
     // Folded from LocationFeed
     @ColumnInfo(name = "feed_location_type")
@@ -77,5 +77,5 @@ data class AnimalMovementEntity(
 ) {
     val movementType: String get() = destinationFarmId
     val responsibleWorker: String get() = notes ?: ""
-    val timestamp: Long get() = movementDate.toLongOrNull() ?: 0L
+    val timestamp: Long get() = movementDate
 }

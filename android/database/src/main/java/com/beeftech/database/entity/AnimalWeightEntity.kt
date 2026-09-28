@@ -35,7 +35,7 @@ data class AnimalWeightEntity(
     val weightKg: Double,
 
     @ColumnInfo(name = "weigh_date")
-    val weighDate: String,
+    val weighDate: Long,
 
     @ColumnInfo(name = "notes")
     val notes: String? = null,

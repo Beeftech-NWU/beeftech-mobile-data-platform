@@ -265,7 +265,10 @@ fun SupplierScreen(
                         }
 
                         Text(
-                            text = "Purchase date: ${record.purchaseDate}",
+                            text = "Purchase date: " + SimpleDateFormat(
+                                "dd MMM yyyy",
+                                Locale.getDefault()
+                            ).format(Date(record.purchaseDate)),
                             color = BeeftechMutedText
                         )
                     }

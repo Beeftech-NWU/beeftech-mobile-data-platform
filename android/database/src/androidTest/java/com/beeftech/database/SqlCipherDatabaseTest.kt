@@ -60,7 +60,7 @@ class SqlCipherDatabaseTest {
             animalId = "SQL-001",
             destinationFarmId = "Feedlot 1",
             destinationPenId = "Pen 2",
-            movementDate = "2026-09-18"
+            movementDate = 1789689600000L
         )
         database!!.animalMovementDao().insert(movement)
 

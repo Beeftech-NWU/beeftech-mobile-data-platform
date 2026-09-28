@@ -50,7 +50,6 @@ object CalfRegistrationMappers {
         require(TagNamingUtils.validateTag(tag)) { "Tag '$tag' does not match the tag naming standard" }
 
         val animalId = UUID.randomUUID().toString()
-        val captureDate = isoDate(capture.captureAt)
 
         val animal = Animal(
             animalId = animalId,
@@ -68,18 +67,18 @@ object CalfRegistrationMappers {
         )
 
         val identifiers = buildList {
-            add(identifier(animalId, IdentifierTypes.TAG, tag, captureDate))
+            add(identifier(animalId, IdentifierTypes.TAG, tag, capture.captureAt))
             formData.oldTagNumber.takeIf { it.isNotBlank() }
-                ?.let { add(identifier(animalId, IdentifierTypes.OLD_TAG, it.trim(), captureDate)) }
+                ?.let { add(identifier(animalId, IdentifierTypes.OLD_TAG, it.trim(), capture.captureAt)) }
             formData.referenceNumber.takeIf { it.isNotBlank() }
-                ?.let { add(identifier(animalId, IdentifierTypes.REFERENCE, it.trim(), captureDate)) }
+                ?.let { add(identifier(animalId, IdentifierTypes.REFERENCE, it.trim(), capture.captureAt)) }
             formData.transponderNumber.takeIf { it.isNotBlank() }
-                ?.let { add(identifier(animalId, IdentifierTypes.TRANSPONDER, it.trim(), captureDate)) }
+                ?.let { add(identifier(animalId, IdentifierTypes.TRANSPONDER, it.trim(), capture.captureAt)) }
         }
 
         val media = listOfNotNull(
             formData.photoPath?.let {
-                AnimalMediaEntity(animalId = animalId, filePath = it, mediaType = "PHOTO", createdAt = captureDate)
+                AnimalMediaEntity(animalId = animalId, filePath = it, mediaType = "PHOTO", createdAt = capture.captureAt)
             }
         )
 
@@ -87,7 +86,7 @@ object CalfRegistrationMappers {
             registeredAnimalId = animalId,
             damId = damAnimalId,
             sireId = sireAnimalId,
-            registrationDate = captureDate
+            registrationDate = capture.captureAt
         )
 
         return NewCalf(animal, identifiers, media, registration)
@@ -101,7 +100,7 @@ object CalfRegistrationMappers {
         sireTagNumber = view.sireTagNumber ?: SELECT_SIRE_PLACEHOLDER,
         photoPath = view.photoPath,
         synced = view.syncStatus == SYNC_STATUS_SYNCED,
-        dateRegistered = view.registrationDate
+        dateRegistered = displayDate(view.registrationDate)
     )
 
     fun toDto(view: CalfRegistrationView): CalfRegistrationDto = CalfRegistrationDto(
@@ -124,7 +123,7 @@ object CalfRegistrationMappers {
         syncedAt = view.syncedAt
     )
 
-    private fun identifier(animalId: String, type: String, value: String, validFrom: String) =
+    private fun identifier(animalId: String, type: String, value: String, validFrom: Long) =
         AnimalIdentifierEntity(
             animalId = animalId,
             identifierType = type,
@@ -132,8 +131,9 @@ object CalfRegistrationMappers {
             validFrom = validFrom
         )
 
-    private fun isoDate(epochMillis: Long): String =
-        SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(Date(epochMillis))
+    /** "26 Aug" -- matches CalfRegistrationData.dateRegistered's placeholder style. */
+    private fun displayDate(epochMillis: Long): String =
+        SimpleDateFormat("dd MMM", Locale.getDefault()).format(Date(epochMillis))
 
     private fun startOfDay(epochMillis: Long): Long =
         Calendar.getInstance().apply {

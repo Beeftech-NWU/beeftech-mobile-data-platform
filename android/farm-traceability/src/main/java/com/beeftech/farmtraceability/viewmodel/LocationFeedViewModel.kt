@@ -78,7 +78,7 @@ class LocationFeedViewModel(
                         animalId = animalId,
                         destinationFarmId = destination.trim(),
                         destinationPenId = "",
-                        movementDate = System.currentTimeMillis().toString(),
+                        movementDate = System.currentTimeMillis(),
                         feedLocationType = rationName.trim(),
                         notes = "Days: $daysInDestinationText, Ration days: $rationDaysText, Cost: $rationCostText"
                     )

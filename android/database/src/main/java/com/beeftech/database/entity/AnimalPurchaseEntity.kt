@@ -35,7 +35,7 @@ data class AnimalPurchaseEntity(
     val purchasePrice: Double,
 
     @ColumnInfo(name = "purchase_date")
-    val purchaseDate: String,
+    val purchaseDate: Long,
 
     @ColumnInfo(name = "seller_name")
     val sellerName: String, // Replaces Supplier entity

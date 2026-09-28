@@ -41,7 +41,7 @@ class CalfRegistrationMappersTest {
         sireTagNumber = null,
         birthWeightKg = null,
         calvingEase = null,
-        registrationDate = "2025-01-01",
+        registrationDate = 1_735_689_600_000L,
         gpsLat = -26.0,
         gpsLng = 28.0,
         deviceId = "dev-1",

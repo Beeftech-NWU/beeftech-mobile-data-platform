@@ -77,7 +77,7 @@ class AnimalMovementViewModel(
                         animalId = animalId,
                         destinationFarmId = movementInformation,
                         destinationPenId = "",
-                        movementDate = System.currentTimeMillis().toString(),
+                        movementDate = System.currentTimeMillis(),
                         notes = responsibleWorker
                     )
 

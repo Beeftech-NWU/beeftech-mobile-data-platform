@@ -84,7 +84,7 @@ class DatabaseMigrationPhase3And6And7Test {
             animalId = "ANIMAL-001",
             filePath = "/media/photo1.jpg",
             mediaType = "PHOTO",
-            createdAt = "2026-09-18T10:00:00"
+            createdAt = 1789725600000L
         )
         db.animalMediaDao().insertMedia(media)
 
@@ -96,7 +96,7 @@ class DatabaseMigrationPhase3And6And7Test {
         val weight = AnimalWeightEntity(
             animalId = "ANIMAL-001",
             weightKg = 450.5,
-            weighDate = "2026-09-18"
+            weighDate = 1789689600000L
         )
         db.animalWeightDao().insertWeight(weight)
 
@@ -109,7 +109,7 @@ class DatabaseMigrationPhase3And6And7Test {
             animalId = "ANIMAL-001",
             ownerName = "Farmer John",
             ownershipPercentage = 100.0,
-            startDate = "2026-01-01"
+            startDate = 1767225600000L
         )
         db.animalOwnershipDao().insertOwnership(ownership)
 
@@ -121,7 +121,7 @@ class DatabaseMigrationPhase3And6And7Test {
         val purchase = AnimalPurchaseEntity(
             animalId = "ANIMAL-001",
             purchasePrice = 12500.0,
-            purchaseDate = "2026-01-01",
+            purchaseDate = 1767225600000L,
             sellerName = "Oak Valley Stud"
         )
         db.animalPurchaseDao().insertPurchase(purchase)
@@ -135,7 +135,7 @@ class DatabaseMigrationPhase3And6And7Test {
             animalId = "ANIMAL-001",
             destinationFarmId = "FARM-A",
             destinationPenId = "PEN-10",
-            movementDate = "2026-09-18"
+            movementDate = 1789689600000L
         )
         db.animalMovementDao().insert(movement)
 
@@ -161,7 +161,7 @@ class DatabaseMigrationPhase3And6And7Test {
             media = emptyList(),
             registration = CalfRegistrationEntity(
                 registeredAnimalId = "CALF-TEST-001",
-                registrationDate = "2026-09-18"
+                registrationDate = 1789689600000L
             )
         )
 

@@ -297,7 +297,10 @@ fun LocationFeedScreen(
                         }
 
                         Text(
-                            text = "Date: ${record.movementDate}",
+                            text = "Date: " + SimpleDateFormat(
+                                "dd MMM yyyy HH:mm",
+                                Locale.getDefault()
+                            ).format(Date(record.movementDate)),
                             color = BeeftechMutedText
                         )
                     }

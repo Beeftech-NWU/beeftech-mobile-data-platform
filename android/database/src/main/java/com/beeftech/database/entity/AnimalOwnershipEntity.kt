@@ -39,10 +39,10 @@ data class AnimalOwnershipEntity(
     val ownershipPercentage: Double = 100.0,
 
     @ColumnInfo(name = "start_date")
-    val startDate: String,
+    val startDate: Long,
 
     @ColumnInfo(name = "end_date")
-    val endDate: String? = null,
+    val endDate: Long? = null,
 
     @ColumnInfo(name = "record_guid", defaultValue = "''")
     val recordGuid: String = UUID.randomUUID().toString()

@@ -37,7 +37,7 @@ data class AnimalMediaEntity(
     val mediaType: String, // e.g., "PHOTO", "VIDEO"
 
     @ColumnInfo(name = "created_at")
-    val createdAt: String,
+    val createdAt: Long,
 
     @ColumnInfo(name = "record_guid", defaultValue = "''")
     val recordGuid: String = UUID.randomUUID().toString()
