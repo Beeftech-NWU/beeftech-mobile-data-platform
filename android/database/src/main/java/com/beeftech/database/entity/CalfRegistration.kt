@@ -1,14 +1,38 @@
 package com.beeftech.database.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.util.UUID
 
 @Entity(
     tableName = "calf_registrations",
+    foreignKeys = [
+        ForeignKey(
+            entity = Animal::class,
+            parentColumns = ["animalId"],
+            childColumns = ["registered_animal_id"],
+            onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = Animal::class,
+            parentColumns = ["animalId"],
+            childColumns = ["dam_id"],
+            onDelete = ForeignKey.SET_NULL
+        ),
+        ForeignKey(
+            entity = Animal::class,
+            parentColumns = ["animalId"],
+            childColumns = ["sire_id"],
+            onDelete = ForeignKey.SET_NULL
+        )
+    ],
     indices = [
-        Index(value = ["animalId"], unique = true),
-        Index(value = ["recordguid"], unique = true)
+        Index(value = ["registered_animalId"], unique = true),
+        Index(value = ["dam_id"]),
+        Index(value = ["sire_id"])
     ]
 )
 data class CalfRegistration(
