@@ -52,7 +52,7 @@ class SqlCipherDatabaseTest {
             gpsLng = 27.9,
             captureAt = System.currentTimeMillis(),
             deviceId = "device-1",
-            recordguid = "guid-sql-001"
+            recordGuid = "guid-sql-001"
         )
         database!!.animalDao().insert(animal)
 

@@ -32,7 +32,7 @@ interface TreatmentDao {
      * animal_costs row in one transaction (remediation plan, Phase 5).
      *
      * Any future edit/delete of a treatment must update/delete
-     * the derived cost row with source_record_id = recordguid.
+     * the derived cost row with source_record_id = record_guid.
      */
     @Transaction
     suspend fun insertWithCost(
@@ -50,7 +50,7 @@ interface TreatmentDao {
                     gpsLng = treatment.gpsLng,
                     timestamp = treatment.timestamp,
                     sourceEntity = CostSource.TREATMENT,
-                    sourceRecordId = treatment.recordguid
+                    sourceRecordId = treatment.recordGuid
                 )
             )
         }
@@ -93,7 +93,7 @@ interface TreatmentDao {
         """
         SELECT *
         FROM treatments
-        WHERE recordguid = :recordGuid
+        WHERE record_guid = :recordGuid
         LIMIT 1
         """
     )
@@ -107,7 +107,7 @@ interface TreatmentDao {
         SET
             syncStatus = 'SYNCED',
             syncedAt = :syncedAt
-        WHERE recordguid = :recordGuid
+        WHERE record_guid = :recordGuid
         """
     )
     suspend fun markSynced(
@@ -121,7 +121,7 @@ interface TreatmentDao {
         SET
             syncStatus = 'PENDING',
             syncedAt = NULL
-        WHERE recordguid = :recordGuid
+        WHERE record_guid = :recordGuid
         """
     )
     suspend fun markPending(

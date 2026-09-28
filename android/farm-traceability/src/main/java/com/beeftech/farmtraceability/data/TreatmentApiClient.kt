@@ -222,7 +222,7 @@ class TreatmentApiClient(
                             treatment.deviceId,
 
                         recordguid =
-                            treatment.recordguid,
+                            treatment.recordGuid,
 
                         syncStatus =
                             treatment.syncStatus,

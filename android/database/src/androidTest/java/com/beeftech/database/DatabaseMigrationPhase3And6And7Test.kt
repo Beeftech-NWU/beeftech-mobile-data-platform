@@ -64,7 +64,7 @@ class DatabaseMigrationPhase3And6And7Test {
             gpsLng = 28.0,
             captureAt = System.currentTimeMillis(),
             deviceId = "dev-1",
-            recordguid = "guid-1"
+            recordGuid = "guid-1"
         )
         db.animalDao().insert(animal)
 
@@ -153,7 +153,7 @@ class DatabaseMigrationPhase3And6And7Test {
                 gpsLng = 28.0,
                 captureAt = System.currentTimeMillis(),
                 deviceId = "dev-1",
-                recordguid = "guid-calf-1"
+                recordGuid = "guid-calf-1"
             ),
             identifiers = listOf(
                 AnimalIdentifierEntity(animalId = "CALF-TEST-001", identifierType = "TAG", identifierValue = "CALF-TAG-001")

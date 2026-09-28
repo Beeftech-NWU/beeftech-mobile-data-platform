@@ -72,7 +72,7 @@ class CalfRegistrationDaoTest {
             gpsLng = 27.9,
             captureAt = System.currentTimeMillis(),
             deviceId = "device-1",
-            recordguid = UUID.randomUUID().toString()
+            recordGuid = UUID.randomUUID().toString()
         )
         val damIdentifiers = listOf(
             AnimalIdentifierEntity(animalId = damUuid, identifierType = IdentifierTypes.TAG, identifierValue = damTag)
@@ -89,7 +89,7 @@ class CalfRegistrationDaoTest {
             gpsLng = 27.9,
             captureAt = System.currentTimeMillis(),
             deviceId = "device-1",
-            recordguid = UUID.randomUUID().toString()
+            recordGuid = UUID.randomUUID().toString()
         )
         val sireIdentifiers = listOf(
             AnimalIdentifierEntity(animalId = sireUuid, identifierType = IdentifierTypes.TAG, identifierValue = sireTag)
@@ -109,7 +109,7 @@ class CalfRegistrationDaoTest {
             gpsLng = 27.9,
             captureAt = System.currentTimeMillis(),
             deviceId = "device-1",
-            recordguid = UUID.randomUUID().toString()
+            recordGuid = UUID.randomUUID().toString()
         )
         val calfIdentifiers = listOf(
             AnimalIdentifierEntity(animalId = calfUuid, identifierType = IdentifierTypes.TAG, identifierValue = calfTag)
@@ -150,7 +150,7 @@ class CalfRegistrationDaoTest {
             gpsLng = 27.9,
             captureAt = System.currentTimeMillis(),
             deviceId = "device-1",
-            recordguid = UUID.randomUUID().toString()
+            recordGuid = UUID.randomUUID().toString()
         )
         val dupIdentifiers = listOf(
             AnimalIdentifierEntity(animalId = dupUuid, identifierType = IdentifierTypes.TAG, identifierValue = calfTag)

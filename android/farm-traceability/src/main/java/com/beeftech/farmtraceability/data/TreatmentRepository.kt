@@ -110,7 +110,7 @@ class TreatmentRepository(
 
                 val refreshed =
                     treatmentDao.findByRecordGuid(
-                        recentDuplicate.recordguid
+                        recentDuplicate.recordGuid
                     ) ?: recentDuplicate
 
                 return SaveTreatmentOutcome(
@@ -125,7 +125,7 @@ class TreatmentRepository(
                         } else {
                             syncOutcome
                                 .errorMessagesByRecordGuid[
-                                refreshed.recordguid
+                                refreshed.recordGuid
                             ]
                         },
 
@@ -169,7 +169,7 @@ class TreatmentRepository(
                     deviceId =
                         deviceId,
 
-                    recordguid =
+                    recordGuid =
                         UUID.randomUUID()
                             .toString(),
 
@@ -192,13 +192,13 @@ class TreatmentRepository(
                     ENTITY_TYPE,
 
                 entityId =
-                    treatment.recordguid,
+                    treatment.recordGuid,
 
                 operation =
                     "CREATE",
 
                 payload =
-                    treatment.recordguid
+                    treatment.recordGuid
             )
 
             /*
@@ -211,7 +211,7 @@ class TreatmentRepository(
 
             val savedTreatment =
                 treatmentDao.findByRecordGuid(
-                    treatment.recordguid
+                    treatment.recordGuid
                 ) ?: treatment
 
             SaveTreatmentOutcome(
@@ -227,7 +227,7 @@ class TreatmentRepository(
                     } else {
                         syncOutcome
                             .errorMessagesByRecordGuid[
-                            treatment.recordguid
+                            treatment.recordGuid
                         ]
                     },
 
@@ -390,7 +390,7 @@ class TreatmentRepository(
                                 pendingRecords.associate {
                                         treatment ->
 
-                                    treatment.recordguid to
+                                    treatment.recordGuid to
                                             message
                                 }
                         )
@@ -417,7 +417,7 @@ class TreatmentRepository(
                             SYNC_STATUS_SYNCED
                 }
                 .map {
-                    it.recordguid
+                    it.recordGuid
                 }
                 .toSet()
 

@@ -61,7 +61,7 @@ class FindAnimalDatabaseTest {
             gpsLng = 27.9,
             captureAt = System.currentTimeMillis(),
             deviceId = "device-1",
-            recordguid = "guid-find-001"
+            recordGuid = "guid-find-001"
         )
         val identifiers = listOf(
             AnimalIdentifierEntity(animalId = animalUuid, identifierType = IdentifierTypes.TAG, identifierValue = tagNumber)

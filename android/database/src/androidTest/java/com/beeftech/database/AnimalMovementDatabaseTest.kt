@@ -52,7 +52,7 @@ class AnimalMovementDatabaseTest {
             gpsLng = 27.9,
             captureAt = System.currentTimeMillis(),
             deviceId = "device-1",
-            recordguid = "guid-move-001"
+            recordGuid = "guid-move-001"
         )
         database!!.animalDao().insert(animal)
 

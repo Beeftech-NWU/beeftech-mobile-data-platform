@@ -1,5 +1,6 @@
 package com.beeftech.database.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -22,7 +23,7 @@ import java.util.UUID
         // TODO(phase 7): parentId left unconstrained because a single column can't hold both dam and sire.
         Index(value = ["parentId"]),
         Index(value = ["animalGroupId"]),
-        Index(value = ["recordguid"], unique = true)
+        Index(value = ["record_guid"], unique = true)
     ]
 )
 data class Animal(
@@ -53,7 +54,9 @@ data class Animal(
     val gpsLng: Double,
     val captureAt: Long,
     val deviceId: String,
-    val recordguid: String = UUID.randomUUID().toString(),
+
+    @ColumnInfo(name = "record_guid")
+    val recordGuid: String = UUID.randomUUID().toString(),
 
     val syncStatus: String = "PENDING",
     val syncedat: Long? = null

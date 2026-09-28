@@ -107,7 +107,7 @@ import com.beeftech.database.dao.UserDao
         // Phase 5 Entity
         CostType::class
     ],
-    version = 18,
+    version = 19,
     exportSchema = true
 )
 abstract class BeefTechDatabase : RoomDatabase() {
@@ -1212,6 +1212,121 @@ abstract class BeefTechDatabase : RoomDatabase() {
                 backfillBlankGuids("mortalities", "record_guid")
                 backfillBlankGuids("farmers", "record_guid")
                 backfillBlankGuids("animal_group_memberships", "record_guid")
+            }
+        }
+
+        /**
+         * R3, bullet 1 (Version 18 -> 19): standardise the sync identity column.
+         *
+         * Renames `recordguid` to `record_guid` on `animals` and `treatments`, the
+         * two syncable tables that still used the old, inconsistent name (every
+         * other syncable table already uses `record_guid`, per rule 8). Both
+         * tables are rebuilt per rule 9: exact DDL from `18.json` with the column
+         * renamed, an explicit `INSERT ... SELECT`, then drop-and-rename. No data
+         * is lost — every value carries over unchanged, only the column name and
+         * the generated index name change.
+         */
+        val MIGRATION_18_19 = object : Migration(18, 19) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+
+                // 1. animals
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `animals_new` (`animalId` TEXT NOT NULL, `tagNumber` TEXT, `oldTagNumber` TEXT, `temperatureNumber` TEXT, `referenceNumber` TEXT, `massKg` REAL, `birthdate` INTEGER NOT NULL, `breed` TEXT NOT NULL, `gender` TEXT, `age` INTEGER, `condition` TEXT, `hideColour` TEXT, `brandMark` TEXT, `parentId` TEXT, `animalGroupId` TEXT, `photoPath` TEXT, `videoPath` TEXT, `gpsLat` REAL NOT NULL, `gpsLng` REAL NOT NULL, `captureAt` INTEGER NOT NULL, `deviceId` TEXT NOT NULL, `record_guid` TEXT NOT NULL, `syncStatus` TEXT NOT NULL, `syncedat` INTEGER, PRIMARY KEY(`animalId`), FOREIGN KEY(`animalGroupId`) REFERENCES `animal_groups`(`animalGroupId`) ON UPDATE NO ACTION ON DELETE SET NULL )"
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `animals_new`
+                        (`animalId`, `tagNumber`, `oldTagNumber`, `temperatureNumber`, `referenceNumber`,
+                         `massKg`, `birthdate`, `breed`, `gender`, `age`, `condition`, `hideColour`,
+                         `brandMark`, `parentId`, `animalGroupId`, `photoPath`, `videoPath`, `gpsLat`,
+                         `gpsLng`, `captureAt`, `deviceId`, `record_guid`, `syncStatus`, `syncedat`)
+                    SELECT
+                        `animalId`, `tagNumber`, `oldTagNumber`, `temperatureNumber`, `referenceNumber`,
+                        `massKg`, `birthdate`, `breed`, `gender`, `age`, `condition`, `hideColour`,
+                        `brandMark`, `parentId`, `animalGroupId`, `photoPath`, `videoPath`, `gpsLat`,
+                        `gpsLng`, `captureAt`, `deviceId`, `recordguid`, `syncStatus`, `syncedat`
+                    FROM `animals`
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE `animals`")
+                db.execSQL("ALTER TABLE `animals_new` RENAME TO `animals`")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_tagNumber` ON `animals` (`tagNumber`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_temperatureNumber` ON `animals` (`temperatureNumber`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_parentId` ON `animals` (`parentId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_animalGroupId` ON `animals` (`animalGroupId`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_animals_record_guid` ON `animals` (`record_guid`)")
+
+                // 2. treatments
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `treatments_new` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `animalId` TEXT NOT NULL, `disease` TEXT NOT NULL, `treatmentName` TEXT NOT NULL, `batchNumber` TEXT NOT NULL, `volumeUsed` TEXT NOT NULL, `cost` REAL NOT NULL, `gpsLat` REAL NOT NULL, `gpsLng` REAL NOT NULL, `timestamp` INTEGER NOT NULL, `deviceId` TEXT NOT NULL DEFAULT '', `record_guid` TEXT NOT NULL DEFAULT '', `syncStatus` TEXT NOT NULL DEFAULT 'PENDING', `syncedAt` INTEGER, FOREIGN KEY(`animalId`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE )"
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `treatments_new`
+                        (`id`, `animalId`, `disease`, `treatmentName`, `batchNumber`, `volumeUsed`,
+                         `cost`, `gpsLat`, `gpsLng`, `timestamp`, `deviceId`, `record_guid`,
+                         `syncStatus`, `syncedAt`)
+                    SELECT
+                        `id`, `animalId`, `disease`, `treatmentName`, `batchNumber`, `volumeUsed`,
+                        `cost`, `gpsLat`, `gpsLng`, `timestamp`, `deviceId`, `recordguid`,
+                        `syncStatus`, `syncedAt`
+                    FROM `treatments`
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE `treatments`")
+                db.execSQL("ALTER TABLE `treatments_new` RENAME TO `treatments`")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_treatments_animalId` ON `treatments` (`animalId`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_treatments_record_guid` ON `treatments` (`record_guid`)")
+            }
+        }
+
+        /**
+         * R3, bullet 2 (Version 19 -> 20): give every remaining syncable table a
+         * `record_guid`.
+         *
+         * `animal_costs`, `mortalities`, `farmers`, `animal_group_memberships`,
+         * `calf_registrations`, `animals` and `treatments` already have one.
+         * This adds it to the rest: `animal_movements`, `animal_weights`,
+         * `animal_identifiers`, `animal_media`, `animal_ownerships`,
+         * `animal_purchases`, `farmer_addresses`, `feed_crib_readings` and
+         * `feed_crib_reading_values`. Each column is added with a transient
+         * `DEFAULT ''` (SQLite requires one for a `NOT NULL` `ADD COLUMN`),
+         * every existing row is immediately given a real UUID so nothing keeps
+         * the blank default, then the unique index is created.
+         */
+        val MIGRATION_19_20 = object : Migration(19, 20) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+
+                val tables = listOf(
+                    "animal_movements",
+                    "animal_weights",
+                    "animal_identifiers",
+                    "animal_media",
+                    "animal_ownerships",
+                    "animal_purchases",
+                    "farmer_addresses",
+                    "feed_crib_readings",
+                    "feed_crib_reading_values"
+                )
+
+                tables.forEach { table ->
+                    db.execSQL("ALTER TABLE `$table` ADD COLUMN `record_guid` TEXT NOT NULL DEFAULT ''")
+
+                    val rowIds = mutableListOf<Long>()
+                    db.query("SELECT `rowid` FROM `$table` WHERE `record_guid` = ''").use { c ->
+                        while (c.moveToNext()) rowIds += c.getLong(0)
+                    }
+                    rowIds.forEach { rowId ->
+                        db.execSQL(
+                            "UPDATE `$table` SET `record_guid` = ? WHERE `rowid` = ?",
+                            arrayOf<Any>(UUID.randomUUID().toString(), rowId)
+                        )
+                    }
+
+                    db.execSQL(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS `index_${table}_record_guid` ON `$table` (`record_guid`)"
+                    )
+                }
             }
         }
 

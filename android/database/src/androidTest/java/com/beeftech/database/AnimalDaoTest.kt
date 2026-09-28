@@ -51,7 +51,7 @@ class AnimalDaoTest {
             gpsLng = 27.9,
             captureAt = 1700000000000L,
             deviceId = "test-device",
-            recordguid = "record-001"
+            recordGuid = "record-001"
         )
 
         dao.insert(animal)
@@ -90,7 +90,7 @@ class AnimalDaoTest {
                 gpsLng = 27.9,
                 captureAt = 1700000000000L,
                 deviceId = "test-device",
-                recordguid = "record-002"
+                recordGuid = "record-002"
             )
         )
 
@@ -126,7 +126,7 @@ class AnimalDaoTest {
                 gpsLng = 27.9,
                 captureAt = 1700000000000L,
                 deviceId = "test-device",
-                recordguid = "record-003"
+                recordGuid = "record-003"
             )
         )
 
@@ -160,7 +160,7 @@ class AnimalDaoTest {
             gpsLng = 27.9,
             captureAt = 1700000000000L,
             deviceId = "test-device",
-            recordguid = "record-parent"
+            recordGuid = "record-parent"
         )
 
         dao.insert(parent)
@@ -179,7 +179,7 @@ class AnimalDaoTest {
                 gpsLng = 27.9,
                 captureAt = 1700000000000L,
                 deviceId = "test-device",
-                recordguid = "record-004"
+                recordGuid = "record-004"
             )
         )
 
@@ -194,7 +194,7 @@ class AnimalDaoTest {
                 gpsLng = 27.9,
                 captureAt = 1700000000000L,
                 deviceId = "test-device",
-                recordguid = "record-005"
+                recordGuid = "record-005"
             )
         )
 

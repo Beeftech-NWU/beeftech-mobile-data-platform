@@ -21,7 +21,7 @@ class TreatmentApiClientTest {
         )
 
         val dummyTreatment = Treatment(
-            recordguid = "guid-1",
+            recordGuid = "guid-1",
             animalId = "A1",
             disease = "Flu",
             treatmentName = "Meds",

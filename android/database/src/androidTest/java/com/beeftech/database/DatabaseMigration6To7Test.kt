@@ -224,7 +224,7 @@ class DatabaseMigration6To7Test {
              * Confirm database is currently at the latest version.
              */
             assertEquals(
-                18,
+                19,
                 initialDatabase
                     .openHelper
                     .writableDatabase
@@ -327,6 +327,20 @@ class DatabaseMigration6To7Test {
                 """.trimIndent()
             )
 
+            /*
+             * R3 renamed `recordguid` to `record_guid` on `animals` and
+             * `treatments` (bullet 1). `initialDatabase` just created both
+             * tables in that new shape, so a "v6" copy needs the old column
+             * name back, or an earlier migration that still reads/writes
+             * `recordguid` directly (e.g. MIGRATION_13_14's derived-cost
+             * backfill, which selects `treatments.recordguid`) fails with
+             * "no such column: recordguid". MIGRATION_18_19 rebuilds both
+             * tables from scratch, so the stale index left behind by the
+             * rename doesn't matter -- it's dropped along with the table.
+             */
+            rawDatabase.execSQL("ALTER TABLE animals RENAME COLUMN record_guid TO recordguid")
+            rawDatabase.execSQL("ALTER TABLE treatments RENAME COLUMN record_guid TO recordguid")
+
             rawDatabase.execSQL(
                 "PRAGMA user_version = 6"
             )
@@ -379,7 +393,7 @@ class DatabaseMigration6To7Test {
              * Database must now be at the latest version.
              */
             assertEquals(
-                18,
+                19,
                 upgradedDatabase
                     .openHelper
                     .writableDatabase
