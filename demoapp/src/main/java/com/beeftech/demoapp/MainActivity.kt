@@ -6,20 +6,29 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.beeftech.calfregistration.data.CalfCaptureContext
@@ -351,7 +360,7 @@ class MainActivity : ComponentActivity() {
                             AuthGate(
                                 sessionStore = sessionStore,
                                 viewModelFactory = loginViewModelFactory
-                            ) { loggedInUser ->
+                            ) { loggedInUser, onLogout ->
 
                                 val movementRecords by
                                 movementViewModel
@@ -398,57 +407,145 @@ class MainActivity : ComponentActivity() {
                                 mutableIntStateOf(0)
                             }
 
+                            var showLogoutDialog by
+                            remember {
+                                mutableStateOf(false)
+                            }
+
+                            if (showLogoutDialog) {
+
+                                AlertDialog(
+                                    onDismissRequest = {
+                                        showLogoutDialog =
+                                            false
+                                    },
+
+                                    title = {
+                                        Text(
+                                            text = "Log out?"
+                                        )
+                                    },
+
+                                    text = {
+                                        Text(
+                                            text = "You'll need your username and PIN to sign in again."
+                                        )
+                                    },
+
+                                    confirmButton = {
+                                        TextButton(
+                                            onClick = {
+                                                showLogoutDialog =
+                                                    false
+                                                onLogout()
+                                            }
+                                        ) {
+                                            Text(
+                                                text = "Log out"
+                                            )
+                                        }
+                                    },
+
+                                    dismissButton = {
+                                        TextButton(
+                                            onClick = {
+                                                showLogoutDialog =
+                                                    false
+                                            }
+                                        ) {
+                                            Text(
+                                                text = "Cancel"
+                                            )
+                                        }
+                                    }
+                                )
+                            }
+
                             Scaffold(
                                 modifier =
                                     Modifier.fillMaxSize(),
 
                                 topBar = {
 
-                                    PrimaryTabRow(
-                                        selectedTabIndex =
-                                            selectedDemoTab,
+                                    Column(
                                         modifier =
                                             Modifier.statusBarsPadding()
                                     ) {
 
-                                        Tab(
-                                            selected =
-                                                selectedDemoTab == 0,
-                                            onClick = {
-                                                selectedDemoTab = 0
-                                            },
-                                            text = {
-                                                Text(
-                                                    "Farm Traceability"
-                                                )
-                                            }
-                                        )
+                                        Row(
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(
+                                                        horizontal = 16.dp,
+                                                        vertical = 4.dp
+                                                    ),
+                                            horizontalArrangement =
+                                                Arrangement.SpaceBetween,
+                                            verticalAlignment =
+                                                Alignment.CenterVertically
+                                        ) {
 
-                                        Tab(
-                                            selected =
-                                                selectedDemoTab == 1,
-                                            onClick = {
-                                                selectedDemoTab = 1
-                                            },
-                                            text = {
-                                                Text(
-                                                    "Calf Registration"
-                                                )
-                                            }
-                                        )
+                                            Text(
+                                                text = "Signed in as ${loggedInUser.username}"
+                                            )
 
-                                        Tab(
-                                            selected =
-                                                selectedDemoTab == 2,
-                                            onClick = {
-                                                selectedDemoTab = 2
-                                            },
-                                            text = {
+                                            TextButton(
+                                                onClick = {
+                                                    showLogoutDialog =
+                                                        true
+                                                }
+                                            ) {
                                                 Text(
-                                                    "Feed Crib"
+                                                    text = "Log out"
                                                 )
                                             }
-                                        )
+                                        }
+
+                                        PrimaryTabRow(
+                                            selectedTabIndex =
+                                                selectedDemoTab
+                                        ) {
+
+                                            Tab(
+                                                selected =
+                                                    selectedDemoTab == 0,
+                                                onClick = {
+                                                    selectedDemoTab = 0
+                                                },
+                                                text = {
+                                                    Text(
+                                                        "Farm Traceability"
+                                                    )
+                                                }
+                                            )
+
+                                            Tab(
+                                                selected =
+                                                    selectedDemoTab == 1,
+                                                onClick = {
+                                                    selectedDemoTab = 1
+                                                },
+                                                text = {
+                                                    Text(
+                                                        "Calf Registration"
+                                                    )
+                                                }
+                                            )
+
+                                            Tab(
+                                                selected =
+                                                    selectedDemoTab == 2,
+                                                onClick = {
+                                                    selectedDemoTab = 2
+                                                },
+                                                text = {
+                                                    Text(
+                                                        "Feed Crib"
+                                                    )
+                                                }
+                                            )
+                                        }
                                     }
                                 }
                             ) { innerPadding ->

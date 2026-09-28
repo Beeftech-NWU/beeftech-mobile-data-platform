@@ -15,15 +15,18 @@ import com.beeftech.authentication.viewmodel.LoginViewModelFactory
 fun AuthGate(
     sessionStore: SessionStore,
     viewModelFactory: LoginViewModelFactory,
-    content: @Composable (LoggedInUser) -> Unit
+    content: @Composable (user: LoggedInUser, onLogout: () -> Unit) -> Unit
 ) {
     var currentUser by remember { mutableStateOf(sessionStore.currentUser()) }
+    val viewModel: LoginViewModel = viewModel(factory = viewModelFactory)
 
     val user = currentUser
     if (user != null && !sessionStore.isExpired()) {
-        content(user)
+        content(user) {
+            viewModel.logout()
+            currentUser = null
+        }
     } else {
-        val viewModel: LoginViewModel = viewModel(factory = viewModelFactory)
         LoginScreen(
             viewModel = viewModel,
             onLoginSuccess = { loggedInUser ->
