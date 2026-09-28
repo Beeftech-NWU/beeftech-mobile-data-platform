@@ -11,7 +11,7 @@ import java.util.UUID
     tableName = "mortalities",
     foreignKeys = [
         ForeignKey(
-            entity = AnimalEntity::class,
+            entity = Animal::class,
             parentColumns = ["animalId"],
             childColumns = ["animalId"],
             onDelete = ForeignKey.CASCADE
