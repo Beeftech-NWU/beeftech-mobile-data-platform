@@ -21,12 +21,23 @@ import java.util.UUID
             childColumns = ["costType"],
             onUpdate = ForeignKey.CASCADE,
             onDelete = ForeignKey.RESTRICT
+        ),
+        // R5.1: animal_costs was created in MIGRATION_11_12 and rebuilt in
+        // MIGRATION_13_14 without ever gaining this FK, unlike treatments,
+        // mortalities, etc. Added by MIGRATION_22_23.
+        ForeignKey(
+            entity = Animal::class,
+            parentColumns = ["animalId"],
+            childColumns = ["animalId"],
+            onUpdate = ForeignKey.NO_ACTION,
+            onDelete = ForeignKey.CASCADE
         )
     ],
     indices = [
         Index(value = ["record_guid"], unique = true),
         Index(value = ["costType"]),
         Index(value = ["animalId", "costType", "timestamp"]),
+        Index(value = ["animalId"]),
         // One derived cost per source record, so deriving is idempotent.
         Index(value = ["source_entity", "source_record_id"], unique = true)
     ]

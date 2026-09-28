@@ -110,7 +110,7 @@ import com.beeftech.database.dao.UserDao
         // Phase 5 Entity
         CostType::class
     ],
-    version = 22,
+    version = 23,
     exportSchema = true
 )
 abstract class BeefTechDatabase : RoomDatabase() {
@@ -1676,6 +1676,108 @@ abstract class BeefTechDatabase : RoomDatabase() {
                         "CREATE UNIQUE INDEX IF NOT EXISTS `index_calf_registrations_record_guid` ON `calf_registrations` (`record_guid`)"
                     )
                 )
+            }
+        }
+
+        /**
+         * R5.1 Migration (Version 22 -> 23): add the missing foreign key from
+         * `animal_costs.animalId` to `animals`.
+         *
+         * `animal_costs` was created in MIGRATION_11_12 (after MIGRATION_14_16's
+         * FK/orphan-cleanup pass already ran on devices past v14) and rebuilt in
+         * MIGRATION_13_14 to add the `costType` FK -- but nothing ever swept
+         * `animalId` the way MIGRATION_14_16 swept treatments, mortalities and
+         * animal_group_memberships. This closes that gap.
+         *
+         * Follows the same re-key-before-quarantine shape as MIGRATION_14_16:
+         * a row keyed on a tag by a build before D1 gets one chance to resolve
+         * to the animal's UUID before it's treated as an orphan (rule 3).
+         */
+        val MIGRATION_22_23 = object : Migration(22, 23) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+
+                fun quarantineTable(table: String) {
+                    db.execSQL("CREATE TABLE IF NOT EXISTS `quarantine_$table` AS SELECT * FROM `$table` WHERE 1 = 0")
+                }
+
+                fun quarantineAndDelete(table: String, whereClause: String) {
+                    db.execSQL("INSERT INTO `quarantine_$table` SELECT * FROM `$table` WHERE $whereClause")
+                    db.execSQL("DELETE FROM `$table` WHERE $whereClause")
+                }
+
+                fun rekeyTagToAnimalId(table: String, column: String) {
+                    db.execSQL(
+                        """
+                        UPDATE `$table` SET `$column` = (
+                            SELECT a.`animalId` FROM `animals` a WHERE a.`tagNumber` = `$table`.`$column` LIMIT 1
+                        )
+                        WHERE `$column` NOT IN (SELECT `animalId` FROM `animals`)
+                        AND EXISTS (SELECT 1 FROM `animals` a WHERE a.`tagNumber` = `$table`.`$column`)
+                        """.trimIndent()
+                    )
+                    db.execSQL(
+                        """
+                        UPDATE `$table` SET `$column` = (
+                            SELECT ai.`animal_id` FROM `animal_identifiers` ai
+                            WHERE ai.`identifier_type` = 'TAG' AND ai.`identifier_value` = `$table`.`$column`
+                            LIMIT 1
+                        )
+                        WHERE `$column` NOT IN (SELECT `animalId` FROM `animals`)
+                        AND EXISTS (
+                            SELECT 1 FROM `animal_identifiers` ai
+                            WHERE ai.`identifier_type` = 'TAG' AND ai.`identifier_value` = `$table`.`$column`
+                        )
+                        """.trimIndent()
+                    )
+                }
+
+                rekeyTagToAnimalId("animal_costs", "animalId")
+                quarantineTable("animal_costs")
+                quarantineAndDelete("animal_costs", "`animalId` NOT IN (SELECT `animalId` FROM `animals`)")
+
+                // Rule 9: rebuild with the exact DDL from 22.json, plus the new FK.
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `animal_costs_new` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `animalId` TEXT NOT NULL,
+                        `costType` TEXT NOT NULL,
+                        `amount` REAL NOT NULL,
+                        `description` TEXT NOT NULL DEFAULT '',
+                        `gpsLat` REAL NOT NULL,
+                        `gpsLng` REAL NOT NULL,
+                        `timestamp` INTEGER NOT NULL,
+                        `source_entity` TEXT,
+                        `source_record_id` TEXT,
+                        `record_guid` TEXT NOT NULL,
+                        FOREIGN KEY(`costType`) REFERENCES `cost_types`(`code`) ON UPDATE CASCADE ON DELETE RESTRICT,
+                        FOREIGN KEY(`animalId`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `animal_costs_new` (
+                        `id`, `animalId`, `costType`, `amount`, `description`, `gpsLat`, `gpsLng`,
+                        `timestamp`, `source_entity`, `source_record_id`, `record_guid`
+                    )
+                    SELECT
+                        `id`, `animalId`, `costType`, `amount`, `description`, `gpsLat`, `gpsLng`,
+                        `timestamp`, `source_entity`, `source_record_id`, `record_guid`
+                    FROM `animal_costs`
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE `animal_costs`")
+                db.execSQL("ALTER TABLE `animal_costs_new` RENAME TO `animal_costs`")
+
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_costs_record_guid` ON `animal_costs` (`record_guid`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_costs_costType` ON `animal_costs` (`costType`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_costs_animalId_costType_timestamp` ON `animal_costs` (`animalId`, `costType`, `timestamp`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_costs_animalId` ON `animal_costs` (`animalId`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_costs_source_entity_source_record_id` ON `animal_costs` (`source_entity`, `source_record_id`)")
+
+                // Rule 10: verify both animal_costs FKs (costType and the new animalId) hold.
+                db.query("PRAGMA foreign_key_check").use { check(it.count == 0) { "FK violations after 22->23" } }
             }
         }
 

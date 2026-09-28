@@ -224,7 +224,7 @@ class DatabaseMigration6To7Test {
              * Confirm database is currently at the latest version.
              */
             assertEquals(
-                22,
+                23,
                 initialDatabase
                     .openHelper
                     .writableDatabase
@@ -440,7 +440,7 @@ class DatabaseMigration6To7Test {
              * Database must now be at the latest version.
              */
             assertEquals(
-                22,
+                23,
                 upgradedDatabase
                     .openHelper
                     .writableDatabase
