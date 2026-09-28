@@ -523,6 +523,11 @@ object DatabaseFactory {
                      *           from 14->15 to rebase on top of the phase 2 migration)
                      * 17 -> 18 (R0.6: repairs blank/NULL record_guid columns left by
                      *           earlier migrations before any UNIQUE index relied on them)
+                     * 18 -> 19 (R3.1: renames animals/treatments recordguid to record_guid)
+                     * 19 -> 20 (R3.2: adds record_guid to the remaining syncable tables)
+                     * 20 -> 21 (R3.3: adds movement/weight audit fields)
+                     * 21 -> 22 (R3.5: converts TEXT date columns to epoch-millisecond INTEGER)
+                     * 22 -> 23 (R5.1: adds the animal_costs.animalId -> animals foreign key)
                      */
                     .addMigrations(
                         guarded(MIGRATION_1_2),
@@ -544,7 +549,8 @@ object DatabaseFactory {
                         guarded(BeefTechDatabase.MIGRATION_18_19),
                         guarded(BeefTechDatabase.MIGRATION_19_20),
                         guarded(BeefTechDatabase.MIGRATION_20_21),
-                        guarded(BeefTechDatabase.MIGRATION_21_22)
+                        guarded(BeefTechDatabase.MIGRATION_21_22),
+                        guarded(BeefTechDatabase.MIGRATION_22_23)
                     )
 
                     .addCallback(

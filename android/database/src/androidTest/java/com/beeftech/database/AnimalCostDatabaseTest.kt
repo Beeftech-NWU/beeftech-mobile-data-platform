@@ -106,6 +106,19 @@ class AnimalCostDatabaseTest {
             val dao =
                 database.animalCostDao()
 
+            // AnimalCost declares a FOREIGN KEY on animalId -> animals.animalId (R5.1).
+            database.animalDao().insert(
+                Animal(
+                    animalId = "TEST-001",
+                    birthdate = 500L,
+                    breed = "Bonsmara",
+                    gpsLat = -26.2041,
+                    gpsLng = 28.0473,
+                    captureAt = 500L,
+                    deviceId = "animal-cost-test"
+                )
+            )
+
             dao.insert(
                 AnimalCost(
                     animalId =
@@ -192,6 +205,19 @@ class AnimalCostDatabaseTest {
             val dao =
                 database.animalCostDao()
 
+            // AnimalCost declares a FOREIGN KEY on animalId -> animals.animalId (R5.1).
+            database.animalDao().insert(
+                Animal(
+                    animalId = "TEST-001",
+                    birthdate = 500L,
+                    breed = "Bonsmara",
+                    gpsLat = -26.2041,
+                    gpsLng = 28.0473,
+                    captureAt = 500L,
+                    deviceId = "animal-cost-test"
+                )
+            )
+
             dao.insert(
                 AnimalCost(
                     animalId =
@@ -264,6 +290,30 @@ class AnimalCostDatabaseTest {
 
             val dao =
                 database.animalCostDao()
+
+            // AnimalCost declares a FOREIGN KEY on animalId -> animals.animalId (R5.1).
+            database.animalDao().insert(
+                Animal(
+                    animalId = "TEST-001",
+                    birthdate = 500L,
+                    breed = "Bonsmara",
+                    gpsLat = -26.2041,
+                    gpsLng = 28.0473,
+                    captureAt = 500L,
+                    deviceId = "animal-cost-test"
+                )
+            )
+            database.animalDao().insert(
+                Animal(
+                    animalId = "TEST-002",
+                    birthdate = 500L,
+                    breed = "Bonsmara",
+                    gpsLat = -26.2041,
+                    gpsLng = 28.0473,
+                    captureAt = 500L,
+                    deviceId = "animal-cost-test"
+                )
+            )
 
             dao.insert(
                 AnimalCost(
@@ -524,6 +574,22 @@ class AnimalCostDatabaseTest {
         runBlocking {
             val dao = database.animalCostDao()
             val guid = UUID.randomUUID().toString()
+
+            // AnimalCost declares a FOREIGN KEY on animalId -> animals.animalId (R5.1).
+            // Without this, the first insert below throws on the missing animal
+            // instead of the second insert throwing on the duplicate record_guid.
+            database.animalDao().insert(
+                Animal(
+                    animalId = "TEST-001",
+                    birthdate = 500L,
+                    breed = "Bonsmara",
+                    gpsLat = -26.2041,
+                    gpsLng = 28.0473,
+                    captureAt = 500L,
+                    deviceId = "animal-cost-test"
+                )
+            )
+
             dao.insert(
                 AnimalCost(
                     animalId = "TEST-001",
@@ -552,6 +618,22 @@ class AnimalCostDatabaseTest {
     fun insertInvalidCostType_throwsForeignKeyException() =
         runBlocking {
             val dao = database.animalCostDao()
+
+            // AnimalCost declares a FOREIGN KEY on animalId -> animals.animalId (R5.1).
+            // Without this, the insert below throws on the missing animal
+            // instead of the invalid costType it's meant to exercise.
+            database.animalDao().insert(
+                Animal(
+                    animalId = "TEST-001",
+                    birthdate = 500L,
+                    breed = "Bonsmara",
+                    gpsLat = -26.2041,
+                    gpsLng = 28.0473,
+                    captureAt = 500L,
+                    deviceId = "animal-cost-test"
+                )
+            )
+
             dao.insert(
                 AnimalCost(
                     animalId = "TEST-001",
@@ -577,6 +659,19 @@ class AnimalCostDatabaseTest {
                         displayName = "Custom Labor",
                         sortOrder = 10
                     )
+                )
+            )
+
+            // AnimalCost declares a FOREIGN KEY on animalId -> animals.animalId (R5.1).
+            database.animalDao().insert(
+                Animal(
+                    animalId = "TEST-001",
+                    birthdate = 500L,
+                    breed = "Bonsmara",
+                    gpsLat = -26.2041,
+                    gpsLng = 28.0473,
+                    captureAt = 500L,
+                    deviceId = "animal-cost-test"
                 )
             )
 
