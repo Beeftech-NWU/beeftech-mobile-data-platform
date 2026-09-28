@@ -9,6 +9,31 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 object DatabaseFactory {
 
     /*
+     * Marks an exception as having been thrown from inside a Migration's
+     * migrate() body, so the catch block in create() can map it to
+     * DatabaseErrorType.MIGRATION_FAILED instead of guessing from the
+     * message of whatever SQLiteException or IllegalStateException the
+     * migration happened to throw.
+     */
+    private class MigrationExecutionException(cause: Throwable) : RuntimeException(cause)
+
+    /*
+     * Wraps a Migration so any exception it throws is reported as a
+     * migration failure. Room invokes migrations internally, so this is
+     * the only place we can attach that context.
+     */
+    private fun guarded(migration: Migration): Migration =
+        object : Migration(migration.startVersion, migration.endVersion) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                try {
+                    migration.migrate(db)
+                } catch (exception: Exception) {
+                    throw MigrationExecutionException(exception)
+                }
+            }
+        }
+
+    /*
      * Version 1 -> 2
      *
      * Adds the responsible worker field
@@ -496,31 +521,39 @@ object DatabaseFactory {
                      * 14 -> 16 (phase 2 referential integrity; 15 was reassigned, see below)
                      * 16 -> 17 (D1 calf_registrations record_guid/sync state; renumbered
                      *           from 14->15 to rebase on top of the phase 2 migration)
+                     * 17 -> 18 (R0.6: repairs blank/NULL record_guid columns left by
+                     *           earlier migrations before any UNIQUE index relied on them)
                      */
                     .addMigrations(
-                        MIGRATION_1_2,
-                        MIGRATION_2_3,
-                        MIGRATION_3_4,
-                        MIGRATION_4_5,
-                        MIGRATION_5_6,
-                        MIGRATION_6_7,
-                        MIGRATION_7_8,
-                        MIGRATION_8_9,
-                        BeefTechDatabase.MIGRATION_9_10,
-                        BeefTechDatabase.MIGRATION_10_11,
-                        BeefTechDatabase.MIGRATION_11_12,
-                        BeefTechDatabase.MIGRATION_12_13,
-                        BeefTechDatabase.MIGRATION_13_14,
-                        BeefTechDatabase.MIGRATION_14_16,
-                        BeefTechDatabase.MIGRATION_16_17
+                        guarded(MIGRATION_1_2),
+                        guarded(MIGRATION_2_3),
+                        guarded(MIGRATION_3_4),
+                        guarded(MIGRATION_4_5),
+                        guarded(MIGRATION_5_6),
+                        guarded(MIGRATION_6_7),
+                        guarded(MIGRATION_7_8),
+                        guarded(MIGRATION_8_9),
+                        guarded(BeefTechDatabase.MIGRATION_9_10),
+                        guarded(BeefTechDatabase.MIGRATION_10_11),
+                        guarded(BeefTechDatabase.MIGRATION_11_12),
+                        guarded(BeefTechDatabase.MIGRATION_12_13),
+                        guarded(BeefTechDatabase.MIGRATION_13_14),
+                        guarded(BeefTechDatabase.MIGRATION_14_16),
+                        guarded(BeefTechDatabase.MIGRATION_16_17),
+                        guarded(BeefTechDatabase.MIGRATION_17_18)
                     )
 
                     .addCallback(
                         BeefTechDatabase.SEED_CALLBACK
                     )
 
-                    .fallbackToDestructiveMigration(dropAllTables = true)
-                    .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
+                    /*
+                     * No destructive fallback. Losing local data is the worst
+                     * failure this app can have (see AGENT.md): a missing
+                     * migration path, a downgrade, or an exception inside a
+                     * migration must fail loudly instead of silently wiping
+                     * the encrypted database. See the catch block below.
+                     */
 
                     .build()
 
@@ -544,6 +577,24 @@ object DatabaseFactory {
                     ?: ""
 
             when {
+
+                exception is MigrationExecutionException ||
+                        message.contains(
+                            "was required but not found"
+                        ) -> {
+
+                    DatabaseResult.Error(
+                        type =
+                            DatabaseErrorType.MIGRATION_FAILED,
+                        message =
+                            "The local database could not be upgraded. Do not " +
+                                    "uninstall the app — your data is still saved " +
+                                    "on this device. Contact support.",
+                        cause =
+                            (exception as? MigrationExecutionException)?.cause
+                                ?: exception
+                    )
+                }
 
                 message.contains(
                     "file is not a database"

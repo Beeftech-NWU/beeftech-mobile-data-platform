@@ -41,3 +41,52 @@ jobs:
           name: test-reports
           path: "**/build/reports/tests/"
           retention-days: 7
+
+  instrumented-tests:
+    name: Database migration tests (emulator)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Write local.properties
+        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+      - name: Enable KVM
+        # Required for the emulator to run with hardware acceleration on the
+        # GitHub-hosted runner; without it API 30+ x86_64 boots too slowly
+        # and the job times out.
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run database migration tests (R0.8)
+        # Every migration test lives under :android:database's androidTest
+        # source set (MigrationTestHelper needs a real SQLite implementation,
+        # which the JVM unit test task above doesn't have).
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          script: ./gradlew :android:database:connectedAndroidTest
+
+      - name: Upload instrumented test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: database-instrumented-test-reports
+          path: android/database/build/reports/androidTests/
+          retention-days: 7

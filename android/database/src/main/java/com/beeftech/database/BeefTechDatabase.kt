@@ -107,7 +107,7 @@ import com.beeftech.database.dao.UserDao
         // Phase 5 Entity
         CostType::class
     ],
-    version = 17,
+    version = 18,
     exportSchema = true
 )
 abstract class BeefTechDatabase : RoomDatabase() {
@@ -218,12 +218,44 @@ abstract class BeefTechDatabase : RoomDatabase() {
         /**
          * Phase 6 & Phase 7 Migration (Version 10 -> 11):
          * - Creates `animal_ownerships` and `animal_purchases`
-         * - Drops obsolete `suppliers` and `location_feeds` tables
+         * - Keeps every original `animal_movements`, `calf_registrations` and
+         *   `suppliers` row (D2, R0.2): nothing is dropped without a home.
+         *   `legacy_*` copies of all three are kept permanently until R3/R6
+         *   move their data into a real schema.
          * - Refactors `calf_registrations` to key explicitly on `registered_animal_id`
-         * - Removes obsolete orphan tables
+         * - Fixes the treatments rebuild so a blank `recordguid` can't crash the
+         *   upgrade when `CREATE UNIQUE INDEX` runs (D3, R0.3)
          */
         val MIGRATION_10_11 = object : Migration(10, 11) {
             override fun migrate(db: SupportSQLiteDatabase) {
+
+                // --- R0.2: preserve every original row before any DROP below. ---
+                // These are the only surviving copy for a row whose old animalId
+                // (a tag, or a v10 UUID) can't be resolved to an `animals` row,
+                // and for `suppliers`, which has no home in the schema yet.
+                db.execSQL("CREATE TABLE IF NOT EXISTS `legacy_animal_movements` AS SELECT * FROM `animal_movements`")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `legacy_calf_registrations` AS SELECT * FROM `calf_registrations`")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `legacy_suppliers` AS SELECT * FROM `suppliers`")
+
+                // Resolves a v10 `animalId` (which may already be a UUID, or may be
+                // a tag written by a build before D1) to a real `animals.animalId`.
+                fun resolveAnimalId(oldAnimalId: String?): String? {
+                    if (oldAnimalId.isNullOrBlank()) return null
+                    db.query("SELECT `animalId` FROM `animals` WHERE `animalId` = ?", arrayOf<Any>(oldAnimalId)).use {
+                        if (it.moveToFirst()) return it.getString(0)
+                    }
+                    db.query("SELECT `animalId` FROM `animals` WHERE `tagNumber` = ?", arrayOf<Any>(oldAnimalId)).use {
+                        if (it.moveToFirst()) return it.getString(0)
+                    }
+                    db.query(
+                        "SELECT `animal_id` FROM `animal_identifiers` WHERE `identifier_type` = 'TAG' AND `identifier_value` = ? LIMIT 1",
+                        arrayOf<Any>(oldAnimalId)
+                    ).use {
+                        if (it.moveToFirst()) return it.getString(0)
+                    }
+                    return null
+                }
+
                 // --- PHASE 6 ---
                 db.execSQL(
                     """
@@ -260,7 +292,12 @@ abstract class BeefTechDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_purchases_animal_id` ON `animal_purchases` (`animal_id`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_purchases_purchase_date` ON `animal_purchases` (`purchase_date`)")
 
-                // Ensure treatments table schema matches v11 Treatment entity
+                // Ensure treatments table schema matches v11 Treatment entity.
+                // v10's `treatments` table never had gpsLat/gpsLng/deviceId/
+                // recordguid/syncStatus/syncedAt -- they are new columns here,
+                // filled from DEFAULT for every existing row. That means every
+                // migrated row gets recordguid = '', so the CREATE UNIQUE INDEX
+                // below throws with 2+ rows unless it's backfilled first (D3).
                 db.execSQL(
                     """
                     CREATE TABLE IF NOT EXISTS `treatments_new` (
@@ -292,6 +329,21 @@ abstract class BeefTechDatabase : RoomDatabase() {
                 )
                 db.execSQL("DROP TABLE IF EXISTS `treatments` ")
                 db.execSQL("ALTER TABLE `treatments_new` RENAME TO `treatments` ")
+
+                // R0.3 (D3): give every blank recordguid a real UUID before the
+                // UNIQUE index is created.
+                run {
+                    val blankTreatmentIds = mutableListOf<Long>()
+                    db.query("SELECT `id` FROM `treatments` WHERE `recordguid` IS NULL OR `recordguid` = ''").use { c ->
+                        while (c.moveToNext()) blankTreatmentIds += c.getLong(0)
+                    }
+                    blankTreatmentIds.forEach { id ->
+                        db.execSQL(
+                            "UPDATE `treatments` SET `recordguid` = ? WHERE `id` = ?",
+                            arrayOf<Any>(UUID.randomUUID().toString(), id)
+                        )
+                    }
+                }
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_treatments_recordguid` ON `treatments` (`recordguid`)")
 
                 // Ensure animal_movements table schema matches v11 AnimalMovementEntity
@@ -318,9 +370,40 @@ abstract class BeefTechDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_movements_destination_farm_id` ON `animal_movements` (`destination_farm_id`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_movements_destination_pen_id` ON `animal_movements` (`destination_pen_id`)")
 
-                // Remove obsolete tables replaced by Phase 6 changes
+                // R0.2 (D2): recover every movement whose animal resolves, instead
+                // of leaving `animal_movements` empty. This matches how the app
+                // fills these columns today; R6 fixes the columns properly.
+                db.query(
+                    "SELECT `animalId`, `movementType`, `responsibleWorker`, `timestamp`, `recordguid` FROM `legacy_animal_movements`"
+                ).use { c ->
+                    while (c.moveToNext()) {
+                        val resolvedAnimalId = resolveAnimalId(c.getString(0))
+                        if (resolvedAnimalId != null) {
+                            val oldRecordGuid = if (c.isNull(4)) null else c.getString(4)
+                            val movementId = if (oldRecordGuid.isNullOrBlank()) UUID.randomUUID().toString() else oldRecordGuid
+                            db.execSQL(
+                                """
+                                INSERT INTO `animal_movements` (
+                                    `movement_id`, `animal_id`, `source_farm_id`, `source_pen_id`,
+                                    `destination_farm_id`, `destination_pen_id`, `movement_date`,
+                                    `feed_location_type`, `notes`
+                                ) VALUES (?, ?, NULL, NULL, ?, '', ?, NULL, ?)
+                                """.trimIndent(),
+                                arrayOf<Any>(
+                                    movementId, resolvedAnimalId, c.getString(1),
+                                    c.getLong(3).toString(), c.getString(2)
+                                )
+                            )
+                        }
+                        // Rows whose animal doesn't resolve stay only in legacy_animal_movements.
+                    }
+                }
+
+                // suppliers has no home in the schema yet (legacy_suppliers keeps the
+                // data until R6 creates a real `suppliers` table -- it needs a
+                // purchase_price that suppliers never recorded, and inventing one
+                // would break rule 1).
                 db.execSQL("DROP TABLE IF EXISTS `suppliers` ")
-                db.execSQL("DROP TABLE IF EXISTS `location_feeds` ")
 
                 // --- PHASE 7 ---
                 db.execSQL(
@@ -348,11 +431,91 @@ abstract class BeefTechDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_calf_registrations_dam_id` ON `calf_registrations` (`dam_id`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_calf_registrations_sire_id` ON `calf_registrations` (`sire_id`)")
 
-                // Remove orphan tables
-                db.execSQL("DROP TABLE IF EXISTS `orphan_entity_one` ")
-                db.execSQL("DROP TABLE IF EXISTS `orphan_entity_two` ")
-                db.execSQL("DROP TABLE IF EXISTS `orphan_entity_three` ")
-                db.execSQL("DROP TABLE IF EXISTS `orphan_entity_four` ")
+                // R0.2 (D2): recover every calf registration, instead of leaving
+                // `calf_registrations` empty. For each old row, reuse the animal
+                // if its tag resolves; otherwise create the animals/identifier/
+                // media rows the current registration flow would have written.
+                val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+                db.query(
+                    """
+                    SELECT `animalId`, `birthdate`, `breed`, `damId`, `sireId`, `photoPath`,
+                           `videoPath`, `gpsLat`, `gpsLng`, `captureAt`, `deviceId`, `recordguid`
+                    FROM `legacy_calf_registrations`
+                    """.trimIndent()
+                ).use { c ->
+                    while (c.moveToNext()) {
+                        val oldTag = c.getString(0)
+                        val birthdate = c.getLong(1)
+                        val breed = c.getString(2)
+                        val damTag = if (c.isNull(3)) null else c.getString(3)
+                        val sireTag = if (c.isNull(4)) null else c.getString(4)
+                        val photoPath = if (c.isNull(5)) null else c.getString(5)
+                        val videoPath = if (c.isNull(6)) null else c.getString(6)
+                        val gpsLat = c.getDouble(7)
+                        val gpsLng = c.getDouble(8)
+                        val captureAt = c.getLong(9)
+                        val deviceId = c.getString(10)
+                        val oldRecordGuid = if (c.isNull(11)) null else c.getString(11)
+
+                        var resolvedAnimalId = resolveAnimalId(oldTag)
+                        if (resolvedAnimalId == null) {
+                            val newAnimalId = UUID.randomUUID().toString()
+                            db.execSQL(
+                                """
+                                INSERT INTO `animals` (
+                                    `animalId`, `tagNumber`, `oldTagNumber`, `temperatureNumber`, `referenceNumber`,
+                                    `massKg`, `birthdate`, `breed`, `gender`, `age`, `condition`, `hideColour`,
+                                    `brandMark`, `parentId`, `animalGroupId`, `photoPath`, `videoPath`,
+                                    `gpsLat`, `gpsLng`, `captureAt`, `deviceId`, `recordguid`, `syncStatus`, `syncedat`
+                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                """.trimIndent(),
+                                arrayOf<Any?>(
+                                    newAnimalId, oldTag, null, null, null,
+                                    null, birthdate, breed, null, null, null, null,
+                                    null, null, null, photoPath, videoPath,
+                                    gpsLat, gpsLng, captureAt, deviceId,
+                                    UUID.randomUUID().toString(), "PENDING", null
+                                )
+                            )
+                            db.execSQL(
+                                "INSERT INTO `animal_identifiers` (`identifier_id`, `animal_id`, `identifier_type`, `identifier_value`, `valid_from`, `valid_to`) VALUES (?, ?, 'TAG', ?, NULL, NULL)",
+                                arrayOf<Any>(UUID.randomUUID().toString(), newAnimalId, oldTag)
+                            )
+                            if (!photoPath.isNullOrBlank()) {
+                                db.execSQL(
+                                    "INSERT INTO `animal_media` (`media_id`, `animal_id`, `file_path`, `media_type`, `created_at`) VALUES (?, ?, ?, 'PHOTO', ?)",
+                                    arrayOf<Any>(UUID.randomUUID().toString(), newAnimalId, photoPath, captureAt.toString())
+                                )
+                            }
+                            if (!videoPath.isNullOrBlank()) {
+                                db.execSQL(
+                                    "INSERT INTO `animal_media` (`media_id`, `animal_id`, `file_path`, `media_type`, `created_at`) VALUES (?, ?, ?, 'VIDEO', ?)",
+                                    arrayOf<Any>(UUID.randomUUID().toString(), newAnimalId, videoPath, captureAt.toString())
+                                )
+                            }
+                            resolvedAnimalId = newAnimalId
+                        }
+
+                        val damAnimalId = resolveAnimalId(damTag)
+                        val sireAnimalId = resolveAnimalId(sireTag)
+                        val registrationId = if (oldRecordGuid.isNullOrBlank()) UUID.randomUUID().toString() else oldRecordGuid
+                        val registrationDate = dateFormat.format(java.util.Date(captureAt))
+
+                        db.execSQL(
+                            """
+                            INSERT INTO `calf_registrations` (
+                                `registration_id`, `registered_animal_id`, `dam_id`, `sire_id`,
+                                `birth_weight_kg`, `calving_ease`, `registration_date`
+                            ) VALUES (?, ?, ?, ?, NULL, NULL, ?)
+                            """.trimIndent(),
+                            arrayOf<Any?>(registrationId, resolvedAnimalId, damAnimalId, sireAnimalId, registrationDate)
+                        )
+                    }
+                }
+
+                // These four tables were never created by any migration; the
+                // drops were a no-op, as is dropping `location_feeds` (the real
+                // table is `location_feed` -- R6 migrates it, so it's left alone).
             }
         }
 
@@ -579,34 +742,97 @@ abstract class BeefTechDatabase : RoomDatabase() {
          */
         val MIGRATION_14_16 = object : Migration(14, 16) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                // 1. Clean up orphan rows prior to constraint enforcement
+                // R0.4 (N1): seed `roles` before anything below reads it.
+                // Nothing wrote to `roles` before #47's RoleSeed, and
+                // RoleSeed.execute normally only runs in SEED_CALLBACK.onOpen,
+                // which is after every migration finishes -- so `roles` was
+                // empty while this migration ran, and the farmer_roles cleanup
+                // below deleted every farmer role. INSERT OR IGNORE makes this
+                // safe to run whether or not onOpen has seeded it already.
+                RoleSeed.execute(db)
+
+                // 1. Clean up orphan rows prior to constraint enforcement.
+                // R0.5 (N2): a row keyed on a tag by a build before D1 gets one
+                // chance to be re-keyed to the animal's UUID before it's
+                // treated as an orphan (rule 3). Whatever is still deleted
+                // below is copied into quarantine_<table> first, never
+                // silently dropped.
+
+                fun quarantineTable(table: String) {
+                    db.execSQL("CREATE TABLE IF NOT EXISTS `quarantine_$table` AS SELECT * FROM `$table` WHERE 1 = 0")
+                }
+
+                fun quarantineAndDelete(table: String, whereClause: String) {
+                    db.execSQL("INSERT INTO `quarantine_$table` SELECT * FROM `$table` WHERE $whereClause")
+                    db.execSQL("DELETE FROM `$table` WHERE $whereClause")
+                }
+
+                fun rekeyTagToAnimalId(table: String, column: String) {
+                    db.execSQL(
+                        """
+                        UPDATE `$table` SET `$column` = (
+                            SELECT a.`animalId` FROM `animals` a WHERE a.`tagNumber` = `$table`.`$column` LIMIT 1
+                        )
+                        WHERE `$column` NOT IN (SELECT `animalId` FROM `animals`)
+                        AND EXISTS (SELECT 1 FROM `animals` a WHERE a.`tagNumber` = `$table`.`$column`)
+                        """.trimIndent()
+                    )
+                    db.execSQL(
+                        """
+                        UPDATE `$table` SET `$column` = (
+                            SELECT ai.`animal_id` FROM `animal_identifiers` ai
+                            WHERE ai.`identifier_type` = 'TAG' AND ai.`identifier_value` = `$table`.`$column`
+                            LIMIT 1
+                        )
+                        WHERE `$column` NOT IN (SELECT `animalId` FROM `animals`)
+                        AND EXISTS (
+                            SELECT 1 FROM `animal_identifiers` ai
+                            WHERE ai.`identifier_type` = 'TAG' AND ai.`identifier_value` = `$table`.`$column`
+                        )
+                        """.trimIndent()
+                    )
+                }
 
                 // CASCADE Orphans
-                db.execSQL("DELETE FROM `treatments` WHERE `animalId` NOT IN (SELECT `animalId` FROM `animals`)")
+                rekeyTagToAnimalId("treatments", "animalId")
+                quarantineTable("treatments")
+                quarantineAndDelete("treatments", "`animalId` NOT IN (SELECT `animalId` FROM `animals`)")
 
-                db.execSQL("DELETE FROM `mortalities` WHERE `animalId` NOT IN (SELECT `animalId` FROM `animals`)")
+                rekeyTagToAnimalId("mortalities", "animalId")
+                quarantineTable("mortalities")
+                quarantineAndDelete("mortalities", "`animalId` NOT IN (SELECT `animalId` FROM `animals`)")
                 // Keep only one mortality record per animalId if duplicates exist before enforcing UNIQUE(animalId)
-                db.execSQL("DELETE FROM `mortalities` WHERE `id` NOT IN (SELECT MIN(`id`) FROM `mortalities` GROUP BY `animalId`)")
+                quarantineAndDelete("mortalities", "`id` NOT IN (SELECT MIN(`id`) FROM `mortalities` GROUP BY `animalId`)")
 
-                db.execSQL("DELETE FROM `animal_group_memberships` WHERE `animal_id` NOT IN (SELECT `animalId` FROM `animals`)")
-                // RESTRICT Orphans: Delete memberships referencing non-existent animal_groups
-                db.execSQL("DELETE FROM `animal_group_memberships` WHERE `group_id` NOT IN (SELECT `animalGroupId` FROM `animal_groups`)")
+                rekeyTagToAnimalId("animal_group_memberships", "animal_id")
+                quarantineTable("animal_group_memberships")
+                quarantineAndDelete("animal_group_memberships", "`animal_id` NOT IN (SELECT `animalId` FROM `animals`)")
+                // RESTRICT Orphans: memberships referencing non-existent animal_groups
+                quarantineAndDelete("animal_group_memberships", "`group_id` NOT IN (SELECT `animalGroupId` FROM `animal_groups`)")
 
-                // SET_NULL Orphans
+                // SET_NULL Orphans -- not a delete, nothing to quarantine
                 db.execSQL("UPDATE `animals` SET `animalGroupId` = NULL WHERE `animalGroupId` IS NOT NULL AND `animalGroupId` NOT IN (SELECT `animalGroupId` FROM `animal_groups`)")
 
-                db.execSQL("DELETE FROM `farmer_addresses` WHERE `farmer_id` NOT IN (SELECT `farmer_id` FROM `farmers`)")
+                quarantineTable("farmer_addresses")
+                quarantineAndDelete("farmer_addresses", "`farmer_id` NOT IN (SELECT `farmer_id` FROM `farmers`)")
 
-                db.execSQL("DELETE FROM `farmer_roles` WHERE `farmer_id` NOT IN (SELECT `farmer_id` FROM `farmers`)")
-                db.execSQL("DELETE FROM `farmer_roles` WHERE CAST(`role_id` AS INTEGER) NOT IN (SELECT `role_id` FROM `roles`)")
+                quarantineTable("farmer_roles")
+                quarantineAndDelete("farmer_roles", "`farmer_id` NOT IN (SELECT `farmer_id` FROM `farmers`)")
+                quarantineAndDelete("farmer_roles", "CAST(`role_id` AS INTEGER) NOT IN (SELECT `role_id` FROM `roles`)")
                 // Keep only one record per (farmer_id, role_id) if duplicates exist before enforcing UNIQUE(farmer_id, role_id)
-                db.execSQL("DELETE FROM `farmer_roles` WHERE `farmer_role_id` NOT IN (SELECT MIN(`farmer_role_id`) FROM `farmer_roles` GROUP BY `farmer_id`, `role_id`)")
+                quarantineAndDelete(
+                    "farmer_roles",
+                    "`farmer_role_id` NOT IN (SELECT MIN(`farmer_role_id`) FROM `farmer_roles` GROUP BY `farmer_id`, `role_id`)"
+                )
 
-                db.execSQL("DELETE FROM `feed_crib_readings` WHERE `cribId` NOT IN (SELECT `id` FROM `feed_cribs`)")
+                quarantineTable("feed_crib_readings")
+                quarantineAndDelete("feed_crib_readings", "`cribId` NOT IN (SELECT `id` FROM `feed_cribs`)")
 
-                db.execSQL("DELETE FROM `feed_crib_reading_values` WHERE `readingId` NOT IN (SELECT `id` FROM `feed_crib_readings`)")
+                quarantineTable("feed_crib_reading_values")
+                quarantineAndDelete("feed_crib_reading_values", "`readingId` NOT IN (SELECT `id` FROM `feed_crib_readings`)")
 
-                db.execSQL("DELETE FROM `sync_backups` WHERE `batchId` NOT IN (SELECT `id` FROM `sync_batches`)")
+                quarantineTable("sync_backups")
+                quarantineAndDelete("sync_backups", "`batchId` NOT IN (SELECT `id` FROM `sync_batches`)")
 
                 // 2. Rebuild tables to declare foreign keys and indices
 
@@ -931,6 +1157,61 @@ abstract class BeefTechDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_calf_registrations_dam_id` ON `calf_registrations` (`dam_id`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_calf_registrations_sire_id` ON `calf_registrations` (`sire_id`)")
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_calf_registrations_record_guid` ON `calf_registrations` (`record_guid`)")
+            }
+        }
+
+        /**
+         * R0.6 (Version 17 -> 18): repair GUIDs left blank by migrations that
+         * ran before D3/D6 were fixed, on devices that are already past v11.
+         * - Gives a new UUID to every blank/NULL recordguid or record_guid on
+         *   treatments, animals, animal_costs, mortalities, farmers and
+         *   animal_group_memberships.
+         * - For the one treatment whose recordguid was blank (at most one can
+         *   exist, per the unique index added in 10->11), also points the
+         *   derived TREATMENT cost row's source_record_id at the same new
+         *   GUID, so the link the Phase 5 backfill relies on isn't left
+         *   dangling on ''.
+         */
+        val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+
+                fun backfillBlankGuids(table: String, column: String) {
+                    val rowIds = mutableListOf<Long>()
+                    db.query("SELECT `rowid` FROM `$table` WHERE `$column` IS NULL OR `$column` = ''").use { c ->
+                        while (c.moveToNext()) rowIds += c.getLong(0)
+                    }
+                    rowIds.forEach { rowId ->
+                        db.execSQL(
+                            "UPDATE `$table` SET `$column` = ? WHERE `rowid` = ?",
+                            arrayOf<Any>(UUID.randomUUID().toString(), rowId)
+                        )
+                    }
+                }
+
+                // Treatments first and specially: the matching animal_costs row
+                // must be re-pointed at the same new GUID.
+                val blankTreatmentIds = mutableListOf<Long>()
+                db.query("SELECT `id` FROM `treatments` WHERE `recordguid` IS NULL OR `recordguid` = ''").use { c ->
+                    while (c.moveToNext()) blankTreatmentIds += c.getLong(0)
+                }
+                check(blankTreatmentIds.size <= 1) {
+                    "Expected at most one treatment with a blank recordguid (unique index " +
+                            "since 10->11), found ${blankTreatmentIds.size}"
+                }
+                blankTreatmentIds.forEach { id ->
+                    val newGuid = UUID.randomUUID().toString()
+                    db.execSQL("UPDATE `treatments` SET `recordguid` = ? WHERE `id` = ?", arrayOf<Any>(newGuid, id))
+                    db.execSQL(
+                        "UPDATE `animal_costs` SET `source_record_id` = ? WHERE `source_entity` = 'TREATMENT' AND `source_record_id` = ''",
+                        arrayOf<Any>(newGuid)
+                    )
+                }
+
+                backfillBlankGuids("animals", "recordguid")
+                backfillBlankGuids("animal_costs", "record_guid")
+                backfillBlankGuids("mortalities", "record_guid")
+                backfillBlankGuids("farmers", "record_guid")
+                backfillBlankGuids("animal_group_memberships", "record_guid")
             }
         }
 

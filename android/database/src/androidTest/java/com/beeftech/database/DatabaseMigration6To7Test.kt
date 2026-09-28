@@ -221,10 +221,10 @@ class DatabaseMigration6To7Test {
                 )
 
             /*
-             * Confirm database is currently v11.
+             * Confirm database is currently at the latest version.
              */
             assertEquals(
-                17,
+                18,
                 initialDatabase
                     .openHelper
                     .writableDatabase
@@ -251,6 +251,80 @@ class DatabaseMigration6To7Test {
 
             rawDatabase.execSQL(
                 "DROP TABLE animal_costs"
+            )
+
+            /*
+             * R0.2 made MIGRATION_10_11 read `animal_movements` by its real
+             * v10 column names instead of dropping the table unread, so a
+             * "v6" animal_movements must actually have the v10 shape too --
+             * not the v18 one `initialDatabase` just created it with -- or
+             * that migration fails with "no such column: animalId".
+             */
+            rawDatabase.execSQL(
+                "DROP TABLE animal_movements"
+            )
+            rawDatabase.execSQL(
+                """
+                CREATE TABLE animal_movements (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    animalId TEXT NOT NULL,
+                    movementType TEXT NOT NULL,
+                    responsibleWorker TEXT NOT NULL DEFAULT '',
+                    timestamp INTEGER NOT NULL,
+                    gpsLat REAL NOT NULL DEFAULT 0.0,
+                    gpsLng REAL NOT NULL DEFAULT 0.0,
+                    deviceId TEXT NOT NULL DEFAULT '',
+                    recordguid TEXT NOT NULL DEFAULT '',
+                    syncStatus TEXT NOT NULL DEFAULT 'PENDING',
+                    syncedAt INTEGER
+                )
+                """.trimIndent()
+            )
+            rawDatabase.execSQL(
+                "INSERT INTO animal_movements (animalId, movementType, responsibleWorker, timestamp) VALUES (?, ?, ?, ?)",
+                arrayOf<Any>("MIG-001", "Moved to Feedlot A", "Migration Worker", 1000L)
+            )
+
+            // Same reason: `calf_registrations` and `suppliers` must exist in
+            // their real v10 shape (even empty) or MIGRATION_10_11's legacy
+            // copy / recovery queries fail with "no such column"/"no such
+            // table" -- the v18 schema this test started from either has a
+            // different shape (calf_registrations) or doesn't have the table
+            // at all anymore (suppliers).
+            rawDatabase.execSQL("DROP TABLE calf_registrations")
+            rawDatabase.execSQL(
+                """
+                CREATE TABLE calf_registrations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    animalId TEXT NOT NULL,
+                    birthdate INTEGER NOT NULL,
+                    breed TEXT NOT NULL,
+                    damId TEXT,
+                    sireId TEXT,
+                    photoPath TEXT,
+                    videoPath TEXT,
+                    gpsLat REAL NOT NULL,
+                    gpsLng REAL NOT NULL,
+                    captureAt INTEGER NOT NULL,
+                    deviceId TEXT NOT NULL,
+                    recordguid TEXT NOT NULL DEFAULT '',
+                    syncStatus TEXT NOT NULL DEFAULT 'PENDING',
+                    syncedat INTEGER
+                )
+                """.trimIndent()
+            )
+            rawDatabase.execSQL(
+                """
+                CREATE TABLE suppliers (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    animalId TEXT NOT NULL,
+                    supplierName TEXT NOT NULL,
+                    glnNumber TEXT NOT NULL,
+                    purchaseDate TEXT NOT NULL,
+                    purchaseBatchNumber TEXT NOT NULL,
+                    timestamp INTEGER NOT NULL
+                )
+                """.trimIndent()
             )
 
             rawDatabase.execSQL(
@@ -288,11 +362,6 @@ class DatabaseMigration6To7Test {
                         newPassphrase()
                 )
 
-            assertTrue(
-                migrationResult
-                        is DatabaseResult.Success
-            )
-
             val upgradedDatabase =
                 when (migrationResult) {
 
@@ -307,10 +376,10 @@ class DatabaseMigration6To7Test {
                 }
 
             /*
-             * Database must now be version 11.
+             * Database must now be at the latest version.
              */
             assertEquals(
-                17,
+                18,
                 upgradedDatabase
                     .openHelper
                     .writableDatabase

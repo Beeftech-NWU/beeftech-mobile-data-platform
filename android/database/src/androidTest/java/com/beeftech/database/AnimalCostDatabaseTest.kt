@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.beeftech.database.entity.Animal
 import com.beeftech.database.entity.AnimalCost
 import com.beeftech.database.entity.CostType
 import com.beeftech.database.entity.Treatment
@@ -354,6 +355,21 @@ class AnimalCostDatabaseTest {
 
             val treatmentDao =
                 database.treatmentDao()
+
+            // Treatment declares a FOREIGN KEY on animalId -> animals.animalId
+            // (unlike AnimalCost, which has none yet -- D7), so
+            // treatmentDao.insertWithCost below needs a real parent row.
+            database.animalDao().insert(
+                Animal(
+                    animalId = "TEST-001",
+                    birthdate = 500L,
+                    breed = "Bonsmara",
+                    gpsLat = -26.2041,
+                    gpsLng = 28.0473,
+                    captureAt = 500L,
+                    deviceId = "animal-cost-test"
+                )
+            )
 
             animalCostDao.insert(
                 AnimalCost(
