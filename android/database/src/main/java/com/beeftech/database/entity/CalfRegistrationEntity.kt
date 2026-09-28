@@ -11,19 +11,19 @@ import java.util.UUID
     tableName = "calf_registrations",
     foreignKeys = [
         ForeignKey(
-            entity = AnimalEntity::class,
+            entity = Animal::class,
             parentColumns = ["animalId"],
             childColumns = ["registered_animal_id"],
             onDelete = ForeignKey.CASCADE
         ),
         ForeignKey(
-            entity = AnimalEntity::class,
+            entity = Animal::class,
             parentColumns = ["animalId"],
             childColumns = ["dam_id"],
             onDelete = ForeignKey.SET_NULL
         ),
         ForeignKey(
-            entity = AnimalEntity::class,
+            entity = Animal::class,
             parentColumns = ["animalId"],
             childColumns = ["sire_id"],
             onDelete = ForeignKey.SET_NULL

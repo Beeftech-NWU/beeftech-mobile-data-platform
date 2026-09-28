@@ -133,9 +133,9 @@ Everything persistent lives here:
   movements, costs, farmers, feed cribs, pens, locations, suppliers, users, roles,
   pending sync records)
 - `dao/` — one DAO per aggregate
-- `repository/` — `AnimalManagementRepository`, `AnimalTraceabilityRepository`,
-  `FarmerRepository`, `FeedingRepository`, `LocationRepository`,
-  `PendingSyncRepository`, `SyncRepository`
+- `repository/` — `AnimalManagementRepository`, `FarmerRepository`,
+  `FeedingRepository`, `LocationRepository`, `PendingSyncRepository`,
+  `SyncRepository`
 - `security/` — `AndroidKeyStoreSecurityProvider`, `DatabaseKeyProvider`,
   `SecureDatabaseInitializer`, `SecureDatabasePassphraseStore`, `CredentialHasher`,
   `PinLockoutManager`
