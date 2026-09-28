@@ -1,18 +1,43 @@
 {
   "formatVersion": 1,
   "database": {
-    "version": 28,
-    "identityHash": "411ffd4a2591eb11fd2a1c57c128cb6a",
+    "version": 27,
+    "identityHash": "0736d5e80feabb453cb049f315d2bbf5",
     "entities": [
       {
         "tableName": "animals",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`animalId` TEXT NOT NULL, `birthdate` INTEGER NOT NULL, `breed` TEXT NOT NULL, `gender` TEXT, `hideColour` TEXT, `brandMark` TEXT, `dam_id` TEXT, `sire_id` TEXT, `gpsLat` REAL NOT NULL, `gpsLng` REAL NOT NULL, `captureAt` INTEGER NOT NULL, `deviceId` TEXT NOT NULL, `record_guid` TEXT NOT NULL, `syncStatus` TEXT NOT NULL, `syncedat` INTEGER, PRIMARY KEY(`animalId`), FOREIGN KEY(`breed`) REFERENCES `breeds`(`breedId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`hideColour`) REFERENCES `hide_colours`(`colourId`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`deviceId`) REFERENCES `devices`(`deviceId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`dam_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`sire_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`animalId` TEXT NOT NULL, `tagNumber` TEXT, `oldTagNumber` TEXT, `temperatureNumber` TEXT, `referenceNumber` TEXT, `massKg` REAL, `birthdate` INTEGER NOT NULL, `breed` TEXT NOT NULL, `gender` TEXT, `age` INTEGER, `condition` TEXT, `hideColour` TEXT, `brandMark` TEXT, `dam_id` TEXT, `sire_id` TEXT, `animalGroupId` TEXT, `photoPath` TEXT, `videoPath` TEXT, `gpsLat` REAL NOT NULL, `gpsLng` REAL NOT NULL, `captureAt` INTEGER NOT NULL, `deviceId` TEXT NOT NULL, `record_guid` TEXT NOT NULL, `syncStatus` TEXT NOT NULL, `syncedat` INTEGER, PRIMARY KEY(`animalId`), FOREIGN KEY(`animalGroupId`) REFERENCES `animal_groups`(`animalGroupId`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`breed`) REFERENCES `breeds`(`breedId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`hideColour`) REFERENCES `hide_colours`(`colourId`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`deviceId`) REFERENCES `devices`(`deviceId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`dam_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`sire_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE SET NULL )",
         "fields": [
           {
             "fieldPath": "animalId",
             "columnName": "animalId",
             "affinity": "TEXT",
             "notNull": true
+          },
+          {
+            "fieldPath": "tagNumber",
+            "columnName": "tagNumber",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "oldTagNumber",
+            "columnName": "oldTagNumber",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "temperatureNumber",
+            "columnName": "temperatureNumber",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "referenceNumber",
+            "columnName": "referenceNumber",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "massKg",
+            "columnName": "massKg",
+            "affinity": "REAL"
           },
           {
             "fieldPath": "birthdate",
@@ -29,6 +54,16 @@
           {
             "fieldPath": "gender",
             "columnName": "gender",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "age",
+            "columnName": "age",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "condition",
+            "columnName": "condition",
             "affinity": "TEXT"
           },
           {
@@ -49,6 +84,21 @@
           {
             "fieldPath": "sireId",
             "columnName": "sire_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "animalGroupId",
+            "columnName": "animalGroupId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "photoPath",
+            "columnName": "photoPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "videoPath",
+            "columnName": "videoPath",
             "affinity": "TEXT"
           },
           {
@@ -101,22 +151,31 @@
         },
         "indices": [
           {
-            "name": "index_animals_dam_id",
+            "name": "index_animals_tagNumber",
             "unique": false,
             "columnNames": [
-              "dam_id"
+              "tagNumber"
             ],
             "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_animals_dam_id` ON `${TABLE_NAME}` (`dam_id`)"
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animals_tagNumber` ON `${TABLE_NAME}` (`tagNumber`)"
           },
           {
-            "name": "index_animals_sire_id",
+            "name": "index_animals_temperatureNumber",
             "unique": false,
             "columnNames": [
-              "sire_id"
+              "temperatureNumber"
             ],
             "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_animals_sire_id` ON `${TABLE_NAME}` (`sire_id`)"
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animals_temperatureNumber` ON `${TABLE_NAME}` (`temperatureNumber`)"
+          },
+          {
+            "name": "index_animals_animalGroupId",
+            "unique": false,
+            "columnNames": [
+              "animalGroupId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animals_animalGroupId` ON `${TABLE_NAME}` (`animalGroupId`)"
           },
           {
             "name": "index_animals_breed",
@@ -153,9 +212,38 @@
             ],
             "orders": [],
             "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_animals_record_guid` ON `${TABLE_NAME}` (`record_guid`)"
+          },
+          {
+            "name": "index_animals_dam_id",
+            "unique": false,
+            "columnNames": [
+              "dam_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animals_dam_id` ON `${TABLE_NAME}` (`dam_id`)"
+          },
+          {
+            "name": "index_animals_sire_id",
+            "unique": false,
+            "columnNames": [
+              "sire_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animals_sire_id` ON `${TABLE_NAME}` (`sire_id`)"
           }
         ],
         "foreignKeys": [
+          {
+            "table": "animal_groups",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "animalGroupId"
+            ],
+            "referencedColumns": [
+              "animalGroupId"
+            ]
+          },
           {
             "table": "breeds",
             "onDelete": "RESTRICT",
@@ -2792,7 +2880,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '411ffd4a2591eb11fd2a1c57c128cb6a')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '0736d5e80feabb453cb049f315d2bbf5')"
     ]
   }
 }

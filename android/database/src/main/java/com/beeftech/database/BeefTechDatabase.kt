@@ -2310,6 +2310,89 @@ abstract class BeefTechDatabase : RoomDatabase() {
             }
         }
 
+        fun createHistoryTriggers(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TRIGGER IF NOT EXISTS trg_animal_identifiers_unique_active
+                BEFORE INSERT ON animal_identifiers
+                WHEN NEW.valid_to IS NULL
+                BEGIN
+                    SELECT CASE WHEN EXISTS (
+                        SELECT 1 FROM animal_identifiers
+                        WHERE animal_id = NEW.animal_id
+                          AND identifier_type = NEW.identifier_type
+                          AND valid_to IS NULL
+                    ) THEN RAISE(ABORT, 'Active identifier of this type already exists for animal')
+                    END;
+                END;
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TRIGGER IF NOT EXISTS trg_animal_identifiers_unique_active_update
+                BEFORE UPDATE OF valid_to, identifier_type, animal_id ON animal_identifiers
+                WHEN NEW.valid_to IS NULL
+                BEGIN
+                    SELECT CASE WHEN EXISTS (
+                        SELECT 1 FROM animal_identifiers
+                        WHERE animal_id = NEW.animal_id
+                          AND identifier_type = NEW.identifier_type
+                          AND valid_to IS NULL
+                          AND identifier_id != NEW.identifier_id
+                    ) THEN RAISE(ABORT, 'Active identifier of this type already exists for animal')
+                    END;
+                END;
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TRIGGER IF NOT EXISTS trg_animal_identifiers_tag_permanence
+                BEFORE INSERT ON animal_identifiers
+                WHEN NEW.identifier_type = 'TAG'
+                BEGIN
+                    SELECT CASE WHEN EXISTS (
+                        SELECT 1 FROM animal_identifiers
+                        WHERE identifier_type = 'TAG'
+                          AND identifier_value = NEW.identifier_value
+                          AND animal_id != NEW.animal_id
+                    ) THEN RAISE(ABORT, 'TAG value has already been assigned to another animal')
+                    END;
+                END;
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TRIGGER IF NOT EXISTS trg_animal_group_memberships_single_open
+                BEFORE INSERT ON animal_group_memberships
+                WHEN NEW.left_at IS NULL
+                BEGIN
+                    SELECT CASE WHEN EXISTS (
+                        SELECT 1 FROM animal_group_memberships
+                        WHERE animal_id = NEW.animal_id
+                          AND left_at IS NULL
+                    ) THEN RAISE(ABORT, 'Animal already has an active group membership')
+                    END;
+                END;
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TRIGGER IF NOT EXISTS trg_animal_group_memberships_single_open_update
+                BEFORE UPDATE OF left_at, animal_id ON animal_group_memberships
+                WHEN NEW.left_at IS NULL
+                BEGIN
+                    SELECT CASE WHEN EXISTS (
+                        SELECT 1 FROM animal_group_memberships
+                        WHERE animal_id = NEW.animal_id
+                          AND left_at IS NULL
+                          AND membership_id != NEW.membership_id
+                    ) THEN RAISE(ABORT, 'Animal already has an active group membership')
+                    END;
+                END;
+                """.trimIndent()
+            )
+        }
+
         /**
          * R4.1 Migration (Version 24 -> 25):
          * - Adds body_condition_score to animal_weights.
@@ -2332,6 +2415,19 @@ abstract class BeefTechDatabase : RoomDatabase() {
                 )
 
                 IdentifierTypeSeed.execute(db)
+
+                // Repair known legacy identifier types before table rebuild
+                db.execSQL("UPDATE `animal_identifiers` SET `identifier_type` = 'TRANSPONDER' WHERE `identifier_type` = 'RFID'")
+                db.execSQL("UPDATE `animal_identifiers` SET `identifier_type` = 'OLD_TAG' WHERE `identifier_type` = 'OLDTAG' OR `identifier_type` = 'TAG_OLD'")
+
+                // Quarantine any remaining unrecognized identifier types
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `quarantine_animal_identifiers` AS
+                    SELECT * FROM `animal_identifiers`
+                    WHERE `identifier_type` NOT IN (SELECT `code` FROM `identifier_types`)
+                    """.trimIndent()
+                )
 
                 db.execSQL(
                     """
@@ -2369,39 +2465,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_identifiers_identifier_type` ON `animal_identifiers` (`identifier_type`)")
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_identifiers_record_guid` ON `animal_identifiers` (`record_guid`)")
 
-                db.execSQL(
-                    """
-                    CREATE TRIGGER IF NOT EXISTS trg_animal_identifiers_unique_active
-                    BEFORE INSERT ON animal_identifiers
-                    WHEN NEW.valid_to IS NULL
-                    BEGIN
-                        SELECT CASE WHEN EXISTS (
-                            SELECT 1 FROM animal_identifiers
-                            WHERE animal_id = NEW.animal_id
-                              AND identifier_type = NEW.identifier_type
-                              AND valid_to IS NULL
-                        ) THEN RAISE(ABORT, 'Active identifier of this type already exists for animal')
-                        END;
-                    END;
-                    """.trimIndent()
-                )
-
-                db.execSQL(
-                    """
-                    CREATE TRIGGER IF NOT EXISTS trg_animal_identifiers_tag_permanence
-                    BEFORE INSERT ON animal_identifiers
-                    WHEN NEW.identifier_type = 'TAG'
-                    BEGIN
-                        SELECT CASE WHEN EXISTS (
-                            SELECT 1 FROM animal_identifiers
-                            WHERE identifier_type = 'TAG'
-                              AND identifier_value = NEW.identifier_value
-                              AND animal_id != NEW.animal_id
-                        ) THEN RAISE(ABORT, 'TAG value has already been assigned to another animal')
-                        END;
-                    END;
-                    """.trimIndent()
-                )
+                createHistoryTriggers(db)
 
                 db.query("PRAGMA foreign_key_check").use { check(it.count == 0) { "FK violations after 24->25" } }
             }
@@ -2430,6 +2494,17 @@ abstract class BeefTechDatabase : RoomDatabase() {
                       AND NOT EXISTS (
                           SELECT 1 FROM `animal_identifiers` ai
                           WHERE ai.`animal_id` = `animals`.`animalId` AND ai.`identifier_type` = 'TAG'
+                      )
+                      AND NOT EXISTS (
+                          SELECT 1 FROM `animal_identifiers` ai
+                          WHERE ai.`identifier_type` = 'TAG'
+                            AND ai.`identifier_value` = `animals`.`tagNumber`
+                            AND ai.`animal_id` != `animals`.`animalId`
+                      )
+                      AND `tagNumber` NOT IN (
+                          SELECT `tagNumber` FROM `animals`
+                          WHERE `tagNumber` IS NOT NULL AND `tagNumber` != ''
+                          GROUP BY `tagNumber` HAVING COUNT(DISTINCT `animalId`) > 1
                       )
                     """.trimIndent()
                 )
@@ -2573,26 +2648,12 @@ abstract class BeefTechDatabase : RoomDatabase() {
                       AND `animalGroupId` IN (SELECT `animalGroupId` FROM `animal_groups`)
                       AND NOT EXISTS (
                           SELECT 1 FROM `animal_group_memberships` agm
-                          WHERE agm.`animal_id` = `animals`.`animalId` AND agm.`group_id` = `animals`.`animalGroupId` AND agm.`left_at` IS NULL
+                          WHERE agm.`animal_id` = `animals`.`animalId` AND agm.`left_at` IS NULL
                       )
                     """.trimIndent()
                 )
 
-                db.execSQL(
-                    """
-                    CREATE TRIGGER IF NOT EXISTS trg_animal_group_memberships_single_open
-                    BEFORE INSERT ON animal_group_memberships
-                    WHEN NEW.left_at IS NULL
-                    BEGIN
-                        SELECT CASE WHEN EXISTS (
-                            SELECT 1 FROM animal_group_memberships
-                            WHERE animal_id = NEW.animal_id
-                              AND left_at IS NULL
-                        ) THEN RAISE(ABORT, 'Animal already has an active group membership')
-                        END;
-                    END;
-                    """.trimIndent()
-                )
+                createHistoryTriggers(db)
 
                 db.query("PRAGMA foreign_key_check").use { check(it.count == 0) { "FK violations after 25->26" } }
             }
@@ -2604,6 +2665,16 @@ abstract class BeefTechDatabase : RoomDatabase() {
          */
         val MIGRATION_26_27 = object : Migration(26, 27) {
             override fun migrate(db: SupportSQLiteDatabase) {
+                // Rule 1: Snapshot legacy columns before parentId replacement and column drops
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `legacy_animals` AS
+                    SELECT `animalId`, `tagNumber`, `oldTagNumber`, `temperatureNumber`, `referenceNumber`,
+                           `massKg`, `age`, `condition`, `photoPath`, `videoPath`, `animalGroupId`, `parentId`
+                    FROM `animals`
+                    """.trimIndent()
+                )
+
                 db.execSQL(
                     """
                     CREATE TABLE IF NOT EXISTS `animals_new` (
@@ -2656,8 +2727,32 @@ abstract class BeefTechDatabase : RoomDatabase() {
                         a.`massKg`, a.`birthdate`, a.`breed`, a.`gender`, a.`age`, a.`condition`, a.`hideColour`,
                         a.`brandMark`,
                         CASE
-                            WHEN a.`parentId` IN (SELECT `animalId` FROM `animals`) THEN a.`parentId`
-                            ELSE (SELECT ai.`animal_id` FROM `animal_identifiers` ai WHERE ai.`identifier_value` = a.`parentId` LIMIT 1)
+                            WHEN a.`parentId` IS NOT NULL AND a.`parentId` != ''
+                                 AND a.`parentId` != a.`animalId`
+                                 AND a.`parentId` IN (SELECT `animalId` FROM `animals`)
+                            THEN a.`parentId`
+
+                            WHEN a.`parentId` IS NOT NULL AND a.`parentId` != ''
+                                 AND a.`parentId` != a.`animalId`
+                                 AND (
+                                     SELECT COUNT(DISTINCT ai.`animal_id`)
+                                     FROM `animal_identifiers` ai
+                                     WHERE ai.`identifier_type` = 'TAG'
+                                       AND ai.`identifier_value` = a.`parentId`
+                                       AND ai.`animal_id` != a.`animalId`
+                                       AND ai.`animal_id` IN (SELECT `animalId` FROM `animals`)
+                                 ) = 1
+                            THEN (
+                                SELECT ai.`animal_id`
+                                FROM `animal_identifiers` ai
+                                WHERE ai.`identifier_type` = 'TAG'
+                                  AND ai.`identifier_value` = a.`parentId`
+                                  AND ai.`animal_id` != a.`animalId`
+                                  AND ai.`animal_id` IN (SELECT `animalId` FROM `animals`)
+                                LIMIT 1
+                            )
+
+                            ELSE NULL
                         END AS `dam_id`,
                         NULL AS `sire_id`,
                         a.`animalGroupId`, a.`photoPath`, a.`videoPath`,
@@ -2813,6 +2908,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
                     END;
                     """.trimIndent()
                 )
+                createHistoryTriggers(db)
             }
 
             override fun onCreate(db: SupportSQLiteDatabase) {
