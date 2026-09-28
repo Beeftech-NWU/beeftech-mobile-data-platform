@@ -3,6 +3,7 @@ package com.beeftech.authentication
 import com.beeftech.authentication.data.AuthRepository
 import com.beeftech.authentication.data.LoginOutcome
 import com.beeftech.authentication.domain.LoggedInUser
+import com.beeftech.authentication.fakes.FakeSessionStore
 import com.beeftech.authentication.viewmodel.LoginUiState
 import com.beeftech.authentication.viewmodel.LoginViewModel
 import kotlinx.coroutines.Dispatchers
@@ -13,6 +14,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -24,12 +26,17 @@ class LoginViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var authRepository: AuthRepository
+    private lateinit var sessionStore: FakeSessionStore
     private lateinit var viewModel: LoginViewModel
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        sessionStore = FakeSessionStore()
         authRepository = mock(AuthRepository::class.java)
+        `when`(authRepository.logout()).thenAnswer {
+            sessionStore.clear()
+        }
         viewModel = LoginViewModel(authRepository)
     }
 
@@ -131,5 +138,27 @@ class LoginViewModelTest {
 
         viewModel.clearError()
         assertEquals(LoginUiState.Idle, viewModel.uiState.value)
+    }
+
+    @Test
+    fun `logout clears session and resets state to Idle`() = runTest {
+        val user = LoggedInUser("u1", "jvdm", 3, "DEV_1")
+        `when`(authRepository.login("jvdm", "30003")).thenAnswer {
+            sessionStore.save("test-jwt-token", System.currentTimeMillis() + 3600000L, user)
+            LoginOutcome.Success(user)
+        }
+
+        viewModel.login("jvdm", "30003")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value is LoginUiState.Done)
+        assertEquals(user, sessionStore.currentUser())
+        assertEquals("test-jwt-token", sessionStore.token())
+
+        viewModel.logout()
+
+        assertEquals(LoginUiState.Idle, viewModel.uiState.value)
+        assertNull(sessionStore.currentUser())
+        assertNull(sessionStore.token())
     }
 }
