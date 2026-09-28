@@ -57,7 +57,6 @@ class DatabaseMigrationPhase3And6And7Test {
         // Insert parent Animal record
         val animal = Animal(
             animalId = "ANIMAL-001",
-            tagNumber = "TAG-001",
             birthdate = System.currentTimeMillis(),
             breed = "Bonsmara",
             gpsLat = -26.0,
@@ -146,7 +145,6 @@ class DatabaseMigrationPhase3And6And7Test {
         db.calfRegistrationDao().registerCalf(
             animal = Animal(
                 animalId = "CALF-TEST-001",
-                tagNumber = "CALF-TAG-001",
                 birthdate = System.currentTimeMillis(),
                 breed = "Bonsmara",
                 gpsLat = -26.0,

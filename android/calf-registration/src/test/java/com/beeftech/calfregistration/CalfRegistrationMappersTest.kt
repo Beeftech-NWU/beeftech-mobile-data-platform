@@ -80,21 +80,21 @@ class CalfRegistrationMappersTest {
     }
 
     @Test
-    fun `toNewCalf writes the TAG identifier and dual-writes the legacy column`() {
+    fun `toNewCalf writes the TAG identifier`() {
         val calf = newCalf()
 
         val tags = calf.identifiers.filter { it.identifierType == IdentifierTypes.TAG }
         assertEquals(1, tags.size)
         assertEquals("Blu1234567", tags.single().identifierValue)
         assertEquals(calf.animal.animalId, tags.single().animalId)
-        assertEquals("Blu1234567", calf.animal.tagNumber)
     }
 
     @Test
     fun `toNewCalf expands shorthand tags`() {
         val calf = newCalf(CalfRegistrationData(tagNumber = "B1234567"))
 
-        assertEquals("Blu1234567", calf.animal.tagNumber)
+        val tags = calf.identifiers.filter { it.identifierType == IdentifierTypes.TAG }
+        assertEquals("Blu1234567", tags.single().identifierValue)
     }
 
     @Test

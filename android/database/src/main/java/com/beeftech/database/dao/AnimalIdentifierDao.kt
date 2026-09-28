@@ -27,11 +27,17 @@ interface AnimalIdentifierDao {
 
     // Search animal_id by a specific tag or identifier value (e.g., RFID tag number)
     @Query("""
-        SELECT animal_id FROM animal_identifiers 
-        WHERE identifier_type = :type AND identifier_value = :value AND valid_to IS NULL 
+        SELECT animal_id FROM animal_identifiers
+        WHERE identifier_type = :type AND identifier_value = :value AND valid_to IS NULL
         LIMIT 1
     """)
     suspend fun findAnimalIdByIdentifier(type: String, value: String): String?
+
+    @Query("""
+        UPDATE animal_identifiers SET valid_to = :validTo
+        WHERE animal_id = :animalId AND identifier_type = :identifierType AND valid_to IS NULL
+    """)
+    suspend fun closeActiveIdentifier(animalId: String, identifierType: String, validTo: Long)
 
     @Delete
     suspend fun deleteIdentifier(identifier: AnimalIdentifierEntity)
