@@ -20,7 +20,8 @@ import java.util.UUID
     indices = [
         Index(value = ["animal_id"]),
         Index(value = ["owner_name"]),
-        Index(value = ["start_date"])
+        Index(value = ["start_date"]),
+        Index(value = ["record_guid"], unique = true)
     ]
 )
 data class AnimalOwnershipEntity(
@@ -38,8 +39,11 @@ data class AnimalOwnershipEntity(
     val ownershipPercentage: Double = 100.0,
 
     @ColumnInfo(name = "start_date")
-    val startDate: String,
+    val startDate: Long,
 
     @ColumnInfo(name = "end_date")
-    val endDate: String? = null
+    val endDate: Long? = null,
+
+    @ColumnInfo(name = "record_guid", defaultValue = "''")
+    val recordGuid: String = UUID.randomUUID().toString()
 )

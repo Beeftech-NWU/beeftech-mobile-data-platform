@@ -72,12 +72,12 @@ class CalfRegistrationDaoTest {
             gpsLng = 27.9,
             captureAt = System.currentTimeMillis(),
             deviceId = "device-1",
-            recordguid = UUID.randomUUID().toString()
+            recordGuid = UUID.randomUUID().toString()
         )
         val damIdentifiers = listOf(
             AnimalIdentifierEntity(animalId = damUuid, identifierType = IdentifierTypes.TAG, identifierValue = damTag)
         )
-        val damRegistration = CalfRegistrationEntity(registeredAnimalId = damUuid, registrationDate = "2024-01-01")
+        val damRegistration = CalfRegistrationEntity(registeredAnimalId = damUuid, registrationDate = 1704067200000L)
         dao.registerCalf(dam, damIdentifiers, emptyList(), damRegistration)
 
         val sire = Animal(
@@ -89,12 +89,12 @@ class CalfRegistrationDaoTest {
             gpsLng = 27.9,
             captureAt = System.currentTimeMillis(),
             deviceId = "device-1",
-            recordguid = UUID.randomUUID().toString()
+            recordGuid = UUID.randomUUID().toString()
         )
         val sireIdentifiers = listOf(
             AnimalIdentifierEntity(animalId = sireUuid, identifierType = IdentifierTypes.TAG, identifierValue = sireTag)
         )
-        val sireRegistration = CalfRegistrationEntity(registeredAnimalId = sireUuid, registrationDate = "2024-01-01")
+        val sireRegistration = CalfRegistrationEntity(registeredAnimalId = sireUuid, registrationDate = 1704067200000L)
         dao.registerCalf(sire, sireIdentifiers, emptyList(), sireRegistration)
 
         // 2. Register calf Blu1234567 with dam and sire
@@ -109,7 +109,7 @@ class CalfRegistrationDaoTest {
             gpsLng = 27.9,
             captureAt = System.currentTimeMillis(),
             deviceId = "device-1",
-            recordguid = UUID.randomUUID().toString()
+            recordGuid = UUID.randomUUID().toString()
         )
         val calfIdentifiers = listOf(
             AnimalIdentifierEntity(animalId = calfUuid, identifierType = IdentifierTypes.TAG, identifierValue = calfTag)
@@ -118,7 +118,7 @@ class CalfRegistrationDaoTest {
             registeredAnimalId = calfUuid,
             damId = damUuid,
             sireId = sireUuid,
-            registrationDate = "2026-09-18"
+            registrationDate = 1789689600000L
         )
         dao.registerCalf(calf, calfIdentifiers, emptyList(), calfRegistration)
 
@@ -150,12 +150,12 @@ class CalfRegistrationDaoTest {
             gpsLng = 27.9,
             captureAt = System.currentTimeMillis(),
             deviceId = "device-1",
-            recordguid = UUID.randomUUID().toString()
+            recordGuid = UUID.randomUUID().toString()
         )
         val dupIdentifiers = listOf(
             AnimalIdentifierEntity(animalId = dupUuid, identifierType = IdentifierTypes.TAG, identifierValue = calfTag)
         )
-        val dupRegistration = CalfRegistrationEntity(registeredAnimalId = dupUuid, registrationDate = "2026-09-18")
+        val dupRegistration = CalfRegistrationEntity(registeredAnimalId = dupUuid, registrationDate = 1789689600000L)
 
         try {
             dao.registerCalf(dupCalf, dupIdentifiers, emptyList(), dupRegistration)

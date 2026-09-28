@@ -18,7 +18,8 @@ import java.util.UUID
         )
     ],
     indices = [
-        Index(value = ["animal_id"])
+        Index(value = ["animal_id"]),
+        Index(value = ["record_guid"], unique = true)
     ]
 )
 data class AnimalMediaEntity(
@@ -36,5 +37,8 @@ data class AnimalMediaEntity(
     val mediaType: String, // e.g., "PHOTO", "VIDEO"
 
     @ColumnInfo(name = "created_at")
-    val createdAt: String
+    val createdAt: Long,
+
+    @ColumnInfo(name = "record_guid", defaultValue = "''")
+    val recordGuid: String = UUID.randomUUID().toString()
 )

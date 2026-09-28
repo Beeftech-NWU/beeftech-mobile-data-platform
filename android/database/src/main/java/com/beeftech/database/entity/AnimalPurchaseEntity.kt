@@ -19,7 +19,8 @@ import java.util.UUID
     ],
     indices = [
         Index(value = ["animal_id"]),
-        Index(value = ["purchase_date"])
+        Index(value = ["purchase_date"]),
+        Index(value = ["record_guid"], unique = true)
     ]
 )
 data class AnimalPurchaseEntity(
@@ -34,13 +35,16 @@ data class AnimalPurchaseEntity(
     val purchasePrice: Double,
 
     @ColumnInfo(name = "purchase_date")
-    val purchaseDate: String,
+    val purchaseDate: Long,
 
     @ColumnInfo(name = "seller_name")
     val sellerName: String, // Replaces Supplier entity
 
     @ColumnInfo(name = "notes")
-    val notes: String? = null
+    val notes: String? = null,
+
+    @ColumnInfo(name = "record_guid", defaultValue = "''")
+    val recordGuid: String = UUID.randomUUID().toString()
 ) {
     val supplierName: String get() = sellerName
 }

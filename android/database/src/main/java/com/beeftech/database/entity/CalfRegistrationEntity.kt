@@ -58,7 +58,7 @@ data class CalfRegistrationEntity(
     val calvingEase: String? = null,
 
     @ColumnInfo(name = "registration_date")
-    val registrationDate: String,
+    val registrationDate: Long,
 
     @ColumnInfo(name = "record_guid")
     val recordGuid: String = UUID.randomUUID().toString(),

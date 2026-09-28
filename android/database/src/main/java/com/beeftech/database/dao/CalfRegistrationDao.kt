@@ -29,7 +29,7 @@ data class CalfRegistrationView(
     val sireTagNumber: String?,
     val birthWeightKg: Double?,
     val calvingEase: String?,
-    val registrationDate: String,
+    val registrationDate: Long,
     val gpsLat: Double,
     val gpsLng: Double,
     val deviceId: String,

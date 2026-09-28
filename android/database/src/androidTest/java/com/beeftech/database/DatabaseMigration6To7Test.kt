@@ -159,7 +159,7 @@ class DatabaseMigration6To7Test {
                             "",
 
                         movementDate =
-                            "1000",
+                            1000L,
 
                         notes =
                             "Migration Worker"
@@ -224,7 +224,7 @@ class DatabaseMigration6To7Test {
              * Confirm database is currently at the latest version.
              */
             assertEquals(
-                18,
+                22,
                 initialDatabase
                     .openHelper
                     .writableDatabase
@@ -327,6 +327,67 @@ class DatabaseMigration6To7Test {
                 """.trimIndent()
             )
 
+            /*
+             * R3 renamed `recordguid` to `record_guid` on `animals` and
+             * `treatments` (bullet 1). `initialDatabase` just created both
+             * tables in that new shape, so a "v6" copy needs the old column
+             * name back, or an earlier migration that still reads/writes
+             * `recordguid` directly (e.g. MIGRATION_13_14's derived-cost
+             * backfill, which selects `treatments.recordguid`) fails with
+             * "no such column: recordguid". MIGRATION_18_19 rebuilds both
+             * tables from scratch, so the stale index left behind by the
+             * rename doesn't matter -- it's dropped along with the table.
+             */
+            rawDatabase.execSQL("ALTER TABLE animals RENAME COLUMN record_guid TO recordguid")
+            rawDatabase.execSQL("ALTER TABLE treatments RENAME COLUMN record_guid TO recordguid")
+
+            /*
+             * R3 bullet 2 added `record_guid` to nine more tables in
+             * MIGRATION_19_20, via `ALTER TABLE ... ADD COLUMN`. These eight
+             * are untouched by 6->7 and hold no test data, so they only need
+             * their pre-R3 (v19) shape back -- without it, MIGRATION_19_20's
+             * `ADD COLUMN record_guid` fails with "duplicate column name"
+             * against the column `initialDatabase` already created fresh.
+             * (`animal_movements` is excluded: it's already rebuilt above in
+             * its v10 shape, which predates `record_guid` too.)
+             */
+            rawDatabase.execSQL("DROP TABLE `animal_weights`")
+            rawDatabase.execSQL("CREATE TABLE IF NOT EXISTS `animal_weights` (`weight_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `weight_kg` REAL NOT NULL, `weigh_date` TEXT NOT NULL, `notes` TEXT, PRIMARY KEY(`weight_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+            rawDatabase.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_weights_animal_id` ON `animal_weights` (`animal_id`)")
+            rawDatabase.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_weights_weigh_date` ON `animal_weights` (`weigh_date`)")
+
+            rawDatabase.execSQL("DROP TABLE `animal_identifiers`")
+            rawDatabase.execSQL("CREATE TABLE IF NOT EXISTS `animal_identifiers` (`identifier_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `identifier_type` TEXT NOT NULL, `identifier_value` TEXT NOT NULL, `valid_from` TEXT, `valid_to` TEXT, PRIMARY KEY(`identifier_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+            rawDatabase.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_identifiers_animal_id` ON `animal_identifiers` (`animal_id`)")
+            rawDatabase.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_identifiers_identifier_type_identifier_value` ON `animal_identifiers` (`identifier_type`, `identifier_value`)")
+
+            rawDatabase.execSQL("DROP TABLE `animal_media`")
+            rawDatabase.execSQL("CREATE TABLE IF NOT EXISTS `animal_media` (`media_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `file_path` TEXT NOT NULL, `media_type` TEXT NOT NULL, `created_at` TEXT NOT NULL, PRIMARY KEY(`media_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+            rawDatabase.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_media_animal_id` ON `animal_media` (`animal_id`)")
+
+            rawDatabase.execSQL("DROP TABLE `animal_ownerships`")
+            rawDatabase.execSQL("CREATE TABLE IF NOT EXISTS `animal_ownerships` (`ownership_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `owner_name` TEXT NOT NULL, `ownership_percentage` REAL NOT NULL, `start_date` TEXT NOT NULL, `end_date` TEXT, PRIMARY KEY(`ownership_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+            rawDatabase.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_ownerships_animal_id` ON `animal_ownerships` (`animal_id`)")
+            rawDatabase.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_ownerships_owner_name` ON `animal_ownerships` (`owner_name`)")
+            rawDatabase.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_ownerships_start_date` ON `animal_ownerships` (`start_date`)")
+
+            rawDatabase.execSQL("DROP TABLE `animal_purchases`")
+            rawDatabase.execSQL("CREATE TABLE IF NOT EXISTS `animal_purchases` (`purchase_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `purchase_price` REAL NOT NULL, `purchase_date` TEXT NOT NULL, `seller_name` TEXT NOT NULL, `notes` TEXT, PRIMARY KEY(`purchase_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+            rawDatabase.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_purchases_animal_id` ON `animal_purchases` (`animal_id`)")
+            rawDatabase.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_purchases_purchase_date` ON `animal_purchases` (`purchase_date`)")
+
+            rawDatabase.execSQL("DROP TABLE `farmer_addresses`")
+            rawDatabase.execSQL("CREATE TABLE IF NOT EXISTS `farmer_addresses` (`address_id` TEXT NOT NULL, `farmer_id` TEXT NOT NULL, `address_type` TEXT, `address_line_1` TEXT, `province` TEXT, `postal_code` TEXT, `gps_latitude` REAL, `gps_longitude` REAL, PRIMARY KEY(`address_id`), FOREIGN KEY(`farmer_id`) REFERENCES `farmers`(`farmer_id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+            rawDatabase.execSQL("CREATE INDEX IF NOT EXISTS `index_farmer_addresses_farmer_id` ON `farmer_addresses` (`farmer_id`)")
+
+            rawDatabase.execSQL("DROP TABLE `feed_crib_readings`")
+            rawDatabase.execSQL("CREATE TABLE IF NOT EXISTS `feed_crib_readings` (`id` TEXT NOT NULL, `cribId` TEXT NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`cribId`) REFERENCES `feed_cribs`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+            rawDatabase.execSQL("CREATE INDEX IF NOT EXISTS `index_feed_crib_readings_cribId` ON `feed_crib_readings` (`cribId`)")
+
+            rawDatabase.execSQL("DROP TABLE `feed_crib_reading_values`")
+            rawDatabase.execSQL("CREATE TABLE IF NOT EXISTS `feed_crib_reading_values` (`id` TEXT NOT NULL, `readingId` TEXT NOT NULL, `value` REAL NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`readingId`) REFERENCES `feed_crib_readings`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+            rawDatabase.execSQL("CREATE INDEX IF NOT EXISTS `index_feed_crib_reading_values_readingId` ON `feed_crib_reading_values` (`readingId`)")
+
             rawDatabase.execSQL(
                 "PRAGMA user_version = 6"
             )
@@ -379,7 +440,7 @@ class DatabaseMigration6To7Test {
              * Database must now be at the latest version.
              */
             assertEquals(
-                18,
+                22,
                 upgradedDatabase
                     .openHelper
                     .writableDatabase

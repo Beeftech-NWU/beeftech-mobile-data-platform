@@ -52,7 +52,7 @@ class SqlCipherDatabaseTest {
             gpsLng = 27.9,
             captureAt = System.currentTimeMillis(),
             deviceId = "device-1",
-            recordguid = "guid-sql-001"
+            recordGuid = "guid-sql-001"
         )
         database!!.animalDao().insert(animal)
 
@@ -60,7 +60,7 @@ class SqlCipherDatabaseTest {
             animalId = "SQL-001",
             destinationFarmId = "Feedlot 1",
             destinationPenId = "Pen 2",
-            movementDate = "2026-09-18"
+            movementDate = 1789689600000L
         )
         database!!.animalMovementDao().insert(movement)
 

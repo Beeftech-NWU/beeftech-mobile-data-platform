@@ -20,7 +20,8 @@ import java.util.UUID
     indices = [
         Index(value = ["animal_id"]),
         Index(value = ["destination_farm_id"]),
-        Index(value = ["destination_pen_id"])
+        Index(value = ["destination_pen_id"]),
+        Index(value = ["record_guid"], unique = true)
     ]
 )
 data class AnimalMovementEntity(
@@ -44,16 +45,37 @@ data class AnimalMovementEntity(
     val destinationPenId: String,
 
     @ColumnInfo(name = "movement_date")
-    val movementDate: String,
+    val movementDate: Long,
 
     // Folded from LocationFeed
     @ColumnInfo(name = "feed_location_type")
     val feedLocationType: String? = null,
 
     @ColumnInfo(name = "notes")
-    val notes: String? = null
+    val notes: String? = null,
+
+    @ColumnInfo(name = "record_guid", defaultValue = "''")
+    val recordGuid: String = UUID.randomUUID().toString(),
+
+    @ColumnInfo(name = "gps_lat", defaultValue = "0.0")
+    val gpsLat: Double = 0.0,
+
+    @ColumnInfo(name = "gps_lng", defaultValue = "0.0")
+    val gpsLng: Double = 0.0,
+
+    @ColumnInfo(name = "device_id", defaultValue = "''")
+    val deviceId: String = "",
+
+    @ColumnInfo(name = "captured_at", defaultValue = "0")
+    val capturedAt: Long = 0L,
+
+    @ColumnInfo(name = "sync_status", defaultValue = "'PENDING'")
+    val syncStatus: String = "PENDING",
+
+    @ColumnInfo(name = "synced_at")
+    val syncedAt: Long? = null
 ) {
     val movementType: String get() = destinationFarmId
     val responsibleWorker: String get() = notes ?: ""
-    val timestamp: Long get() = movementDate.toLongOrNull() ?: 0L
+    val timestamp: Long get() = movementDate
 }

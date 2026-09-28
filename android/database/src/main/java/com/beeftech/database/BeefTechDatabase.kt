@@ -1,9 +1,12 @@
 package com.beeftech.database
 
+import android.database.Cursor
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import java.text.SimpleDateFormat
+import java.util.Locale
 import java.util.UUID
 
 // Existing Base Entities
@@ -107,7 +110,7 @@ import com.beeftech.database.dao.UserDao
         // Phase 5 Entity
         CostType::class
     ],
-    version = 18,
+    version = 22,
     exportSchema = true
 )
 abstract class BeefTechDatabase : RoomDatabase() {
@@ -1212,6 +1215,467 @@ abstract class BeefTechDatabase : RoomDatabase() {
                 backfillBlankGuids("mortalities", "record_guid")
                 backfillBlankGuids("farmers", "record_guid")
                 backfillBlankGuids("animal_group_memberships", "record_guid")
+            }
+        }
+
+        /**
+         * R3, bullet 1 (Version 18 -> 19): standardise the sync identity column.
+         *
+         * Renames `recordguid` to `record_guid` on `animals` and `treatments`, the
+         * two syncable tables that still used the old, inconsistent name (every
+         * other syncable table already uses `record_guid`, per rule 8). Both
+         * tables are rebuilt per rule 9: exact DDL from `18.json` with the column
+         * renamed, an explicit `INSERT ... SELECT`, then drop-and-rename. No data
+         * is lost — every value carries over unchanged, only the column name and
+         * the generated index name change.
+         */
+        val MIGRATION_18_19 = object : Migration(18, 19) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+
+                // 1. animals
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `animals_new` (`animalId` TEXT NOT NULL, `tagNumber` TEXT, `oldTagNumber` TEXT, `temperatureNumber` TEXT, `referenceNumber` TEXT, `massKg` REAL, `birthdate` INTEGER NOT NULL, `breed` TEXT NOT NULL, `gender` TEXT, `age` INTEGER, `condition` TEXT, `hideColour` TEXT, `brandMark` TEXT, `parentId` TEXT, `animalGroupId` TEXT, `photoPath` TEXT, `videoPath` TEXT, `gpsLat` REAL NOT NULL, `gpsLng` REAL NOT NULL, `captureAt` INTEGER NOT NULL, `deviceId` TEXT NOT NULL, `record_guid` TEXT NOT NULL, `syncStatus` TEXT NOT NULL, `syncedat` INTEGER, PRIMARY KEY(`animalId`), FOREIGN KEY(`animalGroupId`) REFERENCES `animal_groups`(`animalGroupId`) ON UPDATE NO ACTION ON DELETE SET NULL )"
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `animals_new`
+                        (`animalId`, `tagNumber`, `oldTagNumber`, `temperatureNumber`, `referenceNumber`,
+                         `massKg`, `birthdate`, `breed`, `gender`, `age`, `condition`, `hideColour`,
+                         `brandMark`, `parentId`, `animalGroupId`, `photoPath`, `videoPath`, `gpsLat`,
+                         `gpsLng`, `captureAt`, `deviceId`, `record_guid`, `syncStatus`, `syncedat`)
+                    SELECT
+                        `animalId`, `tagNumber`, `oldTagNumber`, `temperatureNumber`, `referenceNumber`,
+                        `massKg`, `birthdate`, `breed`, `gender`, `age`, `condition`, `hideColour`,
+                        `brandMark`, `parentId`, `animalGroupId`, `photoPath`, `videoPath`, `gpsLat`,
+                        `gpsLng`, `captureAt`, `deviceId`, `recordguid`, `syncStatus`, `syncedat`
+                    FROM `animals`
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE `animals`")
+                db.execSQL("ALTER TABLE `animals_new` RENAME TO `animals`")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_tagNumber` ON `animals` (`tagNumber`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_temperatureNumber` ON `animals` (`temperatureNumber`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_parentId` ON `animals` (`parentId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_animalGroupId` ON `animals` (`animalGroupId`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_animals_record_guid` ON `animals` (`record_guid`)")
+
+                // 2. treatments
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `treatments_new` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `animalId` TEXT NOT NULL, `disease` TEXT NOT NULL, `treatmentName` TEXT NOT NULL, `batchNumber` TEXT NOT NULL, `volumeUsed` TEXT NOT NULL, `cost` REAL NOT NULL, `gpsLat` REAL NOT NULL, `gpsLng` REAL NOT NULL, `timestamp` INTEGER NOT NULL, `deviceId` TEXT NOT NULL DEFAULT '', `record_guid` TEXT NOT NULL DEFAULT '', `syncStatus` TEXT NOT NULL DEFAULT 'PENDING', `syncedAt` INTEGER, FOREIGN KEY(`animalId`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE )"
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `treatments_new`
+                        (`id`, `animalId`, `disease`, `treatmentName`, `batchNumber`, `volumeUsed`,
+                         `cost`, `gpsLat`, `gpsLng`, `timestamp`, `deviceId`, `record_guid`,
+                         `syncStatus`, `syncedAt`)
+                    SELECT
+                        `id`, `animalId`, `disease`, `treatmentName`, `batchNumber`, `volumeUsed`,
+                        `cost`, `gpsLat`, `gpsLng`, `timestamp`, `deviceId`, `recordguid`,
+                        `syncStatus`, `syncedAt`
+                    FROM `treatments`
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE `treatments`")
+                db.execSQL("ALTER TABLE `treatments_new` RENAME TO `treatments`")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_treatments_animalId` ON `treatments` (`animalId`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_treatments_record_guid` ON `treatments` (`record_guid`)")
+            }
+        }
+
+        /**
+         * R3, bullet 2 (Version 19 -> 20): give every remaining syncable table a
+         * `record_guid`.
+         *
+         * `animal_costs`, `mortalities`, `farmers`, `animal_group_memberships`,
+         * `calf_registrations`, `animals` and `treatments` already have one.
+         * This adds it to the rest: `animal_movements`, `animal_weights`,
+         * `animal_identifiers`, `animal_media`, `animal_ownerships`,
+         * `animal_purchases`, `farmer_addresses`, `feed_crib_readings` and
+         * `feed_crib_reading_values`. Each column is added with a transient
+         * `DEFAULT ''` (SQLite requires one for a `NOT NULL` `ADD COLUMN`),
+         * every existing row is immediately given a real UUID so nothing keeps
+         * the blank default, then the unique index is created.
+         */
+        val MIGRATION_19_20 = object : Migration(19, 20) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+
+                val tables = listOf(
+                    "animal_movements",
+                    "animal_weights",
+                    "animal_identifiers",
+                    "animal_media",
+                    "animal_ownerships",
+                    "animal_purchases",
+                    "farmer_addresses",
+                    "feed_crib_readings",
+                    "feed_crib_reading_values"
+                )
+
+                tables.forEach { table ->
+                    db.execSQL("ALTER TABLE `$table` ADD COLUMN `record_guid` TEXT NOT NULL DEFAULT ''")
+
+                    val rowIds = mutableListOf<Long>()
+                    db.query("SELECT `rowid` FROM `$table` WHERE `record_guid` = ''").use { c ->
+                        while (c.moveToNext()) rowIds += c.getLong(0)
+                    }
+                    rowIds.forEach { rowId ->
+                        db.execSQL(
+                            "UPDATE `$table` SET `record_guid` = ? WHERE `rowid` = ?",
+                            arrayOf<Any>(UUID.randomUUID().toString(), rowId)
+                        )
+                    }
+
+                    db.execSQL(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS `index_${table}_record_guid` ON `$table` (`record_guid`)"
+                    )
+                }
+            }
+        }
+
+        /**
+         * R3, bullet 3 (Version 20 -> 21): audit fields on `animal_movements`
+         * and `animal_weights`.
+         *
+         * Adds `gps_lat`, `gps_lng`, `device_id`, `captured_at`, `sync_status`
+         * and `synced_at` to both tables, each with a transient default (same
+         * reasoning as `record_guid` in MIGRATION_19_20).
+         *
+         * `captured_at` is backfilled from `movement_date` on every
+         * `animal_movements` row: `movement_date` has always held either
+         * `System.currentTimeMillis().toString()` (rows written directly by
+         * the app) or `CAST(timestamp AS TEXT)` (rows recovered from
+         * `legacy_animal_movements` by MIGRATION_10_11), so it is already a
+         * numeric string on every row.
+         *
+         * `gps_lat`, `gps_lng`, `device_id`, `sync_status` and `synced_at`
+         * cannot be recovered that way -- nothing before this point ever
+         * stored them for `animal_movements` -- but `legacy_animal_movements`
+         * (created by MIGRATION_10_11, only on devices that upgraded from
+         * v10) still has the original v10 values, keyed by `recordguid`,
+         * which R0.2 carried forward unchanged as the new `movement_id`. A
+         * device that never went through that migration, or a fresh install,
+         * has no `legacy_animal_movements` table at all, so this is guarded.
+         *
+         * `animal_weights` has no legacy predecessor -- it was introduced at
+         * v9 -> v10 without any of these fields -- so its rows simply keep
+         * the defaults.
+         */
+        val MIGRATION_20_21 = object : Migration(20, 21) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+
+                fun addAuditColumns(table: String) {
+                    db.execSQL("ALTER TABLE `$table` ADD COLUMN `gps_lat` REAL NOT NULL DEFAULT 0.0")
+                    db.execSQL("ALTER TABLE `$table` ADD COLUMN `gps_lng` REAL NOT NULL DEFAULT 0.0")
+                    db.execSQL("ALTER TABLE `$table` ADD COLUMN `device_id` TEXT NOT NULL DEFAULT ''")
+                    db.execSQL("ALTER TABLE `$table` ADD COLUMN `captured_at` INTEGER NOT NULL DEFAULT 0")
+                    db.execSQL("ALTER TABLE `$table` ADD COLUMN `sync_status` TEXT NOT NULL DEFAULT 'PENDING'")
+                    db.execSQL("ALTER TABLE `$table` ADD COLUMN `synced_at` INTEGER")
+                }
+
+                addAuditColumns("animal_movements")
+                addAuditColumns("animal_weights")
+
+                // Every animal_movements row's movement_date is already a
+                // numeric millisecond string (see the migration doc above).
+                db.execSQL(
+                    "UPDATE `animal_movements` SET `captured_at` = CAST(`movement_date` AS INTEGER)"
+                )
+
+                val legacyTableExists = db.query(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'legacy_animal_movements'"
+                ).use { c ->
+                    c.moveToFirst() && c.getInt(0) > 0
+                }
+
+                if (legacyTableExists) {
+                    db.execSQL(
+                        """
+                        UPDATE `animal_movements`
+                        SET
+                            `gps_lat` = (
+                                SELECT `gpsLat` FROM `legacy_animal_movements`
+                                WHERE `legacy_animal_movements`.`recordguid` = `animal_movements`.`movement_id`
+                            ),
+                            `gps_lng` = (
+                                SELECT `gpsLng` FROM `legacy_animal_movements`
+                                WHERE `legacy_animal_movements`.`recordguid` = `animal_movements`.`movement_id`
+                            ),
+                            `device_id` = (
+                                SELECT `deviceId` FROM `legacy_animal_movements`
+                                WHERE `legacy_animal_movements`.`recordguid` = `animal_movements`.`movement_id`
+                            ),
+                            `sync_status` = (
+                                SELECT `syncStatus` FROM `legacy_animal_movements`
+                                WHERE `legacy_animal_movements`.`recordguid` = `animal_movements`.`movement_id`
+                            ),
+                            `synced_at` = (
+                                SELECT `syncedAt` FROM `legacy_animal_movements`
+                                WHERE `legacy_animal_movements`.`recordguid` = `animal_movements`.`movement_id`
+                            )
+                        WHERE EXISTS (
+                            SELECT 1 FROM `legacy_animal_movements`
+                            WHERE `legacy_animal_movements`.`recordguid` = `animal_movements`.`movement_id`
+                        )
+                        """.trimIndent()
+                    )
+                }
+            }
+        }
+
+        /**
+         * A column in a date-column table rebuild (see [MIGRATION_21_22]).
+         * Non-date columns are copied through unchanged, whatever their
+         * runtime type; a date column's TEXT value is parsed to epoch
+         * milliseconds ([dateNullable] controls whether a blank/unparseable
+         * value becomes SQL NULL or falls back to 0).
+         */
+        private data class DateRebuildColumn(
+            val name: String,
+            val isDateColumn: Boolean = false,
+            val dateNullable: Boolean = false
+        )
+
+        /**
+         * Parses a date string that is either already a millisecond epoch
+         * (e.g. `animal_movements.movement_date`, always
+         * `System.currentTimeMillis().toString()`) or an ISO date/datetime
+         * string produced by `CalfRegistrationMappers.isoDate` (`yyyy-MM-dd`)
+         * or a test fixture (`yyyy-MM-dd'T'HH:mm:ss[.SSS]`). Returns null for
+         * a blank, null, or genuinely unparseable value -- never a fabricated
+         * date (rule: never invent values).
+         */
+        private fun parseDateStringToEpochMillis(value: String?): Long? {
+            if (value.isNullOrBlank()) return null
+
+            value.toLongOrNull()?.let { return it }
+
+            val patterns = listOf(
+                "yyyy-MM-dd'T'HH:mm:ss.SSS",
+                "yyyy-MM-dd'T'HH:mm:ss",
+                "yyyy-MM-dd"
+            )
+            for (pattern in patterns) {
+                try {
+                    val format = SimpleDateFormat(pattern, Locale.US)
+                    format.isLenient = false
+                    format.parse(value)?.let { return it.time }
+                } catch (_: Exception) {
+                    // Try the next pattern.
+                }
+            }
+            return null
+        }
+
+        /**
+         * R3, bullet 5 (Version 21 -> 22): convert TEXT date columns to
+         * epoch-millisecond INTEGER, on the seven tables that still store
+         * one: `animal_movements.movement_date`, `animal_identifiers.valid_from`
+         * / `valid_to`, `animal_media.created_at`, `animal_weights.weigh_date`,
+         * `animal_ownerships.start_date` / `end_date`,
+         * `animal_purchases.purchase_date` and `calf_registrations.registration_date`.
+         *
+         * Each table is rebuilt per rule 9. Retyping an existing column can't
+         * be done with `ALTER TABLE`, and parsing mixed ISO/numeric strings
+         * needs real code, not a SQL expression, so every row is read,
+         * converted in Kotlin via [parseDateStringToEpochMillis], and
+         * re-inserted with an explicit column list.
+         */
+        val MIGRATION_21_22 = object : Migration(21, 22) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+
+                fun rebuildTable(
+                    table: String,
+                    createNewTableSql: String,
+                    columns: List<DateRebuildColumn>,
+                    indexSqls: List<String>
+                ) {
+                    val newTable = "${table}_new"
+                    db.execSQL(createNewTableSql)
+
+                    val selectCols = columns.joinToString(", ") { "`${it.name}`" }
+                    val insertCols = columns.joinToString(", ") { "`${it.name}`" }
+                    val placeholders = columns.joinToString(", ") { "?" }
+
+                    db.query("SELECT $selectCols FROM `$table`").use { c ->
+                        while (c.moveToNext()) {
+                            val values = columns.mapIndexed { i, column ->
+                                if (column.isDateColumn) {
+                                    val raw = if (c.isNull(i)) null else c.getString(i)
+                                    val parsed = parseDateStringToEpochMillis(raw)
+                                    if (column.dateNullable) parsed else (parsed ?: 0L)
+                                } else if (c.isNull(i)) {
+                                    null
+                                } else {
+                                    when (c.getType(i)) {
+                                        Cursor.FIELD_TYPE_INTEGER -> c.getLong(i)
+                                        Cursor.FIELD_TYPE_FLOAT -> c.getDouble(i)
+                                        else -> c.getString(i)
+                                    }
+                                }
+                            }
+                            db.execSQL(
+                                "INSERT INTO `$newTable` ($insertCols) VALUES ($placeholders)",
+                                values.toTypedArray()
+                            )
+                        }
+                    }
+
+                    db.execSQL("DROP TABLE `$table`")
+                    db.execSQL("ALTER TABLE `$newTable` RENAME TO `$table`")
+                    indexSqls.forEach { db.execSQL(it) }
+                }
+
+                rebuildTable(
+                    table = "animal_movements",
+                    createNewTableSql = "CREATE TABLE IF NOT EXISTS `animal_movements_new` (`movement_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `source_farm_id` TEXT, `source_pen_id` TEXT, `destination_farm_id` TEXT NOT NULL, `destination_pen_id` TEXT NOT NULL, `movement_date` INTEGER NOT NULL, `feed_location_type` TEXT, `notes` TEXT, `record_guid` TEXT NOT NULL DEFAULT '', `gps_lat` REAL NOT NULL DEFAULT 0.0, `gps_lng` REAL NOT NULL DEFAULT 0.0, `device_id` TEXT NOT NULL DEFAULT '', `captured_at` INTEGER NOT NULL DEFAULT 0, `sync_status` TEXT NOT NULL DEFAULT 'PENDING', `synced_at` INTEGER, PRIMARY KEY(`movement_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+                    columns = listOf(
+                        DateRebuildColumn("movement_id"),
+                        DateRebuildColumn("animal_id"),
+                        DateRebuildColumn("source_farm_id"),
+                        DateRebuildColumn("source_pen_id"),
+                        DateRebuildColumn("destination_farm_id"),
+                        DateRebuildColumn("destination_pen_id"),
+                        DateRebuildColumn("movement_date", isDateColumn = true),
+                        DateRebuildColumn("feed_location_type"),
+                        DateRebuildColumn("notes"),
+                        DateRebuildColumn("record_guid"),
+                        DateRebuildColumn("gps_lat"),
+                        DateRebuildColumn("gps_lng"),
+                        DateRebuildColumn("device_id"),
+                        DateRebuildColumn("captured_at"),
+                        DateRebuildColumn("sync_status"),
+                        DateRebuildColumn("synced_at")
+                    ),
+                    indexSqls = listOf(
+                        "CREATE INDEX IF NOT EXISTS `index_animal_movements_animal_id` ON `animal_movements` (`animal_id`)",
+                        "CREATE INDEX IF NOT EXISTS `index_animal_movements_destination_farm_id` ON `animal_movements` (`destination_farm_id`)",
+                        "CREATE INDEX IF NOT EXISTS `index_animal_movements_destination_pen_id` ON `animal_movements` (`destination_pen_id`)",
+                        "CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_movements_record_guid` ON `animal_movements` (`record_guid`)"
+                    )
+                )
+
+                rebuildTable(
+                    table = "animal_identifiers",
+                    createNewTableSql = "CREATE TABLE IF NOT EXISTS `animal_identifiers_new` (`identifier_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `identifier_type` TEXT NOT NULL, `identifier_value` TEXT NOT NULL, `valid_from` INTEGER, `valid_to` INTEGER, `record_guid` TEXT NOT NULL DEFAULT '', PRIMARY KEY(`identifier_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+                    columns = listOf(
+                        DateRebuildColumn("identifier_id"),
+                        DateRebuildColumn("animal_id"),
+                        DateRebuildColumn("identifier_type"),
+                        DateRebuildColumn("identifier_value"),
+                        DateRebuildColumn("valid_from", isDateColumn = true, dateNullable = true),
+                        DateRebuildColumn("valid_to", isDateColumn = true, dateNullable = true),
+                        DateRebuildColumn("record_guid")
+                    ),
+                    indexSqls = listOf(
+                        "CREATE INDEX IF NOT EXISTS `index_animal_identifiers_animal_id` ON `animal_identifiers` (`animal_id`)",
+                        "CREATE INDEX IF NOT EXISTS `index_animal_identifiers_identifier_type_identifier_value` ON `animal_identifiers` (`identifier_type`, `identifier_value`)",
+                        "CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_identifiers_record_guid` ON `animal_identifiers` (`record_guid`)"
+                    )
+                )
+
+                rebuildTable(
+                    table = "animal_media",
+                    createNewTableSql = "CREATE TABLE IF NOT EXISTS `animal_media_new` (`media_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `file_path` TEXT NOT NULL, `media_type` TEXT NOT NULL, `created_at` INTEGER NOT NULL, `record_guid` TEXT NOT NULL DEFAULT '', PRIMARY KEY(`media_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+                    columns = listOf(
+                        DateRebuildColumn("media_id"),
+                        DateRebuildColumn("animal_id"),
+                        DateRebuildColumn("file_path"),
+                        DateRebuildColumn("media_type"),
+                        DateRebuildColumn("created_at", isDateColumn = true),
+                        DateRebuildColumn("record_guid")
+                    ),
+                    indexSqls = listOf(
+                        "CREATE INDEX IF NOT EXISTS `index_animal_media_animal_id` ON `animal_media` (`animal_id`)",
+                        "CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_media_record_guid` ON `animal_media` (`record_guid`)"
+                    )
+                )
+
+                rebuildTable(
+                    table = "animal_weights",
+                    createNewTableSql = "CREATE TABLE IF NOT EXISTS `animal_weights_new` (`weight_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `weight_kg` REAL NOT NULL, `weigh_date` INTEGER NOT NULL, `notes` TEXT, `record_guid` TEXT NOT NULL DEFAULT '', `gps_lat` REAL NOT NULL DEFAULT 0.0, `gps_lng` REAL NOT NULL DEFAULT 0.0, `device_id` TEXT NOT NULL DEFAULT '', `captured_at` INTEGER NOT NULL DEFAULT 0, `sync_status` TEXT NOT NULL DEFAULT 'PENDING', `synced_at` INTEGER, PRIMARY KEY(`weight_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+                    columns = listOf(
+                        DateRebuildColumn("weight_id"),
+                        DateRebuildColumn("animal_id"),
+                        DateRebuildColumn("weight_kg"),
+                        DateRebuildColumn("weigh_date", isDateColumn = true),
+                        DateRebuildColumn("notes"),
+                        DateRebuildColumn("record_guid"),
+                        DateRebuildColumn("gps_lat"),
+                        DateRebuildColumn("gps_lng"),
+                        DateRebuildColumn("device_id"),
+                        DateRebuildColumn("captured_at"),
+                        DateRebuildColumn("sync_status"),
+                        DateRebuildColumn("synced_at")
+                    ),
+                    indexSqls = listOf(
+                        "CREATE INDEX IF NOT EXISTS `index_animal_weights_animal_id` ON `animal_weights` (`animal_id`)",
+                        "CREATE INDEX IF NOT EXISTS `index_animal_weights_weigh_date` ON `animal_weights` (`weigh_date`)",
+                        "CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_weights_record_guid` ON `animal_weights` (`record_guid`)"
+                    )
+                )
+
+                rebuildTable(
+                    table = "animal_ownerships",
+                    createNewTableSql = "CREATE TABLE IF NOT EXISTS `animal_ownerships_new` (`ownership_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `owner_name` TEXT NOT NULL, `ownership_percentage` REAL NOT NULL, `start_date` INTEGER NOT NULL, `end_date` INTEGER, `record_guid` TEXT NOT NULL DEFAULT '', PRIMARY KEY(`ownership_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+                    columns = listOf(
+                        DateRebuildColumn("ownership_id"),
+                        DateRebuildColumn("animal_id"),
+                        DateRebuildColumn("owner_name"),
+                        DateRebuildColumn("ownership_percentage"),
+                        DateRebuildColumn("start_date", isDateColumn = true),
+                        DateRebuildColumn("end_date", isDateColumn = true, dateNullable = true),
+                        DateRebuildColumn("record_guid")
+                    ),
+                    indexSqls = listOf(
+                        "CREATE INDEX IF NOT EXISTS `index_animal_ownerships_animal_id` ON `animal_ownerships` (`animal_id`)",
+                        "CREATE INDEX IF NOT EXISTS `index_animal_ownerships_owner_name` ON `animal_ownerships` (`owner_name`)",
+                        "CREATE INDEX IF NOT EXISTS `index_animal_ownerships_start_date` ON `animal_ownerships` (`start_date`)",
+                        "CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_ownerships_record_guid` ON `animal_ownerships` (`record_guid`)"
+                    )
+                )
+
+                rebuildTable(
+                    table = "animal_purchases",
+                    createNewTableSql = "CREATE TABLE IF NOT EXISTS `animal_purchases_new` (`purchase_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `purchase_price` REAL NOT NULL, `purchase_date` INTEGER NOT NULL, `seller_name` TEXT NOT NULL, `notes` TEXT, `record_guid` TEXT NOT NULL DEFAULT '', PRIMARY KEY(`purchase_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+                    columns = listOf(
+                        DateRebuildColumn("purchase_id"),
+                        DateRebuildColumn("animal_id"),
+                        DateRebuildColumn("purchase_price"),
+                        DateRebuildColumn("purchase_date", isDateColumn = true),
+                        DateRebuildColumn("seller_name"),
+                        DateRebuildColumn("notes"),
+                        DateRebuildColumn("record_guid")
+                    ),
+                    indexSqls = listOf(
+                        "CREATE INDEX IF NOT EXISTS `index_animal_purchases_animal_id` ON `animal_purchases` (`animal_id`)",
+                        "CREATE INDEX IF NOT EXISTS `index_animal_purchases_purchase_date` ON `animal_purchases` (`purchase_date`)",
+                        "CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_purchases_record_guid` ON `animal_purchases` (`record_guid`)"
+                    )
+                )
+
+                rebuildTable(
+                    table = "calf_registrations",
+                    createNewTableSql = "CREATE TABLE IF NOT EXISTS `calf_registrations_new` (`registration_id` TEXT NOT NULL, `registered_animal_id` TEXT NOT NULL, `dam_id` TEXT, `sire_id` TEXT, `birth_weight_kg` REAL, `calving_ease` TEXT, `registration_date` INTEGER NOT NULL, `record_guid` TEXT NOT NULL, `sync_status` TEXT NOT NULL DEFAULT 'PENDING', `synced_at` INTEGER, PRIMARY KEY(`registration_id`), FOREIGN KEY(`registered_animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(`dam_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE SET NULL, FOREIGN KEY(`sire_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE SET NULL)",
+                    columns = listOf(
+                        DateRebuildColumn("registration_id"),
+                        DateRebuildColumn("registered_animal_id"),
+                        DateRebuildColumn("dam_id"),
+                        DateRebuildColumn("sire_id"),
+                        DateRebuildColumn("birth_weight_kg"),
+                        DateRebuildColumn("calving_ease"),
+                        DateRebuildColumn("registration_date", isDateColumn = true),
+                        DateRebuildColumn("record_guid"),
+                        DateRebuildColumn("sync_status"),
+                        DateRebuildColumn("synced_at")
+                    ),
+                    indexSqls = listOf(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS `index_calf_registrations_registered_animal_id` ON `calf_registrations` (`registered_animal_id`)",
+                        "CREATE INDEX IF NOT EXISTS `index_calf_registrations_dam_id` ON `calf_registrations` (`dam_id`)",
+                        "CREATE INDEX IF NOT EXISTS `index_calf_registrations_sire_id` ON `calf_registrations` (`sire_id`)",
+                        "CREATE UNIQUE INDEX IF NOT EXISTS `index_calf_registrations_record_guid` ON `calf_registrations` (`record_guid`)"
+                    )
+                )
             }
         }
 

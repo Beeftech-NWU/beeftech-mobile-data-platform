@@ -1,9 +1,11 @@
 package com.beeftech.database.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.util.UUID
 
 @Entity(
     tableName = "farmer_addresses",
@@ -16,7 +18,8 @@ import androidx.room.PrimaryKey
         )
     ],
     indices = [
-        Index(value = ["farmer_id"])
+        Index(value = ["farmer_id"]),
+        Index(value = ["record_guid"], unique = true)
     ]
 )
 data class FarmerAddressEntity(
@@ -28,5 +31,6 @@ data class FarmerAddressEntity(
     val province: String?,
     val postal_code: String?,
     val gps_latitude: Double?,
-    val gps_longitude: Double?
+    val gps_longitude: Double?,
+    val record_guid: String = UUID.randomUUID().toString()
 )

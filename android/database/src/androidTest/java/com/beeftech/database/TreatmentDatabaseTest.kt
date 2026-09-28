@@ -67,7 +67,7 @@ class TreatmentDatabaseTest {
                 gpsLng = 28.0,
                 captureAt = 1725148800000L,
                 deviceId = "device-1",
-                recordguid = "guid-animal-$animalId"
+                recordGuid = "guid-animal-$animalId"
             )
         )
     }
@@ -229,7 +229,7 @@ class TreatmentDatabaseTest {
                 gpsLat = -26.0,
                 gpsLng = 28.0,
                 timestamp = 1725300000000L,
-                recordguid = treatmentGuid
+                recordGuid = treatmentGuid
             )
 
             treatmentDao.insertWithCost(treatment)

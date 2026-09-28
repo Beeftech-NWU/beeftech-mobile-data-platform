@@ -20,7 +20,7 @@ import java.util.UUID
     indices = [
         Index(value = ["animalId"]),
         Index(
-            value = ["recordguid"],
+            value = ["record_guid"],
             unique = true
         )
     ]
@@ -52,8 +52,8 @@ data class Treatment(
     @ColumnInfo(defaultValue = "''")
     val deviceId: String = "",
 
-    @ColumnInfo(defaultValue = "''")
-    val recordguid: String =
+    @ColumnInfo(name = "record_guid", defaultValue = "''")
+    val recordGuid: String =
         UUID.randomUUID().toString(),
 
     @ColumnInfo(defaultValue = "'PENDING'")

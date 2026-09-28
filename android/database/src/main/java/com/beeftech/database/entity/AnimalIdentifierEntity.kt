@@ -19,7 +19,8 @@ import java.util.UUID
     ],
     indices = [
         Index(value = ["animal_id"]),
-        Index(value = ["identifier_type", "identifier_value"])
+        Index(value = ["identifier_type", "identifier_value"]),
+        Index(value = ["record_guid"], unique = true)
     ]
 )
 data class AnimalIdentifierEntity(
@@ -37,8 +38,11 @@ data class AnimalIdentifierEntity(
     val identifierValue: String,
 
     @ColumnInfo(name = "valid_from")
-    val validFrom: String? = null,
+    val validFrom: Long? = null,
 
     @ColumnInfo(name = "valid_to")
-    val validTo: String? = null
+    val validTo: Long? = null,
+
+    @ColumnInfo(name = "record_guid", defaultValue = "''")
+    val recordGuid: String = UUID.randomUUID().toString()
 )

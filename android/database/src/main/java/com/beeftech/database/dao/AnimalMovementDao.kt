@@ -55,4 +55,16 @@ interface AnimalMovementDao {
         destinationFarmId: String,
         notes: String
     ): AnimalMovementEntity?
+
+    @Query(
+        """
+        SELECT *
+        FROM animal_movements
+        WHERE record_guid = :recordGuid
+        LIMIT 1
+        """
+    )
+    suspend fun findByRecordGuid(
+        recordGuid: String
+    ): AnimalMovementEntity?
 }

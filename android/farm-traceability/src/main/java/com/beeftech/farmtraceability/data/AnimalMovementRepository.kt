@@ -72,7 +72,7 @@ class AnimalMovementRepository(
                     movement = refreshedMovement,
                     syncErrorMessage =
                         syncOutcome.errorMessagesByRecordGuid[
-                            refreshedMovement.movementId
+                            refreshedMovement.recordGuid
                         ],
                     duplicatePrevented = true
                 )
@@ -83,7 +83,7 @@ class AnimalMovementRepository(
                     animalId = normalizedAnimalId,
                     destinationFarmId = normalizedMovementInformation,
                     destinationPenId = "",
-                    movementDate = now.toString(),
+                    movementDate = now,
                     notes = normalizedResponsibleWorker
                 )
 
@@ -96,9 +96,9 @@ class AnimalMovementRepository(
              */
             pendingSyncRepository.queueOperation(
                 entityType = ENTITY_TYPE,
-                entityId = movement.movementId,
+                entityId = movement.recordGuid,
                 operation = "CREATE",
-                payload = movement.movementId
+                payload = movement.recordGuid
             )
 
             /*
@@ -116,7 +116,7 @@ class AnimalMovementRepository(
                 movement = savedMovement,
                 syncErrorMessage =
                     syncOutcome.errorMessagesByRecordGuid[
-                        movement.movementId
+                        movement.recordGuid
                     ],
                 duplicatePrevented = false
             )
@@ -152,7 +152,7 @@ class AnimalMovementRepository(
             val pendingRecords =
                 pendingOperations
                     .mapNotNull { operation ->
-                        animalMovementDao.findByMovementId(operation.entityId)
+                        animalMovementDao.findByRecordGuid(operation.entityId)
                     }
 
             if (pendingRecords.isEmpty()) {
@@ -232,7 +232,7 @@ class AnimalMovementRepository(
 
                             errorMessagesByRecordGuid =
                                 pendingRecords.associate { movement ->
-                                    movement.movementId to message
+                                    movement.recordGuid to message
                                 }
                         )
                     }

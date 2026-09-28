@@ -61,14 +61,14 @@ class FindAnimalDatabaseTest {
             gpsLng = 27.9,
             captureAt = System.currentTimeMillis(),
             deviceId = "device-1",
-            recordguid = "guid-find-001"
+            recordGuid = "guid-find-001"
         )
         val identifiers = listOf(
             AnimalIdentifierEntity(animalId = animalUuid, identifierType = IdentifierTypes.TAG, identifierValue = tagNumber)
         )
         val calfReg = CalfRegistrationEntity(
             registeredAnimalId = animalUuid,
-            registrationDate = "2026-09-18"
+            registrationDate = 1789689600000L
         )
 
         database!!.calfRegistrationDao().registerCalf(animal, identifiers, emptyList(), calfReg)

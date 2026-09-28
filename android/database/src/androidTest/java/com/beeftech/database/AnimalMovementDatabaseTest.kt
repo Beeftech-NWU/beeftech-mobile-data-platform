@@ -52,7 +52,7 @@ class AnimalMovementDatabaseTest {
             gpsLng = 27.9,
             captureAt = System.currentTimeMillis(),
             deviceId = "device-1",
-            recordguid = "guid-move-001"
+            recordGuid = "guid-move-001"
         )
         database!!.animalDao().insert(animal)
 
@@ -60,7 +60,7 @@ class AnimalMovementDatabaseTest {
             animalId = "MOVE-001",
             destinationFarmId = "Farm A",
             destinationPenId = "Pen 1",
-            movementDate = "2026-09-18",
+            movementDate = 1789689600000L,
             notes = "Worker 1"
         )
 
