@@ -104,3 +104,6 @@ incident note, following this file's structure.
   relationships are FK-shaped at all (`parentId` retirement, `owner_name` ->
   `owner_farmer_id`, movement source/destination FKs) and this audit's query
   list will need new entries.
+- Deferred, to be checked when prioritised: the real-device audit run above,
+  backend FKs (R5.4) and the post-R6 quarantine repair pass are tracked in
+  [`future-checks.md`](future-checks.md).

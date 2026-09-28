@@ -474,3 +474,6 @@ Add the same exclusion to a new module if it consumes SQLCipher or BouncyCastle.
 - No CI workflow (`.github/`) is configured yet.
 - Demo credentials, the JWT secret and the demo SQLCipher passphrase are hard-coded for development.
 - Stale standalone Gradle files remain under `android/`.
+- Deferred database and backend follow-ups are listed in
+  [`docs/database/future-checks.md`](docs/database/future-checks.md); they will be
+  checked when they can be prioritised.
