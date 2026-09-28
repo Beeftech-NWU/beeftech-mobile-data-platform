@@ -19,7 +19,8 @@ import java.util.UUID
     ],
     indices = [
         Index(value = ["animal_id"]),
-        Index(value = ["weigh_date"])
+        Index(value = ["weigh_date"]),
+        Index(value = ["record_guid"], unique = true)
     ]
 )
 data class AnimalWeightEntity(
@@ -37,5 +38,8 @@ data class AnimalWeightEntity(
     val weighDate: String,
 
     @ColumnInfo(name = "notes")
-    val notes: String? = null
+    val notes: String? = null,
+
+    @ColumnInfo(name = "record_guid", defaultValue = "''")
+    val recordGuid: String = UUID.randomUUID().toString()
 )

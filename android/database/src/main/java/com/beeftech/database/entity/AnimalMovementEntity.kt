@@ -20,7 +20,8 @@ import java.util.UUID
     indices = [
         Index(value = ["animal_id"]),
         Index(value = ["destination_farm_id"]),
-        Index(value = ["destination_pen_id"])
+        Index(value = ["destination_pen_id"]),
+        Index(value = ["record_guid"], unique = true)
     ]
 )
 data class AnimalMovementEntity(
@@ -51,7 +52,10 @@ data class AnimalMovementEntity(
     val feedLocationType: String? = null,
 
     @ColumnInfo(name = "notes")
-    val notes: String? = null
+    val notes: String? = null,
+
+    @ColumnInfo(name = "record_guid", defaultValue = "''")
+    val recordGuid: String = UUID.randomUUID().toString()
 ) {
     val movementType: String get() = destinationFarmId
     val responsibleWorker: String get() = notes ?: ""

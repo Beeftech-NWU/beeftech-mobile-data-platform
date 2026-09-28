@@ -107,7 +107,7 @@ import com.beeftech.database.dao.UserDao
         // Phase 5 Entity
         CostType::class
     ],
-    version = 19,
+    version = 20,
     exportSchema = true
 )
 abstract class BeefTechDatabase : RoomDatabase() {
