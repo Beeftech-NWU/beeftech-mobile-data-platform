@@ -113,14 +113,16 @@ class AnimalMovementApiClient(
                         timestamp =
                             movement.timestamp,
 
-                        gpsLat = 0.0,
+                        gpsLat =
+                            movement.gpsLat,
 
-                        gpsLng = 0.0,
+                        gpsLng =
+                            movement.gpsLng,
 
                         deviceId = deviceId,
 
                         recordguid =
-                            movement.movementId,
+                            movement.recordGuid,
 
                         syncStatus = "PENDING",
 

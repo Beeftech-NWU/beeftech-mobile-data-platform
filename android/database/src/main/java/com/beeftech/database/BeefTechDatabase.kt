@@ -107,7 +107,7 @@ import com.beeftech.database.dao.UserDao
         // Phase 5 Entity
         CostType::class
     ],
-    version = 20,
+    version = 21,
     exportSchema = true
 )
 abstract class BeefTechDatabase : RoomDatabase() {
@@ -1325,6 +1325,96 @@ abstract class BeefTechDatabase : RoomDatabase() {
 
                     db.execSQL(
                         "CREATE UNIQUE INDEX IF NOT EXISTS `index_${table}_record_guid` ON `$table` (`record_guid`)"
+                    )
+                }
+            }
+        }
+
+        /**
+         * R3, bullet 3 (Version 20 -> 21): audit fields on `animal_movements`
+         * and `animal_weights`.
+         *
+         * Adds `gps_lat`, `gps_lng`, `device_id`, `captured_at`, `sync_status`
+         * and `synced_at` to both tables, each with a transient default (same
+         * reasoning as `record_guid` in MIGRATION_19_20).
+         *
+         * `captured_at` is backfilled from `movement_date` on every
+         * `animal_movements` row: `movement_date` has always held either
+         * `System.currentTimeMillis().toString()` (rows written directly by
+         * the app) or `CAST(timestamp AS TEXT)` (rows recovered from
+         * `legacy_animal_movements` by MIGRATION_10_11), so it is already a
+         * numeric string on every row.
+         *
+         * `gps_lat`, `gps_lng`, `device_id`, `sync_status` and `synced_at`
+         * cannot be recovered that way -- nothing before this point ever
+         * stored them for `animal_movements` -- but `legacy_animal_movements`
+         * (created by MIGRATION_10_11, only on devices that upgraded from
+         * v10) still has the original v10 values, keyed by `recordguid`,
+         * which R0.2 carried forward unchanged as the new `movement_id`. A
+         * device that never went through that migration, or a fresh install,
+         * has no `legacy_animal_movements` table at all, so this is guarded.
+         *
+         * `animal_weights` has no legacy predecessor -- it was introduced at
+         * v9 -> v10 without any of these fields -- so its rows simply keep
+         * the defaults.
+         */
+        val MIGRATION_20_21 = object : Migration(20, 21) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+
+                fun addAuditColumns(table: String) {
+                    db.execSQL("ALTER TABLE `$table` ADD COLUMN `gps_lat` REAL NOT NULL DEFAULT 0.0")
+                    db.execSQL("ALTER TABLE `$table` ADD COLUMN `gps_lng` REAL NOT NULL DEFAULT 0.0")
+                    db.execSQL("ALTER TABLE `$table` ADD COLUMN `device_id` TEXT NOT NULL DEFAULT ''")
+                    db.execSQL("ALTER TABLE `$table` ADD COLUMN `captured_at` INTEGER NOT NULL DEFAULT 0")
+                    db.execSQL("ALTER TABLE `$table` ADD COLUMN `sync_status` TEXT NOT NULL DEFAULT 'PENDING'")
+                    db.execSQL("ALTER TABLE `$table` ADD COLUMN `synced_at` INTEGER")
+                }
+
+                addAuditColumns("animal_movements")
+                addAuditColumns("animal_weights")
+
+                // Every animal_movements row's movement_date is already a
+                // numeric millisecond string (see the migration doc above).
+                db.execSQL(
+                    "UPDATE `animal_movements` SET `captured_at` = CAST(`movement_date` AS INTEGER)"
+                )
+
+                val legacyTableExists = db.query(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'legacy_animal_movements'"
+                ).use { c ->
+                    c.moveToFirst() && c.getInt(0) > 0
+                }
+
+                if (legacyTableExists) {
+                    db.execSQL(
+                        """
+                        UPDATE `animal_movements`
+                        SET
+                            `gps_lat` = (
+                                SELECT `gpsLat` FROM `legacy_animal_movements`
+                                WHERE `legacy_animal_movements`.`recordguid` = `animal_movements`.`movement_id`
+                            ),
+                            `gps_lng` = (
+                                SELECT `gpsLng` FROM `legacy_animal_movements`
+                                WHERE `legacy_animal_movements`.`recordguid` = `animal_movements`.`movement_id`
+                            ),
+                            `device_id` = (
+                                SELECT `deviceId` FROM `legacy_animal_movements`
+                                WHERE `legacy_animal_movements`.`recordguid` = `animal_movements`.`movement_id`
+                            ),
+                            `sync_status` = (
+                                SELECT `syncStatus` FROM `legacy_animal_movements`
+                                WHERE `legacy_animal_movements`.`recordguid` = `animal_movements`.`movement_id`
+                            ),
+                            `synced_at` = (
+                                SELECT `syncedAt` FROM `legacy_animal_movements`
+                                WHERE `legacy_animal_movements`.`recordguid` = `animal_movements`.`movement_id`
+                            )
+                        WHERE EXISTS (
+                            SELECT 1 FROM `legacy_animal_movements`
+                            WHERE `legacy_animal_movements`.`recordguid` = `animal_movements`.`movement_id`
+                        )
+                        """.trimIndent()
                     )
                 }
             }
