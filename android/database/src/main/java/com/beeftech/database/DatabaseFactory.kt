@@ -528,6 +528,7 @@ object DatabaseFactory {
                      * 20 -> 21 (R3.3: adds movement/weight audit fields)
                      * 21 -> 22 (R3.5: converts TEXT date columns to epoch-millisecond INTEGER)
                      * 22 -> 23 (R5.1: adds the animal_costs.animalId -> animals foreign key)
+                     * 23 -> 24 (R7: Controlled vocabulary lookup tables and compliance fields)
                      */
                     .addMigrations(
                         guarded(MIGRATION_1_2),
@@ -550,7 +551,8 @@ object DatabaseFactory {
                         guarded(BeefTechDatabase.MIGRATION_19_20),
                         guarded(BeefTechDatabase.MIGRATION_20_21),
                         guarded(BeefTechDatabase.MIGRATION_21_22),
-                        guarded(BeefTechDatabase.MIGRATION_22_23)
+                        guarded(BeefTechDatabase.MIGRATION_22_23),
+                        guarded(BeefTechDatabase.MIGRATION_23_24)
                     )
 
                     .addCallback(

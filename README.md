@@ -337,11 +337,11 @@ Run a single test class:
 
 ## Database & migrations
 
-- **Room schema version: 23** (`BeefTechDatabase`)
+- **Room schema version: 24** (`BeefTechDatabase`)
 - Migrations `1→2` … `8→9` are defined in
   `android/database/src/main/java/com/beeftech/database/DatabaseFactory.kt`.
   Migrations `9→10` and later (`9→10`, `10→11`, `11→12`, `12→13`, `13→14`,
-  `14→16`, `16→17`, `17→18`, `18→19`, `19→20`, `20→21`, `21→22`, `22→23`)
+  `14→16`, `16→17`, `17→18`, `18→19`, `19→20`, `20→21`, `21→22`, `22→23`, `23→24`)
   live in the `BeefTechDatabase` companion object in `BeefTechDatabase.kt`.
   Version 15 is deliberately unused (see the comment above
   `MIGRATION_14_16`).

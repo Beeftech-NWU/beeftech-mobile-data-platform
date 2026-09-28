@@ -46,6 +46,17 @@ import com.beeftech.database.entity.AnimalPurchaseEntity
 // Phase 7 Entity
 import com.beeftech.database.entity.CalfRegistrationEntity
 
+// Phase 4 Lookup Entities
+import com.beeftech.database.entity.Breed
+import com.beeftech.database.entity.HideColour
+import com.beeftech.database.entity.NecropsyCode
+import com.beeftech.database.entity.Disease
+import com.beeftech.database.entity.Medication
+import com.beeftech.database.entity.MedicationBatch
+import com.beeftech.database.entity.Country
+import com.beeftech.database.entity.Province
+import com.beeftech.database.entity.Device
+
 // DAOs
 import com.beeftech.database.dao.AnimalDao
 import com.beeftech.database.dao.AnimalCostDao
@@ -58,6 +69,15 @@ import com.beeftech.database.dao.AnimalMediaDao
 import com.beeftech.database.dao.AnimalWeightDao
 import com.beeftech.database.dao.AnimalOwnershipDao
 import com.beeftech.database.dao.AnimalPurchaseDao
+import com.beeftech.database.dao.BreedDao
+import com.beeftech.database.dao.HideColourDao
+import com.beeftech.database.dao.NecropsyCodeDao
+import com.beeftech.database.dao.DiseaseDao
+import com.beeftech.database.dao.MedicationDao
+import com.beeftech.database.dao.MedicationBatchDao
+import com.beeftech.database.dao.CountryDao
+import com.beeftech.database.dao.ProvinceDao
+import com.beeftech.database.dao.DeviceDao
 import com.beeftech.database.dao.CalfRegistrationDao
 import com.beeftech.database.dao.FarmerDao
 import com.beeftech.database.dao.FeedCribDao
@@ -108,9 +128,20 @@ import com.beeftech.database.dao.UserDao
         CalfRegistrationEntity::class,
 
         // Phase 5 Entity
-        CostType::class
+        CostType::class,
+
+        // Phase 4 Lookup Entities
+        Breed::class,
+        HideColour::class,
+        NecropsyCode::class,
+        Disease::class,
+        Medication::class,
+        MedicationBatch::class,
+        Country::class,
+        Province::class,
+        Device::class
     ],
-    version = 23,
+    version = 24,
     exportSchema = true
 )
 abstract class BeefTechDatabase : RoomDatabase() {
@@ -150,6 +181,17 @@ abstract class BeefTechDatabase : RoomDatabase() {
 
     // Phase 5 DAO
     abstract fun costTypeDao(): CostTypeDao
+
+    // Phase 4 Lookup DAOs
+    abstract fun breedDao(): BreedDao
+    abstract fun hideColourDao(): HideColourDao
+    abstract fun necropsyCodeDao(): NecropsyCodeDao
+    abstract fun diseaseDao(): DiseaseDao
+    abstract fun medicationDao(): MedicationDao
+    abstract fun medicationBatchDao(): MedicationBatchDao
+    abstract fun countryDao(): CountryDao
+    abstract fun provinceDao(): ProvinceDao
+    abstract fun deviceDao(): DeviceDao
 
 
     // =========================================================================
@@ -1781,6 +1823,485 @@ abstract class BeefTechDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * 23 -> 24 (R7: Controlled vocabulary lookup tables and compliance fields)
+         */
+        val MIGRATION_23_24 = object : Migration(23, 24) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 1. Create lookup tables
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `breeds` (
+                        `breedId` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        PRIMARY KEY(`breedId`)
+                    )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `hide_colours` (
+                        `colourId` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        PRIMARY KEY(`colourId`)
+                    )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `necropsy_codes` (
+                        `necropsyCodeId` TEXT NOT NULL,
+                        `code` TEXT NOT NULL,
+                        `description` TEXT NOT NULL,
+                        PRIMARY KEY(`necropsyCodeId`)
+                    )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `diseases` (
+                        `diseaseId` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        PRIMARY KEY(`diseaseId`)
+                    )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `medications` (
+                        `medicationId` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `withdrawal_period_days` INTEGER NOT NULL DEFAULT 0,
+                        PRIMARY KEY(`medicationId`)
+                    )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `medication_batches` (
+                        `batchId` TEXT NOT NULL,
+                        `medicationId` TEXT NOT NULL,
+                        `batch_number` TEXT NOT NULL,
+                        `expiry_date` INTEGER,
+                        PRIMARY KEY(`batchId`),
+                        FOREIGN KEY(`medicationId`) REFERENCES `medications`(`medicationId`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_medication_batches_medicationId` ON `medication_batches` (`medicationId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_medication_batches_batch_number` ON `medication_batches` (`batch_number`)")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `countries` (
+                        `countryId` TEXT NOT NULL,
+                        `iso_code` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        PRIMARY KEY(`countryId`)
+                    )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `provinces` (
+                        `provinceId` TEXT NOT NULL,
+                        `countryId` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        PRIMARY KEY(`provinceId`),
+                        FOREIGN KEY(`countryId`) REFERENCES `countries`(`countryId`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_provinces_countryId` ON `provinces` (`countryId`)")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `devices` (
+                        `deviceId` TEXT NOT NULL,
+                        `device_assigned_id` TEXT,
+                        `model` TEXT,
+                        `last_sync` INTEGER,
+                        PRIMARY KEY(`deviceId`)
+                    )
+                    """.trimIndent()
+                )
+
+                // 2. Execute Lookup Seeds
+                BreedSeed.execute(db)
+                HideColourSeed.execute(db)
+                DiseaseSeed.execute(db)
+                MedicationSeed.execute(db)
+                CountryProvinceSeed.execute(db)
+                NecropsyCodeSeed.execute(db)
+
+                // 3. Backfill devices from existing tables
+                db.execSQL("INSERT OR IGNORE INTO `devices` (`deviceId`) VALUES ('')")
+                db.execSQL("INSERT OR IGNORE INTO `devices` (`deviceId`) SELECT DISTINCT `deviceId` FROM `animals` WHERE `deviceId` IS NOT NULL AND `deviceId` != ''")
+                db.execSQL("INSERT OR IGNORE INTO `devices` (`deviceId`) SELECT DISTINCT `deviceId` FROM `treatments` WHERE `deviceId` IS NOT NULL AND `deviceId` != ''")
+                db.execSQL("INSERT OR IGNORE INTO `devices` (`deviceId`) SELECT DISTINCT `device_id` FROM `animal_movements` WHERE `device_id` IS NOT NULL AND `device_id` != ''")
+                db.execSQL("INSERT OR IGNORE INTO `devices` (`deviceId`) SELECT DISTINCT `device_id` FROM `animal_weights` WHERE `device_id` IS NOT NULL AND `device_id` != ''")
+
+                // Backfill breeds, hide colours, diseases, provinces from existing tables if needed
+                db.execSQL("INSERT OR IGNORE INTO `breeds` (`breedId`, `name`) SELECT DISTINCT `breed`, `breed` FROM `animals` WHERE `breed` IS NOT NULL AND `breed` != ''")
+                db.execSQL("INSERT OR IGNORE INTO `hide_colours` (`colourId`, `name`) SELECT DISTINCT `hideColour`, `hideColour` FROM `animals` WHERE `hideColour` IS NOT NULL AND `hideColour` != ''")
+                db.execSQL("INSERT OR IGNORE INTO `diseases` (`diseaseId`, `name`) SELECT DISTINCT `disease`, `disease` FROM `treatments` WHERE `disease` IS NOT NULL AND `disease` != ''")
+                db.execSQL("INSERT OR IGNORE INTO `provinces` (`provinceId`, `countryId`, `name`) SELECT DISTINCT `province`, 'ZAF', `province` FROM `farmer_addresses` WHERE `province` IS NOT NULL AND `province` != ''")
+
+                // 4. Rebuild animals table with FKs
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `animals_new` (
+                        `animalId` TEXT NOT NULL,
+                        `tagNumber` TEXT,
+                        `oldTagNumber` TEXT,
+                        `temperatureNumber` TEXT,
+                        `referenceNumber` TEXT,
+                        `massKg` REAL,
+                        `birthdate` INTEGER NOT NULL,
+                        `breed` TEXT NOT NULL,
+                        `gender` TEXT,
+                        `age` INTEGER,
+                        `condition` TEXT,
+                        `hideColour` TEXT,
+                        `brandMark` TEXT,
+                        `parentId` TEXT,
+                        `animalGroupId` TEXT,
+                        `photoPath` TEXT,
+                        `videoPath` TEXT,
+                        `gpsLat` REAL NOT NULL,
+                        `gpsLng` REAL NOT NULL,
+                        `captureAt` INTEGER NOT NULL,
+                        `deviceId` TEXT NOT NULL,
+                        `record_guid` TEXT NOT NULL,
+                        `syncStatus` TEXT NOT NULL,
+                        `syncedat` INTEGER,
+                        PRIMARY KEY(`animalId`),
+                        FOREIGN KEY(`animalGroupId`) REFERENCES `animal_groups`(`animalGroupId`) ON UPDATE NO ACTION ON DELETE SET NULL,
+                        FOREIGN KEY(`breed`) REFERENCES `breeds`(`breedId`) ON UPDATE NO ACTION ON DELETE RESTRICT,
+                        FOREIGN KEY(`hideColour`) REFERENCES `hide_colours`(`colourId`) ON UPDATE NO ACTION ON DELETE SET NULL,
+                        FOREIGN KEY(`deviceId`) REFERENCES `devices`(`deviceId`) ON UPDATE NO ACTION ON DELETE RESTRICT
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `animals_new` (
+                        `animalId`, `tagNumber`, `oldTagNumber`, `temperatureNumber`, `referenceNumber`,
+                        `massKg`, `birthdate`, `breed`, `gender`, `age`, `condition`, `hideColour`,
+                        `brandMark`, `parentId`, `animalGroupId`, `photoPath`, `videoPath`, `gpsLat`,
+                        `gpsLng`, `captureAt`, `deviceId`, `record_guid`, `syncStatus`, `syncedat`
+                    )
+                    SELECT
+                        `animalId`, `tagNumber`, `oldTagNumber`, `temperatureNumber`, `referenceNumber`,
+                        `massKg`, `birthdate`, `breed`, `gender`, `age`, `condition`, `hideColour`,
+                        `brandMark`, `parentId`, `animalGroupId`, `photoPath`, `videoPath`, `gpsLat`,
+                        `gpsLng`, `captureAt`, `deviceId`, `record_guid`, `syncStatus`, `syncedat`
+                    FROM `animals`
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE `animals`")
+                db.execSQL("ALTER TABLE `animals_new` RENAME TO `animals`")
+
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_tagNumber` ON `animals` (`tagNumber`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_temperatureNumber` ON `animals` (`temperatureNumber`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_parentId` ON `animals` (`parentId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_animalGroupId` ON `animals` (`animalGroupId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_breed` ON `animals` (`breed`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_hideColour` ON `animals` (`hideColour`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_deviceId` ON `animals` (`deviceId`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_animals_record_guid` ON `animals` (`record_guid`)")
+
+                // 5. Rebuild treatments table
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `treatments_new` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `animalId` TEXT NOT NULL,
+                        `disease` TEXT NOT NULL,
+                        `treatmentName` TEXT NOT NULL,
+                        `batchNumber` TEXT NOT NULL,
+                        `volumeUsed` TEXT NOT NULL,
+                        `cost` REAL NOT NULL,
+                        `gpsLat` REAL NOT NULL,
+                        `gpsLng` REAL NOT NULL,
+                        `timestamp` INTEGER NOT NULL,
+                        `deviceId` TEXT NOT NULL DEFAULT '',
+                        `withdrawal_clear_date` INTEGER,
+                        `record_guid` TEXT NOT NULL DEFAULT '',
+                        `syncStatus` TEXT NOT NULL DEFAULT 'PENDING',
+                        `syncedAt` INTEGER,
+                        FOREIGN KEY(`animalId`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(`disease`) REFERENCES `diseases`(`diseaseId`) ON UPDATE NO ACTION ON DELETE RESTRICT,
+                        FOREIGN KEY(`deviceId`) REFERENCES `devices`(`deviceId`) ON UPDATE NO ACTION ON DELETE RESTRICT
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `treatments_new` (
+                        `id`, `animalId`, `disease`, `treatmentName`, `batchNumber`, `volumeUsed`,
+                        `cost`, `gpsLat`, `gpsLng`, `timestamp`, `deviceId`, `record_guid`,
+                        `syncStatus`, `syncedAt`
+                    )
+                    SELECT
+                        `id`, `animalId`, `disease`, `treatmentName`, `batchNumber`, `volumeUsed`,
+                        `cost`, `gpsLat`, `gpsLng`, `timestamp`, `deviceId`, `record_guid`,
+                        `syncStatus`, `syncedAt`
+                    FROM `treatments`
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE `treatments`")
+                db.execSQL("ALTER TABLE `treatments_new` RENAME TO `treatments`")
+
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_treatments_animalId` ON `treatments` (`animalId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_treatments_disease` ON `treatments` (`disease`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_treatments_deviceId` ON `treatments` (`deviceId`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_treatments_record_guid` ON `treatments` (`record_guid`)")
+
+                // 6. Rebuild mortalities table
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `mortalities_new` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `animalId` TEXT NOT NULL,
+                        `causeOfDeath` TEXT NOT NULL,
+                        `necropsy_code_id` TEXT,
+                        `responsibleWorker` TEXT NOT NULL DEFAULT '',
+                        `notes` TEXT,
+                        `timestamp` INTEGER NOT NULL,
+                        `record_guid` TEXT NOT NULL,
+                        FOREIGN KEY(`animalId`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(`necropsy_code_id`) REFERENCES `necropsy_codes`(`necropsyCodeId`) ON UPDATE NO ACTION ON DELETE SET NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `mortalities_new` (
+                        `id`, `animalId`, `causeOfDeath`, `necropsy_code_id`, `responsibleWorker`, `notes`, `timestamp`, `record_guid`
+                    )
+                    SELECT
+                        `id`, `animalId`, `causeOfDeath`,
+                        CASE
+                            WHEN `causeOfDeath` IN (SELECT `necropsyCodeId` FROM `necropsy_codes`) THEN `causeOfDeath`
+                            WHEN `causeOfDeath` IN (SELECT `code` FROM `necropsy_codes`) THEN (SELECT `necropsyCodeId` FROM `necropsy_codes` WHERE `code` = `causeOfDeath` LIMIT 1)
+                            WHEN `causeOfDeath` IN (SELECT `description` FROM `necropsy_codes`) THEN (SELECT `necropsyCodeId` FROM `necropsy_codes` WHERE `description` = `causeOfDeath` LIMIT 1)
+                            ELSE 'N99'
+                        END,
+                        `responsibleWorker`, `notes`, `timestamp`, `record_guid`
+                    FROM `mortalities`
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE `mortalities`")
+                db.execSQL("ALTER TABLE `mortalities_new` RENAME TO `mortalities`")
+
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_mortalities_animalId` ON `mortalities` (`animalId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_mortalities_necropsy_code_id` ON `mortalities` (`necropsy_code_id`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_mortalities_record_guid` ON `mortalities` (`record_guid`)")
+
+                // 7. Rebuild farmer_addresses table
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `farmer_addresses_new` (
+                        `address_id` TEXT NOT NULL,
+                        `farmer_id` TEXT NOT NULL,
+                        `address_type` TEXT,
+                        `address_line_1` TEXT,
+                        `province` TEXT,
+                        `postal_code` TEXT,
+                        `gps_latitude` REAL,
+                        `gps_longitude` REAL,
+                        `record_guid` TEXT NOT NULL,
+                        PRIMARY KEY(`address_id`),
+                        FOREIGN KEY(`farmer_id`) REFERENCES `farmers`(`farmer_id`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(`province`) REFERENCES `provinces`(`provinceId`) ON UPDATE NO ACTION ON DELETE SET NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `farmer_addresses_new` (
+                        `address_id`, `farmer_id`, `address_type`, `address_line_1`, `province`,
+                        `postal_code`, `gps_latitude`, `gps_longitude`, `record_guid`
+                    )
+                    SELECT
+                        `address_id`, `farmer_id`, `address_type`, `address_line_1`, `province`,
+                        `postal_code`, `gps_latitude`, `gps_longitude`, `record_guid`
+                    FROM `farmer_addresses`
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE `farmer_addresses`")
+                db.execSQL("ALTER TABLE `farmer_addresses_new` RENAME TO `farmer_addresses`")
+
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farmer_addresses_farmer_id` ON `farmer_addresses` (`farmer_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farmer_addresses_province` ON `farmer_addresses` (`province`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_farmer_addresses_record_guid` ON `farmer_addresses` (`record_guid`)")
+
+                // 8. Rebuild animal_movements table
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `animal_movements_new` (
+                        `movement_id` TEXT NOT NULL,
+                        `animal_id` TEXT NOT NULL,
+                        `source_farm_id` TEXT,
+                        `source_pen_id` TEXT,
+                        `destination_farm_id` TEXT NOT NULL,
+                        `destination_pen_id` TEXT NOT NULL,
+                        `movement_date` INTEGER NOT NULL,
+                        `feed_location_type` TEXT,
+                        `notes` TEXT,
+                        `record_guid` TEXT NOT NULL DEFAULT '',
+                        `gps_lat` REAL NOT NULL DEFAULT 0.0,
+                        `gps_lng` REAL NOT NULL DEFAULT 0.0,
+                        `device_id` TEXT NOT NULL DEFAULT '',
+                        `captured_at` INTEGER NOT NULL DEFAULT 0,
+                        `sync_status` TEXT NOT NULL DEFAULT 'PENDING',
+                        `synced_at` INTEGER,
+                        PRIMARY KEY(`movement_id`),
+                        FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(`device_id`) REFERENCES `devices`(`deviceId`) ON UPDATE NO ACTION ON DELETE RESTRICT
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `animal_movements_new` (
+                        `movement_id`, `animal_id`, `source_farm_id`, `source_pen_id`,
+                        `destination_farm_id`, `destination_pen_id`, `movement_date`,
+                        `feed_location_type`, `notes`, `record_guid`, `gps_lat`, `gps_lng`,
+                        `device_id`, `captured_at`, `sync_status`, `synced_at`
+                    )
+                    SELECT
+                        `movement_id`, `animal_id`, `source_farm_id`, `source_pen_id`,
+                        `destination_farm_id`, `destination_pen_id`, `movement_date`,
+                        `feed_location_type`, `notes`, `record_guid`, `gps_lat`, `gps_lng`,
+                        `device_id`, `captured_at`, `sync_status`, `synced_at`
+                    FROM `animal_movements`
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE `animal_movements`")
+                db.execSQL("ALTER TABLE `animal_movements_new` RENAME TO `animal_movements`")
+
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_movements_animal_id` ON `animal_movements` (`animal_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_movements_destination_farm_id` ON `animal_movements` (`destination_farm_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_movements_destination_pen_id` ON `animal_movements` (`destination_pen_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_movements_device_id` ON `animal_movements` (`device_id`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_movements_record_guid` ON `animal_movements` (`record_guid`)")
+
+                // 9. Rebuild animal_weights table
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `animal_weights_new` (
+                        `weight_id` TEXT NOT NULL,
+                        `animal_id` TEXT NOT NULL,
+                        `weight_kg` REAL NOT NULL,
+                        `weigh_date` INTEGER NOT NULL,
+                        `notes` TEXT,
+                        `record_guid` TEXT NOT NULL DEFAULT '',
+                        `gps_lat` REAL NOT NULL DEFAULT 0.0,
+                        `gps_lng` REAL NOT NULL DEFAULT 0.0,
+                        `device_id` TEXT NOT NULL DEFAULT '',
+                        `captured_at` INTEGER NOT NULL DEFAULT 0,
+                        `sync_status` TEXT NOT NULL DEFAULT 'PENDING',
+                        `synced_at` INTEGER,
+                        PRIMARY KEY(`weight_id`),
+                        FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(`device_id`) REFERENCES `devices`(`deviceId`) ON UPDATE NO ACTION ON DELETE RESTRICT
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `animal_weights_new` (
+                        `weight_id`, `animal_id`, `weight_kg`, `weigh_date`, `notes`,
+                        `record_guid`, `gps_lat`, `gps_lng`, `device_id`, `captured_at`,
+                        `sync_status`, `synced_at`
+                    )
+                    SELECT
+                        `weight_id`, `animal_id`, `weight_kg`, `weigh_date`, `notes`,
+                        `record_guid`, `gps_lat`, `gps_lng`, `device_id`, `captured_at`,
+                        `sync_status`, `synced_at`
+                    FROM `animal_weights`
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE `animal_weights`")
+                db.execSQL("ALTER TABLE `animal_weights_new` RENAME TO `animal_weights`")
+
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_weights_animal_id` ON `animal_weights` (`animal_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_weights_weigh_date` ON `animal_weights` (`weigh_date`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_weights_device_id` ON `animal_weights` (`device_id`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_weights_record_guid` ON `animal_weights` (`record_guid`)")
+
+                // 10. Create auto-lookup triggers
+                db.execSQL(
+                    """
+                    CREATE TRIGGER IF NOT EXISTS trg_animals_auto_lookup BEFORE INSERT ON animals BEGIN
+                        INSERT INTO breeds (breedId, name)
+                        SELECT NEW.breed, NEW.breed
+                        WHERE NEW.breed IS NOT NULL AND NEW.breed != '' AND NOT EXISTS (SELECT 1 FROM breeds WHERE breedId = NEW.breed);
+
+                        INSERT INTO hide_colours (colourId, name)
+                        SELECT NEW.hideColour, NEW.hideColour
+                        WHERE NEW.hideColour IS NOT NULL AND NEW.hideColour != '' AND NOT EXISTS (SELECT 1 FROM hide_colours WHERE colourId = NEW.hideColour);
+
+                        INSERT INTO devices (deviceId)
+                        SELECT NEW.deviceId
+                        WHERE NEW.deviceId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM devices WHERE deviceId = NEW.deviceId);
+                    END;
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    CREATE TRIGGER IF NOT EXISTS trg_treatments_auto_lookup BEFORE INSERT ON treatments BEGIN
+                        INSERT INTO diseases (diseaseId, name)
+                        SELECT NEW.disease, NEW.disease
+                        WHERE NEW.disease IS NOT NULL AND NEW.disease != '' AND NOT EXISTS (SELECT 1 FROM diseases WHERE diseaseId = NEW.disease);
+
+                        INSERT INTO devices (deviceId)
+                        SELECT NEW.deviceId
+                        WHERE NEW.deviceId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM devices WHERE deviceId = NEW.deviceId);
+                    END;
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    CREATE TRIGGER IF NOT EXISTS trg_farmer_addresses_auto_lookup BEFORE INSERT ON farmer_addresses BEGIN
+                        INSERT INTO provinces (provinceId, countryId, name)
+                        SELECT NEW.province, 'ZAF', NEW.province
+                        WHERE NEW.province IS NOT NULL AND NEW.province != '' AND NOT EXISTS (SELECT 1 FROM provinces WHERE provinceId = NEW.province);
+                    END;
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    CREATE TRIGGER IF NOT EXISTS trg_movements_auto_device BEFORE INSERT ON animal_movements BEGIN
+                        INSERT INTO devices (deviceId)
+                        SELECT NEW.device_id
+                        WHERE NEW.device_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM devices WHERE deviceId = NEW.device_id);
+                    END;
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    CREATE TRIGGER IF NOT EXISTS trg_weights_auto_device BEFORE INSERT ON animal_weights BEGIN
+                        INSERT INTO devices (deviceId)
+                        SELECT NEW.device_id
+                        WHERE NEW.device_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM devices WHERE deviceId = NEW.device_id);
+                    END;
+                    """.trimIndent()
+                )
+
+                // 11. Check FK integrity
+                db.query("PRAGMA foreign_key_check").use { check(it.count == 0) { "FK violations after 23->24" } }
+            }
+        }
+
         /*
          * Seeds lookup tables.
          *
@@ -1790,14 +2311,88 @@ abstract class BeefTechDatabase : RoomDatabase() {
          * is INSERT OR IGNORE, so running it on every open is safe.
          */
         val SEED_CALLBACK = object : Callback() {
+            private fun createLookupTriggers(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TRIGGER IF NOT EXISTS trg_animals_auto_lookup BEFORE INSERT ON animals BEGIN
+                        INSERT INTO breeds (breedId, name)
+                        SELECT NEW.breed, NEW.breed
+                        WHERE NEW.breed IS NOT NULL AND NEW.breed != '' AND NOT EXISTS (SELECT 1 FROM breeds WHERE breedId = NEW.breed);
+
+                        INSERT INTO hide_colours (colourId, name)
+                        SELECT NEW.hideColour, NEW.hideColour
+                        WHERE NEW.hideColour IS NOT NULL AND NEW.hideColour != '' AND NOT EXISTS (SELECT 1 FROM hide_colours WHERE colourId = NEW.hideColour);
+
+                        INSERT INTO devices (deviceId)
+                        SELECT NEW.deviceId
+                        WHERE NEW.deviceId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM devices WHERE deviceId = NEW.deviceId);
+                    END;
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    CREATE TRIGGER IF NOT EXISTS trg_treatments_auto_lookup BEFORE INSERT ON treatments BEGIN
+                        INSERT INTO diseases (diseaseId, name)
+                        SELECT NEW.disease, NEW.disease
+                        WHERE NEW.disease IS NOT NULL AND NEW.disease != '' AND NOT EXISTS (SELECT 1 FROM diseases WHERE diseaseId = NEW.disease);
+
+                        INSERT INTO devices (deviceId)
+                        SELECT NEW.deviceId
+                        WHERE NEW.deviceId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM devices WHERE deviceId = NEW.deviceId);
+                    END;
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    CREATE TRIGGER IF NOT EXISTS trg_farmer_addresses_auto_lookup BEFORE INSERT ON farmer_addresses BEGIN
+                        INSERT INTO provinces (provinceId, countryId, name)
+                        SELECT NEW.province, 'ZAF', NEW.province
+                        WHERE NEW.province IS NOT NULL AND NEW.province != '' AND NOT EXISTS (SELECT 1 FROM provinces WHERE provinceId = NEW.province);
+                    END;
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    CREATE TRIGGER IF NOT EXISTS trg_movements_auto_device BEFORE INSERT ON animal_movements BEGIN
+                        INSERT INTO devices (deviceId)
+                        SELECT NEW.device_id
+                        WHERE NEW.device_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM devices WHERE deviceId = NEW.device_id);
+                    END;
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    CREATE TRIGGER IF NOT EXISTS trg_weights_auto_device BEFORE INSERT ON animal_weights BEGIN
+                        INSERT INTO devices (deviceId)
+                        SELECT NEW.device_id
+                        WHERE NEW.device_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM devices WHERE deviceId = NEW.device_id);
+                    END;
+                    """.trimIndent()
+                )
+            }
+
             override fun onCreate(db: SupportSQLiteDatabase) {
                 CostTypeSeed.execute(db)
                 RoleSeed.execute(db)
+                BreedSeed.execute(db)
+                HideColourSeed.execute(db)
+                DiseaseSeed.execute(db)
+                MedicationSeed.execute(db)
+                CountryProvinceSeed.execute(db)
+                NecropsyCodeSeed.execute(db)
+                createLookupTriggers(db)
             }
 
             override fun onOpen(db: SupportSQLiteDatabase) {
                 CostTypeSeed.execute(db)
                 RoleSeed.execute(db)
+                BreedSeed.execute(db)
+                HideColourSeed.execute(db)
+                DiseaseSeed.execute(db)
+                MedicationSeed.execute(db)
+                CountryProvinceSeed.execute(db)
+                NecropsyCodeSeed.execute(db)
+                createLookupTriggers(db)
             }
         }
     }

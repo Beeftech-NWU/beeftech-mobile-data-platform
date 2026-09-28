@@ -15,10 +15,24 @@ import java.util.UUID
             parentColumns = ["animalId"],
             childColumns = ["animalId"],
             onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = Disease::class,
+            parentColumns = ["diseaseId"],
+            childColumns = ["disease"],
+            onDelete = ForeignKey.RESTRICT
+        ),
+        ForeignKey(
+            entity = Device::class,
+            parentColumns = ["deviceId"],
+            childColumns = ["deviceId"],
+            onDelete = ForeignKey.RESTRICT
         )
     ],
     indices = [
         Index(value = ["animalId"]),
+        Index(value = ["disease"]),
+        Index(value = ["deviceId"]),
         Index(
             value = ["record_guid"],
             unique = true
@@ -51,6 +65,9 @@ data class Treatment(
 
     @ColumnInfo(defaultValue = "''")
     val deviceId: String = "",
+
+    @ColumnInfo(name = "withdrawal_clear_date")
+    val withdrawalClearDate: Long? = null,
 
     @ColumnInfo(name = "record_guid", defaultValue = "''")
     val recordGuid: String =

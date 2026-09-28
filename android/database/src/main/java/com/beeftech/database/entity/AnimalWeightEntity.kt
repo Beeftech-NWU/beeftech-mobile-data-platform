@@ -15,11 +15,18 @@ import java.util.UUID
             parentColumns = ["animalId"],
             childColumns = ["animal_id"],
             onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = Device::class,
+            parentColumns = ["deviceId"],
+            childColumns = ["device_id"],
+            onDelete = ForeignKey.RESTRICT
         )
     ],
     indices = [
         Index(value = ["animal_id"]),
         Index(value = ["weigh_date"]),
+        Index(value = ["device_id"]),
         Index(value = ["record_guid"], unique = true)
     ]
 )

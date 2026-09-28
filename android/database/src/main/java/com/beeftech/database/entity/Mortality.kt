@@ -15,10 +15,17 @@ import java.util.UUID
             parentColumns = ["animalId"],
             childColumns = ["animalId"],
             onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = NecropsyCode::class,
+            parentColumns = ["necropsyCodeId"],
+            childColumns = ["necropsy_code_id"],
+            onDelete = ForeignKey.SET_NULL
         )
     ],
     indices = [
         Index(value = ["animalId"], unique = true),
+        Index(value = ["necropsy_code_id"]),
         Index(value = ["record_guid"], unique = true)
     ]
 )
@@ -30,6 +37,9 @@ data class Mortality(
     val animalId: String,
 
     val causeOfDeath: String,
+
+    @ColumnInfo(name = "necropsy_code_id")
+    val necropsyCodeId: String? = null,
 
     @ColumnInfo(defaultValue = "''")
     val responsibleWorker: String = "",
