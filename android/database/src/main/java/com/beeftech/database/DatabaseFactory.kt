@@ -552,7 +552,8 @@ object DatabaseFactory {
                         guarded(BeefTechDatabase.MIGRATION_20_21),
                         guarded(BeefTechDatabase.MIGRATION_21_22),
                         guarded(BeefTechDatabase.MIGRATION_22_23),
-                        guarded(BeefTechDatabase.MIGRATION_23_24)
+                        guarded(BeefTechDatabase.MIGRATION_23_24),
+                        guarded(BeefTechDatabase.MIGRATION_24_25)
                     )
 
                     .addCallback(
@@ -600,7 +601,7 @@ object DatabaseFactory {
                             DatabaseErrorType.MIGRATION_FAILED,
                         message =
                             "The local database could not be upgraded. Do not " +
-                                    "uninstall the app — your data is still saved " +
+                                    "uninstall the app â€” your data is still saved " +
                                     "on this device. Contact support.",
                         cause =
                             (exception as? MigrationExecutionException)?.cause
