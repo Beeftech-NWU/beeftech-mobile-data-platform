@@ -70,12 +70,12 @@ class DatabaseMigrationPhase3And6And7Test {
         // Phase 3: Identifiers
         val identifier = AnimalIdentifierEntity(
             animalId = "ANIMAL-001",
-            identifierType = "RFID",
+            identifierType = "TRANSPONDER",
             identifierValue = "982000123456789"
         )
         db.animalIdentifierDao().insertIdentifier(identifier)
 
-        val foundAnimalId = db.animalIdentifierDao().findAnimalIdByIdentifier("RFID", "982000123456789")
+        val foundAnimalId = db.animalIdentifierDao().findAnimalIdByIdentifier("TRANSPONDER", "982000123456789")
         assertEquals("ANIMAL-001", foundAnimalId)
 
         // Phase 3: Media

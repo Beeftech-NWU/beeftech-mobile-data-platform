@@ -80,3 +80,14 @@ Specifically, R4 addresses:
 2. **Unit & Instrumented Tests**:
    - Update `AnimalDaoTest`, `AnimalCostDatabaseTest`, `CalfRegistrationDaoTest`, and related test suits to match the v28 schema.
    - Execute `./gradlew testDebugUnitTest test` and `./gradlew :android:database:connectedAndroidTest`.
+
+---
+
+## R4.1 Corrections & Hardening
+
+1. **`legacy_animals` Snapshot**: Added `CREATE TABLE legacy_animals` in `MIGRATION_26_27` to preserve all legacy columns (`age`, `condition`, `parentId`, duplicate tags, etc.) before `MIGRATION_27_28` drops them.
+2. **Identifier Type Mapping & Quarantine**: Remapped `RFID` → `TRANSPONDER` and `OLDTAG` → `OLD_TAG` in `MIGRATION_24_25`. Unrecognized types are preserved in `quarantine_animal_identifiers`.
+3. **Duplicate Tag Handling**: Excluded shared legacy tags (`HAVING COUNT(DISTINCT animalId) > 1`) from `animal_identifiers` insertion to avoid permanence trigger aborts. Both instances remain in `legacy_animals`.
+4. **Deterministic Dam Resolution**: In `MIGRATION_26_27`, parentage is resolved only for unique `TAG` matches and UUID matches, excluding self-references.
+5. **Fresh Install Triggers**: Added `createHistoryTriggers` to `SEED_CALLBACK` so fresh database installs automatically receive active identifier and single open group membership triggers.
+

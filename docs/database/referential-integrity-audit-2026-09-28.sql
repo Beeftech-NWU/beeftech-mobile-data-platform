@@ -267,3 +267,26 @@ SELECT provinceId, countryId
 FROM provinces
 WHERE countryId NOT IN (SELECT countryId FROM countries);
 
+-- ============================================================
+-- animal_identifiers.identifier_type -> identifier_types.code (RESTRICT, not null) -- R4
+-- ============================================================
+SELECT identifier_id, identifier_type
+FROM animal_identifiers
+WHERE identifier_type NOT IN (SELECT code FROM identifier_types);
+
+-- ============================================================
+-- animals.dam_id -> animals.animalId (SET NULL, nullable) -- R4
+-- ============================================================
+SELECT animalId, dam_id
+FROM animals
+WHERE dam_id IS NOT NULL
+  AND dam_id NOT IN (SELECT animalId FROM animals);
+
+-- ============================================================
+-- animals.sire_id -> animals.animalId (SET NULL, nullable) -- R4
+-- ============================================================
+SELECT animalId, sire_id
+FROM animals
+WHERE sire_id IS NOT NULL
+  AND sire_id NOT IN (SELECT animalId FROM animals);
+
