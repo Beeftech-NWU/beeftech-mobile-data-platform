@@ -224,7 +224,7 @@ class DatabaseMigration6To7Test {
              * Confirm database is currently at the latest version.
              */
             assertEquals(
-                24,
+                28,
                 initialDatabase
                     .openHelper
                     .writableDatabase
@@ -328,17 +328,30 @@ class DatabaseMigration6To7Test {
             )
 
             /*
-             * R3 renamed `recordguid` to `record_guid` on `animals` and
-             * `treatments` (bullet 1). `initialDatabase` just created both
-             * tables in that new shape, so a "v6" copy needs the old column
-             * name back, or an earlier migration that still reads/writes
-             * `recordguid` directly (e.g. MIGRATION_13_14's derived-cost
-             * backfill, which selects `treatments.recordguid`) fails with
-             * "no such column: recordguid". MIGRATION_18_19 rebuilds both
-             * tables from scratch, so the stale index left behind by the
-             * rename doesn't matter -- it's dropped along with the table.
+             * R4 dropped legacy animal columns (tagNumber, massKg, parentId, etc.) in v28.
+             * Since initialDatabase creates the v28 animals table without those columns,
+             * add those columns back and rename record_guid -> recordguid so animals has
+             * its pre-v28 (v24) shape with all test data (MIG-001) preserved.
              */
+            rawDatabase.execSQL("ALTER TABLE animals ADD COLUMN tagNumber TEXT")
+            rawDatabase.execSQL("ALTER TABLE animals ADD COLUMN oldTagNumber TEXT")
+            rawDatabase.execSQL("ALTER TABLE animals ADD COLUMN temperatureNumber TEXT")
+            rawDatabase.execSQL("ALTER TABLE animals ADD COLUMN referenceNumber TEXT")
+            rawDatabase.execSQL("ALTER TABLE animals ADD COLUMN massKg REAL")
+            rawDatabase.execSQL("ALTER TABLE animals ADD COLUMN age INTEGER")
+            rawDatabase.execSQL("ALTER TABLE animals ADD COLUMN condition TEXT")
+            rawDatabase.execSQL("ALTER TABLE animals ADD COLUMN parentId TEXT")
+            rawDatabase.execSQL("ALTER TABLE animals ADD COLUMN animalGroupId TEXT")
+            rawDatabase.execSQL("ALTER TABLE animals ADD COLUMN photoPath TEXT")
+            rawDatabase.execSQL("ALTER TABLE animals ADD COLUMN videoPath TEXT")
             rawDatabase.execSQL("ALTER TABLE animals RENAME COLUMN record_guid TO recordguid")
+
+            /*
+             * Drop identifier_types created by initialDatabase (v28 entity)
+             * so MIGRATION_24_25 can create and seed it cleanly.
+             */
+            rawDatabase.execSQL("DROP TABLE IF EXISTS identifier_types")
+
             rawDatabase.execSQL("ALTER TABLE treatments RENAME COLUMN record_guid TO recordguid")
 
             /*
@@ -432,7 +445,7 @@ class DatabaseMigration6To7Test {
                     is DatabaseResult.Error ->
                         throw AssertionError(
                             "Migration 6 -> 7 failed: " +
-                                    migrationResult.message
+                                    migrationResult.message + " cause: " + migrationResult.cause
                         )
                 }
 
@@ -440,7 +453,7 @@ class DatabaseMigration6To7Test {
              * Database must now be at the latest version.
              */
             assertEquals(
-                24,
+                28,
                 upgradedDatabase
                     .openHelper
                     .writableDatabase

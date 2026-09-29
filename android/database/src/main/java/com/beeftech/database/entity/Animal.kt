@@ -11,12 +11,6 @@ import java.util.UUID
     tableName = "animals",
     foreignKeys = [
         ForeignKey(
-            entity = AnimalGroup::class,
-            parentColumns = ["animalGroupId"],
-            childColumns = ["animalGroupId"],
-            onDelete = ForeignKey.SET_NULL
-        ),
-        ForeignKey(
             entity = Breed::class,
             parentColumns = ["breedId"],
             childColumns = ["breed"],
@@ -33,13 +27,23 @@ import java.util.UUID
             parentColumns = ["deviceId"],
             childColumns = ["deviceId"],
             onDelete = ForeignKey.RESTRICT
+        ),
+        ForeignKey(
+            entity = Animal::class,
+            parentColumns = ["animalId"],
+            childColumns = ["dam_id"],
+            onDelete = ForeignKey.SET_NULL
+        ),
+        ForeignKey(
+            entity = Animal::class,
+            parentColumns = ["animalId"],
+            childColumns = ["sire_id"],
+            onDelete = ForeignKey.SET_NULL
         )
     ],
     indices = [
-        Index(value = ["tagNumber"]),
-        Index(value = ["temperatureNumber"]),
-        Index(value = ["parentId"]),
-        Index(value = ["animalGroupId"]),
+        Index(value = ["dam_id"]),
+        Index(value = ["sire_id"]),
         Index(value = ["breed"]),
         Index(value = ["hideColour"]),
         Index(value = ["deviceId"]),
@@ -50,25 +54,17 @@ data class Animal(
     @PrimaryKey
     val animalId: String,
 
-    val tagNumber: String? = null,
-    val oldTagNumber: String? = null,
-
-    val temperatureNumber: String? = null,
-    val referenceNumber: String? = null,
-    val massKg: Double? = null,
     val birthdate: Long,
     val breed: String,
     val gender: String? = null,
-    val age: Int? = null,
-    val condition: String? = null,
     val hideColour: String? = null,
     val brandMark: String? = null,
 
-    val parentId: String? = null,
-    val animalGroupId: String? = null,
+    @ColumnInfo(name = "dam_id")
+    val damId: String? = null,
 
-    val photoPath: String? = null,
-    val videoPath: String? = null,
+    @ColumnInfo(name = "sire_id")
+    val sireId: String? = null,
 
     val gpsLat: Double,
     val gpsLng: Double,

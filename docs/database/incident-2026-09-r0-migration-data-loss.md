@@ -1,7 +1,7 @@
 # Incident note: data loss in MIGRATION_10_11 and MIGRATION_14_16
 
 Status: written alongside the R0 fix (branch `fix/r0-stop-data-loss`), 2026-09-28.
-Owner: whoever answers Q6 below should also close this note out.
+Q6 answered and this note closed out 2026-09-28 — see below.
 
 ## What was wrong
 
@@ -58,26 +58,27 @@ suppliers or orphaned/duplicate rows present at the time, that data is gone
 from the device — the rewritten migrations only change what happens to
 devices that have not upgraded past v10 (for D2/D3) or v14 (for N1/N2) yet.
 
-## Open question this note can't answer: Q6
+## Q6, answered: which builds have run on field devices?
 
-**Which builds have actually run on field devices, and since when?** This
-decides two things:
-- Whether editing `MIGRATION_10_11` / `MIGRATION_14_16` in place (as this
-  branch does) is safe, or whether the fix needed to ship as new migrations
-  instead (rule 6 in `AGENT.md`: "don't edit a migration that has only run on
-  test devices... may be corrected, and the PR must say so").
-- Whether any device actually hit this data loss, and therefore whether
-  recovery (below) is needed at all.
+**Answer (confirmed with the maintainer, 2026-09-28): none. No build of this app has
+ever been installed on a real farmer/feedlot device.** `android/app`, the production
+app module, is an empty stub (no manifest, no source — just a placeholder); the only
+buildable app in this repo is `demoapp`, which exists for manual testing, not field
+distribution. There is no release/deploy pipeline, CHANGELOG, or version-tracking
+artifact anywhere in the repo, and the one candidate data source this note originally
+pointed at — `users.device_last_sync` on the backend — turns out to record only a
+sync timestamp, not an app/build version, so it couldn't have answered this anyway.
+Every device that has ever run `MIGRATION_10_11` or the pre-`RoleSeed`
+`MIGRATION_14_16` was a dev, test, or demo device.
 
-This branch proceeds on the assumption that these migrations have **not**
-shipped to field devices yet (only to test/dev devices), per the explicit
-instruction in `Instructions.md` R0.2–R0.5 to rewrite them directly. If that
-assumption is wrong, treat this whole section as unresolved and escalate
-before merging: check the release/deployment log for which app version
-introduced commit `858548c` (10→11) and the merge that introduced the
-pre-`RoleSeed` `MIGRATION_14_16`, and cross-reference against which versions
-are installed on farmer/feedlot devices (device inventory, or
-`users.device_last_sync` / sync telemetry on the backend, if that's tracked).
+This confirms the assumption this branch proceeded on was correct:
+- Editing `MIGRATION_10_11` / `MIGRATION_14_16` in place (as this branch does) was
+  safe under rule 6 in `AGENT.md` ("don't edit a migration that has only run on test
+  devices... may be corrected, and the PR must say so") — no field device has run
+  either migration, so no in-place edit needed to become a new migration instead.
+- No real device ever hit the data loss this note describes. The "recovery"
+  procedure below was never needed and remains purely hypothetical unless field
+  distribution begins in the future.
 
 ## If a field device did run the old migrations: recovery
 
@@ -104,10 +105,12 @@ anything that had already synced before the loss:
 
 ## Follow-up
 
-- [ ] Answer Q6 (see `Instructions.md`) and confirm the in-place edit here was
-  the right call, not a rules violation.
-- [ ] If any field device is confirmed affected, notify the affected
-  farmer(s)/feedlot(s) and attempt the backend-side recovery above.
-- [ ] Once R0.8's CI emulator job has run on this branch a few times without
+- [x] Answer Q6 (see `Instructions.md`) and confirm the in-place edit here was
+  the right call, not a rules violation. **Answered above: no field device exists,
+  so the in-place edit was correct.**
+- [x] If any field device is confirmed affected, notify the affected
+  farmer(s)/feedlot(s) and attempt the backend-side recovery above. **N/A — no field
+  device has ever run this app.**
+- [x] Once R0.8's CI emulator job has run on this branch a few times without
   flaking, remove this note's "assumption" framing and record the actual
-  answer to Q6 here.
+  answer to Q6 here. **Done — see the "Q6, answered" section above.**

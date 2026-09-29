@@ -20,6 +20,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -256,5 +257,51 @@ class AuthRepositoryTest {
         assertTrue(outcome is LoginOutcome.Locked)
         assertEquals(180_000L, (outcome as LoginOutcome.Locked).untilMillis)
         assertEquals(false, networkCalled)
+    }
+
+    @Test
+    fun `logout clears stored token and user`() = runTest {
+        val engine = MockEngine {
+            respond(
+                content = """
+                    {
+                        "success": true,
+                        "message": "Login successful",
+                        "data": {
+                            "token": "test-jwt-token",
+                            "expires_at": "2026-12-31T23:59:59Z",
+                            "user": {
+                                "user_id": "u1",
+                                "username": "jvdm",
+                                "role": 3,
+                                "pin_hash": "hash",
+                                "device_assigned_id": "DEV_123"
+                            }
+                        }
+                    }
+                """.trimIndent(),
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+
+        val repository = AuthRepository(
+            apiClient = createApiClient(engine),
+            sessionStore = sessionStore,
+            userDao = userDao,
+            lockoutManager = lockoutManager,
+            deviceIdProvider = deviceIdProvider
+        )
+
+        val outcome = repository.login("jvdm", "30003")
+
+        assertTrue(outcome is LoginOutcome.Success)
+        assertNotNull(sessionStore.currentUser())
+        assertEquals("test-jwt-token", sessionStore.token())
+
+        repository.logout()
+
+        assertNull(sessionStore.currentUser())
+        assertNull(sessionStore.token())
     }
 }

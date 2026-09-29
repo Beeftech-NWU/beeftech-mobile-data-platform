@@ -13,12 +13,12 @@ a claim about what the schema *should* produce, not a confirmed finding.
 ## What this is
 
 `android/database/src/main/java/com/beeftech/database/BeefTechDatabase.kt`
-declares 23 foreign keys as of schema version 23 (after R5.1 added
-`animal_costs.animalId -> animals.animalId`). The runnable companion to this
+declares 38 foreign keys as of schema version 28 (including R7 lookups and
+R4 `identifier_types`, `dam_id`, and `sire_id` FKs). The runnable companion to this
 note, `referential-integrity-audit-2026-09-28.sql`, has one anti-join query
 per declared FK: `SELECT ... FROM <child> WHERE <fk column> NOT IN (SELECT
-<parent column> FROM <parent>)`, guarded with `IS NOT NULL` for the three FK
-columns that are nullable (`animals.animalGroupId`, `users.role`,
+<parent column> FROM <parent>)`, guarded with `IS NOT NULL` for nullable FK
+columns (`animals.animalGroupId`, `animals.dam_id`, `animals.sire_id`, `users.role`,
 `calf_registrations.dam_id`/`sire_id`).
 
 ## Why orphans could still exist despite the FKs being declared
@@ -104,3 +104,6 @@ incident note, following this file's structure.
   relationships are FK-shaped at all (`parentId` retirement, `owner_name` ->
   `owner_farmer_id`, movement source/destination FKs) and this audit's query
   list will need new entries.
+- Deferred, to be checked when prioritised: the real-device audit run above,
+  backend FKs (R5.4) and the post-R6 quarantine repair pass are tracked in
+  [`future-checks.md`](future-checks.md).

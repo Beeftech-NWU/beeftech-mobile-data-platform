@@ -529,6 +529,10 @@ object DatabaseFactory {
                      * 21 -> 22 (R3.5: converts TEXT date columns to epoch-millisecond INTEGER)
                      * 22 -> 23 (R5.1: adds the animal_costs.animalId -> animals foreign key)
                      * 23 -> 24 (R7: Controlled vocabulary lookup tables and compliance fields)
+                     * 24 -> 25 (R4.1: Adds body_condition_score, identifier_types lookup and tag triggers)
+                     * 25 -> 26 (R4.2: Backfills animal_identifiers, animal_media, animal_weights, group memberships)
+                     * 26 -> 27 (R4.3: Replaces parentId with dam_id and sire_id foreign keys on animals)
+                     * 27 -> 28 (R4.4: Drops legacy columns on animals)
                      */
                     .addMigrations(
                         guarded(MIGRATION_1_2),
@@ -553,7 +557,11 @@ object DatabaseFactory {
                         guarded(BeefTechDatabase.MIGRATION_21_22),
                         guarded(BeefTechDatabase.MIGRATION_22_23),
                         guarded(BeefTechDatabase.MIGRATION_23_24),
-                        guarded(BeefTechDatabase.MIGRATION_24_25)
+                        guarded(BeefTechDatabase.MIGRATION_24_25),
+                        guarded(BeefTechDatabase.MIGRATION_25_26),
+                        guarded(BeefTechDatabase.MIGRATION_26_27),
+                        guarded(BeefTechDatabase.MIGRATION_27_28),
+                        guarded(BeefTechDatabase.MIGRATION_28_29)
                     )
 
                     .addCallback(
@@ -601,7 +609,7 @@ object DatabaseFactory {
                             DatabaseErrorType.MIGRATION_FAILED,
                         message =
                             "The local database could not be upgraded. Do not " +
-                                    "uninstall the app â€” your data is still saved " +
+                                    "uninstall the app — your data is still saved " +
                                     "on this device. Contact support.",
                         cause =
                             (exception as? MigrationExecutionException)?.cause

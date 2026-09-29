@@ -65,7 +65,6 @@ class CalfRegistrationDaoTest {
 
         val dam = Animal(
             animalId = damUuid,
-            tagNumber = damTag,
             birthdate = System.currentTimeMillis(),
             breed = "Bonsmara",
             gpsLat = -26.1,
@@ -82,7 +81,6 @@ class CalfRegistrationDaoTest {
 
         val sire = Animal(
             animalId = sireUuid,
-            tagNumber = sireTag,
             birthdate = System.currentTimeMillis(),
             breed = "Bonsmara",
             gpsLat = -26.1,
@@ -102,7 +100,8 @@ class CalfRegistrationDaoTest {
         val calfTag = "Blu1234567"
         val calf = Animal(
             animalId = calfUuid,
-            tagNumber = calfTag,
+            damId = damUuid,
+            sireId = sireUuid,
             birthdate = System.currentTimeMillis(),
             breed = "Bonsmara",
             gpsLat = -26.1,
@@ -143,7 +142,6 @@ class CalfRegistrationDaoTest {
         val dupUuid = UUID.randomUUID().toString()
         val dupCalf = Animal(
             animalId = dupUuid,
-            tagNumber = calfTag,
             birthdate = System.currentTimeMillis(),
             breed = "Bonsmara",
             gpsLat = -26.1,

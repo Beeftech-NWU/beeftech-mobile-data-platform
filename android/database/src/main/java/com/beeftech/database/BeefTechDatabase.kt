@@ -58,6 +58,9 @@ import com.beeftech.database.entity.Country
 import com.beeftech.database.entity.Province
 import com.beeftech.database.entity.Device
 
+// Phase 0 / R4 Lookup Entity
+import com.beeftech.database.entity.IdentifierType
+
 // DAOs
 import com.beeftech.database.dao.AnimalDao
 import com.beeftech.database.dao.AnimalCostDao
@@ -79,6 +82,7 @@ import com.beeftech.database.dao.MedicationBatchDao
 import com.beeftech.database.dao.CountryDao
 import com.beeftech.database.dao.ProvinceDao
 import com.beeftech.database.dao.DeviceDao
+import com.beeftech.database.dao.IdentifierTypeDao
 import com.beeftech.database.dao.CalfRegistrationDao
 import com.beeftech.database.dao.FarmerDao
 import com.beeftech.database.dao.FeedCribDao
@@ -141,9 +145,12 @@ import com.beeftech.database.dao.UserDao
         MedicationBatch::class,
         Country::class,
         Province::class,
-        Device::class
+        Device::class,
+
+        // Phase 0 / R4 Lookup Entity
+        IdentifierType::class
     ],
-    version = 25,
+    version = 29,
     exportSchema = true
 )
 abstract class BeefTechDatabase : RoomDatabase() {
@@ -194,6 +201,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
     abstract fun countryDao(): CountryDao
     abstract fun provinceDao(): ProvinceDao
     abstract fun deviceDao(): DeviceDao
+    abstract fun identifierTypeDao(): IdentifierTypeDao
 
 
     // =========================================================================
@@ -1270,7 +1278,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
          * other syncable table already uses `record_guid`, per rule 8). Both
          * tables are rebuilt per rule 9: exact DDL from `18.json` with the column
          * renamed, an explicit `INSERT ... SELECT`, then drop-and-rename. No data
-         * is lost â€” every value carries over unchanged, only the column name and
+         * is lost — every value carries over unchanged, only the column name and
          * the generated index name change.
          */
         val MIGRATION_18_19 = object : Migration(18, 19) {
@@ -2304,6 +2312,537 @@ abstract class BeefTechDatabase : RoomDatabase() {
             }
         }
 
+        fun createHistoryTriggers(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TRIGGER IF NOT EXISTS trg_animal_identifiers_unique_active
+                BEFORE INSERT ON animal_identifiers
+                WHEN NEW.valid_to IS NULL
+                BEGIN
+                    SELECT CASE WHEN EXISTS (
+                        SELECT 1 FROM animal_identifiers
+                        WHERE animal_id = NEW.animal_id
+                          AND identifier_type = NEW.identifier_type
+                          AND valid_to IS NULL
+                    ) THEN RAISE(ABORT, 'Active identifier of this type already exists for animal')
+                    END;
+                END;
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TRIGGER IF NOT EXISTS trg_animal_identifiers_unique_active_update
+                BEFORE UPDATE OF valid_to, identifier_type, animal_id ON animal_identifiers
+                WHEN NEW.valid_to IS NULL
+                BEGIN
+                    SELECT CASE WHEN EXISTS (
+                        SELECT 1 FROM animal_identifiers
+                        WHERE animal_id = NEW.animal_id
+                          AND identifier_type = NEW.identifier_type
+                          AND valid_to IS NULL
+                          AND identifier_id != NEW.identifier_id
+                    ) THEN RAISE(ABORT, 'Active identifier of this type already exists for animal')
+                    END;
+                END;
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TRIGGER IF NOT EXISTS trg_animal_identifiers_tag_permanence
+                BEFORE INSERT ON animal_identifiers
+                WHEN NEW.identifier_type = 'TAG'
+                BEGIN
+                    SELECT CASE WHEN EXISTS (
+                        SELECT 1 FROM animal_identifiers
+                        WHERE identifier_type = 'TAG'
+                          AND identifier_value = NEW.identifier_value
+                          AND animal_id != NEW.animal_id
+                    ) THEN RAISE(ABORT, 'TAG value has already been assigned to another animal')
+                    END;
+                END;
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TRIGGER IF NOT EXISTS trg_animal_group_memberships_single_open
+                BEFORE INSERT ON animal_group_memberships
+                WHEN NEW.left_at IS NULL
+                BEGIN
+                    SELECT CASE WHEN EXISTS (
+                        SELECT 1 FROM animal_group_memberships
+                        WHERE animal_id = NEW.animal_id
+                          AND left_at IS NULL
+                    ) THEN RAISE(ABORT, 'Animal already has an active group membership')
+                    END;
+                END;
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TRIGGER IF NOT EXISTS trg_animal_group_memberships_single_open_update
+                BEFORE UPDATE OF left_at, animal_id ON animal_group_memberships
+                WHEN NEW.left_at IS NULL
+                BEGIN
+                    SELECT CASE WHEN EXISTS (
+                        SELECT 1 FROM animal_group_memberships
+                        WHERE animal_id = NEW.animal_id
+                          AND left_at IS NULL
+                          AND membership_id != NEW.membership_id
+                    ) THEN RAISE(ABORT, 'Animal already has an active group membership')
+                    END;
+                END;
+                """.trimIndent()
+            )
+        }
+
+        /**
+         * R4.1 Migration (Version 24 -> 25):
+         * - Adds body_condition_score to animal_weights.
+         * - Introduces identifier_types lookup table with FK from animal_identifiers.
+         * - Adds triggers for active tag uniqueness and tag permanence.
+         */
+        val MIGRATION_24_25 = object : Migration(24, 25) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `animal_weights` ADD COLUMN `body_condition_score` TEXT")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `identifier_types` (
+                        `code` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `validation_regex` TEXT,
+                        PRIMARY KEY(`code`)
+                    )
+                    """.trimIndent()
+                )
+
+                IdentifierTypeSeed.execute(db)
+
+                // Repair known legacy identifier types before table rebuild
+                db.execSQL("UPDATE `animal_identifiers` SET `identifier_type` = 'TRANSPONDER' WHERE `identifier_type` = 'RFID'")
+                db.execSQL("UPDATE `animal_identifiers` SET `identifier_type` = 'OLD_TAG' WHERE `identifier_type` = 'OLDTAG' OR `identifier_type` = 'TAG_OLD'")
+
+                // Quarantine any remaining unrecognized identifier types
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `quarantine_animal_identifiers` AS
+                    SELECT * FROM `animal_identifiers`
+                    WHERE `identifier_type` NOT IN (SELECT `code` FROM `identifier_types`)
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `animal_identifiers_new` (
+                        `identifier_id` TEXT NOT NULL,
+                        `animal_id` TEXT NOT NULL,
+                        `identifier_type` TEXT NOT NULL,
+                        `identifier_value` TEXT NOT NULL,
+                        `valid_from` INTEGER,
+                        `valid_to` INTEGER,
+                        `record_guid` TEXT NOT NULL DEFAULT '',
+                        PRIMARY KEY(`identifier_id`),
+                        FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(`identifier_type`) REFERENCES `identifier_types`(`code`) ON UPDATE NO ACTION ON DELETE RESTRICT
+                    )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    INSERT INTO `animal_identifiers_new` (
+                        `identifier_id`, `animal_id`, `identifier_type`, `identifier_value`, `valid_from`, `valid_to`, `record_guid`
+                    )
+                    SELECT `identifier_id`, `animal_id`, `identifier_type`, `identifier_value`, `valid_from`, `valid_to`, `record_guid`
+                    FROM `animal_identifiers`
+                    WHERE `identifier_type` IN (SELECT `code` FROM `identifier_types`)
+                    """.trimIndent()
+                )
+
+                db.execSQL("DROP TABLE `animal_identifiers`")
+                db.execSQL("ALTER TABLE `animal_identifiers_new` RENAME TO `animal_identifiers`")
+
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_identifiers_animal_id` ON `animal_identifiers` (`animal_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_identifiers_identifier_type_identifier_value` ON `animal_identifiers` (`identifier_type`, `identifier_value`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animal_identifiers_identifier_type` ON `animal_identifiers` (`identifier_type`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_identifiers_record_guid` ON `animal_identifiers` (`record_guid`)")
+
+                createHistoryTriggers(db)
+
+                db.query("PRAGMA foreign_key_check").use { check(it.count == 0) { "FK violations after 24->25" } }
+            }
+        }
+
+        /**
+         * R4.2 Migration (Version 25 -> 26):
+         * - Backfills data from legacy animals columns into animal_identifiers,
+         *   animal_media, animal_weights, and animal_group_memberships.
+         * - Adds single open group membership trigger.
+         */
+        val MIGRATION_25_26 = object : Migration(25, 26) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    INSERT OR IGNORE INTO `animal_identifiers` (`identifier_id`, `animal_id`, `identifier_type`, `identifier_value`, `valid_from`, `record_guid`)
+                    SELECT
+                        lower(hex(randomblob(16))),
+                        `animalId`,
+                        'TAG',
+                        `tagNumber`,
+                        `captureAt`,
+                        lower(hex(randomblob(16)))
+                    FROM `animals`
+                    WHERE `tagNumber` IS NOT NULL AND `tagNumber` != ''
+                      AND NOT EXISTS (
+                          SELECT 1 FROM `animal_identifiers` ai
+                          WHERE ai.`animal_id` = `animals`.`animalId` AND ai.`identifier_type` = 'TAG'
+                      )
+                      AND NOT EXISTS (
+                          SELECT 1 FROM `animal_identifiers` ai
+                          WHERE ai.`identifier_type` = 'TAG'
+                            AND ai.`identifier_value` = `animals`.`tagNumber`
+                            AND ai.`animal_id` != `animals`.`animalId`
+                      )
+                      AND `tagNumber` NOT IN (
+                          SELECT `tagNumber` FROM `animals`
+                          WHERE `tagNumber` IS NOT NULL AND `tagNumber` != ''
+                          GROUP BY `tagNumber` HAVING COUNT(DISTINCT `animalId`) > 1
+                      )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    INSERT OR IGNORE INTO `animal_identifiers` (`identifier_id`, `animal_id`, `identifier_type`, `identifier_value`, `valid_from`, `record_guid`)
+                    SELECT
+                        lower(hex(randomblob(16))),
+                        `animalId`,
+                        'OLD_TAG',
+                        `oldTagNumber`,
+                        `captureAt`,
+                        lower(hex(randomblob(16)))
+                    FROM `animals`
+                    WHERE `oldTagNumber` IS NOT NULL AND `oldTagNumber` != ''
+                      AND NOT EXISTS (
+                          SELECT 1 FROM `animal_identifiers` ai
+                          WHERE ai.`animal_id` = `animals`.`animalId` AND ai.`identifier_type` = 'OLD_TAG'
+                      )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    INSERT OR IGNORE INTO `animal_identifiers` (`identifier_id`, `animal_id`, `identifier_type`, `identifier_value`, `valid_from`, `record_guid`)
+                    SELECT
+                        lower(hex(randomblob(16))),
+                        `animalId`,
+                        'REFERENCE',
+                        `referenceNumber`,
+                        `captureAt`,
+                        lower(hex(randomblob(16)))
+                    FROM `animals`
+                    WHERE `referenceNumber` IS NOT NULL AND `referenceNumber` != ''
+                      AND NOT EXISTS (
+                          SELECT 1 FROM `animal_identifiers` ai
+                          WHERE ai.`animal_id` = `animals`.`animalId` AND ai.`identifier_type` = 'REFERENCE'
+                      )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    INSERT OR IGNORE INTO `animal_identifiers` (`identifier_id`, `animal_id`, `identifier_type`, `identifier_value`, `valid_from`, `record_guid`)
+                    SELECT
+                        lower(hex(randomblob(16))),
+                        `animalId`,
+                        'TEMPERATURE',
+                        `temperatureNumber`,
+                        `captureAt`,
+                        lower(hex(randomblob(16)))
+                    FROM `animals`
+                    WHERE `temperatureNumber` IS NOT NULL AND `temperatureNumber` != ''
+                      AND NOT EXISTS (
+                          SELECT 1 FROM `animal_identifiers` ai
+                          WHERE ai.`animal_id` = `animals`.`animalId` AND ai.`identifier_type` = 'TEMPERATURE'
+                      )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    INSERT INTO `animal_media` (`media_id`, `animal_id`, `file_path`, `media_type`, `created_at`, `record_guid`)
+                    SELECT
+                        lower(hex(randomblob(16))),
+                        `animalId`,
+                        `photoPath`,
+                        'PHOTO',
+                        `captureAt`,
+                        lower(hex(randomblob(16)))
+                    FROM `animals`
+                    WHERE `photoPath` IS NOT NULL AND `photoPath` != ''
+                      AND NOT EXISTS (
+                          SELECT 1 FROM `animal_media` am
+                          WHERE am.`animal_id` = `animals`.`animalId` AND am.`media_type` = 'PHOTO' AND am.`file_path` = `animals`.`photoPath`
+                      )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    INSERT INTO `animal_media` (`media_id`, `animal_id`, `file_path`, `media_type`, `created_at`, `record_guid`)
+                    SELECT
+                        lower(hex(randomblob(16))),
+                        `animalId`,
+                        `videoPath`,
+                        'VIDEO',
+                        `captureAt`,
+                        lower(hex(randomblob(16)))
+                    FROM `animals`
+                    WHERE `videoPath` IS NOT NULL AND `videoPath` != ''
+                      AND NOT EXISTS (
+                          SELECT 1 FROM `animal_media` am
+                          WHERE am.`animal_id` = `animals`.`animalId` AND am.`media_type` = 'VIDEO' AND am.`file_path` = `animals`.`videoPath`
+                      )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    INSERT INTO `animal_weights` (
+                        `weight_id`, `animal_id`, `weight_kg`, `weigh_date`, `body_condition_score`,
+                        `record_guid`, `gps_lat`, `gps_lng`, `device_id`, `captured_at`, `sync_status`
+                    )
+                    SELECT
+                        lower(hex(randomblob(16))),
+                        `animalId`,
+                        `massKg`,
+                        `captureAt`,
+                        `condition`,
+                        lower(hex(randomblob(16))),
+                        `gpsLat`,
+                        `gpsLng`,
+                        `deviceId`,
+                        `captureAt`,
+                        'PENDING'
+                    FROM `animals`
+                    WHERE `massKg` IS NOT NULL AND `massKg` > 0
+                      AND NOT EXISTS (
+                          SELECT 1 FROM `animal_weights` aw
+                          WHERE aw.`animal_id` = `animals`.`animalId` AND aw.`weigh_date` = `animals`.`captureAt`
+                      )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    INSERT INTO `animal_group_memberships` (
+                        `membership_id`, `animal_id`, `group_id`, `joined_at`, `left_at`, `record_guid`
+                    )
+                    SELECT
+                        lower(hex(randomblob(16))),
+                        `animalId`,
+                        `animalGroupId`,
+                        `captureAt`,
+                        NULL,
+                        lower(hex(randomblob(16)))
+                    FROM `animals`
+                    WHERE `animalGroupId` IS NOT NULL AND `animalGroupId` != ''
+                      AND `animalGroupId` IN (SELECT `animalGroupId` FROM `animal_groups`)
+                      AND NOT EXISTS (
+                          SELECT 1 FROM `animal_group_memberships` agm
+                          WHERE agm.`animal_id` = `animals`.`animalId` AND agm.`left_at` IS NULL
+                      )
+                    """.trimIndent()
+                )
+
+                createHistoryTriggers(db)
+
+                db.query("PRAGMA foreign_key_check").use { check(it.count == 0) { "FK violations after 25->26" } }
+            }
+        }
+
+        /**
+         * R4.3 Migration (Version 26 -> 27):
+         * - Replaces parentId with dam_id and sire_id foreign keys on animals.
+         */
+        val MIGRATION_26_27 = object : Migration(26, 27) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Rule 1: Snapshot legacy columns before parentId replacement and column drops
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `legacy_animals` AS
+                    SELECT `animalId`, `tagNumber`, `oldTagNumber`, `temperatureNumber`, `referenceNumber`,
+                           `massKg`, `age`, `condition`, `photoPath`, `videoPath`, `animalGroupId`, `parentId`
+                    FROM `animals`
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `animals_new` (
+                        `animalId` TEXT NOT NULL,
+                        `tagNumber` TEXT,
+                        `oldTagNumber` TEXT,
+                        `temperatureNumber` TEXT,
+                        `referenceNumber` TEXT,
+                        `massKg` REAL,
+                        `birthdate` INTEGER NOT NULL,
+                        `breed` TEXT NOT NULL,
+                        `gender` TEXT,
+                        `age` INTEGER,
+                        `condition` TEXT,
+                        `hideColour` TEXT,
+                        `brandMark` TEXT,
+                        `dam_id` TEXT,
+                        `sire_id` TEXT,
+                        `animalGroupId` TEXT,
+                        `photoPath` TEXT,
+                        `videoPath` TEXT,
+                        `gpsLat` REAL NOT NULL,
+                        `gpsLng` REAL NOT NULL,
+                        `captureAt` INTEGER NOT NULL,
+                        `deviceId` TEXT NOT NULL,
+                        `record_guid` TEXT NOT NULL,
+                        `syncStatus` TEXT NOT NULL,
+                        `syncedat` INTEGER,
+                        PRIMARY KEY(`animalId`),
+                        FOREIGN KEY(`animalGroupId`) REFERENCES `animal_groups`(`animalGroupId`) ON UPDATE NO ACTION ON DELETE SET NULL,
+                        FOREIGN KEY(`breed`) REFERENCES `breeds`(`breedId`) ON UPDATE NO ACTION ON DELETE RESTRICT,
+                        FOREIGN KEY(`hideColour`) REFERENCES `hide_colours`(`colourId`) ON UPDATE NO ACTION ON DELETE SET NULL,
+                        FOREIGN KEY(`deviceId`) REFERENCES `devices`(`deviceId`) ON UPDATE NO ACTION ON DELETE RESTRICT,
+                        FOREIGN KEY(`dam_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE SET NULL,
+                        FOREIGN KEY(`sire_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE SET NULL
+                    )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    INSERT INTO `animals_new` (
+                        `animalId`, `tagNumber`, `oldTagNumber`, `temperatureNumber`, `referenceNumber`,
+                        `massKg`, `birthdate`, `breed`, `gender`, `age`, `condition`, `hideColour`,
+                        `brandMark`, `dam_id`, `sire_id`, `animalGroupId`, `photoPath`, `videoPath`,
+                        `gpsLat`, `gpsLng`, `captureAt`, `deviceId`, `record_guid`, `syncStatus`, `syncedat`
+                    )
+                    SELECT
+                        a.`animalId`, a.`tagNumber`, a.`oldTagNumber`, a.`temperatureNumber`, a.`referenceNumber`,
+                        a.`massKg`, a.`birthdate`, a.`breed`, a.`gender`, a.`age`, a.`condition`, a.`hideColour`,
+                        a.`brandMark`,
+                        CASE
+                            WHEN a.`parentId` IS NOT NULL AND a.`parentId` != ''
+                                 AND a.`parentId` != a.`animalId`
+                                 AND a.`parentId` IN (SELECT `animalId` FROM `animals`)
+                            THEN a.`parentId`
+
+                            WHEN a.`parentId` IS NOT NULL AND a.`parentId` != ''
+                                 AND a.`parentId` != a.`animalId`
+                                 AND (
+                                     SELECT COUNT(DISTINCT ai.`animal_id`)
+                                     FROM `animal_identifiers` ai
+                                     WHERE ai.`identifier_type` = 'TAG'
+                                       AND ai.`identifier_value` = a.`parentId`
+                                       AND ai.`animal_id` != a.`animalId`
+                                       AND ai.`animal_id` IN (SELECT `animalId` FROM `animals`)
+                                 ) = 1
+                            THEN (
+                                SELECT ai.`animal_id`
+                                FROM `animal_identifiers` ai
+                                WHERE ai.`identifier_type` = 'TAG'
+                                  AND ai.`identifier_value` = a.`parentId`
+                                  AND ai.`animal_id` != a.`animalId`
+                                  AND ai.`animal_id` IN (SELECT `animalId` FROM `animals`)
+                                LIMIT 1
+                            )
+
+                            ELSE NULL
+                        END AS `dam_id`,
+                        NULL AS `sire_id`,
+                        a.`animalGroupId`, a.`photoPath`, a.`videoPath`,
+                        a.`gpsLat`, a.`gpsLng`, a.`captureAt`, a.`deviceId`, a.`record_guid`, a.`syncStatus`, a.`syncedat`
+                    FROM `animals` a
+                    """.trimIndent()
+                )
+
+                db.execSQL("DROP TABLE `animals`")
+                db.execSQL("ALTER TABLE `animals_new` RENAME TO `animals`")
+
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_tagNumber` ON `animals` (`tagNumber`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_temperatureNumber` ON `animals` (`temperatureNumber`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_dam_id` ON `animals` (`dam_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_sire_id` ON `animals` (`sire_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_animalGroupId` ON `animals` (`animalGroupId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_breed` ON `animals` (`breed`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_hideColour` ON `animals` (`hideColour`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_deviceId` ON `animals` (`deviceId`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_animals_record_guid` ON `animals` (`record_guid`)")
+
+                db.query("PRAGMA foreign_key_check").use { check(it.count == 0) { "FK violations after 26->27" } }
+            }
+        }
+
+        /**
+         * R4.4 Migration (Version 27 -> 28):
+         * - Drops deprecated legacy columns on animals.
+         */
+        val MIGRATION_27_28 = object : Migration(27, 28) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `animals_new` (
+                        `animalId` TEXT NOT NULL,
+                        `birthdate` INTEGER NOT NULL,
+                        `breed` TEXT NOT NULL,
+                        `gender` TEXT,
+                        `hideColour` TEXT,
+                        `brandMark` TEXT,
+                        `dam_id` TEXT,
+                        `sire_id` TEXT,
+                        `gpsLat` REAL NOT NULL,
+                        `gpsLng` REAL NOT NULL,
+                        `captureAt` INTEGER NOT NULL,
+                        `deviceId` TEXT NOT NULL,
+                        `record_guid` TEXT NOT NULL,
+                        `syncStatus` TEXT NOT NULL,
+                        `syncedat` INTEGER,
+                        PRIMARY KEY(`animalId`),
+                        FOREIGN KEY(`breed`) REFERENCES `breeds`(`breedId`) ON UPDATE NO ACTION ON DELETE RESTRICT,
+                        FOREIGN KEY(`hideColour`) REFERENCES `hide_colours`(`colourId`) ON UPDATE NO ACTION ON DELETE SET NULL,
+                        FOREIGN KEY(`deviceId`) REFERENCES `devices`(`deviceId`) ON UPDATE NO ACTION ON DELETE RESTRICT,
+                        FOREIGN KEY(`dam_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE SET NULL,
+                        FOREIGN KEY(`sire_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE SET NULL
+                    )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    INSERT INTO `animals_new` (
+                        `animalId`, `birthdate`, `breed`, `gender`, `hideColour`, `brandMark`,
+                        `dam_id`, `sire_id`, `gpsLat`, `gpsLng`, `captureAt`, `deviceId`,
+                        `record_guid`, `syncStatus`, `syncedat`
+                    )
+                    SELECT
+                        `animalId`, `birthdate`, `breed`, `gender`, `hideColour`, `brandMark`,
+                        `dam_id`, `sire_id`, `gpsLat`, `gpsLng`, `captureAt`, `deviceId`,
+                        `record_guid`, `syncStatus`, `syncedat`
+                    FROM `animals`
+                    """.trimIndent()
+                )
+
+                db.execSQL("DROP TABLE `animals`")
+                db.execSQL("ALTER TABLE `animals_new` RENAME TO `animals`")
+
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_dam_id` ON `animals` (`dam_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_sire_id` ON `animals` (`sire_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_breed` ON `animals` (`breed`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_hideColour` ON `animals` (`hideColour`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_animals_deviceId` ON `animals` (`deviceId`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_animals_record_guid` ON `animals` (`record_guid`)")
+
+                db.query("PRAGMA foreign_key_check").use { check(it.count == 0) { "FK violations after 27->28" } }
+            }
+        }
+
         /*
          * Seeds lookup tables.
          *
@@ -2312,14 +2851,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
          * which recreates the tables without calling onCreate. The seed
          * is INSERT OR IGNORE, so running it on every open is safe.
          */
-
-        /**
-         * 24 -> 25
-         *
-         * Separates Farmer Registration business roles from
-         * authentication/user roles.
-         */
-        val MIGRATION_24_25 = object : Migration(24, 25) {
+        val MIGRATION_28_29 = object : Migration(28, 29) {
 
             override fun migrate(db: SupportSQLiteDatabase) {
 
@@ -2446,11 +2978,12 @@ abstract class BeefTechDatabase : RoomDatabase() {
 
                 db.query("PRAGMA foreign_key_check").use {
                     check(it.count == 0) {
-                        "FK violations after 24->25"
+                        "FK violations after 28->29"
                     }
                 }
             }
         }
+
         val SEED_CALLBACK = object : Callback() {
             private fun createLookupTriggers(db: SupportSQLiteDatabase) {
                 db.execSQL(
@@ -2510,6 +3043,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
                     END;
                     """.trimIndent()
                 )
+                createHistoryTriggers(db)
             }
 
             override fun onCreate(db: SupportSQLiteDatabase) {
@@ -2522,6 +3056,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
                 MedicationSeed.execute(db)
                 CountryProvinceSeed.execute(db)
                 NecropsyCodeSeed.execute(db)
+                IdentifierTypeSeed.execute(db)
                 createLookupTriggers(db)
             }
 
@@ -2535,6 +3070,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
                 MedicationSeed.execute(db)
                 CountryProvinceSeed.execute(db)
                 NecropsyCodeSeed.execute(db)
+                IdentifierTypeSeed.execute(db)
                 createLookupTriggers(db)
             }
         }

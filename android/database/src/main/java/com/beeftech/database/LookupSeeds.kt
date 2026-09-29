@@ -160,3 +160,29 @@ object NecropsyCodeSeed {
         }
     }
 }
+
+object IdentifierTypeSeed {
+    val TYPES = listOf(
+        Triple("TAG", "Visual Ear Tag", null),
+        Triple("OLD_TAG", "Previous/Legacy Tag", null),
+        Triple("REFERENCE", "Reference Number", null),
+        Triple("TEMPERATURE", "Temperature Sensor Tag", null),
+        Triple("TRANSPONDER", "RFID / EID Transponder", null)
+    )
+
+    fun execute(db: SupportSQLiteDatabase) {
+        TYPES.forEach { (code, name, regex) ->
+            if (regex == null) {
+                db.execSQL(
+                    "INSERT OR IGNORE INTO `identifier_types` (`code`, `name`) VALUES (?, ?)",
+                    arrayOf<Any>(code, name)
+                )
+            } else {
+                db.execSQL(
+                    "INSERT OR IGNORE INTO `identifier_types` (`code`, `name`, `validation_regex`) VALUES (?, ?, ?)",
+                    arrayOf<Any>(code, name, regex)
+                )
+            }
+        }
+    }
+}

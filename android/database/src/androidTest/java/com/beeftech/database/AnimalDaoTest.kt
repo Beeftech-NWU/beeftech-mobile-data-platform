@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.beeftech.database.entity.Animal
+import com.beeftech.database.entity.AnimalIdentifierEntity
+import com.beeftech.database.entity.IdentifierTypes
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -43,8 +45,6 @@ class AnimalDaoTest {
 
         val animal = Animal(
             animalId = "ANIMAL-001",
-            tagNumber = "Blu0000064",
-            referenceNumber = "B64",
             birthdate = 1700000000000L,
             breed = "Angus",
             gpsLat = -26.1,
@@ -59,8 +59,6 @@ class AnimalDaoTest {
         val resultAnimal = dao.getById("ANIMAL-001")
 
         assertEquals("ANIMAL-001", resultAnimal?.animalId)
-        assertEquals("Blu0000064", resultAnimal?.tagNumber)
-        assertEquals("B64", resultAnimal?.referenceNumber)
         assertEquals("Angus", resultAnimal?.breed)
     }
 
@@ -78,12 +76,11 @@ class AnimalDaoTest {
 
         database = (result as DatabaseResult.Success).database
         val dao = database!!.animalDao()
+        val identifierDao = database!!.animalIdentifierDao()
 
         dao.insert(
             Animal(
                 animalId = "ANIMAL-002",
-                tagNumber = "Blu0000064",
-                referenceNumber = "B64",
                 birthdate = 1700000000000L,
                 breed = "Angus",
                 gpsLat = -26.1,
@@ -93,11 +90,18 @@ class AnimalDaoTest {
                 recordGuid = "record-002"
             )
         )
+        identifierDao.insertIdentifier(
+            AnimalIdentifierEntity(
+                animalId = "ANIMAL-002",
+                identifierType = IdentifierTypes.TAG,
+                identifierValue = "Blu0000064"
+            )
+        )
 
         val resultAnimal = dao.getByTagNumber("Blu0000064")
 
         assertEquals("ANIMAL-002", resultAnimal?.animalId)
-        assertEquals("B64", resultAnimal?.referenceNumber)
+        assertEquals("Angus", resultAnimal?.breed)
     }
 
     @Test
@@ -114,12 +118,11 @@ class AnimalDaoTest {
 
         database = (result as DatabaseResult.Success).database
         val dao = database!!.animalDao()
+        val identifierDao = database!!.animalIdentifierDao()
 
         dao.insert(
             Animal(
                 animalId = "ANIMAL-003",
-                tagNumber = "Blu0000064",
-                referenceNumber = "B64",
                 birthdate = 1700000000000L,
                 breed = "Angus",
                 gpsLat = -26.1,
@@ -129,11 +132,18 @@ class AnimalDaoTest {
                 recordGuid = "record-003"
             )
         )
+        identifierDao.insertIdentifier(
+            AnimalIdentifierEntity(
+                animalId = "ANIMAL-003",
+                identifierType = IdentifierTypes.REFERENCE,
+                identifierValue = "B64"
+            )
+        )
 
         val resultAnimal = dao.getByReferenceNumber("B64")
 
         assertEquals("ANIMAL-003", resultAnimal?.animalId)
-        assertEquals("Blu0000064", resultAnimal?.tagNumber)
+        assertEquals("Angus", resultAnimal?.breed)
     }
 
     @Test
@@ -152,8 +162,6 @@ class AnimalDaoTest {
         val dao = database!!.animalDao()
         val parent = Animal(
             animalId = "ANIMAL-001",
-            tagNumber = "Blu0000064",
-            referenceNumber = "B64",
             birthdate = 1600000000000L,
             breed = "Angus",
             gpsLat = -26.1,
@@ -170,11 +178,9 @@ class AnimalDaoTest {
         dao.insert(
             Animal(
                 animalId = "ANIMAL-004",
-                tagNumber = "Red0000123",
-                referenceNumber = "R123",
                 birthdate = 1700000000000L,
                 breed = "Angus",
-                parentId = parentId,
+                damId = parentId,
                 gpsLat = -26.1,
                 gpsLng = 27.9,
                 captureAt = 1700000000000L,
@@ -186,8 +192,6 @@ class AnimalDaoTest {
         dao.insert(
             Animal(
                 animalId = "ANIMAL-005",
-                tagNumber = "Grn0000045",
-                referenceNumber = "G45",
                 birthdate = 1700000000000L,
                 breed = "Bonsmara",
                 gpsLat = -26.1,
@@ -202,7 +206,7 @@ class AnimalDaoTest {
 
         assertEquals(1, offspring.size)
         assertEquals("ANIMAL-004", offspring[0].animalId)
-        assertEquals(parentId, offspring[0].parentId)
+        assertEquals(parentId, offspring[0].damId)
     }
 
     private fun createCorrectPassphrase(): ByteArray {

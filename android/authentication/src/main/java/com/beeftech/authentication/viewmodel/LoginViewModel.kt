@@ -56,6 +56,11 @@ class LoginViewModel(
             _uiState.value = LoginUiState.Idle
         }
     }
+
+    fun logout() {
+        authRepository.logout()
+        _uiState.value = LoginUiState.Idle
+    }
 }
 
 class LoginViewModelFactory(

@@ -53,13 +53,13 @@ object CalfRegistrationMappers {
 
         val animal = Animal(
             animalId = animalId,
-            tagNumber = tag, // legacy column, dual-written until R4 drops it
             birthdate = startOfDay(capture.captureAt), // assumption: calf registered on day of birth
             breed = breedName(formData.animalType),
             gender = formData.gender,
-            condition = formData.condition,
             hideColour = formData.hideColour,
             brandMark = formData.mark.ifBlank { null },
+            damId = damAnimalId,
+            sireId = sireAnimalId,
             gpsLat = capture.gpsLat,
             gpsLng = capture.gpsLng,
             captureAt = capture.captureAt,

@@ -54,7 +54,6 @@ class FindAnimalDatabaseTest {
 
         val animal = Animal(
             animalId = animalUuid,
-            tagNumber = tagNumber,
             birthdate = System.currentTimeMillis(),
             breed = "Simmentaler",
             gpsLat = -26.1,

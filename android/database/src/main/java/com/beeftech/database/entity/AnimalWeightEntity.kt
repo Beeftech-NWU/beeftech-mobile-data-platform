@@ -44,6 +44,9 @@ data class AnimalWeightEntity(
     @ColumnInfo(name = "weigh_date")
     val weighDate: Long,
 
+    @ColumnInfo(name = "body_condition_score")
+    val bodyConditionScore: String? = null,
+
     @ColumnInfo(name = "notes")
     val notes: String? = null,
 

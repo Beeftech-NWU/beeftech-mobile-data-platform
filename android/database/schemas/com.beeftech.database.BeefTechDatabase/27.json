@@ -1,12 +1,12 @@
 {
   "formatVersion": 1,
   "database": {
-    "version": 25,
+    "version": 27,
     "identityHash": "0736d5e80feabb453cb049f315d2bbf5",
     "entities": [
       {
         "tableName": "animals",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`animalId` TEXT NOT NULL, `tagNumber` TEXT, `oldTagNumber` TEXT, `temperatureNumber` TEXT, `referenceNumber` TEXT, `massKg` REAL, `birthdate` INTEGER NOT NULL, `breed` TEXT NOT NULL, `gender` TEXT, `age` INTEGER, `condition` TEXT, `hideColour` TEXT, `brandMark` TEXT, `parentId` TEXT, `animalGroupId` TEXT, `photoPath` TEXT, `videoPath` TEXT, `gpsLat` REAL NOT NULL, `gpsLng` REAL NOT NULL, `captureAt` INTEGER NOT NULL, `deviceId` TEXT NOT NULL, `record_guid` TEXT NOT NULL, `syncStatus` TEXT NOT NULL, `syncedat` INTEGER, PRIMARY KEY(`animalId`), FOREIGN KEY(`animalGroupId`) REFERENCES `animal_groups`(`animalGroupId`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`breed`) REFERENCES `breeds`(`breedId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`hideColour`) REFERENCES `hide_colours`(`colourId`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`deviceId`) REFERENCES `devices`(`deviceId`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`animalId` TEXT NOT NULL, `tagNumber` TEXT, `oldTagNumber` TEXT, `temperatureNumber` TEXT, `referenceNumber` TEXT, `massKg` REAL, `birthdate` INTEGER NOT NULL, `breed` TEXT NOT NULL, `gender` TEXT, `age` INTEGER, `condition` TEXT, `hideColour` TEXT, `brandMark` TEXT, `dam_id` TEXT, `sire_id` TEXT, `animalGroupId` TEXT, `photoPath` TEXT, `videoPath` TEXT, `gpsLat` REAL NOT NULL, `gpsLng` REAL NOT NULL, `captureAt` INTEGER NOT NULL, `deviceId` TEXT NOT NULL, `record_guid` TEXT NOT NULL, `syncStatus` TEXT NOT NULL, `syncedat` INTEGER, PRIMARY KEY(`animalId`), FOREIGN KEY(`animalGroupId`) REFERENCES `animal_groups`(`animalGroupId`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`breed`) REFERENCES `breeds`(`breedId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`hideColour`) REFERENCES `hide_colours`(`colourId`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`deviceId`) REFERENCES `devices`(`deviceId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`dam_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`sire_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE SET NULL )",
         "fields": [
           {
             "fieldPath": "animalId",
@@ -77,8 +77,13 @@
             "affinity": "TEXT"
           },
           {
-            "fieldPath": "parentId",
-            "columnName": "parentId",
+            "fieldPath": "damId",
+            "columnName": "dam_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sireId",
+            "columnName": "sire_id",
             "affinity": "TEXT"
           },
           {
@@ -164,15 +169,6 @@
             "createSql": "CREATE INDEX IF NOT EXISTS `index_animals_temperatureNumber` ON `${TABLE_NAME}` (`temperatureNumber`)"
           },
           {
-            "name": "index_animals_parentId",
-            "unique": false,
-            "columnNames": [
-              "parentId"
-            ],
-            "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_animals_parentId` ON `${TABLE_NAME}` (`parentId`)"
-          },
-          {
             "name": "index_animals_animalGroupId",
             "unique": false,
             "columnNames": [
@@ -216,6 +212,24 @@
             ],
             "orders": [],
             "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_animals_record_guid` ON `${TABLE_NAME}` (`record_guid`)"
+          },
+          {
+            "name": "index_animals_dam_id",
+            "unique": false,
+            "columnNames": [
+              "dam_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animals_dam_id` ON `${TABLE_NAME}` (`dam_id`)"
+          },
+          {
+            "name": "index_animals_sire_id",
+            "unique": false,
+            "columnNames": [
+              "sire_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animals_sire_id` ON `${TABLE_NAME}` (`sire_id`)"
           }
         ],
         "foreignKeys": [
@@ -261,6 +275,28 @@
             ],
             "referencedColumns": [
               "deviceId"
+            ]
+          },
+          {
+            "table": "animals",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "dam_id"
+            ],
+            "referencedColumns": [
+              "animalId"
+            ]
+          },
+          {
+            "table": "animals",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "sire_id"
+            ],
+            "referencedColumns": [
+              "animalId"
             ]
           }
         ]
