@@ -1,4 +1,4 @@
-﻿package com.beeftech.farmtraceability.ui
+package com.beeftech.farmtraceability.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -174,8 +174,13 @@ fun FarmerFarmProfileScreen(
                 TraceabilityInfoRow(
                     icon = Icons.Outlined.Tag,
                     title = "Sync Status",
-                    subtitle = syncStatus.ifBlank {
-                        "Sync status unavailable"
+                    subtitle = when (syncStatus.uppercase()) {
+                        "PENDING" -> "Pending Sync"
+                        "PROCESSING" -> "Processing"
+                        "SYNCED" -> "Registered"
+                        else -> syncStatus.ifBlank {
+                            "Sync status unavailable"
+                        }
                     }
                 )
             }

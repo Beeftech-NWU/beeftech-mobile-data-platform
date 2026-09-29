@@ -65,6 +65,15 @@ class FarmerRepository(
         )
     }
 
+    suspend fun markAsProcessing(
+        farmerId: String
+    ) {
+        farmerDao.updateSyncStatus(
+            farmerId = farmerId,
+            status = "PROCESSING"
+        )
+    }
+
     suspend fun markAsSynced(
         farmerId: String
     ) {

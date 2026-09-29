@@ -84,6 +84,11 @@ class FarmerSyncWorker(
 
                 try {
 
+                    farmerRepository
+                        .markAsProcessing(
+                            farmerId
+                        )
+
                     val addresses =
                         farmerRepository
                             .getAddressesForFarmer(
