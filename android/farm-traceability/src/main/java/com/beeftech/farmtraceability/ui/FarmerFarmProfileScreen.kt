@@ -1,4 +1,4 @@
-package com.beeftech.farmtraceability.ui
+﻿package com.beeftech.farmtraceability.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Call
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.HomeWork
 import androidx.compose.material.icons.outlined.LocationOn
@@ -23,12 +22,16 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun FarmerFarmProfileScreen(
-    farmerName: String = "",
-    contactNumber: String = "",
-    farmName: String = "",
-    farmReference: String = "",
+    organisationName: String = "",
+    clientCode: String = "",
+    emailAddress: String = "",
+    vatNumber: String = "",
+    businessRoles: String = "",
     farmAddress: String = "",
     gpsCoordinates: String = "",
+    syncStatus: String = "",
+    isLoading: Boolean = false,
+    errorMessage: String = "",
     onBackClick: () -> Unit = {}
 ) {
     Column(
@@ -40,7 +43,7 @@ fun FarmerFarmProfileScreen(
         TraceabilityHeader(
             eyebrow = "FARM TRACEABILITY",
             title = "Farmer & Farm Profile",
-            subtitle = "View farmer, farm and location information",
+            subtitle = "View registered farmer and location information",
             icon = Icons.Outlined.HomeWork,
             showBackButton = true,
             onBackClick = onBackClick
@@ -51,8 +54,30 @@ fun FarmerFarmProfileScreen(
                 .fillMaxWidth()
                 .padding(18.dp)
         ) {
+            if (isLoading) {
+                TraceabilityCard {
+                    TraceabilityInfoRow(
+                        icon = Icons.Outlined.Person,
+                        title = "Loading",
+                        subtitle = "Loading farmer profile..."
+                    )
+                }
 
-            // Farmer Details
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+
+            if (errorMessage.isNotBlank()) {
+                TraceabilityCard {
+                    TraceabilityInfoRow(
+                        icon = Icons.Outlined.Person,
+                        title = "Profile unavailable",
+                        subtitle = errorMessage
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+
             TraceabilitySectionTitle(
                 title = "Farmer Details"
             )
@@ -62,38 +87,9 @@ fun FarmerFarmProfileScreen(
             TraceabilityCard {
                 TraceabilityInfoRow(
                     icon = Icons.Outlined.Person,
-                    title = "Farmer Name",
-                    subtitle = farmerName.ifBlank {
-                        "Farmer information unavailable"
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                TraceabilityInfoRow(
-                    icon = Icons.Outlined.Call,
-                    title = "Contact Number",
-                    subtitle = contactNumber.ifBlank {
-                        "Contact information unavailable"
-                    }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Farm Details
-            TraceabilitySectionTitle(
-                title = "Farm Details"
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            TraceabilityCard {
-                TraceabilityInfoRow(
-                    icon = Icons.Outlined.Home,
-                    title = "Farm Name",
-                    subtitle = farmName.ifBlank {
-                        "Farm information unavailable"
+                    title = "Organisation Name",
+                    subtitle = organisationName.ifBlank {
+                        "Organisation information unavailable"
                     }
                 )
 
@@ -101,26 +97,45 @@ fun FarmerFarmProfileScreen(
 
                 TraceabilityInfoRow(
                     icon = Icons.Outlined.Tag,
-                    title = "Farm Reference",
-                    subtitle = farmReference.ifBlank {
-                        "Farm reference unavailable"
+                    title = "Client Code",
+                    subtitle = clientCode.ifBlank {
+                        "Client code unavailable"
                     }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 TraceabilityInfoRow(
-                    icon = Icons.Outlined.LocationOn,
-                    title = "Farm Address",
-                    subtitle = farmAddress.ifBlank {
-                        "Farm address unavailable"
+                    icon = Icons.Outlined.Person,
+                    title = "Email Address",
+                    subtitle = emailAddress.ifBlank {
+                        "Email address unavailable"
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                TraceabilityInfoRow(
+                    icon = Icons.Outlined.Tag,
+                    title = "VAT Number",
+                    subtitle = vatNumber.ifBlank {
+                        "VAT number unavailable"
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                TraceabilityInfoRow(
+                    icon = Icons.Outlined.HomeWork,
+                    title = "Business Role(s)",
+                    subtitle = businessRoles.ifBlank {
+                        "Business role information unavailable"
                     }
                 )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Farm Location
             TraceabilitySectionTitle(
                 title = "Farm Location"
             )
@@ -129,10 +144,38 @@ fun FarmerFarmProfileScreen(
 
             TraceabilityCard {
                 TraceabilityInfoRow(
+                    icon = Icons.Outlined.Home,
+                    title = "Farm Address",
+                    subtitle = farmAddress.ifBlank {
+                        "Farm address unavailable"
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                TraceabilityInfoRow(
                     icon = Icons.Outlined.LocationOn,
                     title = "GPS Coordinates",
                     subtitle = gpsCoordinates.ifBlank {
                         "Location information unavailable"
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            TraceabilitySectionTitle(
+                title = "Sync Information"
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            TraceabilityCard {
+                TraceabilityInfoRow(
+                    icon = Icons.Outlined.Tag,
+                    title = "Sync Status",
+                    subtitle = syncStatus.ifBlank {
+                        "Sync status unavailable"
                     }
                 )
             }
@@ -145,5 +188,14 @@ fun FarmerFarmProfileScreen(
 @Preview(showBackground = true)
 @Composable
 private fun FarmerFarmProfileScreenPreview() {
-    FarmerFarmProfileScreen()
+    FarmerFarmProfileScreen(
+        organisationName = "Example Farm",
+        clientCode = "TEST20",
+        emailAddress = "farmer@example.com",
+        vatNumber = "1234567890",
+        businessRoles = "Buyer, Supplier",
+        farmAddress = "1 Example Road, Gauteng, 1459",
+        gpsCoordinates = "-26.2041, 28.0473",
+        syncStatus = "SYNCED"
+    )
 }
