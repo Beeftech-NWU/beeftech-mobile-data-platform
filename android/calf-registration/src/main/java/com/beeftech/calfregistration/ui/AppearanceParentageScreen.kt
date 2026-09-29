@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.beeftech.tagscanner.ui.EarTagScannerDialog
 
 @Composable
 fun AppearanceParentageScreen(
@@ -29,6 +30,19 @@ fun AppearanceParentageScreen(
     onSaveAndNextClick: () -> Unit
 ) {
     var activeLookupField by remember { mutableStateOf<String?>(null) }
+    // "DAME" or "SIRE" while the ear-tag scanner is open for that field
+    var scanField by remember { mutableStateOf<String?>(null) }
+
+    scanField?.let { field ->
+        EarTagScannerDialog(
+            onDismiss = { scanField = null },
+            onTagScanned = { tag ->
+                onFormDataChange(
+                    if (field == "DAME") formData.copy(dameTagNumber = tag) else formData.copy(sireTagNumber = tag)
+                )
+            }
+        )
+    }
 
     if (activeLookupField != null) {
         val (title, options, currentVal, onSelect) = when (activeLookupField) {
@@ -179,8 +193,12 @@ fun AppearanceParentageScreen(
             Spacer(modifier = Modifier.height(12.dp))
             CalfCard {
                 CalfLookupDropdownField("Dam tag number", "F4 list", formData.dameTagNumber, { activeLookupField = "DAME" })
+                Spacer(modifier = Modifier.height(8.dp))
+                CalfSecondaryButton(text = "Scan dam tag", onClick = { scanField = "DAME" })
                 Spacer(modifier = Modifier.height(16.dp))
                 CalfLookupDropdownField("Sire tag number", "If available", formData.sireTagNumber, { activeLookupField = "SIRE" })
+                Spacer(modifier = Modifier.height(8.dp))
+                CalfSecondaryButton(text = "Scan sire tag", onClick = { scanField = "SIRE" })
             }
 
             Spacer(modifier = Modifier.height(24.dp))

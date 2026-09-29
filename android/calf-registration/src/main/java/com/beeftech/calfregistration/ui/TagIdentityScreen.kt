@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.beeftech.database.util.TagColour
 import com.beeftech.database.util.TagNamingUtils
+import com.beeftech.tagscanner.ui.EarTagScannerDialog
 
 @Composable
 fun TagIdentityScreen(
@@ -33,6 +34,14 @@ fun TagIdentityScreen(
     onCheckTagDuplicate: (suspend (String) -> Boolean)? = null
 ) {
     var activeLookupField by remember { mutableStateOf<String?>(null) }
+    var showScanner by remember { mutableStateOf(false) }
+
+    if (showScanner) {
+        EarTagScannerDialog(
+            onDismiss = { showScanner = false },
+            onTagScanned = { onFormDataChange(formData.copy(tagNumber = it)) }
+        )
+    }
 
     val extractedComponents = remember(formData.tagNumber) {
         TagNamingUtils.extractComponents(formData.tagNumber)
@@ -183,6 +192,9 @@ fun TagIdentityScreen(
                     supportingText = "Accepts quick search codes like B64, R123, G45, Y78",
                     icon = Icons.Outlined.Tag
                 )
+
+                Spacer(modifier = Modifier.height(10.dp))
+                CalfSecondaryButton(text = "Scan ear tag", onClick = { showScanner = true })
 
                 Spacer(modifier = Modifier.height(14.dp))
 

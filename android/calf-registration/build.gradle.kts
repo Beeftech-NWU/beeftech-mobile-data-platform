@@ -31,6 +31,7 @@ android {
 dependencies {
     // BeefTech encrypted database
     implementation(project(":android:database"))
+    implementation(project(":android:tag-scanner"))
 
     // Compose
     implementation(platform("androidx.compose:compose-bom:2024.02.00"))
