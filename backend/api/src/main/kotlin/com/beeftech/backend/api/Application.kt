@@ -103,9 +103,14 @@ fun Application.module() {
     val farmerRepository =
         FarmerRepository()
 
+    val farmerSalesNotificationService =
+        LoggingFarmerSalesNotificationService()
+
     val farmerService =
         FarmerService(
-            farmerRepository
+            repository = farmerRepository,
+            salesNotificationService =
+                farmerSalesNotificationService
         )
 
     /*

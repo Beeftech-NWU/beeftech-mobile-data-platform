@@ -19,14 +19,18 @@ fun Route.farmerRoutes(
      */
     post("/api/farmers/sync") {
 
-        call.requireBearerToken(jwtService)
-            ?: return@post
+        val principal =
+            call.requireAuthPrincipal(jwtService)
+                ?: return@post
 
         val request =
             call.receive<FarmerSyncRequest>()
 
         val response =
-            service.syncRecords(request)
+            service.syncRecords(
+                request = request,
+                principal = principal
+            )
 
         call.respond(
             ApiResponse(

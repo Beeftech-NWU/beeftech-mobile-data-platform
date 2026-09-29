@@ -41,7 +41,7 @@ interface FarmerDao {
     @Query(
         """
         SELECT * FROM farmers
-        WHERE sync_status = 'PENDING'
+        WHERE sync_status IN ('PENDING', 'PROCESSING')
         """
     )
     suspend fun getPendingFarmers(): List<FarmerEntity>

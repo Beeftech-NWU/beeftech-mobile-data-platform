@@ -11,6 +11,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
+import androidx.room.withTransaction
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -486,9 +487,11 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
                                                     longitude
                                             )
 
-                                        repository.addFarmer(
-                                            farmer
-                                        )
+                                        database.withTransaction {
+
+                                            repository.addFarmer(
+                                                farmer
+                                            )
 
                                         repository.addAddress(
                                             address
@@ -511,7 +514,19 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
                                                             farmerId,
 
                                                         role_id =
-                                                            selectedRole.toLongOrNull() ?: 0L
+                                                            when (selectedRole.trim()) {
+                                                                "Agent" -> 1L
+                                                                "Buyer" -> 2L
+                                                                "Client" -> 3L
+                                                                "Location" -> 4L
+                                                                "Feedlot" -> 5L
+                                                                "Owner" -> 6L
+                                                                "Supplier" -> 7L
+                                                                "Transporter" -> 8L
+                                                                else -> throw IllegalArgumentException(
+                                                                    "Unknown farmer business role: $selectedRole"
+                                                                )
+                                                            }
                                                     )
 
                                                 repository.addRole(
@@ -543,6 +558,8 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
                                             payload =
                                                 farmerId
                                         )
+
+                                        }
 
                                         true
                                     }

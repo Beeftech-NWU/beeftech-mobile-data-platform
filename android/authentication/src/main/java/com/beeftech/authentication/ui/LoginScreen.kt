@@ -1,4 +1,4 @@
-package com.beeftech.authentication.ui
+﻿package com.beeftech.authentication.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -30,8 +32,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -57,6 +64,9 @@ fun LoginScreen(
 
     var username by remember { mutableStateOf("") }
     var pin by remember { mutableStateOf("") }
+
+    val usernameFocusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     val isBusy = uiState is LoginUiState.Busy
 
@@ -101,18 +111,28 @@ fun LoginScreen(
                 label = { Text("Username") },
                 singleLine = true,
                 enabled = !isBusy,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        keyboardController?.hide()
+                    }
+                ),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = LoginPrimary,
                     unfocusedBorderColor = LoginText,
                     focusedLabelColor = LoginPrimary,
                     unfocusedLabelColor = LoginText
                 ),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(usernameFocusRequester)
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Masked PIN dots
             Row(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
@@ -122,18 +142,24 @@ fun LoginScreen(
             ) {
                 for (i in 0 until PIN_LENGTH) {
                     val isEntered = i < pin.length
+
                     Box(
                         modifier = Modifier
                             .padding(horizontal = 8.dp)
                             .size(20.dp)
                             .clip(CircleShape)
-                            .background(if (isEntered) LoginPrimary else Color.Transparent)
+                            .background(
+                                if (isEntered) LoginPrimary
+                                else Color.Transparent
+                            )
                             .border(2.dp, LoginPrimary, CircleShape)
                     )
                 }
             }
 
-            val errorMessage = (uiState as? LoginUiState.Error)?.message
+            val errorMessage =
+                (uiState as? LoginUiState.Error)?.message
+
             if (errorMessage != null) {
                 Text(
                     text = errorMessage,
@@ -159,7 +185,12 @@ fun LoginScreen(
                             val newPin = pin + digit
                             pin = newPin
                             viewModel.clearError()
-                            if (newPin.length == PIN_LENGTH && username.isNotBlank()) {
+
+                            if (
+                                newPin.length == PIN_LENGTH &&
+                                username.isNotBlank()
+                            ) {
+                                keyboardController?.hide()
                                 viewModel.login(username, newPin)
                                 pin = ""
                             }
@@ -234,13 +265,25 @@ fun KeypadButton(
         modifier = Modifier
             .size(width = 80.dp, height = 56.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(if (enabled) LoginSurface else Color.LightGray)
-            .border(1.dp, LoginPrimary, RoundedCornerShape(12.dp))
-            .clickable(enabled = enabled, onClick = onClick)
+            .background(
+                if (enabled) LoginSurface
+                else Color.LightGray
+            )
+            .border(
+                1.dp,
+                LoginPrimary,
+                RoundedCornerShape(12.dp)
+            )
+            .clickable(
+                enabled = enabled,
+                onClick = onClick
+            )
     ) {
         Text(
             text = text,
-            fontSize = if (text.length == 1) 22.sp else 16.sp,
+            fontSize =
+                if (text.length == 1) 22.sp
+                else 16.sp,
             fontWeight = FontWeight.Bold,
             color = LoginPrimary
         )

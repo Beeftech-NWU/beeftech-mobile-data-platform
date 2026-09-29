@@ -18,6 +18,7 @@ import com.beeftech.database.entity.AnimalGroup
 import com.beeftech.database.entity.FarmerAddressEntity
 import com.beeftech.database.entity.FarmerEntity
 import com.beeftech.database.entity.FarmerRoleEntity
+import com.beeftech.database.entity.FarmerBusinessRole
 import com.beeftech.database.entity.FeedCribEntity
 import com.beeftech.database.entity.FeedCribReadingEntity
 import com.beeftech.database.entity.FeedCribReadingValueEntity
@@ -106,6 +107,7 @@ import com.beeftech.database.dao.UserDao
         FarmerEntity::class,
         FarmerAddressEntity::class,
         FarmerRoleEntity::class,
+        FarmerBusinessRole::class,
         LocationEntity::class,
         PenEntity::class,
         FeedCribEntity::class,
@@ -148,7 +150,7 @@ import com.beeftech.database.dao.UserDao
         // Phase 0 / R4 Lookup Entity
         IdentifierType::class
     ],
-    version = 28,
+    version = 29,
     exportSchema = true
 )
 abstract class BeefTechDatabase : RoomDatabase() {
@@ -2849,6 +2851,139 @@ abstract class BeefTechDatabase : RoomDatabase() {
          * which recreates the tables without calling onCreate. The seed
          * is INSERT OR IGNORE, so running it on every open is safe.
          */
+        val MIGRATION_28_29 = object : Migration(28, 29) {
+
+            override fun migrate(db: SupportSQLiteDatabase) {
+
+                /*
+                 * Farmer Registration uses business roles such as
+                 * Agent, Buyer, Client, Location, Feedlot, Owner,
+                 * Supplier and Transporter.
+                 *
+                 * These are intentionally separate from the roles
+                 * table used for authentication.
+                 */
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `farmer_business_roles` (
+                        `business_role_id` INTEGER NOT NULL,
+                        `business_role_name` TEXT NOT NULL,
+                        PRIMARY KEY(`business_role_id`)
+                    )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE UNIQUE INDEX IF NOT EXISTS
+                    `index_farmer_business_roles_business_role_name`
+                    ON `farmer_business_roles` (`business_role_name`)
+                    """.trimIndent()
+                )
+
+                val businessRoles =
+                    listOf(
+                        1L to "Agent",
+                        2L to "Buyer",
+                        3L to "Client",
+                        4L to "Location",
+                        5L to "Feedlot",
+                        6L to "Owner",
+                        7L to "Supplier",
+                        8L to "Transporter"
+                    )
+
+                businessRoles.forEach { (roleId, roleName) ->
+
+                    db.execSQL(
+                        """
+                        INSERT OR IGNORE INTO `farmer_business_roles`
+                        (`business_role_id`, `business_role_name`)
+                        VALUES (?, ?)
+                        """.trimIndent(),
+                        arrayOf(roleId, roleName)
+                    )
+                }
+
+                /*
+                 * Rebuild farmer_roles because SQLite cannot directly
+                 * replace the target of an existing foreign key.
+                 *
+                 * Existing rows are copied only when their numeric
+                 * role ID is valid in the new business-role lookup.
+                 */
+                db.execSQL(
+                    """
+                    CREATE TABLE `farmer_roles_new` (
+                        `farmer_role_id` TEXT NOT NULL,
+                        `farmer_id` TEXT NOT NULL,
+                        `role_id` INTEGER NOT NULL,
+                        PRIMARY KEY(`farmer_role_id`),
+                        FOREIGN KEY(`farmer_id`)
+                            REFERENCES `farmers`(`farmer_id`)
+                            ON UPDATE NO ACTION
+                            ON DELETE CASCADE,
+                        FOREIGN KEY(`role_id`)
+                            REFERENCES `farmer_business_roles`(`business_role_id`)
+                            ON UPDATE NO ACTION
+                            ON DELETE RESTRICT
+                    )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    INSERT OR IGNORE INTO `farmer_roles_new`
+                        (`farmer_role_id`, `farmer_id`, `role_id`)
+                    SELECT
+                        fr.`farmer_role_id`,
+                        fr.`farmer_id`,
+                        fr.`role_id`
+                    FROM `farmer_roles` fr
+                    WHERE EXISTS (
+                        SELECT 1
+                        FROM `farmer_business_roles` br
+                        WHERE br.`business_role_id` = fr.`role_id`
+                    )
+                    """.trimIndent()
+                )
+
+                db.execSQL("DROP TABLE `farmer_roles`")
+
+                db.execSQL(
+                    "ALTER TABLE `farmer_roles_new` RENAME TO `farmer_roles`"
+                )
+
+                db.execSQL(
+                    """
+                    CREATE INDEX IF NOT EXISTS `index_farmer_roles_farmer_id`
+                    ON `farmer_roles` (`farmer_id`)
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE INDEX IF NOT EXISTS `index_farmer_roles_role_id`
+                    ON `farmer_roles` (`role_id`)
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    CREATE UNIQUE INDEX IF NOT EXISTS
+                    `index_farmer_roles_farmer_id_role_id`
+                    ON `farmer_roles` (`farmer_id`, `role_id`)
+                    """.trimIndent()
+                )
+
+                db.query("PRAGMA foreign_key_check").use {
+                    check(it.count == 0) {
+                        "FK violations after 28->29"
+                    }
+                }
+            }
+        }
+
         val SEED_CALLBACK = object : Callback() {
             private fun createLookupTriggers(db: SupportSQLiteDatabase) {
                 db.execSQL(
@@ -2914,6 +3049,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
             override fun onCreate(db: SupportSQLiteDatabase) {
                 CostTypeSeed.execute(db)
                 RoleSeed.execute(db)
+                FarmerBusinessRoleSeed.execute(db)
                 BreedSeed.execute(db)
                 HideColourSeed.execute(db)
                 DiseaseSeed.execute(db)
@@ -2927,6 +3063,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
             override fun onOpen(db: SupportSQLiteDatabase) {
                 CostTypeSeed.execute(db)
                 RoleSeed.execute(db)
+                FarmerBusinessRoleSeed.execute(db)
                 BreedSeed.execute(db)
                 HideColourSeed.execute(db)
                 DiseaseSeed.execute(db)

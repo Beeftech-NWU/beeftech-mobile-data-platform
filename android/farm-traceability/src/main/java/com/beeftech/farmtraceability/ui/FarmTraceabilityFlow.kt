@@ -26,6 +26,7 @@ import com.beeftech.farmtraceability.viewmodel.SyncStatusViewModelFactory
 
 private enum class TraceabilityScreen {
     HOME,
+    REGISTERED_FARMERS,
     FARMER_FARM_PROFILE,
     FIND_ANIMAL,
     ANIMAL_RECORD,
@@ -142,6 +143,10 @@ fun FarmTraceabilityFlow(
         mutableStateOf("")
     }
 
+    var selectedFarmerId by remember {
+        mutableStateOf<String?>(null)
+    }
+
     var findAnimalDestination by remember {
         mutableStateOf(
             TraceabilityScreen.ANIMAL_RECORD
@@ -204,9 +209,11 @@ fun FarmTraceabilityFlow(
                     },
 
                     onFarmerFarmProfileClick = {
+                        selectedFarmerId = null
+
                         navigateTo(
                             TraceabilityScreen
-                                .FARMER_FARM_PROFILE
+                                .REGISTERED_FARMERS
                         )
                     },
 
@@ -359,9 +366,11 @@ fun FarmTraceabilityFlow(
                     },
 
                     onFarmerFarmProfileClick = {
+                        selectedFarmerId = null
+
                         navigateTo(
                             TraceabilityScreen
-                                .FARMER_FARM_PROFILE
+                                .REGISTERED_FARMERS
                         )
                     },
 
@@ -460,9 +469,361 @@ fun FarmTraceabilityFlow(
         }
 
         TraceabilityScreen
+            .REGISTERED_FARMERS -> {
+
+            val database =
+                DatabaseProvider
+                    .getDatabase()
+
+            var farmers by
+                remember(database) {
+                    mutableStateOf(
+                        emptyList<
+                                com.beeftech.database.entity.FarmerEntity
+                                >()
+                    )
+                }
+
+            var isLoadingFarmers by
+                remember(database) {
+                    mutableStateOf(true)
+                }
+
+            var farmerListError by
+                remember(database) {
+                    mutableStateOf("")
+                }
+
+            LaunchedEffect(database) {
+
+                isLoadingFarmers = true
+                farmerListError = ""
+
+                if (database == null) {
+
+                    farmers = emptyList()
+
+                    farmerListError =
+                        "The encrypted database has not been initialised yet."
+
+                    isLoadingFarmers = false
+
+                } else {
+
+                    try {
+
+                        val repository =
+                            com.beeftech.database.repository
+                                .FarmerRepository(
+                                    database.farmerDao()
+                                )
+
+                        farmers =
+                            repository
+                                .getAllFarmers()
+
+                    } catch (
+                        exception: Exception
+                    ) {
+
+                        farmers = emptyList()
+
+                        farmerListError =
+                            exception.message
+                                ?: "Unable to load registered farmers."
+
+                    } finally {
+
+                        isLoadingFarmers = false
+                    }
+                }
+            }
+
+            RegisteredFarmersScreen(
+                farmers = farmers,
+
+                isLoading =
+                    isLoadingFarmers,
+
+                errorMessage =
+                    farmerListError,
+
+                onFarmerClick = {
+                        farmerId ->
+
+                    selectedFarmerId =
+                        farmerId
+
+                    navigateTo(
+                        TraceabilityScreen
+                            .FARMER_FARM_PROFILE
+                    )
+                },
+
+                onBackClick = {
+                    navigateBack()
+                }
+            )
+        }
+
+        TraceabilityScreen
             .FARMER_FARM_PROFILE -> {
 
+            val database =
+                DatabaseProvider
+                    .getDatabase()
+
+            val farmerId =
+                selectedFarmerId
+
+            var farmer by
+                remember(
+                    database,
+                    farmerId
+                ) {
+                    mutableStateOf<
+                            com.beeftech.database.entity.FarmerEntity?
+                            >(null)
+                }
+
+            var address by
+                remember(
+                    database,
+                    farmerId
+                ) {
+                    mutableStateOf<
+                            com.beeftech.database.entity.FarmerAddressEntity?
+                            >(null)
+                }
+
+            var businessRoleNames by
+                remember(
+                    database,
+                    farmerId
+                ) {
+                    mutableStateOf(
+                        emptyList<String>()
+                    )
+                }
+
+            var isLoadingProfile by
+                remember(
+                    database,
+                    farmerId
+                ) {
+                    mutableStateOf(true)
+                }
+
+            var profileError by
+                remember(
+                    database,
+                    farmerId
+                ) {
+                    mutableStateOf("")
+                }
+
+            LaunchedEffect(
+                database,
+                farmerId
+            ) {
+
+                isLoadingProfile = true
+                profileError = ""
+
+                farmer = null
+                address = null
+                businessRoleNames =
+                    emptyList()
+
+                when {
+
+                    database == null -> {
+
+                        profileError =
+                            "The encrypted database has not been initialised yet."
+                    }
+
+                    farmerId.isNullOrBlank() -> {
+
+                        profileError =
+                            "No farmer has been selected."
+                    }
+
+                    else -> {
+
+                        try {
+
+                            val repository =
+                                com.beeftech.database.repository
+                                    .FarmerRepository(
+                                        database.farmerDao()
+                                    )
+
+                            val loadedFarmer =
+                                repository
+                                    .getFarmer(
+                                        farmerId
+                                    )
+
+                            if (
+                                loadedFarmer == null
+                            ) {
+
+                                profileError =
+                                    "The selected farmer could not be found."
+
+                            } else {
+
+                                farmer =
+                                    loadedFarmer
+
+                                val addresses =
+                                    repository
+                                        .getAddressesForFarmer(
+                                            farmerId
+                                        )
+
+                                address =
+                                    addresses
+                                        .firstOrNull {
+                                            it.address_type ==
+                                                "PRIMARY"
+                                        }
+                                        ?: addresses.firstOrNull()
+
+                                businessRoleNames =
+                                    repository
+                                        .getRolesForFarmer(
+                                            farmerId
+                                        )
+                                        .map {
+                                                role ->
+
+                                            when (
+                                                role.role_id
+                                            ) {
+                                                1L -> "Agent"
+                                                2L -> "Buyer"
+                                                3L -> "Client"
+                                                4L -> "Location"
+                                                5L -> "Feedlot"
+                                                6L -> "Owner"
+                                                7L -> "Supplier"
+                                                8L -> "Transporter"
+
+                                                else ->
+                                                    "Role ${role.role_id}"
+                                            }
+                                        }
+                                        .distinct()
+                            }
+
+                        } catch (
+                            exception: Exception
+                        ) {
+
+                            profileError =
+                                exception.message
+                                    ?: "Unable to load farmer profile."
+                        }
+                    }
+                }
+
+                isLoadingProfile = false
+            }
+
+            val loadedFarmer =
+                farmer
+
+            val loadedAddress =
+                address
+
+            val formattedAddress =
+                listOfNotNull(
+                    loadedAddress
+                        ?.address_line_1
+                        ?.takeIf {
+                            it.isNotBlank()
+                        },
+
+                    loadedAddress
+                        ?.province
+                        ?.takeIf {
+                            it.isNotBlank()
+                        },
+
+                    loadedAddress
+                        ?.postal_code
+                        ?.takeIf {
+                            it.isNotBlank()
+                        }
+                )
+                    .joinToString(", ")
+
+            val latitude =
+                loadedAddress
+                    ?.gps_latitude
+                    ?: loadedFarmer
+                        ?.gps_latitude
+
+            val longitude =
+                loadedAddress
+                    ?.gps_longitude
+                    ?: loadedFarmer
+                        ?.gps_longitude
+
+            val coordinates =
+                if (
+                    latitude != null &&
+                    longitude != null
+                ) {
+                    "$latitude, $longitude"
+                } else {
+                    ""
+                }
+
             FarmerFarmProfileScreen(
+                organisationName =
+                    loadedFarmer
+                        ?.organisation_name
+                        .orEmpty(),
+
+                clientCode =
+                    loadedFarmer
+                        ?.client_code
+                        .orEmpty(),
+
+                emailAddress =
+                    loadedFarmer
+                        ?.email_address
+                        .orEmpty(),
+
+                vatNumber =
+                    loadedFarmer
+                        ?.vat_number
+                        .orEmpty(),
+
+                businessRoles =
+                    businessRoleNames
+                        .joinToString(", "),
+
+                farmAddress =
+                    formattedAddress,
+
+                gpsCoordinates =
+                    coordinates,
+
+                syncStatus =
+                    loadedFarmer
+                        ?.sync_status
+                        .orEmpty(),
+
+                isLoading =
+                    isLoadingProfile,
+
+                errorMessage =
+                    profileError,
+
                 onBackClick = {
                     navigateBack()
                 }
@@ -983,4 +1344,3 @@ fun FarmTraceabilityFlow(
 private fun FarmTraceabilityFlowPreview() {
     FarmTraceabilityFlow()
 }
-

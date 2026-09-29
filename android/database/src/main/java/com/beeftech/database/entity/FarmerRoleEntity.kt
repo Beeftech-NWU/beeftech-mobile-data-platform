@@ -15,8 +15,8 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.CASCADE
         ),
         ForeignKey(
-            entity = Role::class,
-            parentColumns = ["role_id"],
+            entity = FarmerBusinessRole::class,
+            parentColumns = ["business_role_id"],
             childColumns = ["role_id"],
             onDelete = ForeignKey.RESTRICT
         )

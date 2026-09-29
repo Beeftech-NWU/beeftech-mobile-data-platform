@@ -553,7 +553,7 @@ fun FarmerMultilineTextField(
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
-    placeholder: String = "â€”",
+    placeholder: String = "-”",
     maxLines: Int = 5
 ) {
 
