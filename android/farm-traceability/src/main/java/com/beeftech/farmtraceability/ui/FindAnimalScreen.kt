@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Tag
 import androidx.compose.material3.MaterialTheme
@@ -22,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.beeftech.tagscanner.ui.EarTagScannerDialog
 
 @Composable
 fun FindAnimalScreen(
@@ -33,6 +35,7 @@ fun FindAnimalScreen(
     var tagReference by remember {
         mutableStateOf("")
     }
+    var showScanner by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -70,6 +73,16 @@ fun FindAnimalScreen(
                         tagReference = it.trimStart()
                     },
                     icon = Icons.Outlined.Tag
+                )
+
+                Spacer(
+                    modifier = Modifier.height(12.dp)
+                )
+
+                TraceabilitySecondaryButton(
+                    text = "Scan ear tag",
+                    icon = Icons.Outlined.PhotoCamera,
+                    onClick = { showScanner = true }
                 )
 
                 Spacer(
@@ -119,6 +132,17 @@ fun FindAnimalScreen(
                 modifier = Modifier.height(30.dp)
             )
         }
+    }
+
+    if (showScanner) {
+        EarTagScannerDialog(
+            onDismiss = { showScanner = false },
+            onTagScanned = { id ->
+                showScanner = false
+                tagReference = id
+                onFindAnimal(id)
+            }
+        )
     }
 }
 
