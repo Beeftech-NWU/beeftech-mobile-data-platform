@@ -32,6 +32,7 @@ include(":android:database")
 include(":android:farmer-registration")
 include(":android:farm-traceability")
 include(":android:feed-crib")
+include(":android:tag-scanner")
 
 // Include Backend modules
 include(":backend:api")
