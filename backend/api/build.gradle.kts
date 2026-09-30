@@ -21,6 +21,7 @@ tasks.named<JavaExec>("run") {
 }
 
 dependencies {
+    implementation("org.eclipse.angus:jakarta.mail:2.0.3")
     implementation("io.ktor:ktor-server-core-jvm:3.0.3")
     implementation("io.ktor:ktor-server-netty-jvm:3.0.3")
 

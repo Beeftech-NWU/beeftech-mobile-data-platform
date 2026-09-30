@@ -61,6 +61,13 @@ class FarmerSalesNotificationTest {
         assertContains(json, "\"deviceId\":\"TEST-DEVICE\"")
         assertContains(json, "\"submittedByUserId\":\"USER-1\"")
         assertContains(json, "\"submittedByUsername\":\"jvdm\"")
+        assertContains(json, "\"submittedByRole\":3")
+        assertContains(json, "\"registrationStatus\":\"REGISTERED\"")
+        assertContains(json, "\"serverSyncedAt\":123456789")
+        assertContains(json, "\"emailAddress\":\"farmer@example.com\"")
+        assertContains(json, "\"vatNumber\":\"VAT-001\"")
+        assertContains(json, "\"gpsLatitude\":-26.2041")
+        assertContains(json, "\"gpsLongitude\":28.0473")
         assertContains(json, "\"addresses\"")
         assertContains(json, "\"roles\"")
     }

@@ -1,0 +1,49 @@
+services:
+  - type: web
+    name: beeftech-backend
+    runtime: docker
+    plan: free
+
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+
+    envVars:
+      - key: BEEFTECH_SEED_DEV
+        value: "true"
+
+      - key: BEEFTECH_JWT_SECRET
+        generateValue: true
+
+      # Shared BeefTech email configuration.
+      # These values apply to the hosted backend,
+      # not to each developer's PC.
+
+      - key: BEEFTECH_SMTP_PROVIDER
+        value: custom
+
+      - key: BEEFTECH_SMTP_HOST
+        value: smtp-relay.brevo.com
+
+      - key: BEEFTECH_SMTP_PORT
+        value: "2525"
+
+      - key: BEEFTECH_SMTP_SECURITY
+        value: none
+
+      # Enter these once in Render.
+      # Never commit the SMTP password/key.
+
+      - key: BEEFTECH_SMTP_USERNAME
+        sync: false
+
+      - key: BEEFTECH_SMTP_PASSWORD
+        sync: false
+
+      - key: BEEFTECH_SMTP_FROM
+        sync: false
+
+      - key: BEEFTECH_SALES_REP_EMAIL
+        sync: false

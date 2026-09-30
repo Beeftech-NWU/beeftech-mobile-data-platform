@@ -82,7 +82,7 @@ private data class ApiResponse<T>(
 class FarmerApiClient(
     private val context: Context,
     private val tokenProvider: TokenProvider,
-    private val baseUrl: String = "http://10.0.2.2:8081"
+    private val baseUrl: String = "https://beeftech-backend.onrender.com"
 ) {
 
     private val json =
