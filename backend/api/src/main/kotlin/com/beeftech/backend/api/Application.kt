@@ -21,9 +21,14 @@ import kotlinx.coroutines.runBlocking
 
 fun main() {
 
+    val port =
+        System.getenv("PORT")
+            ?.toIntOrNull()
+            ?: 8081
+
     embeddedServer(
         factory = Netty,
-        port = 8081,
+        port = port,
         host = "0.0.0.0"
     ) {
         module()
@@ -35,9 +40,16 @@ fun main() {
 fun Application.module() {
 
     val jdbcUrl =
-        System.getProperty(
-            "beeftech.db.url"
+        System.getenv(
+            "BEEFTECH_DB_URL"
         )
+            ?.trim()
+            ?.takeIf {
+                it.isNotBlank()
+            }
+            ?: System.getProperty(
+                "beeftech.db.url"
+            )
             ?: "jdbc:sqlite:./data/beeftech-backend.db"
 
     DatabaseFactory.init(
@@ -52,7 +64,21 @@ fun Application.module() {
     val jwtService = JwtService()
     val authService = AuthService(userRepository, jwtService)
 
-    if (System.getProperty("beeftech.seed.dev") == "true") {
+    val seedDevUsers =
+        System.getenv(
+            "BEEFTECH_SEED_DEV"
+        )
+            ?.equals(
+                "true",
+                ignoreCase = true
+            )
+            ?: (
+                System.getProperty(
+                    "beeftech.seed.dev"
+                ) == "true"
+            )
+
+    if (seedDevUsers) {
         runBlocking {
             DevUserSeeder.seed(userRepository)
         }
@@ -104,7 +130,7 @@ fun Application.module() {
         FarmerRepository()
 
     val farmerSalesNotificationService =
-        LoggingFarmerSalesNotificationService()
+        createFarmerSalesNotificationServiceFromEnvironment()
 
     val farmerService =
         FarmerService(
@@ -120,6 +146,10 @@ fun Application.module() {
         FeedCribService()
 
     routing {
+
+        get("/health") {
+            call.respondText("OK")
+        }
 
         /*
          * Authentication routes
