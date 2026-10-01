@@ -41,11 +41,11 @@ import com.beeftech.database.DatabaseProvider
 import com.beeftech.database.DatabaseResult
 import com.beeftech.database.repository.PendingSyncRepository
 import com.beeftech.database.repository.SyncRepository
+import com.beeftech.database.repository.SyncPolicyEnforcer
 import com.beeftech.authentication.data.AuthApiClient
 import com.beeftech.authentication.data.AuthRepository
 import com.beeftech.authentication.data.EncryptedDeviceIdProvider
 import com.beeftech.authentication.data.EncryptedSessionStore
-import com.beeftech.authentication.ui.AuthGate
 import com.beeftech.authentication.viewmodel.LoginViewModelFactory
 import com.beeftech.database.security.PinLockoutManager
 import com.beeftech.database.security.TokenProviderRegistry
@@ -351,15 +351,36 @@ class MainActivity : ComponentActivity() {
                         )
 
                     /*
+                     * Persistent Day-7 policy evaluator.
+                     *
+                     * This uses the same Room-backed policy state
+                     * tested by SyncPolicyEnforcerTest.
+                     */
+                    val syncPolicyEnforcer =
+                        SyncPolicyEnforcer(
+                            pendingSyncDao =
+                                database.pendingSyncDao(),
+
+                            syncSecurityDao =
+                                database.syncSecurityDao()
+                        )
+
+                    /*
                      * Start demo UI
                      */
                     setContent {
 
                         BeeftechTheme {
 
-                            AuthGate(
-                                sessionStore = sessionStore,
-                                viewModelFactory = loginViewModelFactory
+                            PolicyAwareAuthGate(
+                                sessionStore =
+                                    sessionStore,
+
+                                viewModelFactory =
+                                    loginViewModelFactory,
+
+                                syncPolicyEnforcer =
+                                    syncPolicyEnforcer
                             ) { loggedInUser, onLogout ->
 
                                 val movementRecords by

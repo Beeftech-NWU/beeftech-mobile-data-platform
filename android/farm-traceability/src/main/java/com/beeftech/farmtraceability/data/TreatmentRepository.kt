@@ -3,6 +3,7 @@ package com.beeftech.farmtraceability.data
 import android.os.Build
 import com.beeftech.database.dao.TreatmentDao
 import com.beeftech.database.entity.Treatment
+import com.beeftech.database.entity.PendingSync
 import com.beeftech.database.repository.PendingSyncRepository
 import java.util.UUID
 
@@ -255,10 +256,54 @@ class TreatmentRepository(
 
         return try {
 
-            val pendingRecords =
-                treatmentDao.getPendingSync()
+            /*
+             * The pending_sync queue is the ownership boundary.
+             *
+             * Never begin from treatmentDao.getPendingSync(), because
+             * the treatments table itself does not carry user ownership.
+             */
+            val pendingOperations =
+                pendingSyncRepository
+                    .getAllPendingOperations()
+                    .filter {
+                        it.entityType ==
+                                ENTITY_TYPE
+                    }
 
-            cleanupStaleQueueEntries()
+            if (pendingOperations.isEmpty()) {
+
+                return TreatmentSyncPendingOutcome(
+                    syncedCount = 0
+                )
+            }
+
+            /*
+             * Resolve only Treatment rows referenced by this user's
+             * queue entries.
+             */
+            val pendingRecords =
+                pendingOperations
+                    .map {
+                        it.entityId
+                    }
+                    .distinct()
+                    .mapNotNull {
+                            recordGuid ->
+
+                        treatmentDao
+                            .findByRecordGuid(
+                                recordGuid
+                            )
+                    }
+                    .filter {
+                        it.syncStatus !=
+                                SYNC_STATUS_SYNCED
+                    }
+
+            cleanupStaleQueueEntries(
+                pendingOperations =
+                    pendingOperations
+            )
 
             if (pendingRecords.isEmpty()) {
 
@@ -291,13 +336,16 @@ class TreatmentRepository(
                                     String?
                                     >()
 
+                        /*
+                         * Keep using the queue snapshot captured at the
+                         * beginning of this synchronization attempt.
+                         *
+                         * This prevents an account switch in the middle
+                         * of a request from changing which queue entries
+                         * are updated.
+                         */
                         val queuedByRecordGuid =
-                            pendingSyncRepository
-                                .getAllPendingOperations()
-                                .filter {
-                                    it.entityType ==
-                                            ENTITY_TYPE
-                                }
+                            pendingOperations
                                 .groupBy {
                                     it.entityId
                                 }
@@ -366,7 +414,10 @@ class TreatmentRepository(
                             }
                         }
 
-                        cleanupStaleQueueEntries()
+                        cleanupStaleQueueEntries(
+                            pendingOperations =
+                                pendingOperations
+                        )
 
                         TreatmentSyncPendingOutcome(
                             syncedCount =
@@ -405,8 +456,15 @@ class TreatmentRepository(
         }
     }
 
-    private suspend fun cleanupStaleQueueEntries() {
+    private suspend fun cleanupStaleQueueEntries(
+        pendingOperations: List<PendingSync>
+    ) {
 
+        /*
+         * The treatments query may inspect the complete local table,
+         * but only queue entries from the user-scoped snapshot can be
+         * removed.
+         */
         val allTreatments =
             treatmentDao.getAll()
 
@@ -425,8 +483,7 @@ class TreatmentRepository(
             return
         }
 
-        pendingSyncRepository
-            .getAllPendingOperations()
+        pendingOperations
             .filter {
                 it.entityType ==
                         ENTITY_TYPE &&
@@ -442,6 +499,7 @@ class TreatmentRepository(
                     )
             }
     }
+
 
     companion object {
 

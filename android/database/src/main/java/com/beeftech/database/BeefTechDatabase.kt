@@ -26,6 +26,8 @@ import com.beeftech.database.entity.LocationEntity
 import com.beeftech.database.entity.Mortality
 import com.beeftech.database.entity.PenEntity
 import com.beeftech.database.entity.PendingSync
+import com.beeftech.database.entity.SyncPolicyState
+import com.beeftech.database.entity.SyncSecurityEvent
 import com.beeftech.database.entity.Role
 import com.beeftech.database.entity.SyncBackupEntity
 import com.beeftech.database.entity.SyncBatchEntity
@@ -91,6 +93,7 @@ import com.beeftech.database.dao.LocationDao
 import com.beeftech.database.dao.MortalityDao
 import com.beeftech.database.dao.PenDao
 import com.beeftech.database.dao.PendingSyncDao
+import com.beeftech.database.dao.SyncSecurityDao
 import com.beeftech.database.dao.RoleDao
 import com.beeftech.database.dao.SyncBatchDao
 import com.beeftech.database.dao.TreatmentDao
@@ -120,6 +123,8 @@ import com.beeftech.database.dao.UserDao
         Treatment::class,
         Mortality::class,
         PendingSync::class,
+        SyncPolicyState::class,
+        SyncSecurityEvent::class,
         
         // Phase 3 Entities
         AnimalIdentifierEntity::class,
@@ -150,7 +155,7 @@ import com.beeftech.database.dao.UserDao
         // Phase 0 / R4 Lookup Entity
         IdentifierType::class
     ],
-    version = 29,
+    version = 31,
     exportSchema = true
 )
 abstract class BeefTechDatabase : RoomDatabase() {
@@ -175,6 +180,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
     abstract fun treatmentDao(): TreatmentDao
     abstract fun mortalityDao(): MortalityDao
     abstract fun pendingSyncDao(): PendingSyncDao
+    abstract fun syncSecurityDao(): SyncSecurityDao
 
     // Phase 3 DAOs
     abstract fun animalIdentifierDao(): AnimalIdentifierDao
@@ -2983,6 +2989,133 @@ abstract class BeefTechDatabase : RoomDatabase() {
                 }
             }
         }
+
+        /**
+         * Version 29 -> 30
+         *
+         * Adds persistent Day-7 sync-policy lock state and
+         * audit history for Day 2/4/6 warnings and Day 7 actions.
+         */
+        val MIGRATION_29_30 =
+            object : Migration(29, 30) {
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+
+                    db.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS `sync_policy_state` (
+                            `user_id` TEXT NOT NULL,
+                            `locked` INTEGER NOT NULL DEFAULT 0,
+                            `locked_at` INTEGER,
+                            `lock_reason` TEXT,
+                            PRIMARY KEY(`user_id`)
+                        )
+                        """.trimIndent()
+                    )
+
+                    db.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS `sync_security_events` (
+                            `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                            `event_key` TEXT NOT NULL,
+                            `user_id` TEXT,
+                            `event_type` TEXT NOT NULL,
+                            `event_time` INTEGER NOT NULL,
+                            `warning_day` INTEGER,
+                            `pending_count` INTEGER NOT NULL,
+                            `oldest_pending_created_at` INTEGER,
+                            `details` TEXT
+                        )
+                        """.trimIndent()
+                    )
+
+                    db.execSQL(
+                        """
+                        CREATE UNIQUE INDEX IF NOT EXISTS
+                        `index_sync_security_events_event_key`
+                        ON `sync_security_events` (`event_key`)
+                        """.trimIndent()
+                    )
+
+                    db.execSQL(
+                        """
+                        CREATE INDEX IF NOT EXISTS
+                        `index_sync_security_events_user_id`
+                        ON `sync_security_events` (`user_id`)
+                        """.trimIndent()
+                    )
+
+                    db.execSQL(
+                        """
+                        CREATE INDEX IF NOT EXISTS
+                        `index_sync_security_events_event_time`
+                        ON `sync_security_events` (`event_time`)
+                        """.trimIndent()
+                    )
+                }
+            }
+
+
+        /**
+         * Version 30 -> 31
+         *
+         * Associates newly-created pending synchronization
+         * operations with the authenticated user who created
+         * them.
+         *
+         * Existing queue rows remain NULL deliberately. We
+         * cannot safely infer who created legacy records.
+         */
+        val MIGRATION_30_31 =
+            object : Migration(30, 31) {
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+
+                    var userIdExists =
+                        false
+
+                    db.query(
+                        "PRAGMA table_info(`pending_sync`)"
+                    ).use { cursor ->
+
+                        val nameIndex =
+                            cursor.getColumnIndex(
+                                "name"
+                            )
+
+                        while (
+                            cursor.moveToNext()
+                        ) {
+
+                            if (
+                                cursor.getString(
+                                    nameIndex
+                                ) == "user_id"
+                            ) {
+
+                                userIdExists =
+                                    true
+
+                                break
+                            }
+                        }
+                    }
+
+                    if (!userIdExists) {
+
+                        db.execSQL(
+                            """
+                            ALTER TABLE `pending_sync`
+                            ADD COLUMN `user_id` TEXT
+                            """.trimIndent()
+                        )
+                    }
+                }
+            }
 
         val SEED_CALLBACK = object : Callback() {
             private fun createLookupTriggers(db: SupportSQLiteDatabase) {

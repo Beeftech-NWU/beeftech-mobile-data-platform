@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.beeftech.authentication.domain.LoggedInUser
+import com.beeftech.database.security.CurrentUserIdRegistry
 import com.beeftech.database.security.TokenProvider
 
 interface SessionStore : TokenProvider {
@@ -53,6 +54,14 @@ class EncryptedSessionStore(context: Context) : SessionStore {
             ?.putInt(KEY_ROLE, user.role ?: -1)
             ?.putString(KEY_DEVICE_ID, user.deviceId)
             ?.apply()
+
+        CurrentUserIdRegistry.setCurrentUserId(
+            if (prefs != null) {
+                user.userId
+            } else {
+                null
+            }
+        )
     }
 
     override fun currentUser(): LoggedInUser? {
@@ -77,6 +86,10 @@ class EncryptedSessionStore(context: Context) : SessionStore {
 
     override fun clear() {
         prefs?.edit()?.clear()?.apply()
+
+        CurrentUserIdRegistry.setCurrentUserId(
+            null
+        )
     }
 
     override suspend fun token(): String? {

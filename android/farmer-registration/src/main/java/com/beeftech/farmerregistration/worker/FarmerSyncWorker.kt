@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.beeftech.database.DatabaseProvider
+import com.beeftech.database.entity.PendingSync
 import com.beeftech.database.repository.FarmerRepository
 import com.beeftech.database.repository.PendingSyncRepository
 import com.beeftech.database.security.TokenProviderRegistry
@@ -45,33 +46,83 @@ class FarmerSyncWorker(
                     tokenProvider = tokenProvider
                 )
 
-            val pendingFarmers =
-                farmerRepository.getPendingFarmers()
-
-            if (pendingFarmers.isEmpty()) {
-
-                /*
-                 * Clean up any stale Farmer Registration
-                 * pending-sync records whose farmer is
-                 * already synchronized.
-                 */
-                val allPendingOperations =
-                    pendingSyncRepository
-                        .getAllPendingOperations()
-
-                allPendingOperations
+            /*
+             * pending_sync is the ownership boundary.
+             *
+             * FarmerEntity itself does not contain user ownership.
+             * Therefore never begin synchronization by selecting every
+             * PENDING Farmer stored on the physical device.
+             */
+            val farmerOperations =
+                pendingSyncRepository
+                    .getAllPendingOperations()
                     .filter {
                         it.entityType ==
                                 FARMER_REGISTRATION_ENTITY_TYPE
                     }
-                    .forEach { pendingOperation ->
 
-                        pendingSyncRepository
-                            .markSyncSuccessful(
-                                pendingOperation.id
-                            )
+            if (farmerOperations.isEmpty()) {
+                return Result.success()
+            }
+
+            /*
+             * Resolve only Farmers referenced by the active user's
+             * pending-sync queue.
+             */
+            val queuedFarmers =
+                farmerOperations
+                    .map {
+                            pendingOperation ->
+
+                        pendingOperation to
+                                farmerRepository
+                                    .getFarmerById(
+                                        pendingOperation.entityId
+                                    )
                     }
 
+            /*
+             * A queue entry is stale if the Farmer is already SYNCED
+             * or the corresponding local Farmer no longer exists.
+             *
+             * Only entries from this user-scoped queue snapshot may
+             * be removed.
+             */
+            queuedFarmers
+                .filter {
+                        (_, farmer) ->
+
+                    farmer == null ||
+                            farmer.sync_status ==
+                            "SYNCED"
+                }
+                .forEach {
+                        (pendingOperation, _) ->
+
+                    pendingSyncRepository
+                        .markSyncSuccessful(
+                            pendingOperation.id
+                        )
+                }
+
+            val pendingFarmers =
+                queuedFarmers
+                    .mapNotNull {
+                            (_, farmer) ->
+
+                        farmer
+                            ?.takeIf {
+                                it.sync_status ==
+                                        "PENDING" ||
+                                        it.sync_status ==
+                                        "PROCESSING"
+                            }
+                    }
+                    .distinctBy {
+                        it.farmer_id
+                    }
+
+            if (pendingFarmers.isEmpty()) {
                 return Result.success()
             }
 
@@ -131,18 +182,17 @@ class FarmerSyncWorker(
                          * Registration entries from the
                          * shared pending-sync queue.
                          */
-                        val pendingOperations =
-                            pendingSyncRepository
-                                .getAllPendingOperations()
-
-                        pendingOperations
+                        /*
+                         * Remove only queue entries captured for the
+                         * account that started this synchronization.
+                         */
+                        farmerOperations
                             .filter {
-                                it.entityType ==
-                                        FARMER_REGISTRATION_ENTITY_TYPE &&
-                                        it.entityId ==
+                                it.entityId ==
                                         farmerId
                             }
-                            .forEach { pendingOperation ->
+                            .forEach {
+                                    pendingOperation ->
 
                                 pendingSyncRepository
                                     .markSyncSuccessful(
@@ -165,6 +215,8 @@ class FarmerSyncWorker(
                         markFarmerSyncFailed(
                             pendingSyncRepository =
                                 pendingSyncRepository,
+                            pendingOperations =
+                                farmerOperations,
                             farmerId =
                                 farmerId
                         )
@@ -182,6 +234,8 @@ class FarmerSyncWorker(
                     markFarmerSyncFailed(
                         pendingSyncRepository =
                             pendingSyncRepository,
+                        pendingOperations =
+                            farmerOperations,
                         farmerId =
                             farmerId
                     )
@@ -212,13 +266,14 @@ class FarmerSyncWorker(
 
     private suspend fun markFarmerSyncFailed(
         pendingSyncRepository: PendingSyncRepository,
+        pendingOperations: List<PendingSync>,
         farmerId: String
     ) {
 
-        val pendingOperations =
-            pendingSyncRepository
-                .getAllPendingOperations()
-
+        /*
+         * Use the queue snapshot captured before the network request.
+         * Do not resolve the current user again during failure handling.
+         */
         pendingOperations
             .filter {
                 it.entityType ==
@@ -226,7 +281,8 @@ class FarmerSyncWorker(
                         it.entityId ==
                         farmerId
             }
-            .forEach { pendingOperation ->
+            .forEach {
+                    pendingOperation ->
 
                 pendingSyncRepository
                     .markSyncFailed(

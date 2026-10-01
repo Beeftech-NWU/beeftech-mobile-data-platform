@@ -93,4 +93,87 @@ interface PendingSyncDao {
 
     @Query("SELECT COUNT(*) FROM pending_sync")
     fun observePendingCount(): Flow<Int>
+
+    @Query("SELECT MIN(createdAt) FROM pending_sync")
+    fun observeOldestPendingCreatedAt(): Flow<Long?>
+
+    // ========================================================
+    // User-scoped Day-7 policy queries
+    // ========================================================
+
+    @Query(
+        """
+        SELECT *
+        FROM pending_sync
+        WHERE user_id = :userId
+        ORDER BY createdAt ASC
+        """
+    )
+    suspend fun getAllForUser(
+        userId: String
+    ): List<PendingSync>
+
+    @Query(
+        """
+        SELECT *
+        FROM pending_sync
+        WHERE user_id = :userId
+          AND retryCount < :maxRetries
+        ORDER BY createdAt ASC
+        """
+    )
+    suspend fun getPendingForRetryForUser(
+        userId: String,
+        maxRetries: Int
+    ): List<PendingSync>
+
+    @Query(
+        """
+        SELECT *
+        FROM pending_sync
+        WHERE user_id = :userId
+          AND entityType = :entityType
+          AND entityId = :entityId
+        ORDER BY createdAt ASC
+        """
+    )
+    suspend fun getByEntityForUser(
+        userId: String,
+        entityType: String,
+        entityId: String
+    ): List<PendingSync>
+
+    @Query(
+        """
+        SELECT COUNT(*)
+        FROM pending_sync
+        WHERE user_id = :userId
+        """
+    )
+    suspend fun getPendingCountForUser(
+        userId: String
+    ): Int
+
+    @Query(
+        """
+        SELECT COUNT(*)
+        FROM pending_sync
+        WHERE user_id = :userId
+        """
+    )
+    fun observePendingCountForUser(
+        userId: String
+    ): Flow<Int>
+
+    @Query(
+        """
+        SELECT MIN(createdAt)
+        FROM pending_sync
+        WHERE user_id = :userId
+        """
+    )
+    fun observeOldestPendingCreatedAtForUser(
+        userId: String
+    ): Flow<Long?>
+
 }
