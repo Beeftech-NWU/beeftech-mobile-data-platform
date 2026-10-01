@@ -66,7 +66,6 @@ class TreatmentViewModel(
          * WorkManager periodically checks for pending Treatment
          * records whenever network connectivity is available.
          */
-        schedulePeriodicSync()
     }
 
     /*
