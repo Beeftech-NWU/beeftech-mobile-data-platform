@@ -229,6 +229,11 @@ class DatabaseMigration6To7Test {
                     .writableDatabase
                     .version
 
+            assertEquals(
+                BeefTechDatabase.VERSION,
+                latestVersion
+            )
+
             assertTrue(
                 "Expected current database version to be newer than version 6.",
                 latestVersion > 6

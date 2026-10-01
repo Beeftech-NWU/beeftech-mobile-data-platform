@@ -155,7 +155,7 @@ import com.beeftech.database.dao.UserDao
         // Phase 0 / R4 Lookup Entity
         IdentifierType::class
     ],
-    version = 31,
+    version = BeefTechDatabase.VERSION,
     exportSchema = true
 )
 abstract class BeefTechDatabase : RoomDatabase() {
@@ -214,6 +214,9 @@ abstract class BeefTechDatabase : RoomDatabase() {
     // Migration Configurations
     // =========================================================================
     companion object {
+
+        /** Current Room schema version. Bump here when adding a migration. */
+        const val VERSION = 31
 
         /**
          * Phase 3 Migration (Version 9 -> 10):
