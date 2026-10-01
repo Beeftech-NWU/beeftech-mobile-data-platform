@@ -55,6 +55,9 @@ dependencies {
     api("androidx.room:room-runtime:2.8.4")
 
     implementation("androidx.room:room-ktx:2.8.4")
+
+    // Shared process-wide runtime UI state
+    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     implementation(libs.androidx.lifecycle.livedata.core.ktx)
 
     ksp("androidx.room:room-compiler:2.8.4")

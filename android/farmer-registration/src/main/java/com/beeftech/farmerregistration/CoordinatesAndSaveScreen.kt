@@ -1,4 +1,4 @@
-﻿package com.beeftech.farmerregistration
+package com.beeftech.farmerregistration
 
 import android.Manifest
 import android.content.ActivityNotFoundException
@@ -989,9 +989,7 @@ fun CoordinatesAndSaveContent(
                     onClick =
                         onBackClick,
                     modifier =
-                        Modifier.size(
-                            42.dp
-                        )
+                        Modifier.size(48.dp)
                 ) {
 
                     Icon(
@@ -1002,9 +1000,7 @@ fun CoordinatesAndSaveContent(
                         tint =
                             BeeftechWhite,
                         modifier =
-                            Modifier.size(
-                                22.dp
-                            )
+                            Modifier.size(26.dp)
                     )
                 }
 
@@ -1017,10 +1013,7 @@ fun CoordinatesAndSaveContent(
 
                 Box(
                     modifier =
-                        Modifier
-                            .size(
-                                42.dp
-                            )
+                        Modifier.size(48.dp)
                             .background(
                                 BeeftechPrimary.copy(
                                     alpha = 0.18f
@@ -1041,9 +1034,7 @@ fun CoordinatesAndSaveContent(
                         tint =
                             BeeftechPrimary,
                         modifier =
-                            Modifier.size(
-                                22.dp
-                            )
+                            Modifier.size(26.dp)
                     )
                 }
 
