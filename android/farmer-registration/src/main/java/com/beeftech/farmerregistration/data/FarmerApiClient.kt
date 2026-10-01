@@ -99,11 +99,68 @@ class FarmerApiClient(
         }
 
     private fun getDeviceId(): String {
-
         return Settings.Secure.getString(
             context.contentResolver,
             Settings.Secure.ANDROID_ID
         ) ?: "unknown-device"
+    }
+
+    suspend fun syncFarmers(
+        records: List<Triple<FarmerEntity, List<FarmerAddressEntity>, List<FarmerRoleEntity>>>
+    ): List<FarmerSyncResult>? {
+        if (records.isEmpty()) return emptyList()
+
+        val token = tokenProvider.token() ?: return null
+
+        val payloads = records.map { (farmer, addresses, roles) ->
+            FarmerPayload(
+                farmerId = farmer.farmer_id,
+                clientCode = farmer.client_code,
+                organisationName = farmer.organisation_name,
+                vatNumber = farmer.vat_number,
+                emailAddress = farmer.email_address,
+                gpsLatitude = farmer.gps_latitude,
+                gpsLongitude = farmer.gps_longitude,
+                syncStatus = farmer.sync_status,
+                addresses = addresses.map { address ->
+                    FarmerAddressPayload(
+                        addressId = address.address_id,
+                        farmerId = address.farmer_id,
+                        addressType = address.address_type,
+                        addressLine1 = address.address_line_1,
+                        province = address.province,
+                        postalCode = address.postal_code,
+                        gpsLatitude = address.gps_latitude,
+                        gpsLongitude = address.gps_longitude
+                    )
+                },
+                roles = roles.map { role ->
+                    FarmerRolePayload(
+                        farmerRoleId = role.farmer_role_id,
+                        farmerId = role.farmer_id,
+                        roleId = role.role_id.toString()
+                    )
+                }
+            )
+        }
+
+        val request = FarmerSyncRequest(
+            deviceId = getDeviceId(),
+            records = payloads
+        )
+
+        val response = client.post("$baseUrl/api/farmers/sync") {
+            bearerAuth(token)
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+
+        if (response.status != HttpStatusCode.OK) return null
+
+        val body = response.body<ApiResponse<FarmerSyncResponse>>()
+        if (!body.success) return null
+
+        return body.data?.results
     }
 
     suspend fun syncFarmer(
@@ -111,120 +168,7 @@ class FarmerApiClient(
         addresses: List<FarmerAddressEntity>,
         roles: List<FarmerRoleEntity>
     ): FarmerSyncResult? {
-
-        val payload =
-            FarmerPayload(
-                farmerId =
-                    farmer.farmer_id,
-
-                clientCode =
-                    farmer.client_code,
-
-                organisationName =
-                    farmer.organisation_name,
-
-                vatNumber =
-                    farmer.vat_number,
-
-                emailAddress =
-                    farmer.email_address,
-
-                gpsLatitude =
-                    farmer.gps_latitude,
-
-                gpsLongitude =
-                    farmer.gps_longitude,
-
-                syncStatus =
-                    farmer.sync_status,
-
-                addresses =
-                    addresses.map { address ->
-
-                        FarmerAddressPayload(
-                            addressId =
-                                address.address_id,
-
-                            farmerId =
-                                address.farmer_id,
-
-                            addressType =
-                                address.address_type,
-
-                            addressLine1 =
-                                address.address_line_1,
-
-                            province =
-                                address.province,
-
-                            postalCode =
-                                address.postal_code,
-
-                            gpsLatitude =
-                                address.gps_latitude,
-
-                            gpsLongitude =
-                                address.gps_longitude
-                        )
-                    },
-
-                roles =
-                    roles.map { role ->
-
-                        FarmerRolePayload(
-                            farmerRoleId =
-                                role.farmer_role_id,
-
-                            farmerId =
-                                role.farmer_id,
-
-                            roleId =
-                                role.role_id.toString()
-                        )
-                    }
-            )
-
-        val token =
-            tokenProvider.token()
-                ?: return null
-
-        val request =
-            FarmerSyncRequest(
-                deviceId = getDeviceId(),
-                records = listOf(payload)
-            )
-
-        val response =
-            client.post(
-                "$baseUrl/api/farmers/sync"
-            ) {
-
-                bearerAuth(token)
-
-                contentType(
-                    ContentType.Application.Json
-                )
-
-                setBody(request)
-            }
-
-        if (response.status != HttpStatusCode.OK) {
-            return null
-        }
-
-        val body =
-            response.body<
-                    ApiResponse<FarmerSyncResponse>
-                    >()
-
-        if (!body.success) {
-            return null
-        }
-
-        return body.data
-            ?.results
-            ?.firstOrNull {
-                it.farmerId == farmer.farmer_id
-            }
+        val results = syncFarmers(listOf(Triple(farmer, addresses, roles)))
+        return results?.firstOrNull { it.farmerId == farmer.farmer_id }
     }
 }
