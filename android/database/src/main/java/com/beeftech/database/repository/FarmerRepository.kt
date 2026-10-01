@@ -35,6 +35,16 @@ class FarmerRepository(
         )
     }
 
+    suspend fun getFarmerById(
+        farmerId: String
+    ): FarmerEntity? {
+
+        return farmerDao.getFarmerById(
+            farmerId
+        )
+    }
+
+
     suspend fun getAllFarmers():
             List<FarmerEntity> {
 

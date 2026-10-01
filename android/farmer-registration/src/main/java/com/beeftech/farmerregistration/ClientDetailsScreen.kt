@@ -1,4 +1,4 @@
-﻿package com.beeftech.farmerregistration
+package com.beeftech.farmerregistration
 
 import android.content.Intent
 import android.os.Bundle
@@ -218,7 +218,7 @@ fun ClientDetailsContent(
 
                 IconButton(
                     onClick = onBackClick,
-                    modifier = Modifier.size(42.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
 
                     Icon(
@@ -226,7 +226,7 @@ fun ClientDetailsContent(
                             Icons.AutoMirrored.Outlined.ArrowBack,
                         contentDescription = "Back",
                         tint = BeeftechWhite,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(26.dp)
                     )
                 }
 
@@ -237,8 +237,7 @@ fun ClientDetailsContent(
 
                 Box(
                     modifier =
-                        Modifier
-                            .size(42.dp)
+                        Modifier.size(48.dp)
                             .background(
                                 BeeftechPrimary.copy(
                                     alpha = 0.18f
@@ -255,7 +254,7 @@ fun ClientDetailsContent(
                         contentDescription = null,
                         tint = BeeftechPrimary,
                         modifier =
-                            Modifier.size(22.dp)
+                            Modifier.size(26.dp)
                     )
                 }
 

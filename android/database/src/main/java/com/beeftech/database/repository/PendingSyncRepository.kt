@@ -2,9 +2,13 @@ package com.beeftech.database.repository
 
 import com.beeftech.database.dao.PendingSyncDao
 import com.beeftech.database.entity.PendingSync
+import com.beeftech.database.security.CurrentUserIdRegistry
 
 class PendingSyncRepository(
-    private val pendingSyncDao: PendingSyncDao
+    private val pendingSyncDao: PendingSyncDao,
+    private val userIdProvider: () -> String? = {
+        CurrentUserIdRegistry.currentUserId()
+    }
 ) {
 
     suspend fun queueOperation(
@@ -16,29 +20,70 @@ class PendingSyncRepository(
 
         return pendingSyncDao.insert(
             PendingSync(
-                entityType = entityType,
-                entityId = entityId,
-                operation = operation,
-                payload = payload,
-                createdAt = System.currentTimeMillis(),
-                retryCount = 0
+                userId =
+                    currentUserId(),
+
+                entityType =
+                    entityType,
+
+                entityId =
+                    entityId,
+
+                operation =
+                    operation,
+
+                payload =
+                    payload,
+
+                createdAt =
+                    System.currentTimeMillis(),
+
+                retryCount =
+                    0
             )
         )
     }
 
+    /*
+     * Returns only retry-eligible operations belonging to the
+     * currently authenticated user.
+     *
+     * If no user is authenticated, do not expose another
+     * account's offline queue.
+     */
     suspend fun getPendingOperations(
         maxRetries: Int = DEFAULT_MAX_RETRIES
     ): List<PendingSync> {
 
-        return pendingSyncDao.getPendingForRetry(
-            maxRetries
-        )
+        val userId =
+            currentUserId()
+                ?: return emptyList()
+
+        return pendingSyncDao
+            .getPendingForRetryForUser(
+                userId =
+                    userId,
+
+                maxRetries =
+                    maxRetries
+            )
     }
 
+    /*
+     * Includes records that reached their retry limit, but still
+     * only for the active user.
+     */
     suspend fun getAllPendingOperations():
             List<PendingSync> {
 
-        return pendingSyncDao.getAll()
+        val userId =
+            currentUserId()
+                ?: return emptyList()
+
+        return pendingSyncDao
+            .getAllForUser(
+                userId
+            )
     }
 
     suspend fun getOperationsForEntity(
@@ -46,28 +91,45 @@ class PendingSyncRepository(
         entityId: String
     ): List<PendingSync> {
 
-        return pendingSyncDao.getByEntity(
-            entityType = entityType,
-            entityId = entityId
-        )
+        val userId =
+            currentUserId()
+                ?: return emptyList()
+
+        return pendingSyncDao
+            .getByEntityForUser(
+                userId =
+                    userId,
+
+                entityType =
+                    entityType,
+
+                entityId =
+                    entityId
+            )
     }
 
     suspend fun markSyncFailed(
         id: Long
     ) {
 
-        pendingSyncDao.incrementRetryCount(
-            id
-        )
+        /*
+         * IDs supplied to this method come from the scoped
+         * repository reads above.
+         */
+        pendingSyncDao
+            .incrementRetryCount(
+                id
+            )
     }
 
     suspend fun markSyncSuccessful(
         id: Long
     ) {
 
-        pendingSyncDao.deleteById(
-            id
-        )
+        pendingSyncDao
+            .deleteById(
+                id
+            )
     }
 
     suspend fun markEntitySyncSuccessful(
@@ -75,24 +137,72 @@ class PendingSyncRepository(
         entityId: String
     ) {
 
-        pendingSyncDao.deleteByEntity(
-            entityType = entityType,
-            entityId = entityId
-        )
+        /*
+         * Do not use the old device-wide deleteByEntity here.
+         * Delete only rows owned by the active account.
+         */
+        getOperationsForEntity(
+            entityType =
+                entityType,
+
+            entityId =
+                entityId
+        ).forEach {
+                pending ->
+
+            pendingSyncDao
+                .deleteById(
+                    pending.id
+                )
+        }
     }
 
-    suspend fun getPendingCount(): Int {
+    suspend fun getPendingCount():
+            Int {
 
-        return pendingSyncDao.getPendingCount()
+        val userId =
+            currentUserId()
+                ?: return 0
+
+        return pendingSyncDao
+            .getPendingCountForUser(
+                userId
+            )
     }
 
+    /*
+     * User-scoped clear.
+     *
+     * Never call pendingSyncDao.clearAll() from normal runtime
+     * code because that would remove other users' queues and
+     * legacy unowned rows.
+     */
     suspend fun clearAll() {
 
-        pendingSyncDao.clearAll()
+        getAllPendingOperations()
+            .forEach {
+                    pending ->
+
+                pendingSyncDao
+                    .deleteById(
+                        pending.id
+                    )
+            }
+    }
+
+    private fun currentUserId():
+            String? {
+
+        return userIdProvider()
+            ?.trim()
+            ?.takeIf {
+                it.isNotEmpty()
+            }
     }
 
     companion object {
 
-        const val DEFAULT_MAX_RETRIES = 5
+        const val DEFAULT_MAX_RETRIES =
+            3
     }
 }

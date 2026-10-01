@@ -353,7 +353,7 @@ fun FarmTraceabilityFlow(
                     syncWarningLevel =
                         syncState.syncWarningLevel,
 
-                    scheduledSync = "Every 15 minutes when connected",
+                    scheduledSync = "05:00-06:00 morning | 18:00-19:00 evening",
 
                     retrySyncAvailable =
                         (syncState.pendingRecordCount ?: 0) > 0,

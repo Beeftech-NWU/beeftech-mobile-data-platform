@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.beeftech.database.repository.PendingSyncRepository
+import com.beeftech.database.security.CurrentUserIdRegistry
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -23,6 +24,11 @@ class PendingSyncRepositoryTest {
     fun setUp() {
 
         context = ApplicationProvider.getApplicationContext()
+
+        CurrentUserIdRegistry
+            .setCurrentUserId(
+                TEST_USER_ID
+            )
 
         context.deleteDatabase(DATABASE_NAME)
 
@@ -53,6 +59,9 @@ class PendingSyncRepositoryTest {
 
     @After
     fun tearDown() {
+
+        CurrentUserIdRegistry.clear()
+
 
         if (::database.isInitialized) {
             database.close()
@@ -171,8 +180,141 @@ class PendingSyncRepositoryTest {
         )
     }
 
+
+    @Test
+    fun activeUserQueue_isIsolatedWhenUsersSwitch() =
+        runBlocking {
+
+            CurrentUserIdRegistry
+                .setCurrentUserId(
+                    TEST_USER_ID
+                )
+
+            val userAOperationId =
+                repository.queueOperation(
+                    entityType =
+                        "TREATMENT",
+
+                    entityId =
+                        "USER-A-TREATMENT",
+
+                    operation =
+                        "CREATE",
+
+                    payload =
+                        "USER-A-TREATMENT"
+                )
+
+
+            CurrentUserIdRegistry
+                .setCurrentUserId(
+                    SECOND_USER_ID
+                )
+
+            val userBOperationId =
+                repository.queueOperation(
+                    entityType =
+                        "TREATMENT",
+
+                    entityId =
+                        "USER-B-TREATMENT",
+
+                    operation =
+                        "CREATE",
+
+                    payload =
+                        "USER-B-TREATMENT"
+                )
+
+
+            val userBOperations =
+                repository
+                    .getAllPendingOperations()
+
+            assertEquals(
+                1,
+                userBOperations.size
+            )
+
+            assertEquals(
+                userBOperationId,
+                userBOperations
+                    .single()
+                    .id
+            )
+
+            assertEquals(
+                "USER-B-TREATMENT",
+                userBOperations
+                    .single()
+                    .entityId
+            )
+
+
+            CurrentUserIdRegistry
+                .setCurrentUserId(
+                    TEST_USER_ID
+                )
+
+            val userAOperations =
+                repository
+                    .getAllPendingOperations()
+
+            assertEquals(
+                1,
+                userAOperations.size
+            )
+
+            assertEquals(
+                userAOperationId,
+                userAOperations
+                    .single()
+                    .id
+            )
+
+
+            /*
+             * USER-A cleanup must leave USER-B untouched.
+             */
+            repository
+                .markSyncSuccessful(
+                    userAOperationId
+                )
+
+            assertEquals(
+                0,
+                repository.getPendingCount()
+            )
+
+
+            CurrentUserIdRegistry
+                .setCurrentUserId(
+                    SECOND_USER_ID
+                )
+
+            assertEquals(
+                1,
+                repository.getPendingCount()
+            )
+
+            assertEquals(
+                userBOperationId,
+                repository
+                    .getAllPendingOperations()
+                    .single()
+                    .id
+            )
+        }
+
+
     companion object {
         private const val DATABASE_NAME =
             "beeftech.db"
+
+        private const val TEST_USER_ID =
+            "PENDING-REPOSITORY-USER-A"
+
+        private const val SECOND_USER_ID =
+            "PENDING-REPOSITORY-USER-B"
     }
 }

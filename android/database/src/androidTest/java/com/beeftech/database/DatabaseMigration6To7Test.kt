@@ -223,12 +223,20 @@ class DatabaseMigration6To7Test {
             /*
              * Confirm database is currently at the latest version.
              */
-            assertEquals(
-                BeefTechDatabase.VERSION,
+            val latestVersion =
                 initialDatabase
                     .openHelper
                     .writableDatabase
                     .version
+
+            assertEquals(
+                BeefTechDatabase.VERSION,
+                latestVersion
+            )
+
+            assertTrue(
+                "Expected current database version to be newer than version 6.",
+                latestVersion > 6
             )
 
             /*
@@ -453,7 +461,7 @@ class DatabaseMigration6To7Test {
              * Database must now be at the latest version.
              */
             assertEquals(
-                BeefTechDatabase.VERSION,
+                latestVersion,
                 upgradedDatabase
                     .openHelper
                     .writableDatabase

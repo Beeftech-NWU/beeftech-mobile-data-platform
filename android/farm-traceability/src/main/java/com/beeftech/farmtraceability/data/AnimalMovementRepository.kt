@@ -188,10 +188,20 @@ class AnimalMovementRepository(
 
                             if (syncResult.status == SYNC_STATUS_SYNCED) {
 
-                                pendingSyncRepository.markEntitySyncSuccessful(
-                                    entityType = ENTITY_TYPE,
-                                    entityId = syncResult.recordguid
-                                )
+                                /*
+                                 * queued came from the user-scoped
+                                 * snapshot captured before the network
+                                 * request. Delete exactly those rows
+                                 * instead of resolving ownership again.
+                                 */
+                                queued.forEach {
+                                        pendingOperation ->
+
+                                    pendingSyncRepository
+                                        .markSyncSuccessful(
+                                            pendingOperation.id
+                                        )
+                                }
 
                                 syncedCount++
 

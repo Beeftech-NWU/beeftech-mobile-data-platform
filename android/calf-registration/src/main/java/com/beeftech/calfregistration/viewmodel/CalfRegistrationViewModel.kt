@@ -34,7 +34,6 @@ class CalfRegistrationViewModel(
         loadCalves()
 
         // Backup periodic sync. This is not the primary sync mechanism.
-        schedulePeriodicSync()
 
         // Also queue an immediate network-constrained check. If the device
         // is offline, WorkManager keeps it waiting until connectivity returns.

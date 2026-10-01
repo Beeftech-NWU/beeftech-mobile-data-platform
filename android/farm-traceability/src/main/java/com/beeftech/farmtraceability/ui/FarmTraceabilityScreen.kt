@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Assignment
+import androidx.compose.material.icons.outlined.Agriculture
 import androidx.compose.material.icons.outlined.CloudDone
 import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.Description
@@ -114,12 +115,33 @@ fun FarmTraceabilityScreen(
 
                 Spacer(modifier = Modifier.height(5.dp))
 
-                Text(
-                    text = "Farm Traceability",
-                    fontSize = 29.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = BeeftechWhite
-                )
+                Row(
+                    verticalAlignment =
+                        Alignment.CenterVertically
+                ) {
+
+                    Icon(
+                        imageVector =
+                            Icons.Outlined.Agriculture,
+                        contentDescription =
+                            "Farm Traceability",
+                        tint = BeeftechWhite,
+                        modifier =
+                            Modifier.size(34.dp)
+                    )
+
+                    Spacer(
+                        modifier =
+                            Modifier.size(10.dp)
+                    )
+
+                    Text(
+                        text = "Farm Traceability",
+                        fontSize = 29.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = BeeftechWhite
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(7.dp))
 
