@@ -71,5 +71,41 @@ class FakePendingSyncDao : PendingSyncDao {
         return flowOf(items.size)
     }
 
+    override fun observeOldestPendingCreatedAt(): Flow<Long?> {
+        return flowOf(items.minOfOrNull { it.createdAt })
+    }
+
+    override suspend fun getAllForUser(userId: String): List<PendingSync> {
+        return items.filter { it.userId == userId }.sortedBy { it.createdAt }
+    }
+
+    override suspend fun getPendingForRetryForUser(userId: String, maxRetries: Int): List<PendingSync> {
+        return items
+            .filter { it.userId == userId && it.retryCount < maxRetries }
+            .sortedBy { it.createdAt }
+    }
+
+    override suspend fun getByEntityForUser(
+        userId: String,
+        entityType: String,
+        entityId: String
+    ): List<PendingSync> {
+        return items
+            .filter { it.userId == userId && it.entityType == entityType && it.entityId == entityId }
+            .sortedBy { it.createdAt }
+    }
+
+    override suspend fun getPendingCountForUser(userId: String): Int {
+        return items.count { it.userId == userId }
+    }
+
+    override fun observePendingCountForUser(userId: String): Flow<Int> {
+        return flowOf(items.count { it.userId == userId })
+    }
+
+    override fun observeOldestPendingCreatedAtForUser(userId: String): Flow<Long?> {
+        return flowOf(items.filter { it.userId == userId }.minOfOrNull { it.createdAt })
+    }
+
     fun snapshot(): List<PendingSync> = items.toList()
 }

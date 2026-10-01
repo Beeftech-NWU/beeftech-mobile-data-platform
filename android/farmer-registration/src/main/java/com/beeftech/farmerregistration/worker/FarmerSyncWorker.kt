@@ -1,130 +1,309 @@
-package com.example.app.data.sync
+package com.beeftech.farmerregistration.worker
 
 import android.content.Context
-import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.example.app.data.local.PendingSyncDao
-import com.example.app.data.remote.FarmerApiClient
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedInject
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import timber.log.Timber
+import com.beeftech.database.DatabaseProvider
+import com.beeftech.database.entity.PendingSync
+import com.beeftech.database.repository.FarmerRepository
+import com.beeftech.database.repository.PendingSyncRepository
+import com.beeftech.database.security.TokenProviderRegistry
+import com.beeftech.farmerregistration.data.FarmerApiClient
 
-@HiltWorker
-class FarmerSyncWorker @AssistedInject constructor(
-    @Assisted context: Context,
-    @Assisted params: WorkerParameters,
-    private val pendingSyncDao: PendingSyncDao,
-    private val farmerApiClient: FarmerApiClient
-) : CoroutineWorker(context, params) {
+class FarmerSyncWorker(
+    appContext: Context,
+    workerParams: WorkerParameters
+) : CoroutineWorker(
+    appContext,
+    workerParams
+) {
 
-    companion object {
-        const val MAX_RETRY_COUNT = 5
-        private const val SYNC_ENTITY_TYPE = "FARMER"
-        private const val STATUS_PENDING = "PENDING"
-        private const val STATUS_PROCESSING = "PROCESSING"
-        private const val STATUS_FAILED = "FAILED"
-    }
+    override suspend fun doWork(): Result {
 
-    override async suspend doWork(): Result = withContext(Dispatchers.IO) {
-        Timber.d("Starting FarmerSyncWorker execution...")
+        return try {
 
-        // 1. Fetch pending sync items isolated to the farmer entity type
-        val pendingSyncItems = pendingSyncDao.getPendingSyncItemsByType(
-            entityType = SYNC_ENTITY_TYPE,
-            status = STATUS_PENDING
-        )
+            val database =
+                DatabaseProvider.getDatabase()
+                    ?: return Result.retry()
 
-        if (pendingSyncItems.isEmpty()) {
-            Timber.d("No pending farmer sync records found. Exiting worker with success.")
-            return@withContext Result.success()
-        }
+            val tokenProvider =
+                TokenProviderRegistry.get()
+                    ?: return Result.retry()
 
-        var totalItemsProcessed = 0
-        var totalFailures = 0
-        var exceedMaxRetries = false
-
-        for (syncItem in pendingSyncItems) {
-            // Check max retries cap before attempting dispatch
-            if (syncItem.retryCount >= MAX_RETRY_COUNT) {
-                Timber.w("Sync record ID %s reached max retries (%d). Marking permanently failed.", syncItem.id, MAX_RETRY_COUNT)
-                pendingSyncDao.updateSyncStatus(
-                    id = syncItem.id,
-                    status = STATUS_FAILED,
-                    errorMessage = "Exceeded maximum retry attempts (${MAX_RETRY_COUNT})"
+            val farmerRepository =
+                FarmerRepository(
+                    database.farmerDao()
                 )
-                exceedMaxRetries = true
-                continue
+
+            val pendingSyncRepository =
+                PendingSyncRepository(
+                    database.pendingSyncDao()
+                )
+
+            val apiClient =
+                FarmerApiClient(
+                    context = applicationContext,
+                    tokenProvider = tokenProvider
+                )
+
+            /*
+             * pending_sync is the ownership boundary.
+             *
+             * FarmerEntity itself does not contain user ownership.
+             * Therefore never begin synchronization by selecting every
+             * PENDING Farmer stored on the physical device.
+             */
+            val farmerOperations =
+                pendingSyncRepository
+                    .getAllPendingOperations()
+                    .filter {
+                        it.entityType ==
+                                FARMER_REGISTRATION_ENTITY_TYPE &&
+                                it.retryCount <
+                                MAX_RETRY_COUNT
+                    }
+
+            if (farmerOperations.isEmpty()) {
+                return Result.success()
             }
 
-            // 2. Mark item as PROCESSING before making the API request
-            pendingSyncDao.updateSyncStatus(
-                id = syncItem.id,
-                status = STATUS_PROCESSING,
-                errorMessage = null
-            )
+            /*
+             * Resolve only Farmers referenced by the active user's
+             * pending-sync queue.
+             */
+            val queuedFarmers =
+                farmerOperations
+                    .map {
+                            pendingOperation ->
 
-            // 3. Dispatch network sync request
-            val success = try {
-                val farmerPayload = pendingSyncDao.getFarmerPayloadById(syncItem.entityId)
-                if (farmerPayload != null) {
-                    val response = farmerApiClient.syncFarmer(farmerPayload)
-                    response.isSuccessful
-                } else {
-                    Timber.e("Payload missing for entity ID: %s", syncItem.entityId)
-                    false
+                        pendingOperation to
+                                farmerRepository
+                                    .getFarmerById(
+                                        pendingOperation.entityId
+                                    )
+                    }
+
+            /*
+             * A queue entry is stale if the Farmer is already SYNCED
+             * or the corresponding local Farmer no longer exists.
+             *
+             * Only entries from this user-scoped queue snapshot may
+             * be removed.
+             */
+            queuedFarmers
+                .filter {
+                        (_, farmer) ->
+
+                    farmer == null ||
+                            farmer.sync_status ==
+                            "SYNCED"
                 }
-            } catch (e: Exception) {
-                Timber.e(e, "Exception caught during sync call for entity ID: %s", syncItem.entityId)
-                false
+                .forEach {
+                        (pendingOperation, _) ->
+
+                    pendingSyncRepository
+                        .markSyncSuccessful(
+                            pendingOperation.id
+                        )
+                }
+
+            val pendingFarmers =
+                queuedFarmers
+                    .mapNotNull {
+                            (_, farmer) ->
+
+                        farmer
+                            ?.takeIf {
+                                it.sync_status ==
+                                        "PENDING" ||
+                                        it.sync_status ==
+                                        "PROCESSING"
+                            }
+                    }
+                    .distinctBy {
+                        it.farmer_id
+                    }
+
+            if (pendingFarmers.isEmpty()) {
+                return Result.success()
             }
 
-            // 4. Update persistence boundary based on sync response
-            if (success) {
-                Timber.d("Successfully synced farmer entity ID: %s", syncItem.entityId)
-                pendingSyncDao.deletePendingSyncItem(syncItem.id)
-                totalItemsProcessed++
-            } else {
-                totalFailures++
-                val updatedRetryCount = syncItem.retryCount + 1
-                
-                if (updatedRetryCount >= MAX_RETRY_COUNT) {
-                    Timber.e("Permanent sync failure for entity ID: %s after %d attempts.", syncItem.entityId, updatedRetryCount)
-                    pendingSyncDao.updateSyncStatusAndRetryCount(
-                        id = syncItem.id,
-                        status = STATUS_FAILED,
-                        retryCount = updatedRetryCount,
-                        errorMessage = "Network request failed on final attempt."
+            var hasFailure = false
+
+            pendingFarmers.forEach { farmer ->
+
+                val farmerId =
+                    farmer.farmer_id
+
+                try {
+
+                    farmerRepository
+                        .markAsProcessing(
+                            farmerId
+                        )
+
+                    val addresses =
+                        farmerRepository
+                            .getAddressesForFarmer(
+                                farmerId
+                            )
+
+                    val roles =
+                        farmerRepository
+                            .getRolesForFarmer(
+                                farmerId
+                            )
+
+                    val syncResult =
+                        apiClient.syncFarmer(
+                            farmer = farmer,
+                            addresses = addresses,
+                            roles = roles
+                        )
+
+                    val syncSuccessful =
+                        syncResult.getOrNull()
+                            ?.status
+                            ?.equals(
+                                "SYNCED",
+                                ignoreCase = true
+                            ) == true
+
+                    if (syncSuccessful) {
+
+                        /*
+                         * Mark the actual farmer record
+                         * as synchronized.
+                         */
+                        farmerRepository
+                            .markAsSynced(
+                                farmerId
+                            )
+
+                        /*
+                         * Remove only the matching Farmer
+                         * Registration entries from the
+                         * shared pending-sync queue.
+                         */
+                        /*
+                         * Remove only queue entries captured for the
+                         * account that started this synchronization.
+                         */
+                        farmerOperations
+                            .filter {
+                                it.entityId ==
+                                        farmerId
+                            }
+                            .forEach {
+                                    pendingOperation ->
+
+                                pendingSyncRepository
+                                    .markSyncSuccessful(
+                                        pendingOperation.id
+                                    )
+                            }
+
+                    } else {
+
+                        farmerRepository
+                            .markAsPending(
+                                farmerId
+                            )
+
+                        /*
+                         * Keep the Farmer Registration
+                         * pending and increment its retry
+                         * count.
+                         */
+                        markFarmerSyncFailed(
+                            pendingSyncRepository =
+                                pendingSyncRepository,
+                            pendingOperations =
+                                farmerOperations,
+                            farmerId =
+                                farmerId
+                        )
+
+                        hasFailure = true
+                    }
+
+                } catch (exception: Exception) {
+
+                    farmerRepository
+                        .markAsPending(
+                            farmerId
+                        )
+
+                    markFarmerSyncFailed(
+                        pendingSyncRepository =
+                            pendingSyncRepository,
+                        pendingOperations =
+                            farmerOperations,
+                        farmerId =
+                            farmerId
                     )
-                    exceedMaxRetries = true
-                } else {
-                    Timber.w("Sync attempt %d failed for entity ID: %s. Reverting status to PENDING.", updatedRetryCount, syncItem.entityId)
-                    pendingSyncDao.updateSyncStatusAndRetryCount(
-                        id = syncItem.id,
-                        status = STATUS_PENDING,
-                        retryCount = updatedRetryCount,
-                        errorMessage = "Transient network error during sync."
-                    )
+
+                    hasFailure = true
                 }
             }
-        }
 
-        // 5. Worker Result decision
-        return@withContext when {
-            totalFailures > 0 && !exceedMaxRetries -> {
-                Timber.w("Worker completed with transient failures. Scheduling retry with exponential backoff.")
+            /*
+             * If at least one Farmer Registration failed,
+             * ask WorkManager to retry.
+             *
+             * Farmers that synchronized successfully are
+             * already marked SYNCED and their matching
+             * pending-sync entries have been removed.
+             */
+            if (hasFailure) {
                 Result.retry()
-            }
-            exceedMaxRetries && totalItemsProcessed == 0 -> {
-                Timber.e("Worker finished with unrecoverable failures.")
-                Result.failure()
-            }
-            else -> {
-                Timber.d("Worker execution completed successfully for %d items.", totalItemsProcessed)
+            } else {
                 Result.success()
             }
+
+        } catch (exception: Exception) {
+
+            Result.retry()
         }
+    }
+
+    private suspend fun markFarmerSyncFailed(
+        pendingSyncRepository: PendingSyncRepository,
+        pendingOperations: List<PendingSync>,
+        farmerId: String
+    ) {
+
+        /*
+         * Use the queue snapshot captured before the network request.
+         * Do not resolve the current user again during failure handling.
+         */
+        pendingOperations
+            .filter {
+                it.entityType ==
+                        FARMER_REGISTRATION_ENTITY_TYPE &&
+                        it.entityId ==
+                        farmerId
+            }
+            .forEach {
+                    pendingOperation ->
+
+                pendingSyncRepository
+                    .markSyncFailed(
+                        pendingOperation.id
+                    )
+            }
+    }
+
+    companion object {
+
+        private const val FARMER_REGISTRATION_ENTITY_TYPE =
+            "FARMER_REGISTRATION"
+
+        /*
+         * Caps retries so a permanently failing record cannot
+         * keep WorkManager in an endless retry loop.
+         */
+        private const val MAX_RETRY_COUNT =
+            5
     }
 }

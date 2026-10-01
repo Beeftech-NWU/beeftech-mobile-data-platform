@@ -22,9 +22,13 @@ class CalfRegistrationRepositoryTest {
     private val calfDao = FakeCalfRegistrationDao()
     private val pendingSyncDao = FakePendingSyncDao()
 
+    // Sync queue reads are user-scoped, so the tests act as a signed-in user.
+    private fun pendingSyncRepository() =
+        PendingSyncRepository(pendingSyncDao, userIdProvider = { "test-user" })
+
     private fun repository(apiClient: CalfRegistrationApiClient) = CalfRegistrationRepository(
         calfRegistrationDao = calfDao,
-        pendingSyncRepository = PendingSyncRepository(pendingSyncDao),
+        pendingSyncRepository = pendingSyncRepository(),
         apiClient = apiClient,
         captureContextProvider = { CalfCaptureContext(deviceId = "TEST-DEVICE") }
     )
@@ -131,7 +135,7 @@ class CalfRegistrationRepositoryTest {
         assertEquals(1, outcome.syncedCount)
         assertEquals("SYNCED", calfDao.registrations.single().syncStatus)
         assertNotNull(calfDao.registrations.single().syncedAt)
-        assertTrue(PendingSyncRepository(pendingSyncDao).getPendingOperations().isEmpty())
+        assertTrue(pendingSyncRepository().getPendingOperations().isEmpty())
     }
 
     @Test

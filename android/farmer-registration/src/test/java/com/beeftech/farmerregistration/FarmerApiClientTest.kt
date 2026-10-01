@@ -5,7 +5,7 @@ import com.beeftech.database.entity.FarmerEntity
 import com.beeftech.database.security.TokenProvider
 import com.beeftech.farmerregistration.data.FarmerApiClient
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FarmerApiClientTest {
@@ -17,7 +17,7 @@ class FarmerApiClientTest {
     private class DummyContext : ContextWrapper(null)
 
     @Test
-    fun `syncFarmer returns null when token is null`() = runTest {
+    fun `syncFarmer fails when token is null`() = runTest {
         val apiClient = FarmerApiClient(
             context = DummyContext(),
             tokenProvider = FakeTokenProvider(null),
@@ -36,6 +36,6 @@ class FarmerApiClientTest {
         )
 
         val syncResult = apiClient.syncFarmer(farmer, emptyList(), emptyList())
-        assertNull(syncResult)
+        assertTrue(syncResult.isFailure)
     }
 }
