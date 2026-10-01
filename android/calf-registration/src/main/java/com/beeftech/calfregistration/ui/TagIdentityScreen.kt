@@ -31,6 +31,7 @@ fun TagIdentityScreen(
     formData: CalfRegistrationData,
     onFormDataChange: (CalfRegistrationData) -> Unit,
     onNextClick: () -> Unit,
+    onBackClick: (() -> Unit)? = null,
     onCheckTagDuplicate: (suspend (String) -> Boolean)? = null
 ) {
     var activeLookupField by remember { mutableStateOf<String?>(null) }
@@ -108,7 +109,9 @@ fun TagIdentityScreen(
             eyebrow = "Calf registration",
             title = "Register Calf",
             subtitle = "Capture the calf's tag and identity details.",
-            icon = Icons.Outlined.Pets
+            icon = Icons.Outlined.Pets,
+            showBackButton = onBackClick != null,
+            onBackClick = onBackClick
         )
 
         Column(modifier = Modifier.fillMaxWidth().padding(18.dp)) {

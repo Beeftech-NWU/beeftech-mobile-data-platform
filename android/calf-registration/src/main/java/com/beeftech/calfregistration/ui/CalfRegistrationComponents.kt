@@ -247,3 +247,37 @@ fun CalfSecondaryButton(text: String, onClick: () -> Unit, modifier: Modifier = 
         Text(text = text, fontWeight = FontWeight.SemiBold)
     }
 }
+
+@Composable
+fun CalfMenuCard(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = BeeftechSurface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(15.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier.size(47.dp).background(BeeftechSoftAccent, RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = BeeftechPrimaryDark, modifier = Modifier.size(23.dp))
+            }
+            Spacer(modifier = Modifier.size(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = BeeftechText)
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(subtitle, fontSize = 11.sp, lineHeight = 15.sp, color = BeeftechMutedText)
+            }
+            Text("›", fontSize = 26.sp, fontWeight = FontWeight.Medium, color = BeeftechPrimaryDark)
+        }
+    }
+}

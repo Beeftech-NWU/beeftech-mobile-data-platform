@@ -52,25 +52,26 @@ fun CalvesRegisteredScreen(
         CalfHeader(
             eyebrow = "Calf registration",
             title = "Registered Calves",
-            subtitle = "Review calves registered during this session.",
+            subtitle = "Search and review calves registered on this device.",
             icon = Icons.Outlined.Pets,
             showBackButton = true,
             onBackClick = onBackClick
         )
 
         Column(modifier = Modifier.fillMaxWidth().padding(18.dp)) {
-            CalfSectionTitle("This session")
+            CalfSectionTitle("Summary")
             Spacer(modifier = Modifier.height(12.dp))
             CalfCard {
+                val syncedCount = registeredCalves.count { it.synced }
                 Text(
-                    text = "24 Aug – 29 Aug",
+                    text = "${registeredCalves.size} calves registered",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = BeeftechText
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "${registeredCalves.size} calves available to review",
+                    text = "$syncedCount synced • ${registeredCalves.size - syncedCount} pending",
                     fontSize = 12.sp,
                     color = BeeftechMutedText
                 )
@@ -97,7 +98,8 @@ fun CalvesRegisteredScreen(
             if (filteredCalves.isEmpty()) {
                 CalfCard {
                     Text(
-                        text = "No calves found matching '$searchQuery'",
+                        text = if (registeredCalves.isEmpty()) "No calves registered yet"
+                        else "No calves found matching '$searchQuery'",
                         fontSize = 13.sp,
                         color = BeeftechMutedText,
                         fontWeight = FontWeight.Medium
@@ -145,6 +147,16 @@ private fun CalfRegisteredItemCard(calf: CalfRegistrationData, onClick: () -> Un
                     color = BeeftechMutedText
                 )
             }
+            Text(
+                text = if (calf.synced) "SYNCED" else "PENDING",
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                color = BeeftechPrimaryDark,
+                modifier = Modifier
+                    .background(BeeftechSoftAccent, RoundedCornerShape(5.dp))
+                    .padding(horizontal = 6.dp, vertical = 3.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
             Text("›", fontSize = 26.sp, fontWeight = FontWeight.Medium, color = BeeftechPrimaryDark)
         }
     }
