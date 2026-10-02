@@ -36,10 +36,7 @@ fun CalfDetailScreen(
         Column(modifier = Modifier.fillMaxWidth().padding(18.dp)) {
             DetailSection(
                 "Identity",
-                "Tag number" to calf.tagNumber,
-                "Old tag number" to calf.oldTagNumber,
-                "Transponder" to calf.transponderNumber,
-                "Reference" to calf.referenceNumber
+                "Tag number" to calf.tagNumber
             )
             DetailSection(
                 "Animal",
@@ -52,18 +49,12 @@ fun CalfDetailScreen(
                 "Appearance",
                 "Hide colour" to calf.hideColour,
                 "Conformity" to calf.conformity,
-                "Mark" to calf.mark,
-                "Group" to calf.group
+                "Mark" to calf.mark
             )
             DetailSection(
                 "Parentage",
                 "Dam" to parent(calf.dameTagNumber),
                 "Sire" to parent(calf.sireTagNumber)
-            )
-            DetailSection(
-                "Verification",
-                "Process proof" to calf.processProof,
-                "Implant proof" to calf.implantProof
             )
             DetailSection(
                 "Status",

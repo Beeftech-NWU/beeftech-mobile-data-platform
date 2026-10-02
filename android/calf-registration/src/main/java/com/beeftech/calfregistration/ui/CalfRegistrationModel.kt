@@ -2,9 +2,6 @@ package com.beeftech.calfregistration.ui
 
 data class CalfRegistrationData(
     val tagNumber: String = "",
-    val oldTagNumber: String = "",
-    val transponderNumber: String = "40",
-    val referenceNumber: String = "",
     val animalType: String = "BRN — Brangus",
     val gender: String = "Female",
     val age: String = "Newborn",
@@ -14,9 +11,6 @@ data class CalfRegistrationData(
     val mark: String = "",
     val dameTagNumber: String = "Select dame",
     val sireTagNumber: String = "Select sire",
-    val processProof: String = "",
-    val implantProof: String = "",
-    val group: String = "",
     val photoPath: String? = null,
     val synced: Boolean = false,
     val dateRegistered: String = "26 Aug"
