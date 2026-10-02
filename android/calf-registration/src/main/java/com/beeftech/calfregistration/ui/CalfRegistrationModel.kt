@@ -1,7 +1,7 @@
 package com.beeftech.calfregistration.ui
 
 data class CalfRegistrationData(
-    val tagNumber: String = "Blu0000064",
+    val tagNumber: String = "",
     val oldTagNumber: String = "",
     val transponderNumber: String = "40",
     val referenceNumber: String = "",
