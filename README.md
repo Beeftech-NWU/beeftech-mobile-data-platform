@@ -4,7 +4,7 @@ An offline-first Android platform for **BeefTech (Pty) Ltd.** — feedlot manage
 livestock traceability and farm data capture for field operations with limited or no
 connectivity, plus a local Kotlin/Ktor backend that field devices sync into.
 
-This repository is a single Gradle build containing **seven Android modules**, a
+This repository is a single Gradle build containing **eight Android modules** (one an empty placeholder), a
 **Ktor backend**, and a **demo app** that wires the finished modules together.
 
 ---
@@ -41,14 +41,16 @@ cd beeftech-mobile-data-platform
 # 1. Point Gradle at your Android SDK
 echo "sdk.dir=$HOME/Android/Sdk" > local.properties   # macOS: $HOME/Library/Android/sdk
 
-# 2. Start the backend with dev users seeded (terminal 1)
+# 2. (Optional) Start a local backend with dev users seeded (terminal 1).
+#    API clients default to the hosted backend, so skip this unless testing locally;
+#    see "Connecting the app to the backend".
 ./gradlew :backend:api:run -Dbeeftech.seed.dev=true   # serves on http://0.0.0.0:8081 (admin / 10001)
 
 # 3. Build and install the demo app on a running emulator (terminal 2)
 ./gradlew :demoapp:installDebug
 
-# 4. Run the fast checks
-./gradlew test
+# 4. Run the fast checks (same as CI)
+./gradlew testDebugUnitTest test
 ```
 
 ---
@@ -81,9 +83,10 @@ beeftech-mobile-data-platform/
 │   ├── database/                 # Room + SQLCipher: entities, DAOs, repositories, keystore
 │   ├── farm-traceability/        # Animal records, movements, treatments, mortalities, costs
 │   ├── farmer-registration/      # Farmer/client onboarding screens
-│   └── feed-crib/                # Feed bunk reading screens
+│   ├── feed-crib/                # Feed bunk reading screens
+│   └── tag-scanner/              # Tag scanning, colour detection and tag parsing
 ├── backend/
-│   ├── api/                      # ✅ Ktor server: auth, calf registration, feed crib, PDF
+│   ├── api/                      # ✅ Ktor server: auth, calf registration, farmers, treatments, movements, feed crib, PDF
 │   ├── authentication/           # ⚠️ placeholder — empty
 │   └── sync/                     # ⚠️ placeholder — empty
 ├── demoapp/                      # ✅ The installable Android app used for demos/testing
@@ -120,6 +123,7 @@ nothing.
 | `:android:farmer-registration` | library | `com.beeftech.farmerregistration` | `database` | Authenticated backend sync |
 | `:android:feed-crib` | library | `com.beeftech.feedcrib` | — (UI only, in-memory data) | Wired into demoapp |
 | `:android:authentication` | library | `com.beeftech.authentication` | `database` | PIN auth, `AuthGate`, `SessionStore` (wired into demoapp) |
+| `:android:tag-scanner` | library | `com.beeftech.tagscanner` | `database` | Tag scanning, colour detection, tag parsing; used by `calf-registration` and `farm-traceability` (transitive for demoapp) |
 | `:backend:api` | JVM app | `com.beeftech.backend.api` | — | Runnable Ktor server |
 | `:android:app`, `:backend:authentication`, `:backend:sync` | — | — | — | Empty placeholders |
 
@@ -127,7 +131,7 @@ nothing.
 
 Everything persistent lives here:
 
-- `BeefTechDatabase` — Room database, **schema version 18** (see
+- `BeefTechDatabase` — Room database, **schema version 31** (`BeefTechDatabase.VERSION`; see
   [Database & migrations](#database--migrations))
 - `entity/` — Room entities (animals, groups, weights, treatments, mortalities,
   movements, costs, farmers, feed cribs, pens, locations, suppliers, users, roles,
@@ -135,10 +139,10 @@ Everything persistent lives here:
 - `dao/` — one DAO per aggregate
 - `repository/` — `AnimalManagementRepository`, `FarmerRepository`,
   `FeedingRepository`, `LocationRepository`, `PendingSyncRepository`,
-  `SyncRepository`
+  `SyncRepository`, `AnimalHistoryRepository`, `SyncPolicyEnforcer`
 - `security/` — `AndroidKeyStoreSecurityProvider`, `DatabaseKeyProvider`,
   `SecureDatabaseInitializer`, `SecureDatabasePassphraseStore`, `CredentialHasher`,
-  `PinLockoutManager`
+  `PinLockoutManager`, `TokenProviderRegistry`
 - `DatabaseProvider.initialize(context, passphrase)` — the single entry point; returns
   a `DatabaseResult`
 
@@ -200,6 +204,22 @@ initialises the encrypted database on a background thread, and seeds a demo anim
   ./gradlew :backend:api:run -Dbeeftech.seed.dev=true -Dbeeftech.db.url="jdbc:sqlite:/tmp/beeftech.db"
   ```
 
+#### Backend configuration
+
+An environment variable wins over the matching `-D` system property.
+
+| Env var | System property | Default / purpose |
+|---|---|---|
+| `PORT` | — | `8081` |
+| `BEEFTECH_DB_URL` | `beeftech.db.url` | `jdbc:sqlite:./data/beeftech-backend.db` |
+| `BEEFTECH_SEED_DEV` | `beeftech.seed.dev` | Seed the dev users when `true` |
+| `BEEFTECH_JWT_SECRET` | — | Falls back to a dev secret with a warning; always set in production |
+| `BEEFTECH_SMTP_PROVIDER` / `_HOST` / `_PORT` / `_SECURITY` / `_USERNAME` / `_PASSWORD` / `_FROM` | — | SMTP settings for the farmer sales notification email |
+| `BEEFTECH_SALES_REP_EMAIL` | — | Recipient of the farmer sales notification |
+
+Deployment: the `Dockerfile` (`:backend:api:installDist`) and `render.yaml` deploy the
+backend to Render.
+
 Smoke-test it:
 
 ```bash
@@ -213,7 +233,9 @@ curl -X POST http://localhost:8081/api/auth/login \
 
 ### Connecting the app to the backend
 
-All feature API clients (`CalfRegistrationApiClient`, `TreatmentApiClient`, `AnimalMovementApiClient`, `FarmerApiClient`) default to `http://10.0.2.2:8081/` — the loopback alias an **Android emulator** uses to reach the host machine. On a physical device, pass your workstation's LAN address to the client's `baseUrl` constructor parameter (e.g. `http://192.168.1.20:8081/`).
+All API clients (`AuthApiClient`, `CalfRegistrationApiClient`, `FarmerApiClient`, `TreatmentApiClient`, `AnimalMovementApiClient`) default to the **hosted backend**, `https://beeftech-backend.onrender.com/` (the Render deployment from `render.yaml`).
+
+To use a local backend, pass `baseUrl` to the client: `http://10.0.2.2:8081/` from an **Android emulator** (the loopback alias for the host machine), or your workstation's LAN address from a physical device (e.g. `http://192.168.1.20:8081/`). The cleartext-HTTP exception for `10.0.2.2` is declared in `android/calf-registration/src/main/AndroidManifest.xml`.
 
 API clients obtain their JWT token dynamically from the logged-in session (`SessionStore` / `TokenProviderRegistry`), so feature operations communicate securely under the authenticated user's credentials.
 
@@ -221,8 +243,8 @@ API clients obtain their JWT token dynamically from the logged-in session (`Sess
 
 Follow these steps to test online PIN login, data capture, backend synchronization, offline caching, and security lockout:
 
-#### Step 1: Start the backend server with dev user seeding
-In terminal 1, start the Ktor backend with dev seeding enabled:
+#### Step 1: Start the backend server with dev user seeding (local backend only)
+Skip this step when testing against the hosted backend. To test against a local backend, pass the local `baseUrl` to the API clients (see above), then in terminal 1 start the Ktor backend with dev seeding enabled:
 ```bash
 ./gradlew :backend:api:run -Dbeeftech.seed.dev=true
 ```
@@ -271,7 +293,7 @@ adb shell am start -n com.beeftech.demoapp/.MainActivity
 
 | Command | What it runs | Needs a device? |
 |---|---|---|
-| `./gradlew test` | All JVM unit tests | No |
+| `./gradlew testDebugUnitTest test` | All JVM unit tests (exactly what CI runs) | No |
 | `./gradlew :backend:api:test` | Ktor route tests (JUnit Platform) | No |
 | `./gradlew :android:calf-registration:testDebugUnitTest` | Repository, mapper, ViewModel, API client and tag-utils tests | No |
 | `./gradlew connectedAndroidTest` | All instrumented tests | **Yes** |
@@ -281,9 +303,16 @@ adb shell am start -n com.beeftech.demoapp/.MainActivity
 Where the tests live:
 
 ```text
-src/test/       → JVM unit tests (calf-registration, farmer-registration, demoapp, backend/api)
-src/androidTest/→ instrumented tests (database, authentication, farmer-registration, demoapp)
+src/test/       → JVM unit tests (authentication, calf-registration, farm-traceability,
+                  farmer-registration, tag-scanner, demoapp, backend/api)
+src/androidTest/→ instrumented tests (database, authentication, farmer-registration,
+                  tag-scanner, demoapp)
 ```
+
+CI (`.github/workflows/ci.yml`) runs two jobs: **Unit tests**
+(`./gradlew testDebugUnitTest test --continue`) and **Database migration tests
+(emulator)** (API 30, `:android:database:connectedAndroidTest`). Neither is a required
+check yet.
 
 Run a single test class:
 
@@ -337,34 +366,43 @@ Run a single test class:
 
 ## Database & migrations
 
-- **Room schema version: 24** (`BeefTechDatabase`)
+- **Room schema version: 31** (`BeefTechDatabase.VERSION` is the source of truth)
 - Migrations `1→2` … `8→9` are defined in
   `android/database/src/main/java/com/beeftech/database/DatabaseFactory.kt`.
-  Migrations `9→10` and later (`9→10`, `10→11`, `11→12`, `12→13`, `13→14`,
-  `14→16`, `16→17`, `17→18`, `18→19`, `19→20`, `20→21`, `21→22`, `22→23`, `23→24`)
-  live in the `BeefTechDatabase` companion object in `BeefTechDatabase.kt`.
-  Version 15 is deliberately unused (see the comment above
-  `MIGRATION_14_16`).
+  Migrations `9→10` through `30→31` live in the `BeefTechDatabase` companion object in
+  `BeefTechDatabase.kt`. Every migration is registered in `DatabaseFactory.kt`
+  `.addMigrations(...)` wrapped in `guarded(...)`.
+  Version 15 is deliberately unused (see the comment above `MIGRATION_14_16`).
 - Exported schema JSON for each version is committed under
   `android/database/schemas/com.beeftech.database.BeefTechDatabase/`.
 - Encryption: SQLCipher for Android 4.17.0, key material via Android KeyStore
   (`AndroidKeyStoreSecurityProvider`)
 
-**Before changing anything here, read
-[`AGENT.md`](AGENT.md)** — it has the full list of non-negotiable rules
-(never lose data, no destructive fallback, fill GUIDs before making them
-unique, and more) and the traps that have already bitten this schema once.
+**Non-negotiable rules.** Field devices can hold up to 30 days of unsynced data, and
+losing it is the worst failure this app can have (a real incident is written up in
+[`docs/database/incident-2026-09-r0-migration-data-loss.md`](docs/database/incident-2026-09-r0-migration-data-loss.md)).
+
+- Never use a destructive migration fallback. Every version step needs an explicit
+  migration that preserves data.
+- Values that cannot be mapped go into quarantine/legacy tables; never drop them.
+- Backfill GUIDs before adding a unique index on them.
+- Feature modules reach persistence through repositories in `:android:database`, never
+  through DAOs directly.
 
 **When you change an entity you must:**
 
 1. Add or edit the entity in `entity/` and its DAO in `dao/`.
-2. Bump `version` in the `@Database` annotation on `BeefTechDatabase`.
-3. Add a `Migration(n, n+1)` object in the `BeefTechDatabase` companion and
-   register it in `DatabaseFactory.kt`'s `.addMigrations(...)`.
-4. Add a migration test using `MigrationTestHelper`, following the template
-   in `android/database/src/androidTest/java/com/beeftech/database/Migration16To17Test.kt`.
-5. Run `./gradlew :android:database:connectedAndroidTest` (this also runs in CI,
-   on an emulator, via the `instrumented-tests` job in `.github/workflows/ci.yml`).
+2. Bump `BeefTechDatabase.VERSION`.
+3. Add a `Migration(n, n+1)` object in the `BeefTechDatabase` companion.
+4. Register it in `DatabaseFactory.kt`'s `.addMigrations(...)`, wrapped in `guarded(...)`.
+5. Commit the exported schema JSON under
+   `android/database/schemas/com.beeftech.database.BeefTechDatabase/`.
+6. Add a migration test using `MigrationTestHelper`, following the templates
+   `Migration30To31Test.kt` and `Migration16To17Test.kt` in
+   `android/database/src/androidTest/java/com/beeftech/database/`.
+7. Run `./gradlew :android:database:connectedAndroidTest` (this also runs in CI, on an
+   emulator, as the "Database migration tests (emulator)" job in
+   `.github/workflows/ci.yml`).
 
 Never rely on destructive migration — field devices hold up to 30 days of unsynced data.
 
@@ -372,11 +410,36 @@ Never rely on destructive migration — field devices hold up to 30 days of unsy
 
 ## Backend API reference
 
-Base URL: `http://<host>:8081`. All routes except `/`, `/api/auth/login` and
-`/api/auth/register` require an `Authorization: Bearer <jwt>` header.
+Base URL: `https://beeftech-backend.onrender.com` (hosted) or `http://<host>:8081`
+(local). All routes except `/`, `/health`, `/api/auth/login` and `/api/auth/register`
+require an `Authorization: Bearer <jwt>` header.
 
 | Method | Path | Purpose |
 |---|---|---|
+| `GET` | `/` | Liveness text response |
+| `GET` | `/health` | Health check |
+| `POST` | `/api/auth/login` | Exchange credentials for a JWT (24 h expiry) |
+| `POST` | `/api/auth/register` | Register a user |
+| `GET` | `/api/profile` | Current user profile |
+| `POST` | `/api/calf-registrations/sync` | Batch upsert of calf registrations by GUID |
+| `GET` | `/api/calf-registrations` | List calf registrations |
+| `GET` | `/api/calf-registrations/{tagNumber}` | Single calf registration |
+| `POST` | `/api/calf-registrations/{tagNumber}/media` | Attach a photo/video |
+| `GET` | `/api/calf-registrations/{tagNumber}/certificate` | Generated birth-certificate PDF (PDFBox) |
+| `POST` | `/api/farmers/sync` | Batch upsert of farmers |
+| `GET` | `/api/farmers` | List farmers |
+| `GET` | `/api/farmers/{farmerId}` | Single farmer |
+| `POST` | `/api/treatments/sync` | Batch upsert of treatments |
+| `GET` | `/api/treatments` | List treatments |
+| `GET` | `/api/treatments/{animalId}` | Treatments for one animal |
+| `GET` | `/api/treatments/reference-data` | Treatment reference data |
+| `POST` | `/api/animal-movements/sync` | Batch upsert of animal movements |
+| `POST` | `/api/feed-crib` | Submit a feed crib reading |
+| `GET` | `/api/feed-crib` | List feed crib readings |
+| `GET` | `/api/feed-crib/{penName}` | Readings for one pen |
+| `GET` | `/api/farm-traceability` | Placeholder liveness route |
+
+---|---|---|
 | `GET` | `/` | Liveness text response |
 | `POST` | `/api/auth/login` | Exchange credentials for a JWT (24 h expiry) |
 | `POST` | `/api/auth/register` | Register a user |
@@ -407,12 +470,13 @@ Base URL: `http://<host>:8081`. All routes except `/`, `/api/auth/login` and
 | SQLCipher for Android | 4.17.0 |
 | Ktor (client & server) | 3.0.3 |
 | Exposed | 0.56.0 |
-| `compileSdk` | 35 (`database`, `farm-traceability`, `farmer-registration`, `demoapp`) · 34 (`authentication`, `calf-registration`, `feed-crib`) |
+| `compileSdk` | 35 (`database`, `farm-traceability`, `farmer-registration`, `demoapp`) · 34 (`authentication`, `calf-registration`, `feed-crib`, `tag-scanner`) |
 | `minSdk` | 24 (23 for `:android:database`) |
 | JVM target | 17 everywhere |
 
-Dependency declarations are currently **mixed**: `:android:farmer-registration` uses the
-`gradle/libs.versions.toml` version catalog, while most other modules hard-code
+Dependency declarations are currently **mixed**: `:android:farmer-registration` and
+`:android:tag-scanner` use the `gradle/libs.versions.toml` version catalog for plugins
+(and farmer-registration for libraries), while most other modules hard-code
 coordinates. New code should prefer the version catalog.
 
 ---
@@ -425,6 +489,7 @@ coordinates. New code should prefer the version catalog.
 - Before opening a PR:
   ```bash
   ./gradlew build          # compiles every module + runs unit tests
+  ./gradlew testDebugUnitTest test   # the unit-test command CI runs
   ./gradlew lintDebug      # Android Lint
   ```
 - Instrumented tests (`connectedAndroidTest`) need an emulator or device; run them
@@ -457,8 +522,10 @@ Already excluded in `:android:database` and `:demoapp` via `packaging { resource
 Add the same exclusion to a new module if it consumes SQLCipher or BouncyCastle.
 
 **App cannot reach the backend from a device**
-`10.0.2.2` only works on the emulator. Pass a LAN address as `baseUrl` to
-`CalfRegistrationApiClient`, and make sure both machines are on the same network.
+This only applies when targeting a local backend. `10.0.2.2` only works on the emulator,
+so pass a LAN address as `baseUrl` to the API clients (e.g. `CalfRegistrationApiClient`)
+and make sure both machines are on the same network. By default the clients use the
+hosted backend and need internet access.
 
 **Gradle behaves strangely after a branch switch**
 ```bash
@@ -471,7 +538,12 @@ Add the same exclusion to a new module if it consumes SQLCipher or BouncyCastle.
 
 - `android/app`, `backend/authentication` and `backend/sync` are empty placeholders.
 - `docs/` subdirectories contain only `.gitkeep` files.
-- No CI workflow (`.github/`) is configured yet.
+- CI runs (see [Testing](#testing)), but neither job is a required check yet.
+- `:backend:api:test` is flaky: a different single test fails on each run, probably
+  because tests share state (N5 in `docs/database/future-checks.md`). Re-run before
+  assuming a regression.
+- Some `docs/database/*.md` files cite an `AGENT.md` that does not exist; the database
+  rules are summarised in [Database & migrations](#database--migrations).
 - Demo credentials, the JWT secret and the demo SQLCipher passphrase are hard-coded for development.
 - Stale standalone Gradle files remain under `android/`.
 - Deferred database and backend follow-ups are listed in
