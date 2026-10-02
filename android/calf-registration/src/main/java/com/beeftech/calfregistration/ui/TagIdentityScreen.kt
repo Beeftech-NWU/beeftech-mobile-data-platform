@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -18,6 +20,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -44,18 +49,30 @@ fun TagIdentityScreen(
         )
     }
 
-    val extractedComponents = remember(formData.tagNumber) {
-        TagNamingUtils.extractComponents(formData.tagNumber)
+    val focusManager = LocalFocusManager.current
+    var selectedColour by remember { mutableStateOf(TagColour.BLUE) }
+
+    // The field keeps the raw text while typing; the expanded form is only previewed and validated
+    // here, then committed to formData when editing finishes (see commitTag).
+    val expandedTag = TagNamingUtils.parseAndExpand(formData.tagNumber, selectedColour)
+    val extractedComponents = remember(expandedTag) {
+        TagNamingUtils.extractComponents(expandedTag)
     }
-    val currentColour = extractedComponents?.first ?: TagColour.BLUE
+    val currentColour = extractedComponents?.first ?: selectedColour
     val currentSequence = extractedComponents?.second ?: ""
-    val isTagValid = TagNamingUtils.validateTag(formData.tagNumber)
+    val isTagValid = TagNamingUtils.validateTag(expandedTag)
+
+    fun commitTag() {
+        if (expandedTag != formData.tagNumber) {
+            onFormDataChange(formData.copy(tagNumber = expandedTag))
+        }
+    }
 
     var isDuplicateTag by remember { mutableStateOf(false) }
 
-    LaunchedEffect(formData.tagNumber) {
+    LaunchedEffect(expandedTag) {
         if (isTagValid && onCheckTagDuplicate != null) {
-            isDuplicateTag = onCheckTagDuplicate(formData.tagNumber)
+            isDuplicateTag = onCheckTagDuplicate(expandedTag)
         } else {
             isDuplicateTag = false
         }
@@ -149,9 +166,12 @@ fun TagIdentityScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .clickable {
-                                    val seqNum = currentSequence.toLongOrNull() ?: 64L
-                                    val updatedTag = TagNamingUtils.formatTag(colour, seqNum)
-                                    onFormDataChange(formData.copy(tagNumber = updatedTag))
+                                    selectedColour = colour
+                                    val seqNum = currentSequence.toLongOrNull()
+                                    if (seqNum != null) {
+                                        val updatedTag = TagNamingUtils.formatTag(colour, seqNum)
+                                        onFormDataChange(formData.copy(tagNumber = updatedTag))
+                                    }
                                 },
                             shape = RoundedCornerShape(10.dp),
                             color = if (isSelected) chipBgColor else BeeftechWhite,
@@ -188,12 +208,20 @@ fun TagIdentityScreen(
                     label = "Tag sequence or shorthand (e.g. 64 or B64)",
                     value = formData.tagNumber,
                     onValueChange = { input ->
-                        val expanded = TagNamingUtils.parseAndExpand(input)
-                        onFormDataChange(formData.copy(tagNumber = expanded))
+                        onFormDataChange(formData.copy(tagNumber = input))
                     },
                     placeholder = "e.g. 64 or B64 or Blu0000064",
                     supportingText = "Accepts quick search codes like B64, R123, G45, Y78",
-                    icon = Icons.Outlined.Tag
+                    icon = Icons.Outlined.Tag,
+                    onFocusLost = { commitTag() },
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Characters,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(onDone = {
+                        commitTag()
+                        focusManager.clearFocus()
+                    })
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -241,7 +269,7 @@ fun TagIdentityScreen(
                                 fontWeight = FontWeight.Medium
                             )
                             Text(
-                                text = formData.tagNumber,
+                                text = expandedTag,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = BeeftechText
@@ -285,7 +313,7 @@ fun TagIdentityScreen(
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
-                                text = "Tag '${formData.tagNumber}' already exists locally. Saving will update the existing record.",
+                                text = "Tag '$expandedTag' already exists locally. Saving will update the existing record.",
                                 fontSize = 12.sp,
                                 color = Color(0xFFE65100),
                                 fontWeight = FontWeight.Medium
@@ -330,7 +358,14 @@ fun TagIdentityScreen(
             }
 
             Spacer(modifier = Modifier.height(26.dp))
-            CalfPrimaryButton(text = "Continue to appearance", onClick = onNextClick)
+            CalfPrimaryButton(
+                text = "Continue to appearance",
+                onClick = {
+                    commitTag()
+                    onNextClick()
+                },
+                enabled = isTagValid
+            )
             Spacer(modifier = Modifier.height(30.dp))
         }
     }
