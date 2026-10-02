@@ -322,26 +322,6 @@ fun TagIdentityScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-                CalfTextField(
-                    label = "Old tag number",
-                    value = formData.oldTagNumber,
-                    onValueChange = { onFormDataChange(formData.copy(oldTagNumber = it)) }
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                CalfTextField(
-                    label = "Transponder number",
-                    value = formData.transponderNumber,
-                    onValueChange = { onFormDataChange(formData.copy(transponderNumber = it)) },
-                    placeholder = "E-tag, if fitted"
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                CalfTextField(
-                    label = "Reference number",
-                    value = formData.referenceNumber,
-                    onValueChange = { onFormDataChange(formData.copy(referenceNumber = it)) },
-                    placeholder = "Optional"
-                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))

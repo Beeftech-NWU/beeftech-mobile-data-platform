@@ -66,15 +66,7 @@ object CalfRegistrationMappers {
             deviceId = capture.deviceId
         )
 
-        val identifiers = buildList {
-            add(identifier(animalId, IdentifierTypes.TAG, tag, capture.captureAt))
-            formData.oldTagNumber.takeIf { it.isNotBlank() }
-                ?.let { add(identifier(animalId, IdentifierTypes.OLD_TAG, it.trim(), capture.captureAt)) }
-            formData.referenceNumber.takeIf { it.isNotBlank() }
-                ?.let { add(identifier(animalId, IdentifierTypes.REFERENCE, it.trim(), capture.captureAt)) }
-            formData.transponderNumber.takeIf { it.isNotBlank() }
-                ?.let { add(identifier(animalId, IdentifierTypes.TRANSPONDER, it.trim(), capture.captureAt)) }
-        }
+        val identifiers = listOf(identifier(animalId, IdentifierTypes.TAG, tag, capture.captureAt))
 
         val media = listOfNotNull(
             formData.photoPath?.let {

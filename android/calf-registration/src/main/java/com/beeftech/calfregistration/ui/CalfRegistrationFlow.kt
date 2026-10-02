@@ -56,10 +56,7 @@ fun CalfRegistrationFlow(
     }
 
     fun createNextCalfForm(): CalfRegistrationData {
-        return CalfRegistrationData(
-            transponderNumber =
-                "${(41..99).random()}"
-        )
+        return CalfRegistrationData()
     }
 
     fun navigateTo(step: CalfFlowStep) {
