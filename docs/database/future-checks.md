@@ -14,6 +14,10 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
    different single test each run (`TreatmentRoutesTest`, `CalfRegistrationRoutesTest`).
    The likely cause is state shared between tests. Until it's fixed, any PR's unit-test
    job can go red at random.
+   **Resolved** on branch `feature/backend-flaky-tests` (2026-10-02). Cause: repositories opened
+   Exposed transactions without naming a database. Exposed caches the default database per
+   thread, so a reused `Dispatchers.IO` thread could still point at an earlier test's temp
+   database. Every transaction now passes `DatabaseFactory.getDatabase()` explicitly.
 2. **Make both CI jobs required checks (N4 follow-up).** The jobs are "Unit tests" and
    "Database migration tests (emulator)". R4 (PR #54) merged with the emulator job red,
    because neither job is required on `main`.

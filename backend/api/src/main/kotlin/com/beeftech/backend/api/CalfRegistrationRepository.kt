@@ -43,7 +43,7 @@ class CalfRegistrationRepository {
     suspend fun upsertByRecordGuid(
         dto: CalfRegistrationDto,
         serverSyncedAt: Long
-    ): CalfRegistrationDto = newSuspendedTransaction(Dispatchers.IO) {
+    ): CalfRegistrationDto = newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
 
         val existing = CalfRegistrationTable
             .selectAll()
@@ -102,14 +102,14 @@ class CalfRegistrationRepository {
         )
     }
 
-    suspend fun findAll(): List<CalfRegistrationDto> = newSuspendedTransaction(Dispatchers.IO) {
+    suspend fun findAll(): List<CalfRegistrationDto> = newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
 
         CalfRegistrationTable
             .selectAll()
             .map { it.toDto() }
     }
 
-    suspend fun findByTagNumber(tagNumber: String): CalfRegistrationDto? = newSuspendedTransaction(Dispatchers.IO) {
+    suspend fun findByTagNumber(tagNumber: String): CalfRegistrationDto? = newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
 
         CalfRegistrationTable
             .selectAll()
@@ -121,7 +121,7 @@ class CalfRegistrationRepository {
     suspend fun updatePhotoPath(
         tagNumber: String,
         photoPath: String
-    ): Boolean = newSuspendedTransaction(Dispatchers.IO) {
+    ): Boolean = newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
 
         val updatedCount = CalfRegistrationTable.update(
             { CalfRegistrationTable.tagNumber eq tagNumber }
