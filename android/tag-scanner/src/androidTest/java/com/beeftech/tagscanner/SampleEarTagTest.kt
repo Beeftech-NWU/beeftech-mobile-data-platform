@@ -16,14 +16,41 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
-/** Golden test: the sample yellow tag must scan to Yel0000993 with the real ML Kit recognizer. */
-class SampleEarTagTest {
+/**
+ * Golden tests: each sample tag must scan to its expected tag ID with the real ML Kit recognizer.
+ * `eartag_yellow_000993.jpg` is a real photo; the others are generated from it by
+ * `android/tag-scanner/tools/generate_sample_tags.sh`.
+ */
+@RunWith(Parameterized::class)
+class SampleEarTagTest(
+    private val asset: String,
+    private val sequence: String,
+    private val colour: TagColour,
+    private val tagId: String
+) {
+
+    companion object {
+        @JvmStatic
+        @Parameterized.Parameters(name = "{0}")
+        fun samples() = listOf(
+            arrayOf("eartag_yellow_000993.jpg", "000993", TagColour.YELLOW, "Yel0000993"),
+            arrayOf("eartag_red_000993.jpg", "000993", TagColour.RED, "Red0000993"),
+            arrayOf("eartag_green_000993.jpg", "000993", TagColour.GREEN, "Grn0000993"),
+            arrayOf("eartag_blue_000993.jpg", "000993", TagColour.BLUE, "Blu0000993"),
+            arrayOf("eartag_yellow_004521.jpg", "004521", TagColour.YELLOW, "Yel0004521"),
+            arrayOf("eartag_red_012876.jpg", "012876", TagColour.RED, "Red0012876"),
+            arrayOf("eartag_green_000148.jpg", "000148", TagColour.GREEN, "Grn0000148"),
+            arrayOf("eartag_blue_035062.jpg", "035062", TagColour.BLUE, "Blu0035062")
+        )
+    }
 
     @Test
-    fun sampleYellowTagScansToYel0000993() {
+    fun sampleTagScansToExpectedId() {
         val context = InstrumentationRegistry.getInstrumentation().context
-        val bitmap = context.assets.open("eartag_yellow_000993.jpg").use { BitmapFactory.decodeStream(it) }
+        val bitmap = context.assets.open(asset).use { BitmapFactory.decodeStream(it) }
         assertNotNull(bitmap)
 
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
@@ -41,8 +68,8 @@ class SampleEarTagTest {
         val classification = TagColourClassifier.classify(pixels)
         val result = EarTagScanResult(candidate.sequence, classification.colour, classification.confidence)
 
-        assertEquals("000993", result.sequence)
-        assertEquals("classification=$classification", TagColour.YELLOW, result.colour)
-        assertEquals("Yel0000993", result.tagId)
+        assertEquals("lines=${lines.map { it.text }}", sequence, result.sequence)
+        assertEquals("classification=$classification", colour, result.colour)
+        assertEquals(tagId, result.tagId)
     }
 }
