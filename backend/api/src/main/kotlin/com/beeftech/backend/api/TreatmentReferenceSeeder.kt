@@ -42,7 +42,7 @@ object TreatmentReferenceSeeder {
 
     fun seed() {
 
-        transaction {
+        transaction(DatabaseFactory.getDatabase()) {
 
             diseases.forEach { diseaseName ->
 

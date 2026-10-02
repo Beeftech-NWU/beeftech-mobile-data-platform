@@ -28,7 +28,7 @@ class TreatmentRepository {
         dto: TreatmentDto,
         serverSyncedAt: Long
     ): TreatmentDto =
-        newSuspendedTransaction(Dispatchers.IO) {
+        newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
 
             val existing =
                 TreatmentTable
@@ -90,7 +90,7 @@ class TreatmentRepository {
         }
 
     suspend fun findAll(): List<TreatmentDto> =
-        newSuspendedTransaction(Dispatchers.IO) {
+        newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
             TreatmentTable
                 .selectAll()
                 .map { it.toDto() }
@@ -99,7 +99,7 @@ class TreatmentRepository {
     suspend fun findByAnimalId(
         animalId: String
     ): List<TreatmentDto> =
-        newSuspendedTransaction(Dispatchers.IO) {
+        newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
             TreatmentTable
                 .selectAll()
                 .where {

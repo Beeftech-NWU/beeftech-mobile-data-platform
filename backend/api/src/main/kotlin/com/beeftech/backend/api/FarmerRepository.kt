@@ -104,7 +104,7 @@ class FarmerRepository {
     }
 
     fun findAll(): List<FarmerDto> =
-        transaction {
+        transaction(DatabaseFactory.getDatabase()) {
 
             FarmerTable
                 .selectAll()
@@ -116,7 +116,7 @@ class FarmerRepository {
     fun findById(
         farmerId: String
     ): FarmerDto? =
-        transaction {
+        transaction(DatabaseFactory.getDatabase()) {
 
             FarmerTable
                 .selectAll()
@@ -131,7 +131,7 @@ class FarmerRepository {
         dto: FarmerDto,
         serverSyncedAt: Long
     ) {
-        transaction {
+        transaction(DatabaseFactory.getDatabase()) {
 
             val exists =
                 FarmerTable

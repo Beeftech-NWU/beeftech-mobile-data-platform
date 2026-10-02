@@ -20,7 +20,7 @@ class TreatmentReferenceRepository {
         this[TreatmentTypeTable.name]
 
     fun getActiveDiseases(): List<String> =
-        transaction {
+        transaction(DatabaseFactory.getDatabase()) {
 
             DiseaseTable
                 .selectAll()
@@ -36,7 +36,7 @@ class TreatmentReferenceRepository {
         }
 
     fun getActiveTreatmentTypes(): List<String> =
-        transaction {
+        transaction(DatabaseFactory.getDatabase()) {
 
             TreatmentTypeTable
                 .selectAll()
