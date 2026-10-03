@@ -48,7 +48,12 @@ import com.beeftech.authentication.data.EncryptedDeviceIdProvider
 import com.beeftech.authentication.data.EncryptedSessionStore
 import com.beeftech.authentication.viewmodel.LoginViewModelFactory
 import com.beeftech.database.security.PinLockoutManager
+import com.beeftech.authentication.domain.Role
 import com.beeftech.database.security.TokenProviderRegistry
+import com.beeftech.management.data.ManagementApiClient
+import com.beeftech.management.ui.DashboardScreen
+import com.beeftech.management.ui.MyActivityScreen
+import com.beeftech.management.ui.TeamTab
 import com.beeftech.demoapp.ui.theme.BeeftechTheme
 import com.beeftech.farmerregistration.ClientDetailsScreen
 import com.beeftech.farmerregistration.FarmerSyncScheduler
@@ -184,6 +189,12 @@ class MainActivity : ComponentActivity() {
                     val pendingSyncRepository =
                         PendingSyncRepository(
                             database.pendingSyncDao()
+                        )
+
+                    val managementApiClient =
+                        ManagementApiClient(
+                            tokenProvider =
+                                sessionStore
                         )
 
                     /*
@@ -433,6 +444,23 @@ class MainActivity : ComponentActivity() {
                                     tabsFor(loggedInUser.roleEnum)
                                 }
 
+                            var showMyActivity by
+                            remember {
+                                mutableStateOf(false)
+                            }
+
+                            val pendingCount by
+                            remember(loggedInUser.userId) {
+                                pendingSyncRepository
+                                    .observePendingCount(loggedInUser.userId)
+                            }.collectAsState(initial = 0)
+
+                            val oldestPendingAt by
+                            remember(loggedInUser.userId) {
+                                pendingSyncRepository
+                                    .observeOldestPendingAt(loggedInUser.userId)
+                            }.collectAsState(initial = null)
+
                             var showLogoutDialog by
                             remember {
                                 mutableStateOf(false)
@@ -516,15 +544,28 @@ class MainActivity : ComponentActivity() {
                                                 text = "Signed in as ${loggedInUser.username}"
                                             )
 
-                                            TextButton(
-                                                onClick = {
-                                                    showLogoutDialog =
-                                                        true
+                                            Row {
+                                                TextButton(
+                                                    onClick = {
+                                                        showMyActivity =
+                                                            !showMyActivity
+                                                    }
+                                                ) {
+                                                    Text(
+                                                        text = "My activity"
+                                                    )
                                                 }
-                                            ) {
-                                                Text(
-                                                    text = "Log out"
-                                                )
+
+                                                TextButton(
+                                                    onClick = {
+                                                        showLogoutDialog =
+                                                            true
+                                                    }
+                                                ) {
+                                                    Text(
+                                                        text = "Log out"
+                                                    )
+                                                }
                                             }
                                         }
 
@@ -563,7 +604,51 @@ class MainActivity : ComponentActivity() {
                                     val currentTab =
                                         tabs[selectedDemoTab.coerceIn(tabs.indices)]
 
-                                    if (currentTab == AppTab.CALF_REGISTRATION) {
+                                    if (showMyActivity) {
+
+                                        Column {
+
+                                            TextButton(
+                                                onClick = {
+                                                    showMyActivity =
+                                                        false
+                                                }
+                                            ) {
+                                                Text(
+                                                    text = "Back"
+                                                )
+                                            }
+
+                                            MyActivityScreen(
+                                                username =
+                                                    loggedInUser.username,
+                                                role =
+                                                    loggedInUser.role,
+                                                siteId =
+                                                    loggedInUser.siteId,
+                                                pendingCount =
+                                                    pendingCount,
+                                                oldestPendingAt =
+                                                    oldestPendingAt
+                                            )
+                                        }
+
+                                    } else if (currentTab == AppTab.DASHBOARD) {
+
+                                        DashboardScreen()
+
+                                    } else if (currentTab == AppTab.TEAM) {
+
+                                        TeamTab(
+                                            apiClient =
+                                                managementApiClient,
+                                            currentUserId =
+                                                loggedInUser.userId,
+                                            isAdmin =
+                                                loggedInUser.roleEnum == Role.ADMIN
+                                        )
+
+                                    } else if (currentTab == AppTab.CALF_REGISTRATION) {
 
                                         CalfRegistrationFlow(
                                             viewModel =

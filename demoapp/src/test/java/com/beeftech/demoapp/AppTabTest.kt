@@ -10,10 +10,17 @@ class AppTabTest {
         listOf(AppTab.TRACEABILITY, AppTab.CALF_REGISTRATION, AppTab.FEED_CRIB)
 
     @Test
-    fun `every role still gets the three capture tabs in the existing order`() {
-        (Role.entries + null).forEach { role ->
-            assertEquals(captureTabs, tabsFor(role))
-        }
+    fun `workers and unknown roles get only the three capture tabs`() {
+        assertEquals(captureTabs, tabsFor(Role.WORKER))
+        assertEquals(captureTabs, tabsFor(null))
+    }
+
+    @Test
+    fun `managers and admins get Dashboard and Team after the capture tabs`() {
+        val expected = captureTabs + listOf(AppTab.DASHBOARD, AppTab.TEAM)
+
+        assertEquals(expected, tabsFor(Role.MANAGER))
+        assertEquals(expected, tabsFor(Role.ADMIN))
     }
 
     @Test
@@ -21,6 +28,10 @@ class AppTabTest {
         assertEquals(
             listOf("Farm Traceability", "Calf Registration", "Feed Crib"),
             tabsFor(Role.WORKER).map { it.label }
+        )
+        assertEquals(
+            listOf("Dashboard", "Team"),
+            tabsFor(Role.MANAGER).drop(3).map { it.label }
         )
     }
 }

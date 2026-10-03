@@ -59,6 +59,7 @@ dependencies {
     implementation(project(":android:database"))
     implementation(project(":android:feed-crib"))
     implementation(project(":android:authentication"))
+    implementation(project(":android:management"))
 
     // Ktor client
     implementation("io.ktor:ktor-client-core:3.0.3")
