@@ -78,3 +78,27 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     which is why migrations can still be edited in place. Re-confirm this with the
     maintainer once field deployment starts. From then on, no merged migration may be
     edited.
+
+## Found during role and site foundation (Manager & Admin, Phase 1)
+
+19. **`POST /api/auth/register` is a stub.** `AuthService.register` returns `true` and
+    creates nothing. It is not a privilege-escalation risk today, but lock it down
+    (admin-only with `requireRole`) or remove it in Phase 2, when user management lands.
+20. **Feed Crib is not persisted on the backend.** `FeedCribService` keeps readings in
+    memory, so they are lost on restart. The submitter and site are stamped on the
+    in-memory record and `GET /api/feed-crib` is scoped by them, but the data needs a
+    table before the Dashboard can rely on it.
+21. **Records from before the deploy have `site_id = NULL`.** `submitted_by_user_id` and
+    `site_id` are not backfilled on `calf_registrations`, `animal_movements`,
+    `treatments` and `farmers`. A manager's site filter never matches them, and workers
+    don't see them either; only admins do. Decide whether to backfill from `device_id` or
+    leave them.
+22. **Routes left unscoped on purpose.** `GET /api/treatments/reference-data` is shared
+    reference data. `POST /api/calf-registrations/{tagNumber}/media` and
+    `GET /api/calf-registrations/{tagNumber}/certificate` are reached by tag and do not
+    check the caller's scope. Revisit these when the records review lands (Phase 3).
+23. **Animal movements have no `GET` list.** Movements are stamped with the submitter
+    and site on sync, but nothing reads them back yet, so there is nothing to scope.
+24. **Tokens issued before the deploy have no `site_id` claim.** They stay valid for up
+    to 24 h. A manager on such a token sees no site-scoped records until they log in
+    again.
