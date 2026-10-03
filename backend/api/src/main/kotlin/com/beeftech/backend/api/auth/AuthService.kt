@@ -32,6 +32,11 @@ class AuthService(
             return recordFailedAttempt(username, now)
         }
 
+        /* After the PIN check, so a wrong PIN can't be used to probe which accounts are deactivated. */
+        if (!user.active) {
+            return LoginResult.Failure("This account has been deactivated")
+        }
+
         if (user.deviceAssignedId != null && user.deviceAssignedId != deviceId) {
             return LoginResult.WrongDevice
         }
@@ -69,13 +74,6 @@ class AuthService(
             expiresAt = expiresAt,
             profile = profile
         )
-    }
-
-    fun register(
-        username: String,
-        password: String
-    ): Boolean {
-        return true
     }
 
     private fun recordFailedAttempt(

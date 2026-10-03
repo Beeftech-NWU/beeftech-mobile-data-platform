@@ -28,12 +28,6 @@ data class LoginResponse(
 )
 
 @Serializable
-data class RegisterRequest(
-    val username: String,
-    val password: String
-)
-
-@Serializable
 data class ProfileResponse(
     val username: String
 )

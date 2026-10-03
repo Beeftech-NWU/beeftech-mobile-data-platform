@@ -4,7 +4,9 @@ import com.beeftech.backend.api.auth.AuthService
 import com.beeftech.backend.api.auth.DevUserSeeder
 import com.beeftech.backend.api.auth.JwtService
 import com.beeftech.backend.api.auth.UserRepository
+import com.beeftech.backend.api.auth.UserAdminService
 import com.beeftech.backend.api.auth.authRoutes
+import com.beeftech.backend.api.auth.userAdminRoutes
 import com.beeftech.backend.api.feedcrib.FeedCribService
 import com.beeftech.backend.api.feedcrib.feedCribRoutes
 import io.ktor.serialization.kotlinx.json.json
@@ -63,6 +65,7 @@ fun Application.module() {
     val userRepository = UserRepository()
     val jwtService = JwtService()
     val authService = AuthService(userRepository, jwtService)
+    val userAdminService = UserAdminService(userRepository)
 
     val seedDevUsers =
         System.getenv(
@@ -157,6 +160,11 @@ fun Application.module() {
         authRoutes(
             authService,
             jwtService
+        )
+
+        userAdminRoutes(
+            jwtService,
+            userAdminService
         )
 
         /*

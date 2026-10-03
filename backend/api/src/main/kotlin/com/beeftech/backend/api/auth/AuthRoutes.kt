@@ -78,35 +78,6 @@ fun Route.authRoutes(
         }
     }
 
-    post("/api/auth/register") {
-
-        val request = call.receive<RegisterRequest>()
-
-        val registered = authService.register(
-            request.username,
-            request.password
-        )
-
-        if (registered) {
-
-            call.respond(
-                ApiResponse<String>(
-                    success = true,
-                    message = "User registered successfully"
-                )
-            )
-        } else {
-
-            call.respond(
-                HttpStatusCode.NotImplemented,
-                ApiResponse<String>(
-                    success = false,
-                    message = "Registration is not implemented"
-                )
-            )
-        }
-    }
-
     get("/api/profile") {
 
         val username = call.requireBearerToken(jwtService) ?: return@get

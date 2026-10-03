@@ -53,6 +53,26 @@ class UsersSchemaMigrationTest {
     }
 
     @Test
+    fun `legacy users stay active after the active column is added`() {
+        val database = newDatabase()
+        transaction(database) {
+            exec("CREATE TABLE users (user_id VARCHAR(64) NOT NULL PRIMARY KEY, username VARCHAR(255) NOT NULL, site_id VARCHAR(64) NULL)")
+            exec("INSERT INTO users (user_id, username) VALUES ('u-1', 'jvdm')")
+        }
+
+        UsersSchemaMigration.run(database)
+
+        assertTrue("active" in columns(database))
+        val active = transaction(database) {
+            exec("SELECT active FROM users WHERE user_id = 'u-1'") { rs ->
+                rs.next()
+                rs.getInt(1)
+            }
+        }
+        assertEquals(1, active)
+    }
+
+    @Test
     fun `running twice is a no-op`() {
         val database = newDatabase()
         transaction(database) {
@@ -63,6 +83,7 @@ class UsersSchemaMigrationTest {
         UsersSchemaMigration.run(database)
 
         assertEquals(1, columns(database).count { it == "site_id" })
+        assertEquals(1, columns(database).count { it == "active" })
     }
 
     @Test
