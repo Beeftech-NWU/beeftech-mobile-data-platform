@@ -91,7 +91,7 @@ fun AppearanceParentageScreen(
         CalfHeader(
             eyebrow = "Calf registration",
             title = "Appearance & Parentage",
-            subtitle = "Complete visual, parentage and verification details.",
+            subtitle = "Complete visual and parentage details.",
             icon = Icons.Outlined.AccountTree,
             showBackButton = true,
             onBackClick = onBackClick
@@ -199,17 +199,6 @@ fun AppearanceParentageScreen(
                 CalfLookupDropdownField("Sire tag number", "If available", formData.sireTagNumber, { activeLookupField = "SIRE" })
                 Spacer(modifier = Modifier.height(8.dp))
                 CalfSecondaryButton(text = "Scan sire tag", onClick = { scanField = "SIRE" })
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-            CalfSectionTitle("Verification")
-            Spacer(modifier = Modifier.height(12.dp))
-            CalfCard {
-                CalfTextField("Process proof", formData.processProof, { onFormDataChange(formData.copy(processProof = it)) })
-                Spacer(modifier = Modifier.height(16.dp))
-                CalfTextField("Implant proof", formData.implantProof, { onFormDataChange(formData.copy(implantProof = it)) })
-                Spacer(modifier = Modifier.height(16.dp))
-                CalfTextField("Group", formData.group, { onFormDataChange(formData.copy(group = it)) })
             }
 
             Spacer(modifier = Modifier.height(26.dp))

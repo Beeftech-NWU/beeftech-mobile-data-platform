@@ -5,14 +5,14 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import com.beeftech.database.util.TagColour
-import com.beeftech.database.util.TagNamingUtils
 import com.beeftech.calfregistration.viewmodel.CalfRegistrationViewModel
 
 private enum class CalfFlowStep {
+    HOME,
     TAG_IDENTITY,
     APPEARANCE_PARENTAGE,
-    SESSION_LIST
+    REGISTERED_LIST,
+    CALF_DETAIL
 }
 
 @Composable
@@ -20,7 +20,19 @@ fun CalfRegistrationFlow(
     viewModel: CalfRegistrationViewModel
 ) {
     var currentStep by remember {
-        mutableStateOf(CalfFlowStep.TAG_IDENTITY)
+        mutableStateOf(CalfFlowStep.HOME)
+    }
+
+    val navigationHistory = remember {
+        mutableStateListOf<CalfFlowStep>()
+    }
+
+    var selectedCalf by remember {
+        mutableStateOf<CalfRegistrationData?>(null)
+    }
+
+    var confirmationSuccess by remember {
+        mutableStateOf(false)
     }
 
     var formData by remember {
@@ -44,37 +56,34 @@ fun CalfRegistrationFlow(
     }
 
     fun createNextCalfForm(): CalfRegistrationData {
-        return CalfRegistrationData(
-            tagNumber =
-                TagNamingUtils.formatTag(
-                    TagColour.BLUE,
-                    (64..99).random().toLong()
-                ),
-            transponderNumber =
-                "${(41..99).random()}"
-        )
+        return CalfRegistrationData()
     }
 
-    fun goBack() {
+    fun navigateTo(step: CalfFlowStep) {
+        navigationHistory.add(currentStep)
+        currentStep = step
+    }
+
+    fun navigateBack() {
         currentStep =
-            when (currentStep) {
-                CalfFlowStep.APPEARANCE_PARENTAGE ->
-                    CalfFlowStep.TAG_IDENTITY
-
-                CalfFlowStep.SESSION_LIST ->
-                    CalfFlowStep.TAG_IDENTITY
-
-                else ->
-                    CalfFlowStep.TAG_IDENTITY
+            if (navigationHistory.isNotEmpty()) {
+                navigationHistory.removeAt(navigationHistory.lastIndex)
+            } else {
+                CalfFlowStep.HOME
             }
     }
 
-    if (
-        currentStep !=
-        CalfFlowStep.TAG_IDENTITY
-    ) {
-        BackHandler {
-            goBack()
+    BackHandler(enabled = currentStep != CalfFlowStep.HOME) {
+        navigateBack()
+    }
+
+    // loadAll() is a one-shot read, so refresh when the list-bearing screens open.
+    LaunchedEffect(currentStep) {
+        if (
+            currentStep == CalfFlowStep.HOME ||
+            currentStep == CalfFlowStep.REGISTERED_LIST
+        ) {
+            viewModel.loadCalves()
         }
     }
 
@@ -108,13 +117,13 @@ fun CalfRegistrationFlow(
                         showConfirmationDialog =
                             false
 
-                        // Reset for the next calf.
-                        formData =
-                            createNextCalfForm()
-
-                        // Navigate only after confirmation.
-                        currentStep =
-                            CalfFlowStep.SESSION_LIST
+                        // On failure keep the form so the user can fix it.
+                        if (confirmationSuccess) {
+                            formData = createNextCalfForm()
+                            navigationHistory.clear()
+                            navigationHistory.add(CalfFlowStep.HOME)
+                            currentStep = CalfFlowStep.REGISTERED_LIST
+                        }
                     }
                 ) {
                     Text("OK")
@@ -125,48 +134,39 @@ fun CalfRegistrationFlow(
 
     when (currentStep) {
 
-        CalfFlowStep.TAG_IDENTITY -> {
-
-            TagIdentityScreen(
-                formData = formData,
-
-                onFormDataChange = { updated ->
-                    formData = updated
+        CalfFlowStep.HOME -> {
+            CalfRegistrationHomeScreen(
+                registeredCount = registeredCalves.size,
+                onRegisterCalfClick = {
+                    formData = createNextCalfForm()
+                    navigateTo(CalfFlowStep.TAG_IDENTITY)
                 },
-
-                onCheckTagDuplicate = { tag ->
-                    viewModel.isTagRegistered(tag)
-                },
-
-                onNextClick = {
-                    currentStep =
-                        CalfFlowStep.APPEARANCE_PARENTAGE
+                onViewRegisteredClick = {
+                    navigateTo(CalfFlowStep.REGISTERED_LIST)
                 }
             )
         }
 
-        CalfFlowStep.APPEARANCE_PARENTAGE -> {
+        CalfFlowStep.TAG_IDENTITY -> {
+            TagIdentityScreen(
+                formData = formData,
+                onFormDataChange = { updated -> formData = updated },
+                onCheckTagDuplicate = { tag -> viewModel.isTagRegistered(tag) },
+                onNextClick = { navigateTo(CalfFlowStep.APPEARANCE_PARENTAGE) },
+                onBackClick = { navigateBack() }
+            )
+        }
 
+        CalfFlowStep.APPEARANCE_PARENTAGE -> {
             AppearanceParentageScreen(
                 formData = formData,
-
-                onFormDataChange = { updated ->
-                    formData = updated
-                },
-
-                onBackClick = {
-                    currentStep =
-                        CalfFlowStep.TAG_IDENTITY
-                },
-
+                onFormDataChange = { updated -> formData = updated },
+                onBackClick = { navigateBack() },
                 onDiscardClick = {
-                    formData =
-                        CalfRegistrationData()
-
-                    currentStep =
-                        CalfFlowStep.TAG_IDENTITY
+                    formData = CalfRegistrationData()
+                    navigationHistory.clear()
+                    currentStep = CalfFlowStep.HOME
                 },
-
                 onSaveAndNextClick = {
 
                     /*
@@ -179,6 +179,8 @@ fun CalfRegistrationFlow(
                     viewModel.saveCalf(
                         formData
                     ) { success, message ->
+
+                        confirmationSuccess = success
 
                         if (success) {
 
@@ -222,32 +224,31 @@ fun CalfRegistrationFlow(
             )
         }
 
-        CalfFlowStep.SESSION_LIST -> {
-
+        CalfFlowStep.REGISTERED_LIST -> {
             CalvesRegisteredScreen(
-                registeredCalves =
-                    registeredCalves,
-
+                registeredCalves = registeredCalves,
                 onSelectCalf = { selected ->
-                    formData = selected
-
-                    currentStep =
-                        CalfFlowStep.TAG_IDENTITY
+                    selectedCalf = selected
+                    navigateTo(CalfFlowStep.CALF_DETAIL)
                 },
-
                 onRegisterNewCalfClick = {
-                    formData =
-                        createNextCalfForm()
-
-                    currentStep =
-                        CalfFlowStep.TAG_IDENTITY
+                    formData = createNextCalfForm()
+                    navigateTo(CalfFlowStep.TAG_IDENTITY)
                 },
-
-                onBackClick = {
-                    currentStep =
-                        CalfFlowStep.TAG_IDENTITY
-                }
+                onBackClick = { navigateBack() }
             )
+        }
+
+        CalfFlowStep.CALF_DETAIL -> {
+            val calf = selectedCalf
+            if (calf == null) {
+                LaunchedEffect(Unit) { navigateBack() }
+            } else {
+                CalfDetailScreen(
+                    calf = calf,
+                    onBackClick = { navigateBack() }
+                )
+            }
         }
     }
 }

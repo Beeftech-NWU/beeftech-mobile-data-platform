@@ -58,7 +58,9 @@ class FarmerSyncWorker(
                     .getAllPendingOperations()
                     .filter {
                         it.entityType ==
-                                FARMER_REGISTRATION_ENTITY_TYPE
+                                FARMER_REGISTRATION_ENTITY_TYPE &&
+                                it.retryCount <
+                                MAX_RETRY_COUNT
                     }
 
             if (farmerOperations.isEmpty()) {
@@ -160,11 +162,12 @@ class FarmerSyncWorker(
                         )
 
                     val syncSuccessful =
-                        syncResult != null &&
-                                syncResult.status.equals(
-                                    "SYNCED",
-                                    ignoreCase = true
-                                )
+                        syncResult.getOrNull()
+                            ?.status
+                            ?.equals(
+                                "SYNCED",
+                                ignoreCase = true
+                            ) == true
 
                     if (syncSuccessful) {
 
@@ -295,5 +298,12 @@ class FarmerSyncWorker(
 
         private const val FARMER_REGISTRATION_ENTITY_TYPE =
             "FARMER_REGISTRATION"
+
+        /*
+         * Caps retries so a permanently failing record cannot
+         * keep WorkManager in an endless retry loop.
+         */
+        private const val MAX_RETRY_COUNT =
+            5
     }
 }

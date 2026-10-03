@@ -65,6 +65,14 @@ class TagNamingUtilsTest {
     }
 
     @Test
+    fun `parseAndExpand expands bare digits only when a default colour is given`() {
+        assertEquals("Red0000064", TagNamingUtils.parseAndExpand("64", TagColour.RED))
+        assertEquals("64", TagNamingUtils.parseAndExpand("64"))
+        assertEquals("12345678", TagNamingUtils.parseAndExpand("12345678", TagColour.BLUE))
+        assertEquals("Blu0000064", TagNamingUtils.parseAndExpand("B64", TagColour.RED))
+    }
+
+    @Test
     fun `extractComponents parses tag into colour and sequence string`() {
         val (blueColour, blueSeq) = TagNamingUtils.extractComponents("B64")!!
         assertEquals(TagColour.BLUE, blueColour)

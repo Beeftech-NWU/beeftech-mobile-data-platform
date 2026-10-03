@@ -5,6 +5,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -13,8 +15,13 @@ import androidx.compose.material.icons.outlined.ListAlt
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -143,8 +150,13 @@ fun CalfTextField(
     placeholder: String = "—",
     supportingText: String? = null,
     modifier: Modifier = Modifier,
-    icon: ImageVector = Icons.Outlined.EditNote
+    icon: ImageVector = Icons.Outlined.EditNote,
+    onFocusLost: (() -> Unit)? = null,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default
 ) {
+    // onFocusChanged also reports "unfocused" on first composition, so only react after real focus.
+    var hadFocus by remember { mutableStateOf(false) }
     Column(modifier = modifier.fillMaxWidth()) {
         Text(text = label.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.6.sp, color = BeeftechPrimaryDark)
         Spacer(modifier = Modifier.height(7.dp))
@@ -153,6 +165,8 @@ fun CalfTextField(
             onValueChange = onValueChange,
             placeholder = { Text(placeholder, color = BeeftechMutedText, fontSize = 14.sp) },
             singleLine = true,
+            keyboardOptions = keyboardOptions,
+            keyboardActions = keyboardActions,
             leadingIcon = {
                 Box(
                     modifier = Modifier.size(34.dp).background(BeeftechSoftAccent, RoundedCornerShape(8.dp)),
@@ -161,7 +175,14 @@ fun CalfTextField(
                     Icon(icon, contentDescription = null, tint = BeeftechPrimaryDark, modifier = Modifier.size(19.dp))
                 }
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().onFocusChanged { state ->
+                if (state.isFocused) {
+                    hadFocus = true
+                } else if (hadFocus) {
+                    hadFocus = false
+                    onFocusLost?.invoke()
+                }
+            },
             shape = RoundedCornerShape(11.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = BeeftechPrimaryDark,
@@ -223,9 +244,10 @@ fun CalfLookupDropdownField(
 }
 
 @Composable
-fun CalfPrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun CalfPrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     Button(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier.fillMaxWidth().height(52.dp),
         colors = ButtonDefaults.buttonColors(containerColor = BeeftechPrimaryDeep, contentColor = BeeftechWhite),
         shape = RoundedCornerShape(11.dp)
@@ -245,5 +267,39 @@ fun CalfSecondaryButton(text: String, onClick: () -> Unit, modifier: Modifier = 
         colors = ButtonDefaults.outlinedButtonColors(contentColor = BeeftechPrimaryDeep)
     ) {
         Text(text = text, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+fun CalfMenuCard(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = BeeftechSurface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(15.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier.size(47.dp).background(BeeftechSoftAccent, RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = BeeftechPrimaryDark, modifier = Modifier.size(23.dp))
+            }
+            Spacer(modifier = Modifier.size(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = BeeftechText)
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(subtitle, fontSize = 11.sp, lineHeight = 15.sp, color = BeeftechMutedText)
+            }
+            Text("›", fontSize = 26.sp, fontWeight = FontWeight.Medium, color = BeeftechPrimaryDark)
+        }
     }
 }

@@ -39,5 +39,8 @@ data class FarmerAddressEntity(
     val postal_code: String?,
     val gps_latitude: Double?,
     val gps_longitude: Double?,
-    val record_guid: String = UUID.randomUUID().toString()
+    val record_guid: String = UUID.randomUUID().toString(),
+    val street_code: String? = null,
+    val postal_address: String? = null,
+    val country: String? = null
 )

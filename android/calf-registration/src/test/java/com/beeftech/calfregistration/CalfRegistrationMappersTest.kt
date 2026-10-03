@@ -98,20 +98,10 @@ class CalfRegistrationMappersTest {
     }
 
     @Test
-    fun `toNewCalf adds optional identifiers only when given`() {
-        val calf = newCalf(
-            CalfRegistrationData(
-                tagNumber = "Blu1234567",
-                oldTagNumber = "OLD-1",
-                referenceNumber = "",
-                transponderNumber = "9820001"
-            )
-        )
+    fun `toNewCalf writes only the tag identifier`() {
+        val calf = newCalf(CalfRegistrationData(tagNumber = "Blu1234567"))
 
-        val types = calf.identifiers.map { it.identifierType }
-        assertTrue(IdentifierTypes.OLD_TAG in types)
-        assertTrue(IdentifierTypes.TRANSPONDER in types)
-        assertFalse(IdentifierTypes.REFERENCE in types)
+        assertEquals(listOf(IdentifierTypes.TAG), calf.identifiers.map { it.identifierType })
     }
 
     @Test

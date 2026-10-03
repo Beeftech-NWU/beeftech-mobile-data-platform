@@ -33,6 +33,7 @@ enum class TagColour(
  */
 object TagNamingUtils {
     private val STRICT_TAG_REGEX = Regex("^(Blu|Red|Grn|Yel)\\d{7}$")
+    private val BARE_DIGITS_REGEX = Regex("^\\d{1,7}$")
     private val SHORTHAND_REGEX = Regex("^(B|R|G|Y|Blu|Red|Grn|Yel)\\s*(\\d{1,7})$", RegexOption.IGNORE_CASE)
 
     /**
@@ -60,10 +61,15 @@ object TagNamingUtils {
      * - "Y78" -> "Yel0000078"
      * - "Blu64" -> "Blu0000064"
      * - "Blu0000064" -> "Blu0000064"
+     * - "64" with [defaultColour] RED -> "Red0000064" (bare digits stay as typed when no colour is given)
      */
-    fun parseAndExpand(query: String?): String {
+    fun parseAndExpand(query: String?, defaultColour: TagColour? = null): String {
         if (query.isNullOrBlank()) return ""
         val trimmed = query.trim()
+
+        if (defaultColour != null && BARE_DIGITS_REGEX.matches(trimmed)) {
+            return formatTag(defaultColour, trimmed.toLong())
+        }
 
         // 1. If already valid full tag, return normalized prefix casing
         if (validateTag(trimmed)) {

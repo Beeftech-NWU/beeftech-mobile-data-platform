@@ -11,7 +11,10 @@ data class FarmerAddressDto(
     val province: String? = null,
     val postalCode: String? = null,
     val gpsLatitude: Double? = null,
-    val gpsLongitude: Double? = null
+    val gpsLongitude: Double? = null,
+    val streetCode: String? = null,
+    val postalAddress: String? = null,
+    val country: String? = null
 )
 
 @Serializable
@@ -31,6 +34,10 @@ data class FarmerDto(
     val gpsLatitude: Double? = null,
     val gpsLongitude: Double? = null,
     val syncStatus: String = "PENDING",
+    val coRegIdNo: String? = null,
+    val landOwnership: String? = null,
+    val faCodeRmis: String? = null,
+    val glnNumber: String? = null,
     val addresses: List<FarmerAddressDto> = emptyList(),
     val roles: List<FarmerRoleDto> = emptyList()
 )

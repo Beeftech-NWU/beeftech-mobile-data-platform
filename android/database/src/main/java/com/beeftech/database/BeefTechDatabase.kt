@@ -216,7 +216,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
     companion object {
 
         /** Current Room schema version. Bump here when adding a migration. */
-        const val VERSION = 31
+        const val VERSION = 32
 
         /**
          * Phase 3 Migration (Version 9 -> 10):
@@ -3116,6 +3116,82 @@ abstract class BeefTechDatabase : RoomDatabase() {
                             ADD COLUMN `user_id` TEXT
                             """.trimIndent()
                         )
+                    }
+                }
+            }
+
+        /*
+         * v32: persist the farmer registration fields that were previously
+         * collected in the UI but dropped on save. All columns are nullable
+         * TEXT, and each is added only if absent so the migration is
+         * idempotent. No existing data is touched.
+         */
+        val MIGRATION_31_32 =
+            object : Migration(31, 32) {
+
+                private fun addColumnIfMissing(
+                    db: SupportSQLiteDatabase,
+                    table: String,
+                    column: String
+                ) {
+
+                    var exists =
+                        false
+
+                    db.query(
+                        "PRAGMA table_info(`$table`)"
+                    ).use { cursor ->
+
+                        val nameIndex =
+                            cursor.getColumnIndex(
+                                "name"
+                            )
+
+                        while (
+                            cursor.moveToNext()
+                        ) {
+
+                            if (
+                                cursor.getString(
+                                    nameIndex
+                                ) == column
+                            ) {
+
+                                exists =
+                                    true
+
+                                break
+                            }
+                        }
+                    }
+
+                    if (!exists) {
+
+                        db.execSQL(
+                            "ALTER TABLE `$table` ADD COLUMN `$column` TEXT"
+                        )
+                    }
+                }
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+
+                    listOf(
+                        "co_reg_id_no",
+                        "land_ownership",
+                        "fa_code_rmis",
+                        "gln_number"
+                    ).forEach {
+                        addColumnIfMissing(db, "farmers", it)
+                    }
+
+                    listOf(
+                        "street_code",
+                        "postal_address",
+                        "country"
+                    ).forEach {
+                        addColumnIfMissing(db, "farmer_addresses", it)
                     }
                 }
             }

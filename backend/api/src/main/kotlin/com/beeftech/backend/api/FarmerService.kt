@@ -50,6 +50,18 @@ class FarmerService(
                                     vatNumber =
                                         farmer.vatNumber,
 
+                                    coRegIdNo =
+                                        farmer.coRegIdNo,
+
+                                    landOwnership =
+                                        farmer.landOwnership,
+
+                                    faCodeRmis =
+                                        farmer.faCodeRmis,
+
+                                    glnNumber =
+                                        farmer.glnNumber,
+
                                     gpsLatitude =
                                         farmer.gpsLatitude,
 

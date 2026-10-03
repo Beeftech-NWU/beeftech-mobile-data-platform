@@ -11,7 +11,7 @@ class AnimalMovementRepository {
         movement: AnimalMovementSyncRecord
     ): Long {
 
-        return transaction {
+        return transaction(DatabaseFactory.getDatabase()) {
 
             val existing =
                 AnimalMovementTable
