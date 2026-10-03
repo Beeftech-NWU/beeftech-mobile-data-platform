@@ -171,4 +171,32 @@ class TeamViewModelTest {
         vm.await { it.error != null }
         assertEquals("Username already taken", vm.uiState.value.error)
     }
+
+    @Test
+    fun `a 404 on the list says the server lacks team management, not that a user is gone`() = runTest {
+        val vm = viewModel { _, _ -> HttpStatusCode.NotFound to "Not Found" }
+
+        vm.refresh()
+        vm.await { it.error != null }
+
+        assertTrue(vm.uiState.value.error!!.contains("doesn't support team management"))
+    }
+
+    @Test
+    fun `a 404 on a member action says the user no longer exists`() = runTest {
+        val vm = viewModel { method, _ ->
+            if (method == HttpMethod.Get) {
+                HttpStatusCode.OK to """{"success":true,"message":"ok","data":[${member("1", "a")}]}"""
+            } else {
+                HttpStatusCode.NotFound to """{"success":false,"message":"User not found"}"""
+            }
+        }
+        vm.refresh()
+        vm.await { it.members.isNotEmpty() }
+
+        vm.setActive(vm.uiState.value.members.single(), false)
+        vm.await { it.error != null }
+
+        assertEquals("That user no longer exists.", vm.uiState.value.error)
+    }
 }

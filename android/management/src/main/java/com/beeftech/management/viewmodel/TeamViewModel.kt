@@ -50,7 +50,7 @@ class TeamViewModel(
                             needsConnection = false,
                             error = null
                         )
-                    else -> failed(state.copy(loading = false), result)
+                    else -> failed(state.copy(loading = false), result, LIST_NOT_FOUND)
                 }
             }
         }
@@ -139,18 +139,32 @@ class TeamViewModel(
         }
     }
 
-    private fun failed(state: TeamUiState, result: ManagementResult<*>): TeamUiState =
+    /*
+     * A 404 on a single user means they were removed or moved out of scope; on the list it
+     * means the server has no team endpoint (e.g. an older backend), so say that instead.
+     */
+    private fun failed(
+        state: TeamUiState,
+        result: ManagementResult<*>,
+        notFoundMessage: String = USER_NOT_FOUND
+    ): TeamUiState =
         when (result) {
             is ManagementResult.NoConnection -> state.copy(needsConnection = true, error = null)
             is ManagementResult.Unauthorized ->
                 state.copy(error = "Your session has expired. Log out and sign in again.")
             is ManagementResult.Forbidden -> state.copy(error = result.message)
-            is ManagementResult.NotFound -> state.copy(error = "That user no longer exists.")
+            is ManagementResult.NotFound -> state.copy(error = notFoundMessage)
             is ManagementResult.Rejected -> state.copy(error = result.message)
             is ManagementResult.Error -> state.copy(error = result.message)
             is ManagementResult.Success -> state
         }
+
+    private companion object {
+        const val USER_NOT_FOUND = "That user no longer exists."
+        const val LIST_NOT_FOUND = "The server doesn't support team management yet. Update the server and try again."
+    }
 }
+
 
 class TeamViewModelFactory(
     private val apiClient: ManagementApiClient

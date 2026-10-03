@@ -134,7 +134,7 @@ fun TeamScreen(
 
         if (state.loading && state.members.isEmpty()) {
             CircularProgressIndicator()
-        } else if (state.members.isEmpty() && !state.needsConnection) {
+        } else if (state.members.isEmpty() && !state.needsConnection && state.error == null) {
             Text("No team members yet.")
         }
 
