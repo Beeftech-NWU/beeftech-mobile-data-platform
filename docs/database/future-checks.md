@@ -81,7 +81,7 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
 
 ## Found during role and site foundation (Manager & Admin, Phase 1)
 
-19. **RESOLVED (Phase 2, PR pending): the stub route was removed.** Original note: **`POST /api/auth/register` is a stub.** `AuthService.register` returns `true` and
+19. **RESOLVED (Phase 2, PR #73): the stub route was removed.** Original note: **`POST /api/auth/register` is a stub.** `AuthService.register` returns `true` and
     creates nothing. It is not a privilege-escalation risk today, but lock it down
     (admin-only with `requireRole`) or remove it in Phase 2, when user management lands.
 20. **Feed Crib is not persisted on the backend.** `FeedCribService` keeps readings in
