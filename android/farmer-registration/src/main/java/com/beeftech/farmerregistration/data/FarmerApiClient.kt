@@ -29,7 +29,10 @@ data class FarmerAddressPayload(
     val province: String? = null,
     val postalCode: String? = null,
     val gpsLatitude: Double? = null,
-    val gpsLongitude: Double? = null
+    val gpsLongitude: Double? = null,
+    val streetCode: String? = null,
+    val postalAddress: String? = null,
+    val country: String? = null
 )
 
 @Serializable
@@ -49,6 +52,10 @@ data class FarmerPayload(
     val gpsLatitude: Double? = null,
     val gpsLongitude: Double? = null,
     val syncStatus: String = "PENDING",
+    val coRegIdNo: String? = null,
+    val landOwnership: String? = null,
+    val faCodeRmis: String? = null,
+    val glnNumber: String? = null,
     val addresses: List<FarmerAddressPayload> = emptyList(),
     val roles: List<FarmerRolePayload> = emptyList()
 )
@@ -87,15 +94,16 @@ class FarmerApiClient(
             json(Json { ignoreUnknownKeys = true })
         }
     },
-    private val baseUrl: String = "https://beeftech-backend.onrender.com"
-) {
-
-    private fun getDeviceId(): String {
-        return Settings.Secure.getString(
+    private val baseUrl: String = "https://beeftech-backend.onrender.com",
+    private val deviceIdProvider: () -> String = {
+        Settings.Secure.getString(
             context.contentResolver,
             Settings.Secure.ANDROID_ID
         ) ?: "unknown-device"
     }
+) {
+
+    private fun getDeviceId(): String = deviceIdProvider()
 
     suspend fun syncFarmer(
         farmer: FarmerEntity,
@@ -142,6 +150,10 @@ class FarmerApiClient(
         gpsLatitude = gps_latitude,
         gpsLongitude = gps_longitude,
         syncStatus = sync_status,
+        coRegIdNo = co_reg_id_no,
+        landOwnership = land_ownership,
+        faCodeRmis = fa_code_rmis,
+        glnNumber = gln_number,
         addresses = addresses.map { it.toPayload() },
         roles = roles.map { it.toPayload() }
     )
@@ -154,7 +166,10 @@ class FarmerApiClient(
         province = province,
         postalCode = postal_code,
         gpsLatitude = gps_latitude,
-        gpsLongitude = gps_longitude
+        gpsLongitude = gps_longitude,
+        streetCode = street_code,
+        postalAddress = postal_address,
+        country = country
     )
 
     private fun FarmerRoleEntity.toPayload() = FarmerRolePayload(

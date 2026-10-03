@@ -33,6 +33,7 @@ object DatabaseFactory {
 
         // Must run before SchemaUtils.create, which never alters an existing table.
         CalfRegistrationSchemaMigration.run(database)
+        FarmerSchemaMigration.run(database)
 
         transaction(database) {
 

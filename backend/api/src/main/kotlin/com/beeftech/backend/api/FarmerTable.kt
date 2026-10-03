@@ -71,6 +71,34 @@ object FarmerTable : Table("farmers") {
         )
             .nullable()
 
+    val coRegIdNo =
+        varchar(
+            "co_reg_id_no",
+            255
+        )
+            .nullable()
+
+    val landOwnership =
+        varchar(
+            "land_ownership",
+            255
+        )
+            .nullable()
+
+    val faCodeRmis =
+        varchar(
+            "fa_code_rmis",
+            255
+        )
+            .nullable()
+
+    val glnNumber =
+        varchar(
+            "gln_number",
+            255
+        )
+            .nullable()
+
     override val primaryKey =
         PrimaryKey(
             farmerId
@@ -133,6 +161,27 @@ object FarmerAddressTable :
     val gpsLongitude =
         double(
             "gps_longitude"
+        )
+            .nullable()
+
+    val streetCode =
+        varchar(
+            "street_code",
+            255
+        )
+            .nullable()
+
+    val postalAddress =
+        varchar(
+            "postal_address",
+            255
+        )
+            .nullable()
+
+    val country =
+        varchar(
+            "country",
+            255
         )
             .nullable()
 

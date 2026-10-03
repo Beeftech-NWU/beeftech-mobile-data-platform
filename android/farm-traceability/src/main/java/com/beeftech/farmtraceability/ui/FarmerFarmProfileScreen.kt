@@ -26,8 +26,15 @@ fun FarmerFarmProfileScreen(
     clientCode: String = "",
     emailAddress: String = "",
     vatNumber: String = "",
+    coRegIdNo: String = "",
+    landOwnership: String = "",
+    faCodeRmis: String = "",
+    glnNumber: String = "",
     businessRoles: String = "",
     farmAddress: String = "",
+    streetCode: String = "",
+    postalAddress: String = "",
+    country: String = "",
     gpsCoordinates: String = "",
     syncStatus: String = "",
     isLoading: Boolean = false,
@@ -123,6 +130,47 @@ fun FarmerFarmProfileScreen(
                     }
                 )
 
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                TraceabilityInfoRow(
+                    icon = Icons.Outlined.Tag,
+                    title = "Co-Reg / ID No.",
+                    subtitle = coRegIdNo.ifBlank {
+                        "Co-Reg / ID number unavailable"
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                TraceabilityInfoRow(
+                    icon = Icons.Outlined.HomeWork,
+                    title = "Land Ownership",
+                    subtitle = landOwnership.ifBlank {
+                        "Land ownership unavailable"
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                TraceabilityInfoRow(
+                    icon = Icons.Outlined.Tag,
+                    title = "FA Code (RMIS)",
+                    subtitle = faCodeRmis.ifBlank {
+                        "FA code unavailable"
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                TraceabilityInfoRow(
+                    icon = Icons.Outlined.Tag,
+                    title = "GLN Number",
+                    subtitle = glnNumber.ifBlank {
+                        "GLN number unavailable"
+                    }
+                )
+
                 Spacer(modifier = Modifier.height(16.dp))
 
                 TraceabilityInfoRow(
@@ -148,6 +196,37 @@ fun FarmerFarmProfileScreen(
                     title = "Farm Address",
                     subtitle = farmAddress.ifBlank {
                         "Farm address unavailable"
+                    }
+                )
+
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                TraceabilityInfoRow(
+                    icon = Icons.Outlined.Home,
+                    title = "Postal Address",
+                    subtitle = postalAddress.ifBlank {
+                        "Postal address unavailable"
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                TraceabilityInfoRow(
+                    icon = Icons.Outlined.Tag,
+                    title = "Street Code",
+                    subtitle = streetCode.ifBlank {
+                        "Street code unavailable"
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                TraceabilityInfoRow(
+                    icon = Icons.Outlined.LocationOn,
+                    title = "Country",
+                    subtitle = country.ifBlank {
+                        "Country unavailable"
                     }
                 )
 
@@ -198,8 +277,15 @@ private fun FarmerFarmProfileScreenPreview() {
         clientCode = "TEST20",
         emailAddress = "farmer@example.com",
         vatNumber = "1234567890",
+        coRegIdNo = "9608551/07",
+        landOwnership = "Owned",
+        faCodeRmis = "FA-RMIS-01",
+        glnNumber = "GLN-123",
         businessRoles = "Buyer, Supplier",
         farmAddress = "1 Example Road, Gauteng, 1459",
+        streetCode = "1459",
+        postalAddress = "PO Box 117",
+        country = "South Africa",
         gpsCoordinates = "-26.2041, 28.0473",
         syncStatus = "SYNCED"
     )

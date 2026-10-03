@@ -452,7 +452,27 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
                                                     longitude,
 
                                                 sync_status =
-                                                    "PENDING"
+                                                    "PENDING",
+
+                                                co_reg_id_no =
+                                                    clientData.coRegIdNo
+                                                        .trim()
+                                                        .ifBlank { null },
+
+                                                land_ownership =
+                                                    addressData.landOwnership
+                                                        .trim()
+                                                        .ifBlank { null },
+
+                                                fa_code_rmis =
+                                                    addressData.faCodeRmis
+                                                        .trim()
+                                                        .ifBlank { null },
+
+                                                gln_number =
+                                                    addressData.glnNumber
+                                                        .trim()
+                                                        .ifBlank { null }
                                             )
 
                                         val address =
@@ -484,7 +504,22 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
                                                     latitude,
 
                                                 gps_longitude =
-                                                    longitude
+                                                    longitude,
+
+                                                street_code =
+                                                    addressData.streetCode
+                                                        .trim()
+                                                        .ifBlank { null },
+
+                                                postal_address =
+                                                    addressData.postalAddress
+                                                        .trim()
+                                                        .ifBlank { null },
+
+                                                country =
+                                                    addressData.country
+                                                        .trim()
+                                                        .ifBlank { null }
                                             )
 
                                         database.withTransaction {

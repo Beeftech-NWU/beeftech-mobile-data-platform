@@ -1,0 +1,2999 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 32,
+    "identityHash": "b665853c7d3c14450176c66b03243848",
+    "entities": [
+      {
+        "tableName": "animals",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`animalId` TEXT NOT NULL, `birthdate` INTEGER NOT NULL, `breed` TEXT NOT NULL, `gender` TEXT, `hideColour` TEXT, `brandMark` TEXT, `dam_id` TEXT, `sire_id` TEXT, `gpsLat` REAL NOT NULL, `gpsLng` REAL NOT NULL, `captureAt` INTEGER NOT NULL, `deviceId` TEXT NOT NULL, `record_guid` TEXT NOT NULL, `syncStatus` TEXT NOT NULL, `syncedat` INTEGER, PRIMARY KEY(`animalId`), FOREIGN KEY(`breed`) REFERENCES `breeds`(`breedId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`hideColour`) REFERENCES `hide_colours`(`colourId`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`deviceId`) REFERENCES `devices`(`deviceId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`dam_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`sire_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "animalId",
+            "columnName": "animalId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "birthdate",
+            "columnName": "birthdate",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "breed",
+            "columnName": "breed",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "gender",
+            "columnName": "gender",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "hideColour",
+            "columnName": "hideColour",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "brandMark",
+            "columnName": "brandMark",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "damId",
+            "columnName": "dam_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sireId",
+            "columnName": "sire_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "gpsLat",
+            "columnName": "gpsLat",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "gpsLng",
+            "columnName": "gpsLng",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "captureAt",
+            "columnName": "captureAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deviceId",
+            "columnName": "deviceId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recordGuid",
+            "columnName": "record_guid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncStatus",
+            "columnName": "syncStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncedat",
+            "columnName": "syncedat",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "animalId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_animals_dam_id",
+            "unique": false,
+            "columnNames": [
+              "dam_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animals_dam_id` ON `${TABLE_NAME}` (`dam_id`)"
+          },
+          {
+            "name": "index_animals_sire_id",
+            "unique": false,
+            "columnNames": [
+              "sire_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animals_sire_id` ON `${TABLE_NAME}` (`sire_id`)"
+          },
+          {
+            "name": "index_animals_breed",
+            "unique": false,
+            "columnNames": [
+              "breed"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animals_breed` ON `${TABLE_NAME}` (`breed`)"
+          },
+          {
+            "name": "index_animals_hideColour",
+            "unique": false,
+            "columnNames": [
+              "hideColour"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animals_hideColour` ON `${TABLE_NAME}` (`hideColour`)"
+          },
+          {
+            "name": "index_animals_deviceId",
+            "unique": false,
+            "columnNames": [
+              "deviceId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animals_deviceId` ON `${TABLE_NAME}` (`deviceId`)"
+          },
+          {
+            "name": "index_animals_record_guid",
+            "unique": true,
+            "columnNames": [
+              "record_guid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_animals_record_guid` ON `${TABLE_NAME}` (`record_guid`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "breeds",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "breed"
+            ],
+            "referencedColumns": [
+              "breedId"
+            ]
+          },
+          {
+            "table": "hide_colours",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "hideColour"
+            ],
+            "referencedColumns": [
+              "colourId"
+            ]
+          },
+          {
+            "table": "devices",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "deviceId"
+            ],
+            "referencedColumns": [
+              "deviceId"
+            ]
+          },
+          {
+            "table": "animals",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "dam_id"
+            ],
+            "referencedColumns": [
+              "animalId"
+            ]
+          },
+          {
+            "table": "animals",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "sire_id"
+            ],
+            "referencedColumns": [
+              "animalId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "animal_costs",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `animalId` TEXT NOT NULL, `costType` TEXT NOT NULL, `amount` REAL NOT NULL, `description` TEXT NOT NULL DEFAULT '', `gpsLat` REAL NOT NULL, `gpsLng` REAL NOT NULL, `timestamp` INTEGER NOT NULL, `source_entity` TEXT, `source_record_id` TEXT, `record_guid` TEXT NOT NULL, FOREIGN KEY(`costType`) REFERENCES `cost_types`(`code`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`animalId`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "animalId",
+            "columnName": "animalId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "costType",
+            "columnName": "costType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "amount",
+            "columnName": "amount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "gpsLat",
+            "columnName": "gpsLat",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "gpsLng",
+            "columnName": "gpsLng",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceEntity",
+            "columnName": "source_entity",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sourceRecordId",
+            "columnName": "source_record_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "recordGuid",
+            "columnName": "record_guid",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_animal_costs_record_guid",
+            "unique": true,
+            "columnNames": [
+              "record_guid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_costs_record_guid` ON `${TABLE_NAME}` (`record_guid`)"
+          },
+          {
+            "name": "index_animal_costs_costType",
+            "unique": false,
+            "columnNames": [
+              "costType"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animal_costs_costType` ON `${TABLE_NAME}` (`costType`)"
+          },
+          {
+            "name": "index_animal_costs_animalId_costType_timestamp",
+            "unique": false,
+            "columnNames": [
+              "animalId",
+              "costType",
+              "timestamp"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animal_costs_animalId_costType_timestamp` ON `${TABLE_NAME}` (`animalId`, `costType`, `timestamp`)"
+          },
+          {
+            "name": "index_animal_costs_animalId",
+            "unique": false,
+            "columnNames": [
+              "animalId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animal_costs_animalId` ON `${TABLE_NAME}` (`animalId`)"
+          },
+          {
+            "name": "index_animal_costs_source_entity_source_record_id",
+            "unique": true,
+            "columnNames": [
+              "source_entity",
+              "source_record_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_costs_source_entity_source_record_id` ON `${TABLE_NAME}` (`source_entity`, `source_record_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "cost_types",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "costType"
+            ],
+            "referencedColumns": [
+              "code"
+            ]
+          },
+          {
+            "table": "animals",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "animalId"
+            ],
+            "referencedColumns": [
+              "animalId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "animal_group_memberships",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`membership_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `group_id` TEXT NOT NULL, `joined_at` INTEGER NOT NULL, `left_at` INTEGER, `record_guid` TEXT NOT NULL, PRIMARY KEY(`membership_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`group_id`) REFERENCES `animal_groups`(`animalGroupId`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "membershipId",
+            "columnName": "membership_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "animalId",
+            "columnName": "animal_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "groupId",
+            "columnName": "group_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "joinedAt",
+            "columnName": "joined_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "leftAt",
+            "columnName": "left_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "recordGuid",
+            "columnName": "record_guid",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "membership_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_animal_group_memberships_animal_id",
+            "unique": false,
+            "columnNames": [
+              "animal_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animal_group_memberships_animal_id` ON `${TABLE_NAME}` (`animal_id`)"
+          },
+          {
+            "name": "index_animal_group_memberships_group_id",
+            "unique": false,
+            "columnNames": [
+              "group_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animal_group_memberships_group_id` ON `${TABLE_NAME}` (`group_id`)"
+          },
+          {
+            "name": "index_animal_group_memberships_record_guid",
+            "unique": true,
+            "columnNames": [
+              "record_guid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_group_memberships_record_guid` ON `${TABLE_NAME}` (`record_guid`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "animals",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "animal_id"
+            ],
+            "referencedColumns": [
+              "animalId"
+            ]
+          },
+          {
+            "table": "animal_groups",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "group_id"
+            ],
+            "referencedColumns": [
+              "animalGroupId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "animal_movements",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`movement_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `source_farm_id` TEXT, `source_pen_id` TEXT, `destination_farm_id` TEXT NOT NULL, `destination_pen_id` TEXT NOT NULL, `movement_date` INTEGER NOT NULL, `feed_location_type` TEXT, `notes` TEXT, `record_guid` TEXT NOT NULL DEFAULT '', `gps_lat` REAL NOT NULL DEFAULT 0.0, `gps_lng` REAL NOT NULL DEFAULT 0.0, `device_id` TEXT NOT NULL DEFAULT '', `captured_at` INTEGER NOT NULL DEFAULT 0, `sync_status` TEXT NOT NULL DEFAULT 'PENDING', `synced_at` INTEGER, PRIMARY KEY(`movement_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`device_id`) REFERENCES `devices`(`deviceId`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "movementId",
+            "columnName": "movement_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "animalId",
+            "columnName": "animal_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceFarmId",
+            "columnName": "source_farm_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sourcePenId",
+            "columnName": "source_pen_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "destinationFarmId",
+            "columnName": "destination_farm_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "destinationPenId",
+            "columnName": "destination_pen_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "movementDate",
+            "columnName": "movement_date",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "feedLocationType",
+            "columnName": "feed_location_type",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "recordGuid",
+            "columnName": "record_guid",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "gpsLat",
+            "columnName": "gps_lat",
+            "affinity": "REAL",
+            "notNull": true,
+            "defaultValue": "0.0"
+          },
+          {
+            "fieldPath": "gpsLng",
+            "columnName": "gps_lng",
+            "affinity": "REAL",
+            "notNull": true,
+            "defaultValue": "0.0"
+          },
+          {
+            "fieldPath": "deviceId",
+            "columnName": "device_id",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "capturedAt",
+            "columnName": "captured_at",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "syncStatus",
+            "columnName": "sync_status",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'PENDING'"
+          },
+          {
+            "fieldPath": "syncedAt",
+            "columnName": "synced_at",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "movement_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_animal_movements_animal_id",
+            "unique": false,
+            "columnNames": [
+              "animal_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animal_movements_animal_id` ON `${TABLE_NAME}` (`animal_id`)"
+          },
+          {
+            "name": "index_animal_movements_destination_farm_id",
+            "unique": false,
+            "columnNames": [
+              "destination_farm_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animal_movements_destination_farm_id` ON `${TABLE_NAME}` (`destination_farm_id`)"
+          },
+          {
+            "name": "index_animal_movements_destination_pen_id",
+            "unique": false,
+            "columnNames": [
+              "destination_pen_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animal_movements_destination_pen_id` ON `${TABLE_NAME}` (`destination_pen_id`)"
+          },
+          {
+            "name": "index_animal_movements_device_id",
+            "unique": false,
+            "columnNames": [
+              "device_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animal_movements_device_id` ON `${TABLE_NAME}` (`device_id`)"
+          },
+          {
+            "name": "index_animal_movements_record_guid",
+            "unique": true,
+            "columnNames": [
+              "record_guid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_movements_record_guid` ON `${TABLE_NAME}` (`record_guid`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "animals",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "animal_id"
+            ],
+            "referencedColumns": [
+              "animalId"
+            ]
+          },
+          {
+            "table": "devices",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "device_id"
+            ],
+            "referencedColumns": [
+              "deviceId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "animal_groups",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`animalGroupId` TEXT NOT NULL, `groupName` TEXT NOT NULL, `description` TEXT, PRIMARY KEY(`animalGroupId`))",
+        "fields": [
+          {
+            "fieldPath": "animalGroupId",
+            "columnName": "animalGroupId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "groupName",
+            "columnName": "groupName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "animalGroupId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_animal_groups_groupName",
+            "unique": true,
+            "columnNames": [
+              "groupName"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_groups_groupName` ON `${TABLE_NAME}` (`groupName`)"
+          }
+        ]
+      },
+      {
+        "tableName": "farmers",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`farmer_id` TEXT NOT NULL, `client_code` TEXT, `organisation_name` TEXT, `vat_number` TEXT, `email_address` TEXT, `gps_latitude` REAL, `gps_longitude` REAL, `sync_status` TEXT NOT NULL, `co_reg_id_no` TEXT, `land_ownership` TEXT, `fa_code_rmis` TEXT, `gln_number` TEXT, `record_guid` TEXT NOT NULL, PRIMARY KEY(`farmer_id`))",
+        "fields": [
+          {
+            "fieldPath": "farmer_id",
+            "columnName": "farmer_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "client_code",
+            "columnName": "client_code",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "organisation_name",
+            "columnName": "organisation_name",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "vat_number",
+            "columnName": "vat_number",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "email_address",
+            "columnName": "email_address",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "gps_latitude",
+            "columnName": "gps_latitude",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "gps_longitude",
+            "columnName": "gps_longitude",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "sync_status",
+            "columnName": "sync_status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "co_reg_id_no",
+            "columnName": "co_reg_id_no",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "land_ownership",
+            "columnName": "land_ownership",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "fa_code_rmis",
+            "columnName": "fa_code_rmis",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "gln_number",
+            "columnName": "gln_number",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "recordGuid",
+            "columnName": "record_guid",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "farmer_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_farmers_record_guid",
+            "unique": true,
+            "columnNames": [
+              "record_guid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_farmers_record_guid` ON `${TABLE_NAME}` (`record_guid`)"
+          }
+        ]
+      },
+      {
+        "tableName": "farmer_addresses",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`address_id` TEXT NOT NULL, `farmer_id` TEXT NOT NULL, `address_type` TEXT, `address_line_1` TEXT, `province` TEXT, `postal_code` TEXT, `gps_latitude` REAL, `gps_longitude` REAL, `record_guid` TEXT NOT NULL, `street_code` TEXT, `postal_address` TEXT, `country` TEXT, PRIMARY KEY(`address_id`), FOREIGN KEY(`farmer_id`) REFERENCES `farmers`(`farmer_id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`province`) REFERENCES `provinces`(`provinceId`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "address_id",
+            "columnName": "address_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "farmer_id",
+            "columnName": "farmer_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "address_type",
+            "columnName": "address_type",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "address_line_1",
+            "columnName": "address_line_1",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "province",
+            "columnName": "province",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "postal_code",
+            "columnName": "postal_code",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "gps_latitude",
+            "columnName": "gps_latitude",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "gps_longitude",
+            "columnName": "gps_longitude",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "record_guid",
+            "columnName": "record_guid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "street_code",
+            "columnName": "street_code",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "postal_address",
+            "columnName": "postal_address",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "country",
+            "columnName": "country",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "address_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_farmer_addresses_farmer_id",
+            "unique": false,
+            "columnNames": [
+              "farmer_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_farmer_addresses_farmer_id` ON `${TABLE_NAME}` (`farmer_id`)"
+          },
+          {
+            "name": "index_farmer_addresses_province",
+            "unique": false,
+            "columnNames": [
+              "province"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_farmer_addresses_province` ON `${TABLE_NAME}` (`province`)"
+          },
+          {
+            "name": "index_farmer_addresses_record_guid",
+            "unique": true,
+            "columnNames": [
+              "record_guid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_farmer_addresses_record_guid` ON `${TABLE_NAME}` (`record_guid`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "farmers",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "farmer_id"
+            ],
+            "referencedColumns": [
+              "farmer_id"
+            ]
+          },
+          {
+            "table": "provinces",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "province"
+            ],
+            "referencedColumns": [
+              "provinceId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "farmer_roles",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`farmer_role_id` TEXT NOT NULL, `farmer_id` TEXT NOT NULL, `role_id` INTEGER NOT NULL, PRIMARY KEY(`farmer_role_id`), FOREIGN KEY(`farmer_id`) REFERENCES `farmers`(`farmer_id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`role_id`) REFERENCES `farmer_business_roles`(`business_role_id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "farmer_role_id",
+            "columnName": "farmer_role_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "farmer_id",
+            "columnName": "farmer_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "role_id",
+            "columnName": "role_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "farmer_role_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_farmer_roles_farmer_id",
+            "unique": false,
+            "columnNames": [
+              "farmer_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_farmer_roles_farmer_id` ON `${TABLE_NAME}` (`farmer_id`)"
+          },
+          {
+            "name": "index_farmer_roles_role_id",
+            "unique": false,
+            "columnNames": [
+              "role_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_farmer_roles_role_id` ON `${TABLE_NAME}` (`role_id`)"
+          },
+          {
+            "name": "index_farmer_roles_farmer_id_role_id",
+            "unique": true,
+            "columnNames": [
+              "farmer_id",
+              "role_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_farmer_roles_farmer_id_role_id` ON `${TABLE_NAME}` (`farmer_id`, `role_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "farmers",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "farmer_id"
+            ],
+            "referencedColumns": [
+              "farmer_id"
+            ]
+          },
+          {
+            "table": "farmer_business_roles",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "role_id"
+            ],
+            "referencedColumns": [
+              "business_role_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "farmer_business_roles",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`business_role_id` INTEGER NOT NULL, `business_role_name` TEXT NOT NULL, PRIMARY KEY(`business_role_id`))",
+        "fields": [
+          {
+            "fieldPath": "businessRoleId",
+            "columnName": "business_role_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "businessRoleName",
+            "columnName": "business_role_name",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "business_role_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_farmer_business_roles_business_role_name",
+            "unique": true,
+            "columnNames": [
+              "business_role_name"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_farmer_business_roles_business_role_name` ON `${TABLE_NAME}` (`business_role_name`)"
+          }
+        ]
+      },
+      {
+        "tableName": "locations",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`location_id` TEXT NOT NULL, `location_code` TEXT, `location_name` TEXT, `location_type` TEXT, PRIMARY KEY(`location_id`))",
+        "fields": [
+          {
+            "fieldPath": "location_id",
+            "columnName": "location_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "location_code",
+            "columnName": "location_code",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "location_name",
+            "columnName": "location_name",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "location_type",
+            "columnName": "location_type",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "location_id"
+          ]
+        }
+      },
+      {
+        "tableName": "pens",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "feed_cribs",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "feed_crib_readings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `cribId` TEXT NOT NULL, `record_guid` TEXT NOT NULL DEFAULT '', PRIMARY KEY(`id`), FOREIGN KEY(`cribId`) REFERENCES `feed_cribs`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cribId",
+            "columnName": "cribId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "record_guid",
+            "columnName": "record_guid",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_feed_crib_readings_cribId",
+            "unique": false,
+            "columnNames": [
+              "cribId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_feed_crib_readings_cribId` ON `${TABLE_NAME}` (`cribId`)"
+          },
+          {
+            "name": "index_feed_crib_readings_record_guid",
+            "unique": true,
+            "columnNames": [
+              "record_guid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_feed_crib_readings_record_guid` ON `${TABLE_NAME}` (`record_guid`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "feed_cribs",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "cribId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "feed_crib_reading_values",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `readingId` TEXT NOT NULL, `value` REAL NOT NULL, `record_guid` TEXT NOT NULL DEFAULT '', PRIMARY KEY(`id`), FOREIGN KEY(`readingId`) REFERENCES `feed_crib_readings`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "readingId",
+            "columnName": "readingId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "value",
+            "columnName": "value",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "record_guid",
+            "columnName": "record_guid",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_feed_crib_reading_values_readingId",
+            "unique": false,
+            "columnNames": [
+              "readingId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_feed_crib_reading_values_readingId` ON `${TABLE_NAME}` (`readingId`)"
+          },
+          {
+            "name": "index_feed_crib_reading_values_record_guid",
+            "unique": true,
+            "columnNames": [
+              "record_guid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_feed_crib_reading_values_record_guid` ON `${TABLE_NAME}` (`record_guid`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "feed_crib_readings",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "readingId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "roles",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`role_id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `role_name` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "roleId",
+            "columnName": "role_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "roleName",
+            "columnName": "role_name",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "role_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_roles_role_name",
+            "unique": true,
+            "columnNames": [
+              "role_name"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_roles_role_name` ON `${TABLE_NAME}` (`role_name`)"
+          }
+        ]
+      },
+      {
+        "tableName": "users",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`user_id` TEXT NOT NULL, `username` TEXT NOT NULL, `pin_hash` TEXT, `failed_pin_attempts` INTEGER NOT NULL, `role` INTEGER, `device_assigned_id` TEXT, `device_last_sync` INTEGER, `failed_sync_attempts` INTEGER NOT NULL, PRIMARY KEY(`user_id`), FOREIGN KEY(`role`) REFERENCES `roles`(`role_id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "userId",
+            "columnName": "user_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "username",
+            "columnName": "username",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pinHash",
+            "columnName": "pin_hash",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "failedPinAttempts",
+            "columnName": "failed_pin_attempts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "role",
+            "columnName": "role",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "deviceAssignedId",
+            "columnName": "device_assigned_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "deviceLastSync",
+            "columnName": "device_last_sync",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "failedSyncAttempts",
+            "columnName": "failed_sync_attempts",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "user_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_users_username",
+            "unique": true,
+            "columnNames": [
+              "username"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_users_username` ON `${TABLE_NAME}` (`username`)"
+          },
+          {
+            "name": "index_users_role",
+            "unique": false,
+            "columnNames": [
+              "role"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_users_role` ON `${TABLE_NAME}` (`role`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "roles",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "role"
+            ],
+            "referencedColumns": [
+              "role_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "sync_batches",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "sync_backups",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `batchId` TEXT NOT NULL, `sync_status` TEXT NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`batchId`) REFERENCES `sync_batches`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "batchId",
+            "columnName": "batchId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncStatus",
+            "columnName": "sync_status",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_sync_backups_batchId",
+            "unique": false,
+            "columnNames": [
+              "batchId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_sync_backups_batchId` ON `${TABLE_NAME}` (`batchId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "sync_batches",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "batchId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "treatments",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `animalId` TEXT NOT NULL, `disease` TEXT NOT NULL, `treatmentName` TEXT NOT NULL, `batchNumber` TEXT NOT NULL, `volumeUsed` TEXT NOT NULL, `cost` REAL NOT NULL, `gpsLat` REAL NOT NULL, `gpsLng` REAL NOT NULL, `timestamp` INTEGER NOT NULL, `deviceId` TEXT NOT NULL DEFAULT '', `withdrawal_clear_date` INTEGER, `record_guid` TEXT NOT NULL DEFAULT '', `syncStatus` TEXT NOT NULL DEFAULT 'PENDING', `syncedAt` INTEGER, FOREIGN KEY(`animalId`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`disease`) REFERENCES `diseases`(`diseaseId`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`deviceId`) REFERENCES `devices`(`deviceId`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "animalId",
+            "columnName": "animalId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "disease",
+            "columnName": "disease",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "treatmentName",
+            "columnName": "treatmentName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "batchNumber",
+            "columnName": "batchNumber",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "volumeUsed",
+            "columnName": "volumeUsed",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cost",
+            "columnName": "cost",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "gpsLat",
+            "columnName": "gpsLat",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "gpsLng",
+            "columnName": "gpsLng",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deviceId",
+            "columnName": "deviceId",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "withdrawalClearDate",
+            "columnName": "withdrawal_clear_date",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "recordGuid",
+            "columnName": "record_guid",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "syncStatus",
+            "columnName": "syncStatus",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'PENDING'"
+          },
+          {
+            "fieldPath": "syncedAt",
+            "columnName": "syncedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_treatments_animalId",
+            "unique": false,
+            "columnNames": [
+              "animalId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_treatments_animalId` ON `${TABLE_NAME}` (`animalId`)"
+          },
+          {
+            "name": "index_treatments_disease",
+            "unique": false,
+            "columnNames": [
+              "disease"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_treatments_disease` ON `${TABLE_NAME}` (`disease`)"
+          },
+          {
+            "name": "index_treatments_deviceId",
+            "unique": false,
+            "columnNames": [
+              "deviceId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_treatments_deviceId` ON `${TABLE_NAME}` (`deviceId`)"
+          },
+          {
+            "name": "index_treatments_record_guid",
+            "unique": true,
+            "columnNames": [
+              "record_guid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_treatments_record_guid` ON `${TABLE_NAME}` (`record_guid`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "animals",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "animalId"
+            ],
+            "referencedColumns": [
+              "animalId"
+            ]
+          },
+          {
+            "table": "diseases",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "disease"
+            ],
+            "referencedColumns": [
+              "diseaseId"
+            ]
+          },
+          {
+            "table": "devices",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "deviceId"
+            ],
+            "referencedColumns": [
+              "deviceId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "mortalities",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `animalId` TEXT NOT NULL, `causeOfDeath` TEXT NOT NULL, `necropsy_code_id` TEXT, `responsibleWorker` TEXT NOT NULL DEFAULT '', `notes` TEXT, `timestamp` INTEGER NOT NULL, `record_guid` TEXT NOT NULL, FOREIGN KEY(`animalId`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`necropsy_code_id`) REFERENCES `necropsy_codes`(`necropsyCodeId`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "animalId",
+            "columnName": "animalId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "causeOfDeath",
+            "columnName": "causeOfDeath",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "necropsyCodeId",
+            "columnName": "necropsy_code_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "responsibleWorker",
+            "columnName": "responsibleWorker",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recordGuid",
+            "columnName": "record_guid",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_mortalities_animalId",
+            "unique": true,
+            "columnNames": [
+              "animalId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_mortalities_animalId` ON `${TABLE_NAME}` (`animalId`)"
+          },
+          {
+            "name": "index_mortalities_necropsy_code_id",
+            "unique": false,
+            "columnNames": [
+              "necropsy_code_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_mortalities_necropsy_code_id` ON `${TABLE_NAME}` (`necropsy_code_id`)"
+          },
+          {
+            "name": "index_mortalities_record_guid",
+            "unique": true,
+            "columnNames": [
+              "record_guid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_mortalities_record_guid` ON `${TABLE_NAME}` (`record_guid`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "animals",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "animalId"
+            ],
+            "referencedColumns": [
+              "animalId"
+            ]
+          },
+          {
+            "table": "necropsy_codes",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "necropsy_code_id"
+            ],
+            "referencedColumns": [
+              "necropsyCodeId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "pending_sync",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `user_id` TEXT, `entityType` TEXT NOT NULL, `entityId` TEXT NOT NULL, `operation` TEXT NOT NULL, `payload` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `retryCount` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "user_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "entityType",
+            "columnName": "entityType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entityId",
+            "columnName": "entityId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "operation",
+            "columnName": "operation",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "payload",
+            "columnName": "payload",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "retryCount",
+            "columnName": "retryCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "sync_policy_state",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`user_id` TEXT NOT NULL, `locked` INTEGER NOT NULL DEFAULT 0, `locked_at` INTEGER, `lock_reason` TEXT, PRIMARY KEY(`user_id`))",
+        "fields": [
+          {
+            "fieldPath": "userId",
+            "columnName": "user_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "locked",
+            "columnName": "locked",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "lockedAt",
+            "columnName": "locked_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "lockReason",
+            "columnName": "lock_reason",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "user_id"
+          ]
+        }
+      },
+      {
+        "tableName": "sync_security_events",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `event_key` TEXT NOT NULL, `user_id` TEXT, `event_type` TEXT NOT NULL, `event_time` INTEGER NOT NULL, `warning_day` INTEGER, `pending_count` INTEGER NOT NULL, `oldest_pending_created_at` INTEGER, `details` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "eventKey",
+            "columnName": "event_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "user_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "eventType",
+            "columnName": "event_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "eventTime",
+            "columnName": "event_time",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "warningDay",
+            "columnName": "warning_day",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "pendingCount",
+            "columnName": "pending_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "oldestPendingCreatedAt",
+            "columnName": "oldest_pending_created_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "details",
+            "columnName": "details",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_sync_security_events_event_key",
+            "unique": true,
+            "columnNames": [
+              "event_key"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_sync_security_events_event_key` ON `${TABLE_NAME}` (`event_key`)"
+          },
+          {
+            "name": "index_sync_security_events_user_id",
+            "unique": false,
+            "columnNames": [
+              "user_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_sync_security_events_user_id` ON `${TABLE_NAME}` (`user_id`)"
+          },
+          {
+            "name": "index_sync_security_events_event_time",
+            "unique": false,
+            "columnNames": [
+              "event_time"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_sync_security_events_event_time` ON `${TABLE_NAME}` (`event_time`)"
+          }
+        ]
+      },
+      {
+        "tableName": "animal_identifiers",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`identifier_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `identifier_type` TEXT NOT NULL, `identifier_value` TEXT NOT NULL, `valid_from` INTEGER, `valid_to` INTEGER, `record_guid` TEXT NOT NULL DEFAULT '', PRIMARY KEY(`identifier_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`identifier_type`) REFERENCES `identifier_types`(`code`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "identifierId",
+            "columnName": "identifier_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "animalId",
+            "columnName": "animal_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "identifierType",
+            "columnName": "identifier_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "identifierValue",
+            "columnName": "identifier_value",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "validFrom",
+            "columnName": "valid_from",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "validTo",
+            "columnName": "valid_to",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "recordGuid",
+            "columnName": "record_guid",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "identifier_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_animal_identifiers_animal_id",
+            "unique": false,
+            "columnNames": [
+              "animal_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animal_identifiers_animal_id` ON `${TABLE_NAME}` (`animal_id`)"
+          },
+          {
+            "name": "index_animal_identifiers_identifier_type_identifier_value",
+            "unique": false,
+            "columnNames": [
+              "identifier_type",
+              "identifier_value"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animal_identifiers_identifier_type_identifier_value` ON `${TABLE_NAME}` (`identifier_type`, `identifier_value`)"
+          },
+          {
+            "name": "index_animal_identifiers_identifier_type",
+            "unique": false,
+            "columnNames": [
+              "identifier_type"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animal_identifiers_identifier_type` ON `${TABLE_NAME}` (`identifier_type`)"
+          },
+          {
+            "name": "index_animal_identifiers_record_guid",
+            "unique": true,
+            "columnNames": [
+              "record_guid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_identifiers_record_guid` ON `${TABLE_NAME}` (`record_guid`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "animals",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "animal_id"
+            ],
+            "referencedColumns": [
+              "animalId"
+            ]
+          },
+          {
+            "table": "identifier_types",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "identifier_type"
+            ],
+            "referencedColumns": [
+              "code"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "animal_media",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`media_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `file_path` TEXT NOT NULL, `media_type` TEXT NOT NULL, `created_at` INTEGER NOT NULL, `record_guid` TEXT NOT NULL DEFAULT '', PRIMARY KEY(`media_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "mediaId",
+            "columnName": "media_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "animalId",
+            "columnName": "animal_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "filePath",
+            "columnName": "file_path",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaType",
+            "columnName": "media_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recordGuid",
+            "columnName": "record_guid",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "media_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_animal_media_animal_id",
+            "unique": false,
+            "columnNames": [
+              "animal_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animal_media_animal_id` ON `${TABLE_NAME}` (`animal_id`)"
+          },
+          {
+            "name": "index_animal_media_record_guid",
+            "unique": true,
+            "columnNames": [
+              "record_guid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_media_record_guid` ON `${TABLE_NAME}` (`record_guid`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "animals",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "animal_id"
+            ],
+            "referencedColumns": [
+              "animalId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "animal_weights",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`weight_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `weight_kg` REAL NOT NULL, `weigh_date` INTEGER NOT NULL, `body_condition_score` TEXT, `notes` TEXT, `record_guid` TEXT NOT NULL DEFAULT '', `gps_lat` REAL NOT NULL DEFAULT 0.0, `gps_lng` REAL NOT NULL DEFAULT 0.0, `device_id` TEXT NOT NULL DEFAULT '', `captured_at` INTEGER NOT NULL DEFAULT 0, `sync_status` TEXT NOT NULL DEFAULT 'PENDING', `synced_at` INTEGER, PRIMARY KEY(`weight_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`device_id`) REFERENCES `devices`(`deviceId`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "weightId",
+            "columnName": "weight_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "animalId",
+            "columnName": "animal_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "weightKg",
+            "columnName": "weight_kg",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "weighDate",
+            "columnName": "weigh_date",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bodyConditionScore",
+            "columnName": "body_condition_score",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "recordGuid",
+            "columnName": "record_guid",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "gpsLat",
+            "columnName": "gps_lat",
+            "affinity": "REAL",
+            "notNull": true,
+            "defaultValue": "0.0"
+          },
+          {
+            "fieldPath": "gpsLng",
+            "columnName": "gps_lng",
+            "affinity": "REAL",
+            "notNull": true,
+            "defaultValue": "0.0"
+          },
+          {
+            "fieldPath": "deviceId",
+            "columnName": "device_id",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "capturedAt",
+            "columnName": "captured_at",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "syncStatus",
+            "columnName": "sync_status",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'PENDING'"
+          },
+          {
+            "fieldPath": "syncedAt",
+            "columnName": "synced_at",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "weight_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_animal_weights_animal_id",
+            "unique": false,
+            "columnNames": [
+              "animal_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animal_weights_animal_id` ON `${TABLE_NAME}` (`animal_id`)"
+          },
+          {
+            "name": "index_animal_weights_weigh_date",
+            "unique": false,
+            "columnNames": [
+              "weigh_date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animal_weights_weigh_date` ON `${TABLE_NAME}` (`weigh_date`)"
+          },
+          {
+            "name": "index_animal_weights_device_id",
+            "unique": false,
+            "columnNames": [
+              "device_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animal_weights_device_id` ON `${TABLE_NAME}` (`device_id`)"
+          },
+          {
+            "name": "index_animal_weights_record_guid",
+            "unique": true,
+            "columnNames": [
+              "record_guid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_weights_record_guid` ON `${TABLE_NAME}` (`record_guid`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "animals",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "animal_id"
+            ],
+            "referencedColumns": [
+              "animalId"
+            ]
+          },
+          {
+            "table": "devices",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "device_id"
+            ],
+            "referencedColumns": [
+              "deviceId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "animal_ownerships",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ownership_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `owner_name` TEXT NOT NULL, `ownership_percentage` REAL NOT NULL, `start_date` INTEGER NOT NULL, `end_date` INTEGER, `record_guid` TEXT NOT NULL DEFAULT '', PRIMARY KEY(`ownership_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "ownershipId",
+            "columnName": "ownership_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "animalId",
+            "columnName": "animal_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ownerName",
+            "columnName": "owner_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ownershipPercentage",
+            "columnName": "ownership_percentage",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startDate",
+            "columnName": "start_date",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endDate",
+            "columnName": "end_date",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "recordGuid",
+            "columnName": "record_guid",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ownership_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_animal_ownerships_animal_id",
+            "unique": false,
+            "columnNames": [
+              "animal_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animal_ownerships_animal_id` ON `${TABLE_NAME}` (`animal_id`)"
+          },
+          {
+            "name": "index_animal_ownerships_owner_name",
+            "unique": false,
+            "columnNames": [
+              "owner_name"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animal_ownerships_owner_name` ON `${TABLE_NAME}` (`owner_name`)"
+          },
+          {
+            "name": "index_animal_ownerships_start_date",
+            "unique": false,
+            "columnNames": [
+              "start_date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animal_ownerships_start_date` ON `${TABLE_NAME}` (`start_date`)"
+          },
+          {
+            "name": "index_animal_ownerships_record_guid",
+            "unique": true,
+            "columnNames": [
+              "record_guid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_ownerships_record_guid` ON `${TABLE_NAME}` (`record_guid`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "animals",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "animal_id"
+            ],
+            "referencedColumns": [
+              "animalId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "animal_purchases",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`purchase_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `purchase_price` REAL NOT NULL, `purchase_date` INTEGER NOT NULL, `seller_name` TEXT NOT NULL, `notes` TEXT, `record_guid` TEXT NOT NULL DEFAULT '', PRIMARY KEY(`purchase_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "purchaseId",
+            "columnName": "purchase_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "animalId",
+            "columnName": "animal_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "purchasePrice",
+            "columnName": "purchase_price",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "purchaseDate",
+            "columnName": "purchase_date",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sellerName",
+            "columnName": "seller_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "recordGuid",
+            "columnName": "record_guid",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "purchase_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_animal_purchases_animal_id",
+            "unique": false,
+            "columnNames": [
+              "animal_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animal_purchases_animal_id` ON `${TABLE_NAME}` (`animal_id`)"
+          },
+          {
+            "name": "index_animal_purchases_purchase_date",
+            "unique": false,
+            "columnNames": [
+              "purchase_date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_animal_purchases_purchase_date` ON `${TABLE_NAME}` (`purchase_date`)"
+          },
+          {
+            "name": "index_animal_purchases_record_guid",
+            "unique": true,
+            "columnNames": [
+              "record_guid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_purchases_record_guid` ON `${TABLE_NAME}` (`record_guid`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "animals",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "animal_id"
+            ],
+            "referencedColumns": [
+              "animalId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "calf_registrations",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`registration_id` TEXT NOT NULL, `registered_animal_id` TEXT NOT NULL, `dam_id` TEXT, `sire_id` TEXT, `birth_weight_kg` REAL, `calving_ease` TEXT, `registration_date` INTEGER NOT NULL, `record_guid` TEXT NOT NULL, `sync_status` TEXT NOT NULL DEFAULT 'PENDING', `synced_at` INTEGER, PRIMARY KEY(`registration_id`), FOREIGN KEY(`registered_animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`dam_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`sire_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "registrationId",
+            "columnName": "registration_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "registeredAnimalId",
+            "columnName": "registered_animal_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "damId",
+            "columnName": "dam_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sireId",
+            "columnName": "sire_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "birthWeightKg",
+            "columnName": "birth_weight_kg",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "calvingEase",
+            "columnName": "calving_ease",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "registrationDate",
+            "columnName": "registration_date",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recordGuid",
+            "columnName": "record_guid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncStatus",
+            "columnName": "sync_status",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'PENDING'"
+          },
+          {
+            "fieldPath": "syncedAt",
+            "columnName": "synced_at",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "registration_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_calf_registrations_registered_animal_id",
+            "unique": true,
+            "columnNames": [
+              "registered_animal_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_calf_registrations_registered_animal_id` ON `${TABLE_NAME}` (`registered_animal_id`)"
+          },
+          {
+            "name": "index_calf_registrations_dam_id",
+            "unique": false,
+            "columnNames": [
+              "dam_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_calf_registrations_dam_id` ON `${TABLE_NAME}` (`dam_id`)"
+          },
+          {
+            "name": "index_calf_registrations_sire_id",
+            "unique": false,
+            "columnNames": [
+              "sire_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_calf_registrations_sire_id` ON `${TABLE_NAME}` (`sire_id`)"
+          },
+          {
+            "name": "index_calf_registrations_record_guid",
+            "unique": true,
+            "columnNames": [
+              "record_guid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_calf_registrations_record_guid` ON `${TABLE_NAME}` (`record_guid`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "animals",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "registered_animal_id"
+            ],
+            "referencedColumns": [
+              "animalId"
+            ]
+          },
+          {
+            "table": "animals",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "dam_id"
+            ],
+            "referencedColumns": [
+              "animalId"
+            ]
+          },
+          {
+            "table": "animals",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "sire_id"
+            ],
+            "referencedColumns": [
+              "animalId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "cost_types",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`code` TEXT NOT NULL, `display_name` TEXT NOT NULL, `sort_order` INTEGER NOT NULL DEFAULT 0, `is_active` INTEGER NOT NULL DEFAULT 1, PRIMARY KEY(`code`))",
+        "fields": [
+          {
+            "fieldPath": "code",
+            "columnName": "code",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayName",
+            "columnName": "display_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sortOrder",
+            "columnName": "sort_order",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "isActive",
+            "columnName": "is_active",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "1"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "code"
+          ]
+        }
+      },
+      {
+        "tableName": "breeds",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`breedId` TEXT NOT NULL, `name` TEXT NOT NULL, PRIMARY KEY(`breedId`))",
+        "fields": [
+          {
+            "fieldPath": "breedId",
+            "columnName": "breedId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "breedId"
+          ]
+        }
+      },
+      {
+        "tableName": "hide_colours",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`colourId` TEXT NOT NULL, `name` TEXT NOT NULL, PRIMARY KEY(`colourId`))",
+        "fields": [
+          {
+            "fieldPath": "colourId",
+            "columnName": "colourId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "colourId"
+          ]
+        }
+      },
+      {
+        "tableName": "necropsy_codes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`necropsyCodeId` TEXT NOT NULL, `code` TEXT NOT NULL, `description` TEXT NOT NULL, PRIMARY KEY(`necropsyCodeId`))",
+        "fields": [
+          {
+            "fieldPath": "necropsyCodeId",
+            "columnName": "necropsyCodeId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "code",
+            "columnName": "code",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "necropsyCodeId"
+          ]
+        }
+      },
+      {
+        "tableName": "diseases",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`diseaseId` TEXT NOT NULL, `name` TEXT NOT NULL, PRIMARY KEY(`diseaseId`))",
+        "fields": [
+          {
+            "fieldPath": "diseaseId",
+            "columnName": "diseaseId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "diseaseId"
+          ]
+        }
+      },
+      {
+        "tableName": "medications",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`medicationId` TEXT NOT NULL, `name` TEXT NOT NULL, `withdrawal_period_days` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`medicationId`))",
+        "fields": [
+          {
+            "fieldPath": "medicationId",
+            "columnName": "medicationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "withdrawalPeriodDays",
+            "columnName": "withdrawal_period_days",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "medicationId"
+          ]
+        }
+      },
+      {
+        "tableName": "medication_batches",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`batchId` TEXT NOT NULL, `medicationId` TEXT NOT NULL, `batch_number` TEXT NOT NULL, `expiry_date` INTEGER, PRIMARY KEY(`batchId`), FOREIGN KEY(`medicationId`) REFERENCES `medications`(`medicationId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "batchId",
+            "columnName": "batchId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "medicationId",
+            "columnName": "medicationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "batchNumber",
+            "columnName": "batch_number",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "expiryDate",
+            "columnName": "expiry_date",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "batchId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_medication_batches_medicationId",
+            "unique": false,
+            "columnNames": [
+              "medicationId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_medication_batches_medicationId` ON `${TABLE_NAME}` (`medicationId`)"
+          },
+          {
+            "name": "index_medication_batches_batch_number",
+            "unique": false,
+            "columnNames": [
+              "batch_number"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_medication_batches_batch_number` ON `${TABLE_NAME}` (`batch_number`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "medications",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "medicationId"
+            ],
+            "referencedColumns": [
+              "medicationId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "countries",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`countryId` TEXT NOT NULL, `iso_code` TEXT NOT NULL, `name` TEXT NOT NULL, PRIMARY KEY(`countryId`))",
+        "fields": [
+          {
+            "fieldPath": "countryId",
+            "columnName": "countryId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isoCode",
+            "columnName": "iso_code",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "countryId"
+          ]
+        }
+      },
+      {
+        "tableName": "provinces",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`provinceId` TEXT NOT NULL, `countryId` TEXT NOT NULL, `name` TEXT NOT NULL, PRIMARY KEY(`provinceId`), FOREIGN KEY(`countryId`) REFERENCES `countries`(`countryId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "provinceId",
+            "columnName": "provinceId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "countryId",
+            "columnName": "countryId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "provinceId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_provinces_countryId",
+            "unique": false,
+            "columnNames": [
+              "countryId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_provinces_countryId` ON `${TABLE_NAME}` (`countryId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "countries",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "countryId"
+            ],
+            "referencedColumns": [
+              "countryId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "devices",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`deviceId` TEXT NOT NULL, `device_assigned_id` TEXT, `model` TEXT, `last_sync` INTEGER, PRIMARY KEY(`deviceId`))",
+        "fields": [
+          {
+            "fieldPath": "deviceId",
+            "columnName": "deviceId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deviceAssignedId",
+            "columnName": "device_assigned_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "model",
+            "columnName": "model",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "lastSync",
+            "columnName": "last_sync",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "deviceId"
+          ]
+        }
+      },
+      {
+        "tableName": "identifier_types",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`code` TEXT NOT NULL, `name` TEXT NOT NULL, `validation_regex` TEXT, PRIMARY KEY(`code`))",
+        "fields": [
+          {
+            "fieldPath": "code",
+            "columnName": "code",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "validationRegex",
+            "columnName": "validation_regex",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "code"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b665853c7d3c14450176c66b03243848')"
+    ]
+  }
+}

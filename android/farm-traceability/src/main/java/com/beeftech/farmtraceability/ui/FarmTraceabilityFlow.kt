@@ -803,12 +803,47 @@ fun FarmTraceabilityFlow(
                         ?.vat_number
                         .orEmpty(),
 
+                coRegIdNo =
+                    loadedFarmer
+                        ?.co_reg_id_no
+                        .orEmpty(),
+
+                landOwnership =
+                    loadedFarmer
+                        ?.land_ownership
+                        .orEmpty(),
+
+                faCodeRmis =
+                    loadedFarmer
+                        ?.fa_code_rmis
+                        .orEmpty(),
+
+                glnNumber =
+                    loadedFarmer
+                        ?.gln_number
+                        .orEmpty(),
+
                 businessRoles =
                     businessRoleNames
                         .joinToString(", "),
 
                 farmAddress =
                     formattedAddress,
+
+                streetCode =
+                    loadedAddress
+                        ?.street_code
+                        .orEmpty(),
+
+                postalAddress =
+                    loadedAddress
+                        ?.postal_address
+                        .orEmpty(),
+
+                country =
+                    loadedAddress
+                        ?.country
+                        .orEmpty(),
 
                 gpsCoordinates =
                     coordinates,
