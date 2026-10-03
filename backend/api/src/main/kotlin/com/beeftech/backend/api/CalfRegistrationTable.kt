@@ -27,5 +27,8 @@ object CalfRegistrationTable : Table("calf_registrations") {
     val syncStatus = varchar("sync_status", 32).default("PENDING")
     val syncedAt = long("synced_at").nullable()
 
+    val submittedByUserId = varchar("submitted_by_user_id", 64).nullable()
+    val siteId = varchar("site_id", 64).nullable()
+
     override val primaryKey = PrimaryKey(id)
 }

@@ -21,11 +21,11 @@ fun Route.calfRegistrationRoutes(
 
     post("/api/calf-registrations/sync") {
 
-        call.requireBearerToken(jwtService) ?: return@post
+        val principal = call.requireAuthPrincipal(jwtService) ?: return@post
 
         val request = call.receive<CalfRegistrationSyncRequest>()
 
-        val response = service.syncRecords(request)
+        val response = service.syncRecords(request, principal.userId, principal.siteId)
 
         call.respond(
             ApiResponse(
@@ -38,24 +38,24 @@ fun Route.calfRegistrationRoutes(
 
     get("/api/calf-registrations") {
 
-        call.requireBearerToken(jwtService) ?: return@get
+        val principal = call.requireAuthPrincipal(jwtService) ?: return@get
 
         call.respond(
             ApiResponse(
                 success = true,
                 message = "Calf registrations loaded",
-                data = service.listAll()
+                data = service.listAll(principal.recordScope())
             )
         )
     }
 
     get("/api/calf-registrations/{tagNumber}") {
 
-        call.requireBearerToken(jwtService) ?: return@get
+        val principal = call.requireAuthPrincipal(jwtService) ?: return@get
 
         val tagNumber = call.parameters["tagNumber"]
 
-        val record = tagNumber?.let { service.findByTagNumber(it) }
+        val record = tagNumber?.let { service.findByTagNumber(it, principal.recordScope()) }
 
         if (record == null) {
             call.respond(

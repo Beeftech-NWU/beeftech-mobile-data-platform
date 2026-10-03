@@ -16,7 +16,8 @@ data class UserProfile(
     val username: String,
     val role: Int?,
     @SerialName("pin_hash") val pinHash: String,
-    @SerialName("device_assigned_id") val deviceAssignedId: String?
+    @SerialName("device_assigned_id") val deviceAssignedId: String?,
+    @SerialName("site_id") val siteId: String? = null
 )
 
 @Serializable

@@ -6,7 +6,9 @@ class AnimalMovementService(
 ) {
 
     fun sync(
-        request: AnimalMovementSyncRequest
+        request: AnimalMovementSyncRequest,
+        submittedBy: String? = null,
+        siteId: String? = null
     ): AnimalMovementSyncResponse {
 
         val results =
@@ -28,7 +30,9 @@ class AnimalMovementService(
 
                     val syncedAt =
                         repository.upsert(
-                            normalizedRecord
+                            normalizedRecord,
+                            submittedBy,
+                            siteId
                         )
 
                     AnimalMovementSyncResult(

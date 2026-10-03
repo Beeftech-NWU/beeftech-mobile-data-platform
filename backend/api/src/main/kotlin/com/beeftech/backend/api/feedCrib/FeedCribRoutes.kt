@@ -2,7 +2,8 @@ package com.beeftech.backend.api.feedcrib
 
 import com.beeftech.backend.api.auth.JwtService
 import com.beeftech.backend.api.common.ApiResponse
-import com.beeftech.backend.api.requireBearerToken
+import com.beeftech.backend.api.recordScope
+import com.beeftech.backend.api.requireAuthPrincipal
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -14,15 +15,18 @@ fun Route.feedCribRoutes(
 
     post("/api/feed-crib") {
 
-        call.requireBearerToken(jwtService)
-            ?: return@post
+        val principal =
+            call.requireAuthPrincipal(jwtService)
+                ?: return@post
 
         val request =
             call.receive<FeedCribRequest>()
 
         val response =
             feedCribService.saveReading(
-                request
+                request,
+                principal.userId,
+                principal.siteId
             )
 
         call.respond(
@@ -36,22 +40,24 @@ fun Route.feedCribRoutes(
 
     get("/api/feed-crib") {
 
-        call.requireBearerToken(jwtService)
-            ?: return@get
+        val principal =
+            call.requireAuthPrincipal(jwtService)
+                ?: return@get
 
         call.respond(
             ApiResponse(
                 success = true,
                 message = "Feed crib records loaded",
-                data = feedCribService.getAll()
+                data = feedCribService.getAll(principal.recordScope())
             )
         )
     }
 
     get("/api/feed-crib/{penName}") {
 
-        call.requireBearerToken(jwtService)
-            ?: return@get
+        val principal =
+            call.requireAuthPrincipal(jwtService)
+                ?: return@get
 
         val penName =
             call.parameters["penName"]
@@ -62,7 +68,8 @@ fun Route.feedCribRoutes(
                 success = true,
                 message = "Feed crib records loaded",
                 data = feedCribService.getByPenName(
-                    penName
+                    penName,
+                    principal.recordScope()
                 )
             )
         )
