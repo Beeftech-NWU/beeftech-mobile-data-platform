@@ -7,6 +7,7 @@ import com.beeftech.backend.api.auth.UserRepository
 import com.beeftech.backend.api.auth.UserAdminService
 import com.beeftech.backend.api.auth.authRoutes
 import com.beeftech.backend.api.auth.userAdminRoutes
+import com.beeftech.backend.api.feedcrib.FeedCribRepository
 import com.beeftech.backend.api.feedcrib.FeedCribService
 import com.beeftech.backend.api.feedcrib.feedCribRoutes
 import io.ktor.serialization.kotlinx.json.json
@@ -146,7 +147,7 @@ fun Application.module() {
      * Feed Crib
      */
     val feedCribService =
-        FeedCribService()
+        FeedCribService(FeedCribRepository())
 
     routing {
 

@@ -72,4 +72,10 @@ class AnimalMovementService(
             results = results
         )
     }
+
+    suspend fun list(scope: RecordScope): List<AnimalMovementDto> =
+        repository.list(scope)
+
+    suspend fun listForAnimal(animalId: String, scope: RecordScope): List<AnimalMovementDto> =
+        repository.findByAnimalId(animalId, scope)
 }
