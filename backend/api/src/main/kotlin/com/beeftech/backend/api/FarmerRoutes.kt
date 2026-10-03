@@ -46,13 +46,14 @@ fun Route.farmerRoutes(
      */
     get("/api/farmers") {
 
-        call.requireBearerToken(jwtService)
-            ?: return@get
+        val principal =
+            call.requireAuthPrincipal(jwtService)
+                ?: return@get
 
         call.respond(
             ApiResponse(
                 success = true,
-                data = service.findAll(),
+                data = service.findAll(principal.recordScope()),
                 message = "Farmers loaded successfully."
             )
         )
@@ -63,8 +64,9 @@ fun Route.farmerRoutes(
      */
     get("/api/farmers/{farmerId}") {
 
-        call.requireBearerToken(jwtService)
-            ?: return@get
+        val principal =
+            call.requireAuthPrincipal(jwtService)
+                ?: return@get
 
         val farmerId =
             call.parameters["farmerId"]
@@ -77,7 +79,10 @@ fun Route.farmerRoutes(
                 )
 
         val farmer =
-            service.findById(farmerId)
+            service.findById(
+                farmerId,
+                principal.recordScope()
+            )
 
         if (farmer == null) {
 

@@ -71,6 +71,20 @@ object FarmerTable : Table("farmers") {
         )
             .nullable()
 
+    val submittedByUserId =
+        varchar(
+            "submitted_by_user_id",
+            64
+        )
+            .nullable()
+
+    val siteId =
+        varchar(
+            "site_id",
+            64
+        )
+            .nullable()
+
     val coRegIdNo =
         varchar(
             "co_reg_id_no",

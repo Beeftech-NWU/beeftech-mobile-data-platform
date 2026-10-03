@@ -47,7 +47,8 @@ class AuthService(
             username = user.username,
             userId = user.userId,
             role = user.role,
-            deviceId = deviceId
+            deviceId = deviceId,
+            siteId = user.siteId
         )
 
         val expiresAt = DateTimeFormatter.ISO_INSTANT.format(
@@ -59,7 +60,8 @@ class AuthService(
             username = user.username,
             role = user.role,
             pinHash = user.pinHash,
-            deviceAssignedId = user.deviceAssignedId ?: deviceId
+            deviceAssignedId = user.deviceAssignedId ?: deviceId,
+            siteId = user.siteId
         )
 
         return LoginResult.Success(

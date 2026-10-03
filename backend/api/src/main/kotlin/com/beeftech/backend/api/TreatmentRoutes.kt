@@ -19,14 +19,19 @@ fun Route.treatmentRoutes(
      */
     post("/api/treatments/sync") {
 
-        call.requireBearerToken(jwtService)
-            ?: return@post
+        val principal =
+            call.requireAuthPrincipal(jwtService)
+                ?: return@post
 
         val request =
             call.receive<TreatmentSyncRequest>()
 
         val response =
-            service.syncRecords(request)
+            service.syncRecords(
+                request,
+                principal.userId,
+                principal.siteId
+            )
 
         call.respond(
             ApiResponse(
@@ -65,13 +70,14 @@ fun Route.treatmentRoutes(
      */
     get("/api/treatments") {
 
-        call.requireBearerToken(jwtService)
-            ?: return@get
+        val principal =
+            call.requireAuthPrincipal(jwtService)
+                ?: return@get
 
         call.respond(
             ApiResponse(
                 success = true,
-                data = service.findAll(),
+                data = service.findAll(principal.recordScope()),
                 message = "Treatments loaded successfully."
             )
         )
@@ -82,8 +88,9 @@ fun Route.treatmentRoutes(
      */
     get("/api/treatments/{animalId}") {
 
-        call.requireBearerToken(jwtService)
-            ?: return@get
+        val principal =
+            call.requireAuthPrincipal(jwtService)
+                ?: return@get
 
         val animalId =
             call.parameters["animalId"]
@@ -99,7 +106,8 @@ fun Route.treatmentRoutes(
             ApiResponse(
                 success = true,
                 data = service.findByAnimalId(
-                    animalId
+                    animalId,
+                    principal.recordScope()
                 ),
                 message = "Treatments loaded successfully."
             )

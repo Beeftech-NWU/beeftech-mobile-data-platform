@@ -18,8 +18,8 @@ fun Route.animalMovementRoutes(
         "/api/animal-movements/sync"
     ) {
 
-        val token =
-            call.requireBearerToken(
+        val principal =
+            call.requireAuthPrincipal(
                 jwtService
             )
                 ?: return@post
@@ -33,7 +33,9 @@ fun Route.animalMovementRoutes(
 
             val response =
                 animalMovementService.sync(
-                    request
+                    request,
+                    principal.userId,
+                    principal.siteId
                 )
 
             call.respond(

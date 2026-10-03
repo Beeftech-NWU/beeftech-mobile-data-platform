@@ -428,6 +428,11 @@ class MainActivity : ComponentActivity() {
                                 mutableIntStateOf(0)
                             }
 
+                            val tabs =
+                                remember(loggedInUser.role) {
+                                    tabsFor(loggedInUser.roleEnum)
+                                }
+
                             var showLogoutDialog by
                             remember {
                                 mutableStateOf(false)
@@ -528,44 +533,21 @@ class MainActivity : ComponentActivity() {
                                                 selectedDemoTab
                                         ) {
 
-                                            Tab(
-                                                selected =
-                                                    selectedDemoTab == 0,
-                                                onClick = {
-                                                    selectedDemoTab = 0
-                                                },
-                                                text = {
-                                                    Text(
-                                                        "Farm Traceability"
-                                                    )
-                                                }
-                                            )
+                                            tabs.forEachIndexed { index, tab ->
 
-                                            Tab(
-                                                selected =
-                                                    selectedDemoTab == 1,
-                                                onClick = {
-                                                    selectedDemoTab = 1
-                                                },
-                                                text = {
-                                                    Text(
-                                                        "Calf Registration"
-                                                    )
-                                                }
-                                            )
-
-                                            Tab(
-                                                selected =
-                                                    selectedDemoTab == 2,
-                                                onClick = {
-                                                    selectedDemoTab = 2
-                                                },
-                                                text = {
-                                                    Text(
-                                                        "Feed Crib"
-                                                    )
-                                                }
-                                            )
+                                                Tab(
+                                                    selected =
+                                                        selectedDemoTab == index,
+                                                    onClick = {
+                                                        selectedDemoTab = index
+                                                    },
+                                                    text = {
+                                                        Text(
+                                                            tab.label
+                                                        )
+                                                    }
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -578,14 +560,17 @@ class MainActivity : ComponentActivity() {
                                             .padding(innerPadding)
                                 ) {
 
-                                    if (selectedDemoTab == 1) {
+                                    val currentTab =
+                                        tabs[selectedDemoTab.coerceIn(tabs.indices)]
+
+                                    if (currentTab == AppTab.CALF_REGISTRATION) {
 
                                         CalfRegistrationFlow(
                                             viewModel =
                                                 calfRegistrationViewModel
                                         )
 
-                                    } else if (selectedDemoTab == 0) {
+                                    } else if (currentTab == AppTab.TRACEABILITY) {
 
                                         FarmTraceabilityFlow(
 

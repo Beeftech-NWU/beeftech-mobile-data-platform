@@ -8,7 +8,9 @@ import org.jetbrains.exposed.sql.update
 class AnimalMovementRepository {
 
     fun upsert(
-        movement: AnimalMovementSyncRecord
+        movement: AnimalMovementSyncRecord,
+        submittedBy: String? = null,
+        submitterSiteId: String? = null
     ): Long {
 
         return transaction(DatabaseFactory.getDatabase()) {
@@ -59,6 +61,12 @@ class AnimalMovementRepository {
 
                         it[syncedAt] =
                             serverSyncedAt
+
+                        it[submittedByUserId] =
+                            submittedBy
+
+                        it[siteId] =
+                            submitterSiteId
                     }
 
             } else {
@@ -97,6 +105,12 @@ class AnimalMovementRepository {
 
                         it[syncedAt] =
                             serverSyncedAt
+
+                        it[submittedByUserId] =
+                            submittedBy
+
+                        it[siteId] =
+                            submitterSiteId
                     }
             }
 

@@ -15,7 +15,8 @@ data class UserRecord(
     val role: Int?,
     val deviceAssignedId: String?,
     val deviceLastSync: Long?,
-    val failedSyncAttempts: Int
+    val failedSyncAttempts: Int,
+    val siteId: String? = null
 )
 
 class UserRepository {
@@ -50,7 +51,8 @@ class UserRepository {
         username: String,
         pinHash: String,
         role: Int?,
-        deviceAssignedId: String? = null
+        deviceAssignedId: String? = null,
+        siteId: String? = null
     ) {
         newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
             UsersTable.insert {
@@ -59,6 +61,15 @@ class UserRepository {
                 it[UsersTable.pinHash] = pinHash
                 it[UsersTable.role] = role
                 it[UsersTable.deviceAssignedId] = deviceAssignedId
+                it[UsersTable.siteId] = siteId
+            }
+        }
+    }
+
+    suspend fun updateSite(userId: String, siteId: String?) {
+        newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
+            UsersTable.update({ UsersTable.userId eq userId }) {
+                it[UsersTable.siteId] = siteId
             }
         }
     }
@@ -71,7 +82,8 @@ class UserRepository {
             role = this[UsersTable.role],
             deviceAssignedId = this[UsersTable.deviceAssignedId],
             deviceLastSync = this[UsersTable.deviceLastSync],
-            failedSyncAttempts = this[UsersTable.failedSyncAttempts]
+            failedSyncAttempts = this[UsersTable.failedSyncAttempts],
+            siteId = this[UsersTable.siteId]
         )
     }
 }

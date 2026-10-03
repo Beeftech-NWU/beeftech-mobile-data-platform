@@ -1,6 +1,7 @@
 package com.beeftech.backend.api
 
 import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
@@ -124,25 +125,38 @@ class FarmerRepository {
         )
     }
 
-    fun findAll(): List<FarmerDto> =
+    fun findAll(
+        scope: RecordScope = RecordScope.All
+    ): List<FarmerDto> =
         transaction(DatabaseFactory.getDatabase()) {
 
             FarmerTable
                 .selectAll()
+                .where {
+                    scope.predicate(
+                        FarmerTable.submittedByUserId,
+                        FarmerTable.siteId
+                    )
+                }
                 .map {
                     it.toFarmerDto()
                 }
         }
 
     fun findById(
-        farmerId: String
+        farmerId: String,
+        scope: RecordScope = RecordScope.All
     ): FarmerDto? =
         transaction(DatabaseFactory.getDatabase()) {
 
             FarmerTable
                 .selectAll()
                 .where {
-                    FarmerTable.farmerId eq farmerId
+                    (FarmerTable.farmerId eq farmerId) and
+                        scope.predicate(
+                            FarmerTable.submittedByUserId,
+                            FarmerTable.siteId
+                        )
                 }
                 .singleOrNull()
                 ?.toFarmerDto()
@@ -150,7 +164,9 @@ class FarmerRepository {
 
     fun save(
         dto: FarmerDto,
-        serverSyncedAt: Long
+        serverSyncedAt: Long,
+        submittedBy: String? = null,
+        submitterSiteId: String? = null
     ) {
         transaction(DatabaseFactory.getDatabase()) {
 
@@ -193,6 +209,12 @@ class FarmerRepository {
 
                     it[syncedAt] =
                         serverSyncedAt
+
+                    it[submittedByUserId] =
+                        submittedBy
+
+                    it[siteId] =
+                        submitterSiteId
 
                     it[coRegIdNo] =
                         dto.coRegIdNo
@@ -237,6 +259,12 @@ class FarmerRepository {
 
                     it[syncedAt] =
                         serverSyncedAt
+
+                    it[submittedByUserId] =
+                        submittedBy
+
+                    it[siteId] =
+                        submitterSiteId
 
                     it[coRegIdNo] =
                         dto.coRegIdNo

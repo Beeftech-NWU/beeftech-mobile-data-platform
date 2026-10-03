@@ -2,6 +2,7 @@ package com.beeftech.backend.api
 
 import kotlinx.coroutines.Dispatchers
 import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
@@ -26,7 +27,9 @@ class TreatmentRepository {
 
     suspend fun upsertByRecordGuid(
         dto: TreatmentDto,
-        serverSyncedAt: Long
+        serverSyncedAt: Long,
+        submittedBy: String? = null,
+        submitterSiteId: String? = null
     ): TreatmentDto =
         newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
 
@@ -55,6 +58,8 @@ class TreatmentRepository {
                     it[deviceId] = dto.deviceId
                     it[syncStatus] = "SYNCED"
                     it[syncedAt] = serverSyncedAt
+                    it[submittedByUserId] = submittedBy
+                    it[siteId] = submitterSiteId
                 }
 
             } else {
@@ -71,6 +76,8 @@ class TreatmentRepository {
                     it[recordguid] = dto.recordguid
                     it[syncStatus] = "SYNCED"
                     it[syncedAt] = serverSyncedAt
+                    it[submittedByUserId] = submittedBy
+                    it[siteId] = submitterSiteId
                 }
             }
 
@@ -89,21 +96,28 @@ class TreatmentRepository {
             )
         }
 
-    suspend fun findAll(): List<TreatmentDto> =
-        newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
-            TreatmentTable
-                .selectAll()
-                .map { it.toDto() }
-        }
-
-    suspend fun findByAnimalId(
-        animalId: String
+    suspend fun findAll(
+        scope: RecordScope = RecordScope.All
     ): List<TreatmentDto> =
         newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
             TreatmentTable
                 .selectAll()
                 .where {
-                    TreatmentTable.animalId eq animalId
+                    scope.predicate(TreatmentTable.submittedByUserId, TreatmentTable.siteId)
+                }
+                .map { it.toDto() }
+        }
+
+    suspend fun findByAnimalId(
+        animalId: String,
+        scope: RecordScope = RecordScope.All
+    ): List<TreatmentDto> =
+        newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
+            TreatmentTable
+                .selectAll()
+                .where {
+                    (TreatmentTable.animalId eq animalId) and
+                        scope.predicate(TreatmentTable.submittedByUserId, TreatmentTable.siteId)
                 }
                 .map { it.toDto() }
         }

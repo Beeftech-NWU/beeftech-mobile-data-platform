@@ -5,7 +5,9 @@ class TreatmentService(
 ) {
 
     suspend fun syncRecords(
-        request: TreatmentSyncRequest
+        request: TreatmentSyncRequest,
+        submittedBy: String? = null,
+        siteId: String? = null
     ): TreatmentSyncResponse {
 
         val results =
@@ -18,7 +20,9 @@ class TreatmentService(
                     val persisted =
                         repository.upsertByRecordGuid(
                             dto = dto,
-                            serverSyncedAt = serverSyncedAt
+                            serverSyncedAt = serverSyncedAt,
+                            submittedBy = submittedBy,
+                            submitterSiteId = siteId
                         )
 
                     TreatmentSyncResult(
@@ -48,11 +52,14 @@ class TreatmentService(
         )
     }
 
-    suspend fun findAll(): List<TreatmentDto> =
-        repository.findAll()
+    suspend fun findAll(
+        scope: RecordScope = RecordScope.All
+    ): List<TreatmentDto> =
+        repository.findAll(scope)
 
     suspend fun findByAnimalId(
-        animalId: String
+        animalId: String,
+        scope: RecordScope = RecordScope.All
     ): List<TreatmentDto> =
-        repository.findByAnimalId(animalId)
+        repository.findByAnimalId(animalId, scope)
 }

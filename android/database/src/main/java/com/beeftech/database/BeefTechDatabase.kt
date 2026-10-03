@@ -216,7 +216,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
     companion object {
 
         /** Current Room schema version. Bump here when adding a migration. */
-        const val VERSION = 32
+        const val VERSION = 33
 
         /**
          * Phase 3 Migration (Version 9 -> 10):
@@ -3192,6 +3192,57 @@ abstract class BeefTechDatabase : RoomDatabase() {
                         "country"
                     ).forEach {
                         addColumnIfMissing(db, "farmer_addresses", it)
+                    }
+                }
+            }
+
+        /*
+         * v33: users.site_id, so offline login can restore the site the
+         * server assigned. Nullable TEXT, added only if absent so the
+         * migration is idempotent. No existing data is touched.
+         */
+        val MIGRATION_32_33 =
+            object : Migration(32, 33) {
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+
+                    var exists =
+                        false
+
+                    db.query(
+                        "PRAGMA table_info(`users`)"
+                    ).use { cursor ->
+
+                        val nameIndex =
+                            cursor.getColumnIndex(
+                                "name"
+                            )
+
+                        while (
+                            cursor.moveToNext()
+                        ) {
+
+                            if (
+                                cursor.getString(
+                                    nameIndex
+                                ) == "site_id"
+                            ) {
+
+                                exists =
+                                    true
+
+                                break
+                            }
+                        }
+                    }
+
+                    if (!exists) {
+
+                        db.execSQL(
+                            "ALTER TABLE `users` ADD COLUMN `site_id` TEXT"
+                        )
                     }
                 }
             }

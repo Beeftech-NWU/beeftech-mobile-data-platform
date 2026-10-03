@@ -8,8 +8,13 @@ data class AuthPrincipal(
     val username: String,
     val userId: String,
     val role: Int?,
-    val deviceId: String?
-)
+    val deviceId: String?,
+    val siteId: String? = null
+) {
+
+    val roleEnum: Role?
+        get() = Role.fromId(role)
+}
 
 class JwtService {
 
@@ -22,7 +27,8 @@ class JwtService {
         username: String,
         userId: String? = null,
         role: Int? = null,
-        deviceId: String? = null
+        deviceId: String? = null,
+        siteId: String? = null
     ): String {
 
         val builder = JWT.create()
@@ -42,6 +48,10 @@ class JwtService {
 
         if (deviceId != null) {
             builder.withClaim("device_id", deviceId)
+        }
+
+        if (siteId != null) {
+            builder.withClaim("site_id", siteId)
         }
 
         return builder.sign(Algorithm.HMAC256(secret))
@@ -81,11 +91,15 @@ class JwtService {
             val role = if (decodedJwt.getClaim("role").isNull) null else decodedJwt.getClaim("role").asInt()
             val deviceId = decodedJwt.getClaim("device_id").asString()
 
+            /* Tokens issued before site support have no site_id claim; asString() is null for those. */
+            val siteId = decodedJwt.getClaim("site_id").asString()
+
             AuthPrincipal(
                 username = username,
                 userId = userId,
                 role = role,
-                deviceId = deviceId
+                deviceId = deviceId,
+                siteId = siteId
             )
 
         } catch (e: Exception) {

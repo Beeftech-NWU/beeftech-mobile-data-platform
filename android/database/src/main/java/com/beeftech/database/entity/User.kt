@@ -46,5 +46,8 @@ data class User(
     val deviceLastSync: Long? = null,
 
     @ColumnInfo(name = "failed_sync_attempts")
-    val failedSyncAttempts: Int = 0
+    val failedSyncAttempts: Int = 0,
+
+    @ColumnInfo(name = "site_id")
+    val siteId: String? = null
 )
