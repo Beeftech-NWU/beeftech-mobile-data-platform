@@ -49,6 +49,44 @@ data class ResetPinResult(
 )
 
 @Serializable
+data class RecordCount(
+    val total: Long = 0,
+    val last7Days: Long = 0
+)
+
+@Serializable
+data class TreatmentCount(
+    val total: Long = 0,
+    val last7Days: Long = 0,
+    val totalCost: Double = 0.0
+)
+
+@Serializable
+data class TeamCount(
+    val activeWorkers: Long = 0,
+    val inactiveWorkers: Long = 0
+)
+
+@Serializable
+data class DashboardAlert(
+    val type: String,
+    val message: String,
+    val username: String? = null,
+    val lastSyncAt: Long? = null
+)
+
+@Serializable
+data class DashboardSummary(
+    val siteId: String? = null,
+    val generatedAt: Long = 0,
+    val calves: RecordCount = RecordCount(),
+    val treatments: TreatmentCount = TreatmentCount(),
+    val farmers: RecordCount = RecordCount(),
+    val team: TeamCount = TeamCount(),
+    val alerts: List<DashboardAlert> = emptyList()
+)
+
+@Serializable
 internal data class Envelope<T>(
     val success: Boolean = false,
     val message: String = "",

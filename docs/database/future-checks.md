@@ -113,5 +113,16 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
 27. **Admins type a site ID by hand in the Team tab.** There is no sites endpoint until Phase 4, so
     the "Add user" dialog takes a free-text site ID and the backend rejects unknown ones
     ("Unknown site"). Replace it with a site picker when Sites CRUD lands.
-28. **Dashboard tab is a placeholder.** It shows static text until Phase 3 adds
+28. **RESOLVED (Phase 3, dashboard summary, PR pending): the Dashboard tab now loads `GET /api/dashboard/summary`.** Original note: **Dashboard tab is a placeholder.** It shows static text until Phase 3 adds
     `GET /api/dashboard/summary`.
+29. **The dashboard covers only what the backend stores.** It counts calves, treatments, farmers,
+    workers and stale syncs. Mortalities, costs, movements and feed are missing because the backend
+    has no sync path or table for them (movements have no `GET`, Feed Crib is in memory). Add each
+    to the summary once its sync path exists.
+30. **Farmer "recent" uses `synced_at`.** Farmers carry no capture time, so "last 7 days" means
+    when the record reached the server, not when it was captured.
+31. **Dashboard stale-sync alerts use `users.device_last_sync`, which login sets.** It moves on login,
+    not on every sync, so a worker who stays logged in and syncs can still look stale. Stamp it from
+    the sync routes if the alert proves noisy.
+32. **The dashboard has no site switch for admins in the app.** The endpoint takes `siteId`, but the
+    app always asks for all sites. Add the switch with Sites CRUD in Phase 4.

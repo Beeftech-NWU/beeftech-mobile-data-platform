@@ -31,6 +31,20 @@ class ManagementApiClient(
     }
 ) {
 
+    /* A manager always gets their own site; an admin may pass siteId to narrow to one. */
+    suspend fun dashboardSummary(siteId: String? = null): ManagementResult<DashboardSummary> =
+        call(
+            decode = {
+                JSON.decodeFromString<Envelope<DashboardSummary>>(it).data
+                    ?: error("Missing summary in response")
+            }
+        ) { token ->
+            httpClient.get("${baseUrl}api/dashboard/summary") {
+                bearerAuth(token)
+                if (siteId != null) parameter("siteId", siteId)
+            }
+        }
+
     suspend fun listUsers(siteId: String? = null): ManagementResult<List<TeamMember>> =
         call(
             decode = { JSON.decodeFromString<Envelope<List<TeamMember>>>(it).data.orEmpty() }
