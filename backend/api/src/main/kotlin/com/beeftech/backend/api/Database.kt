@@ -2,6 +2,7 @@
 
 import com.beeftech.backend.api.auth.SitesTable
 import com.beeftech.backend.api.auth.UsersSchemaMigration
+import com.beeftech.backend.api.feedcrib.FeedCribTable
 import com.beeftech.backend.api.auth.UsersTable
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
@@ -51,7 +52,8 @@ object DatabaseFactory {
                 FarmerAddressTable,
                 FarmerRoleTable,
                 UsersTable,
-                SitesTable
+                SitesTable,
+                FeedCribTable
             )
         }
 

@@ -84,7 +84,7 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
 19. **RESOLVED (Phase 2, PR #73): the stub route was removed.** Original note: **`POST /api/auth/register` is a stub.** `AuthService.register` returns `true` and
     creates nothing. It is not a privilege-escalation risk today, but lock it down
     (admin-only with `requireRole`) or remove it in Phase 2, when user management lands.
-20. **Feed Crib is not persisted on the backend.** `FeedCribService` keeps readings in
+20. **RESOLVED (Phase 3, sync gaps, PR pending): Feed Crib is stored in `feed_crib_readings`.** Original note: **Feed Crib is not persisted on the backend.** `FeedCribService` keeps readings in
     memory, so they are lost on restart. The submitter and site are stamped on the
     in-memory record and `GET /api/feed-crib` is scoped by them, but the data needs a
     table before the Dashboard can rely on it.
@@ -97,7 +97,7 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     reference data. `POST /api/calf-registrations/{tagNumber}/media` and
     `GET /api/calf-registrations/{tagNumber}/certificate` are reached by tag and do not
     check the caller's scope. Revisit these when the records review lands (Phase 3).
-23. **Animal movements have no `GET` list.** Movements are stamped with the submitter
+23. **RESOLVED (Phase 3, sync gaps, PR pending): `GET /api/animal-movements` and `/{animalId}` are scoped.** Original note: **Animal movements have no `GET` list.** Movements are stamped with the submitter
     and site on sync, but nothing reads them back yet, so there is nothing to scope.
 24. **Tokens issued before the deploy have no `site_id` claim.** They stay valid for up
     to 24 h. A manager on such a token sees no site-scoped records until they log in
@@ -126,3 +126,9 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     the sync routes if the alert proves noisy.
 32. **The dashboard has no site switch for admins in the app.** The endpoint takes `siteId`, but the
     app always asks for all sites. Add the switch with Sites CRUD in Phase 4.
+33. **Feed Crib `POST` is not idempotent.** `FeedCribRequest` has no record GUID, so a retried request
+    inserts a duplicate reading. The app does not post Feed Crib at all yet (`:android:feed-crib` is
+    UI only, in memory), so nothing is duplicated today. Add a `recordguid` and an upsert when the
+    device gets a Feed Crib sync worker.
+34. **Mortalities and costs still have no sync path.** There is no backend table or endpoint, and no
+    Android API client or worker, for either. Each needs both sides, plus a `pending_sync` entity type.

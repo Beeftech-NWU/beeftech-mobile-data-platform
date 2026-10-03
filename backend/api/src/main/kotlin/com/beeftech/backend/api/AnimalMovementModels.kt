@@ -33,3 +33,17 @@ data class AnimalMovementSyncResult(
     val serverSyncedAt: Long? = null,
     val message: String? = null
 )
+
+@Serializable
+data class AnimalMovementDto(
+    val animalId: String,
+    val movementType: String,
+    val responsibleWorker: String,
+    val timestamp: Long,
+    val gpsLat: Double,
+    val gpsLng: Double,
+    val deviceId: String,
+    val recordguid: String,
+    val syncStatus: String,
+    val syncedAt: Long? = null
+)

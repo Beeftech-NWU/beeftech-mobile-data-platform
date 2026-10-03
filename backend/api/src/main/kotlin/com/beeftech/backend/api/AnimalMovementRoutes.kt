@@ -6,6 +6,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
+import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 
 fun Route.animalMovementRoutes(
@@ -65,5 +66,33 @@ fun Route.animalMovementRoutes(
                 )
             )
         }
+    }
+
+    get("/api/animal-movements") {
+
+        val principal = call.requireAuthPrincipal(jwtService) ?: return@get
+
+        call.respond(
+            ApiResponse(
+                success = true,
+                message = "Animal movements loaded",
+                data = animalMovementService.list(principal.recordScope())
+            )
+        )
+    }
+
+    get("/api/animal-movements/{animalId}") {
+
+        val principal = call.requireAuthPrincipal(jwtService) ?: return@get
+
+        val animalId = call.parameters["animalId"].orEmpty()
+
+        call.respond(
+            ApiResponse(
+                success = true,
+                message = "Animal movements loaded",
+                data = animalMovementService.listForAnimal(animalId, principal.recordScope())
+            )
+        )
     }
 }
