@@ -15,11 +15,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -569,10 +571,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                         }
 
-                                        PrimaryTabRow(
-                                            selectedTabIndex =
-                                                selectedDemoTab
-                                        ) {
+                                        val tabContent: @Composable () -> Unit = {
 
                                             tabs.forEachIndexed { index, tab ->
 
@@ -588,6 +587,31 @@ class MainActivity : ComponentActivity() {
                                                         )
                                                     }
                                                 )
+                                            }
+                                        }
+
+                                        /*
+                                         * Workers keep the evenly spread three tabs. With five, the
+                                         * labels no longer fit, so managers and admins scroll.
+                                         */
+                                        if (tabs.size > 3) {
+
+                                            PrimaryScrollableTabRow(
+                                                selectedTabIndex =
+                                                    selectedDemoTab,
+                                                edgePadding =
+                                                    0.dp
+                                            ) {
+                                                tabContent()
+                                            }
+
+                                        } else {
+
+                                            PrimaryTabRow(
+                                                selectedTabIndex =
+                                                    selectedDemoTab
+                                            ) {
+                                                tabContent()
                                             }
                                         }
                                     }
