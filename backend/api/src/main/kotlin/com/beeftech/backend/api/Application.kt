@@ -167,6 +167,11 @@ fun Application.module() {
             userAdminService
         )
 
+        dashboardRoutes(
+            jwtService,
+            DashboardService()
+        )
+
         /*
          * Calf Registration routes
          */
