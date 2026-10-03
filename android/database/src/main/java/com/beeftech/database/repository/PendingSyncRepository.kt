@@ -108,6 +108,14 @@ class PendingSyncRepository(
             )
     }
 
+    suspend fun resetRetryCount(
+        id: Long
+    ) {
+        pendingSyncDao.resetRetryCount(
+            id
+        )
+    }
+
     suspend fun markSyncFailed(
         id: Long
     ) {

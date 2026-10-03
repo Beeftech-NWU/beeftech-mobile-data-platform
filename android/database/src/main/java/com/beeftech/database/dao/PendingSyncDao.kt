@@ -57,6 +57,17 @@ interface PendingSyncDao {
         id: Long
     )
 
+    @Query(
+        """
+        UPDATE pending_sync
+        SET retryCount = 0
+        WHERE id = :id
+        """
+    )
+    suspend fun resetRetryCount(
+        id: Long
+    )
+
     @Update
     suspend fun update(item: PendingSync)
 
@@ -175,5 +186,40 @@ interface PendingSyncDao {
     fun observeOldestPendingCreatedAtForUser(
         userId: String
     ): Flow<Long?>
+
+
+    @Query(
+        """
+        UPDATE pending_sync
+        SET user_id = :userId,
+            retryCount = 0
+        WHERE entityType = :entityType
+          AND entityId = :entityId
+        """
+    )
+    suspend fun reassignEntityToUser(
+        entityType: String,
+        entityId: String,
+        userId: String
+    )
+
+
+    /*
+     * When an online login confirms that an existing cached
+     * username now has a different server user ID, move that
+     * same user's pending work to the authenticated identity.
+     */
+    @Query(
+        """
+        UPDATE pending_sync
+        SET user_id = :newUserId,
+            retryCount = 0
+        WHERE user_id = :oldUserId
+        """
+    )
+    suspend fun reassignUserOperations(
+        oldUserId: String,
+        newUserId: String
+    ): Int
 
 }

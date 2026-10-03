@@ -3,6 +3,7 @@ package com.beeftech.authentication.data
 import android.os.Build
 import com.beeftech.authentication.domain.LoggedInUser
 import com.beeftech.database.dao.UserDao
+import com.beeftech.database.dao.PendingSyncDao
 import com.beeftech.database.entity.User
 import com.beeftech.database.security.PinLockoutManager
 import org.mindrot.jbcrypt.BCrypt
@@ -25,7 +26,8 @@ class AuthRepository(
     private val sessionStore: SessionStore,
     private val userDao: UserDao,
     private val lockoutManager: PinLockoutManager,
-    private val deviceIdProvider: DeviceIdProvider
+    private val deviceIdProvider: DeviceIdProvider,
+    private val pendingSyncDao: PendingSyncDao? = null
 ) {
 
     suspend fun login(username: String, pin: String): LoginOutcome {
@@ -53,34 +55,95 @@ class AuthRepository(
                     deviceId = deviceId
                 )
 
-                sessionStore.save(
-                    token = dto.token,
-                    expiresAt = expiresAtMillis,
-                    user = loggedInUser
+                /*
+                 * BEEFTECH_IDENTITY_RECONCILIATION
+                 *
+                 * The backend can legitimately return a different
+                 * user ID for the same authenticated username when
+                 * development server data has been recreated.
+                 *
+                 * The username + successful PIN authentication tells
+                 * us that this is the same account. Therefore local
+                 * pending operations owned by the previous cached ID
+                 * can safely follow the authenticated identity.
+                 */
+                val existingUserRow =
+                    userDao.getUserByUsername(
+                        username
+                    )
+
+                val serverUserId =
+                    dto.user.userId
+
+                if (
+                    existingUserRow != null &&
+                    existingUserRow.userId != serverUserId
+                ) {
+
+                    pendingSyncDao
+                        ?.reassignUserOperations(
+                            oldUserId =
+                                existingUserRow.userId,
+                            newUserId =
+                                serverUserId
+                        )
+                }
+
+                /*
+                 * Canonicalise the cached user row to the ID supplied
+                 * by the successful online authentication.
+                 *
+                 * insertUser uses REPLACE, and username is unique,
+                 * so an old cached row for the same username is
+                 * replaced by this server-backed identity.
+                 */
+                userDao.insertUser(
+                    User(
+                        userId =
+                            serverUserId,
+
+                        username =
+                            dto.user.username,
+
+                        pinHash =
+                            dto.user.pinHash,
+
+                        failedPinAttempts =
+                            0,
+
+                        role =
+                            dto.user.role
+                                ?.toLong(),
+
+                        deviceAssignedId =
+                            dto.user.deviceAssignedId
+                                ?: deviceId,
+
+                        deviceLastSync =
+                            existingUserRow
+                                ?.deviceLastSync,
+
+                        failedSyncAttempts =
+                            existingUserRow
+                                ?.failedSyncAttempts
+                                ?: 0
+                    )
                 )
 
-                val existingUserRow = userDao.getUserByUsername(username)
-                if (existingUserRow != null) {
-                    userDao.updateUser(
-                        existingUserRow.copy(
-                            pinHash = dto.user.pinHash,
-                            failedPinAttempts = 0,
-                            role = dto.user.role?.toLong(),
-                            deviceAssignedId = dto.user.deviceAssignedId ?: deviceId
-                        )
-                    )
-                } else {
-                    userDao.insertUser(
-                        User(
-                            userId = dto.user.userId,
-                            username = dto.user.username,
-                            pinHash = dto.user.pinHash,
-                            failedPinAttempts = 0,
-                            role = dto.user.role?.toLong(),
-                            deviceAssignedId = dto.user.deviceAssignedId ?: deviceId
-                        )
-                    )
-                }
+                /*
+                 * Save the authenticated session only after the local
+                 * identity and queue ownership agree.
+                 */
+                sessionStore.save(
+                    token =
+                        dto.token,
+
+                    expiresAt =
+                        expiresAtMillis,
+
+                    user =
+                        loggedInUser
+                )
 
                 lockoutManager.resetAttempts()
                 LoginOutcome.Success(loggedInUser)
@@ -125,11 +188,20 @@ class AuthRepository(
                             role = cachedUser.role?.toInt(),
                             deviceId = deviceId
                         )
-                        val existingToken = sessionStore.token() ?: "OFFLINE_TOKEN_${System.currentTimeMillis()}"
-                        val offlineExpiresAt = System.currentTimeMillis() + 7 * 24 * 60 * 60 * 1000L
+                        /*
+                         * Offline authentication grants LOCAL access
+                         * only.
+                         *
+                         * Do not invent or extend a bearer token for
+                         * Render. SessionStore keeps the local
+                         * seven-day window separate from the actual
+                         * server JWT expiry.
+                         */
+                        val offlineExpiresAt =
+                            System.currentTimeMillis() +
+                                7 * 24 * 60 * 60 * 1000L
 
-                        sessionStore.save(
-                            token = existingToken,
+                        sessionStore.saveOffline(
                             expiresAt = offlineExpiresAt,
                             user = loggedInUser
                         )

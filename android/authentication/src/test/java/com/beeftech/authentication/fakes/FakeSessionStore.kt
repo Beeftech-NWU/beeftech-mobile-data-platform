@@ -3,33 +3,145 @@ package com.beeftech.authentication.fakes
 import com.beeftech.authentication.data.SessionStore
 import com.beeftech.authentication.domain.LoggedInUser
 
-class FakeSessionStore : SessionStore {
-    private var cachedToken: String? = null
-    private var cachedExpiresAt: Long = 0L
-    private var user: LoggedInUser? = null
 
-    override fun save(token: String, expiresAt: Long, user: LoggedInUser) {
-        this.cachedToken = token
-        this.cachedExpiresAt = expiresAt
-        this.user = user
+class FakeSessionStore :
+    SessionStore {
+
+    private var cachedToken:
+            String? =
+        null
+
+    private var localSessionExpiresAt:
+            Long =
+        0L
+
+    private var serverTokenExpiresAt:
+            Long =
+        0L
+
+    private var user:
+            LoggedInUser? =
+        null
+
+
+    override fun save(
+        token: String,
+        expiresAt: Long,
+        user: LoggedInUser
+    ) {
+
+        cachedToken =
+            token
+
+        localSessionExpiresAt =
+            expiresAt
+
+        serverTokenExpiresAt =
+            expiresAt
+
+        this.user =
+            user
     }
 
-    override fun currentUser(): LoggedInUser? {
+
+    override fun saveOffline(
+        expiresAt: Long,
+        user: LoggedInUser
+    ) {
+
+        val now =
+            System.currentTimeMillis()
+
+        val keepServerToken =
+            this.user
+                ?.userId == user.userId &&
+                !cachedToken.isNullOrBlank() &&
+                !cachedToken
+                    .orEmpty()
+                    .startsWith(
+                        "OFFLINE_TOKEN_"
+                    ) &&
+                serverTokenExpiresAt > now
+
+        if (!keepServerToken) {
+
+            cachedToken =
+                null
+
+            serverTokenExpiresAt =
+                0L
+        }
+
+        localSessionExpiresAt =
+            expiresAt
+
+        this.user =
+            user
+    }
+
+
+    override fun currentUser():
+            LoggedInUser? {
+
         return user
     }
 
-    override fun isExpired(now: Long): Boolean {
-        return now >= cachedExpiresAt
+
+    override fun isExpired(
+        now: Long
+    ): Boolean {
+
+        return now >=
+            localSessionExpiresAt
     }
+
 
     override fun clear() {
-        cachedToken = null
-        cachedExpiresAt = 0L
-        user = null
+
+        cachedToken =
+            null
+
+        localSessionExpiresAt =
+            0L
+
+        serverTokenExpiresAt =
+            0L
+
+        user =
+            null
     }
 
-    override suspend fun token(): String? {
-        if (isExpired()) return null
-        return cachedToken
+
+    override suspend fun token():
+            String? {
+
+        if (isExpired()) {
+            return null
+        }
+
+        if (
+            System.currentTimeMillis() >=
+            serverTokenExpiresAt
+        ) {
+            return null
+        }
+
+        val token =
+            cachedToken
+                ?.trim()
+
+        if (token.isNullOrEmpty()) {
+            return null
+        }
+
+        if (
+            token.startsWith(
+                "OFFLINE_TOKEN_"
+            )
+        ) {
+            return null
+        }
+
+        return token
     }
 }
