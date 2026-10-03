@@ -4,9 +4,9 @@ import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.transactions.transaction
 
 /**
- * Adds users.site_id to databases created before sites existed.
+ * Adds users.site_id and users.active to databases created before they existed.
  * SchemaUtils.create never alters an existing table, so without this the
- * user queries fail on an already-deployed DB.
+ * user queries fail on an already-deployed DB. Existing users stay active.
  *
  * Idempotent, and a no-op on a fresh database where users does not exist yet.
  */
@@ -17,8 +17,14 @@ object UsersSchemaMigration {
             buildList { while (rs.next()) add(rs.getString("name")) }
         } ?: emptyList()
 
-        if (existing.isEmpty() || "site_id" in existing) return@transaction
+        if (existing.isEmpty()) return@transaction
 
-        exec("ALTER TABLE users ADD COLUMN site_id VARCHAR(64) NULL")
+        if ("site_id" !in existing) {
+            exec("ALTER TABLE users ADD COLUMN site_id VARCHAR(64) NULL")
+        }
+
+        if ("active" !in existing) {
+            exec("ALTER TABLE users ADD COLUMN active BOOLEAN NOT NULL DEFAULT 1")
+        }
     }
 }
