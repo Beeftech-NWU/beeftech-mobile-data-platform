@@ -113,7 +113,7 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
 27. **Admins type a site ID by hand in the Team tab.** There is no sites endpoint until Phase 4, so
     the "Add user" dialog takes a free-text site ID and the backend rejects unknown ones
     ("Unknown site"). Replace it with a site picker when Sites CRUD lands.
-28. **RESOLVED (Phase 3, dashboard summary, PR pending): the Dashboard tab now loads `GET /api/dashboard/summary`.** Original note: **Dashboard tab is a placeholder.** It shows static text until Phase 3 adds
+28. **RESOLVED (Phase 3, dashboard summary, PR #74): the Dashboard tab now loads `GET /api/dashboard/summary`.** Original note: **Dashboard tab is a placeholder.** It shows static text until Phase 3 adds
     `GET /api/dashboard/summary`.
 29. **The dashboard covers only what the backend stores.** It counts calves, treatments, farmers,
     workers and stale syncs. Mortalities, costs, movements and feed are missing because the backend
