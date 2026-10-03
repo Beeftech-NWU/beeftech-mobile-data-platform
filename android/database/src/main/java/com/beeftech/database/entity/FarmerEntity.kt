@@ -22,6 +22,10 @@ data class FarmerEntity(
     val gps_latitude: Double?,
     val gps_longitude: Double?,
     val sync_status: String = "PENDING",
+    val co_reg_id_no: String? = null,
+    val land_ownership: String? = null,
+    val fa_code_rmis: String? = null,
+    val gln_number: String? = null,
 
     @ColumnInfo(name = "record_guid")
     val recordGuid: String = UUID.randomUUID().toString()

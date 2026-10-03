@@ -46,7 +46,16 @@ class FarmerRepository {
                             row[FarmerAddressTable.gpsLatitude],
 
                         gpsLongitude =
-                            row[FarmerAddressTable.gpsLongitude]
+                            row[FarmerAddressTable.gpsLongitude],
+
+                        streetCode =
+                            row[FarmerAddressTable.streetCode],
+
+                        postalAddress =
+                            row[FarmerAddressTable.postalAddress],
+
+                        country =
+                            row[FarmerAddressTable.country]
                     )
                 }
 
@@ -94,6 +103,18 @@ class FarmerRepository {
 
             syncStatus =
                 this[FarmerTable.syncStatus],
+
+            coRegIdNo =
+                this[FarmerTable.coRegIdNo],
+
+            landOwnership =
+                this[FarmerTable.landOwnership],
+
+            faCodeRmis =
+                this[FarmerTable.faCodeRmis],
+
+            glnNumber =
+                this[FarmerTable.glnNumber],
 
             addresses =
                 addresses,
@@ -172,6 +193,18 @@ class FarmerRepository {
 
                     it[syncedAt] =
                         serverSyncedAt
+
+                    it[coRegIdNo] =
+                        dto.coRegIdNo
+
+                    it[landOwnership] =
+                        dto.landOwnership
+
+                    it[faCodeRmis] =
+                        dto.faCodeRmis
+
+                    it[glnNumber] =
+                        dto.glnNumber
                 }
 
             } else {
@@ -204,6 +237,18 @@ class FarmerRepository {
 
                     it[syncedAt] =
                         serverSyncedAt
+
+                    it[coRegIdNo] =
+                        dto.coRegIdNo
+
+                    it[landOwnership] =
+                        dto.landOwnership
+
+                    it[faCodeRmis] =
+                        dto.faCodeRmis
+
+                    it[glnNumber] =
+                        dto.glnNumber
                 }
             }
 
@@ -247,6 +292,15 @@ class FarmerRepository {
 
                     it[gpsLongitude] =
                         address.gpsLongitude
+
+                    it[streetCode] =
+                        address.streetCode
+
+                    it[postalAddress] =
+                        address.postalAddress
+
+                    it[country] =
+                        address.country
                 }
             }
 

@@ -24,6 +24,10 @@ data class FarmerSalesNotificationPayload(
     val organisationName: String? = null,
     val emailAddress: String? = null,
     val vatNumber: String? = null,
+    val coRegIdNo: String? = null,
+    val landOwnership: String? = null,
+    val faCodeRmis: String? = null,
+    val glnNumber: String? = null,
     val gpsLatitude: Double? = null,
     val gpsLongitude: Double? = null,
     val addresses: List<FarmerAddressDto> = emptyList(),
@@ -408,6 +412,32 @@ class SmtpFarmerSalesNotificationService(
 
                                 appendLine(
                                     "Organisation: ${payload.organisationName ?: "N/A"}"
+                                )
+
+                                appendLine(
+                                    "Co-Reg / ID No.: ${payload.coRegIdNo ?: "N/A"}"
+                                )
+
+                                appendLine(
+                                    "Land ownership: ${payload.landOwnership ?: "N/A"}"
+                                )
+
+                                appendLine(
+                                    "FA code (RMIS): ${payload.faCodeRmis ?: "N/A"}"
+                                )
+
+                                appendLine(
+                                    "GLN number: ${payload.glnNumber ?: "N/A"}"
+                                )
+
+                                appendLine(
+                                    "Country: ${
+                                        (
+                                            payload.addresses
+                                                .firstOrNull { it.addressType == "PRIMARY" }
+                                                ?: payload.addresses.firstOrNull()
+                                        )?.country ?: "N/A"
+                                    }"
                                 )
 
                                 appendLine(
