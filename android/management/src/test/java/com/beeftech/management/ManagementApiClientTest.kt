@@ -166,4 +166,41 @@ class ManagementApiClientTest {
 
         assertEquals(ManagementResult.NoConnection, api.listUsers())
     }
+
+    private val summaryJson =
+        """{"success":true,"message":"ok","data":{"siteId":"s1","generatedAt":5,
+        "calves":{"total":4,"last7Days":2},"treatments":{"total":3,"last7Days":1,"totalCost":12.5},
+        "farmers":{"total":1,"last7Days":0},"team":{"activeWorkers":2,"inactiveWorkers":1},
+        "alerts":[{"type":"STALE_SYNC","message":"jvdm hasn't synced in over 48 hours","username":"jvdm"}],
+        "futureField":true}}"""
+
+    @Test
+    fun `dashboardSummary decodes the summary and passes siteId when given`() = runTest {
+        var url = ""
+        val api = client {
+            url = it.url.toString()
+            HttpStatusCode.OK to summaryJson
+        }
+
+        val summary = (api.dashboardSummary("s1") as ManagementResult.Success).value
+
+        assertEquals("http://test-host/api/dashboard/summary?siteId=s1", url)
+        assertEquals(4L, summary.calves.total)
+        assertEquals(12.5, summary.treatments.totalCost, 0.0)
+        assertEquals(1L, summary.team.inactiveWorkers)
+        assertEquals("jvdm", summary.alerts.single().username)
+    }
+
+    @Test
+    fun `dashboardSummary without siteId sends no query`() = runTest {
+        var url = ""
+        val api = client {
+            url = it.url.toString()
+            HttpStatusCode.OK to summaryJson
+        }
+
+        api.dashboardSummary()
+
+        assertEquals("http://test-host/api/dashboard/summary", url)
+    }
 }

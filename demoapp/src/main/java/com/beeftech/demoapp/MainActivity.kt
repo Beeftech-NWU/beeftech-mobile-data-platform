@@ -53,7 +53,7 @@ import com.beeftech.database.security.PinLockoutManager
 import com.beeftech.authentication.domain.Role
 import com.beeftech.database.security.TokenProviderRegistry
 import com.beeftech.management.data.ManagementApiClient
-import com.beeftech.management.ui.DashboardScreen
+import com.beeftech.management.ui.DashboardTab
 import com.beeftech.management.ui.MyActivityScreen
 import com.beeftech.management.ui.TeamTab
 import com.beeftech.demoapp.ui.theme.BeeftechTheme
@@ -659,7 +659,12 @@ class MainActivity : ComponentActivity() {
 
                                     } else if (currentTab == AppTab.DASHBOARD) {
 
-                                        DashboardScreen()
+                                        DashboardTab(
+                                            apiClient =
+                                                managementApiClient,
+                                            currentUserId =
+                                                loggedInUser.userId
+                                        )
 
                                     } else if (currentTab == AppTab.TEAM) {
 
