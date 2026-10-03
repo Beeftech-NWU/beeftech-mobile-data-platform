@@ -43,6 +43,7 @@ class EncryptedSessionStore(context: Context) : SessionStore {
         private const val KEY_USERNAME = "username"
         private const val KEY_ROLE = "role"
         private const val KEY_DEVICE_ID = "device_id"
+        private const val KEY_SITE_ID = "site_id"
     }
 
     override fun save(token: String, expiresAt: Long, user: LoggedInUser) {
@@ -53,6 +54,7 @@ class EncryptedSessionStore(context: Context) : SessionStore {
             ?.putString(KEY_USERNAME, user.username)
             ?.putInt(KEY_ROLE, user.role ?: -1)
             ?.putString(KEY_DEVICE_ID, user.deviceId)
+            ?.putString(KEY_SITE_ID, user.siteId)
             ?.apply()
 
         CurrentUserIdRegistry.setCurrentUserId(
@@ -75,7 +77,8 @@ class EncryptedSessionStore(context: Context) : SessionStore {
             userId = userId,
             username = username,
             role = role,
-            deviceId = deviceId
+            deviceId = deviceId,
+            siteId = prefs?.getString(KEY_SITE_ID, null)
         )
     }
 

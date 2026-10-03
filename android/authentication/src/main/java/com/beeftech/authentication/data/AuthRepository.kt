@@ -50,7 +50,8 @@ class AuthRepository(
                     userId = dto.user.userId,
                     username = dto.user.username,
                     role = dto.user.role,
-                    deviceId = deviceId
+                    deviceId = deviceId,
+                    siteId = dto.user.siteId
                 )
 
                 sessionStore.save(
@@ -66,7 +67,8 @@ class AuthRepository(
                             pinHash = dto.user.pinHash,
                             failedPinAttempts = 0,
                             role = dto.user.role?.toLong(),
-                            deviceAssignedId = dto.user.deviceAssignedId ?: deviceId
+                            deviceAssignedId = dto.user.deviceAssignedId ?: deviceId,
+                            siteId = dto.user.siteId
                         )
                     )
                 } else {
@@ -77,7 +79,8 @@ class AuthRepository(
                             pinHash = dto.user.pinHash,
                             failedPinAttempts = 0,
                             role = dto.user.role?.toLong(),
-                            deviceAssignedId = dto.user.deviceAssignedId ?: deviceId
+                            deviceAssignedId = dto.user.deviceAssignedId ?: deviceId,
+                            siteId = dto.user.siteId
                         )
                     )
                 }
@@ -123,7 +126,8 @@ class AuthRepository(
                             userId = cachedUser.userId,
                             username = cachedUser.username,
                             role = cachedUser.role?.toInt(),
-                            deviceId = deviceId
+                            deviceId = deviceId,
+                            siteId = cachedUser.siteId
                         )
                         val existingToken = sessionStore.token() ?: "OFFLINE_TOKEN_${System.currentTimeMillis()}"
                         val offlineExpiresAt = System.currentTimeMillis() + 7 * 24 * 60 * 60 * 1000L
