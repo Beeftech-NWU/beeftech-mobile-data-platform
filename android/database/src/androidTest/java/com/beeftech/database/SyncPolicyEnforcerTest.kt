@@ -9,6 +9,7 @@ import com.beeftech.database.entity.Treatment
 import com.beeftech.database.entity.IdentifierTypes
 import com.beeftech.database.entity.CalfRegistrationEntity
 import com.beeftech.database.entity.AnimalMovementEntity
+import com.beeftech.database.entity.Mortality
 import com.beeftech.database.entity.AnimalMediaEntity
 import com.beeftech.database.entity.AnimalIdentifierEntity
 import com.beeftech.database.entity.Animal
@@ -807,6 +808,173 @@ class SyncPolicyEnforcerTest {
                 database
                     .pendingSyncDao()
                     .getPendingCount()
+            )
+        }
+
+
+    // ========================================================
+    // DAY 7 - MORTALITY
+    // ========================================================
+
+    @Test
+    fun day7_wipesUnsyncedMortalityButPreservesAnimal() =
+        runBlocking {
+
+            val animalId =
+                "DAY7-MORTALITY-ANIMAL"
+
+            val recordGuid =
+                "DAY7-MORTALITY-GUID"
+
+            database
+                .animalDao()
+                .insert(
+                    testAnimal(
+                        animalId =
+                            animalId,
+
+                        syncStatus =
+                            "SYNCED"
+                    )
+                )
+
+            database
+                .mortalityDao()
+                .insert(
+                    Mortality(
+                        animalId =
+                            animalId,
+
+                        causeOfDeath =
+                            "Day 7 safety test",
+
+                        timestamp =
+                            NOW,
+
+                        recordGuid =
+                            recordGuid
+                    )
+                )
+
+            insertDay7Queue(
+                entityType =
+                    SyncSecurityDao
+                        .ENTITY_MORTALITY,
+
+                entityId =
+                    recordGuid
+            )
+
+            val result =
+                enforcer.evaluate(
+                    userId =
+                        USER_ID,
+
+                    now =
+                        NOW
+                )
+
+            assertTrue(
+                result.accountLocked
+            )
+
+            assertNull(
+                database
+                    .mortalityDao()
+                    .findByRecordGuid(
+                        recordGuid
+                    )
+            )
+
+            assertNotNull(
+                database
+                    .animalDao()
+                    .getById(
+                        animalId
+                    )
+            )
+
+            assertEquals(
+                0,
+                database
+                    .pendingSyncDao()
+                    .getPendingCount()
+            )
+        }
+
+    @Test
+    fun day7_keepsSyncedMortalityWithLeftoverQueueItem() =
+        runBlocking {
+
+            val animalId =
+                "DAY7-SYNCED-MORTALITY-ANIMAL"
+
+            val recordGuid =
+                "DAY7-SYNCED-MORTALITY-GUID"
+
+            database
+                .animalDao()
+                .insert(
+                    testAnimal(
+                        animalId =
+                            animalId,
+
+                        syncStatus =
+                            "SYNCED"
+                    )
+                )
+
+            database
+                .mortalityDao()
+                .insert(
+                    Mortality(
+                        animalId =
+                            animalId,
+
+                        causeOfDeath =
+                            "Already on the server",
+
+                        timestamp =
+                            NOW,
+
+                        recordGuid =
+                            recordGuid,
+
+                        syncStatus =
+                            "SYNCED",
+
+                        syncedAt =
+                            NOW
+                    )
+                )
+
+            insertDay7Queue(
+                entityType =
+                    SyncSecurityDao
+                        .ENTITY_MORTALITY,
+
+                entityId =
+                    recordGuid
+            )
+
+            enforcer.evaluate(
+                userId =
+                    USER_ID,
+
+                now =
+                    NOW
+            )
+
+            /*
+             * The server already has this mortality, so the wipe
+             * must not delete the local copy.
+             */
+            assertNotNull(
+                database
+                    .mortalityDao()
+                    .findByRecordGuid(
+                        recordGuid
+                    )
             )
         }
 

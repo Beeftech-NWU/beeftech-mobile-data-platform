@@ -105,6 +105,17 @@ abstract class SyncSecurityDao {
         recordGuid: String
     ): Int
 
+    @Query(
+        """
+        DELETE FROM mortalities
+        WHERE record_guid = :recordGuid
+          AND sync_status != 'SYNCED'
+        """
+    )
+    protected abstract suspend fun deleteUnsyncedMortality(
+        recordGuid: String
+    ): Int
+
 
     // ========================================================
     // Treatment
@@ -315,6 +326,13 @@ abstract class SyncSecurityDao {
                     )
                 }
 
+                ENTITY_MORTALITY -> {
+
+                    deleteUnsyncedMortality(
+                        pending.entityId
+                    )
+                }
+
                 ENTITY_TREATMENT -> {
 
                     if (
@@ -455,6 +473,9 @@ abstract class SyncSecurityDao {
 
         const val ENTITY_TREATMENT =
             "TREATMENT"
+
+        const val ENTITY_MORTALITY =
+            "MORTALITY"
 
         const val ENTITY_FARMER_REGISTRATION =
             "FARMER_REGISTRATION"

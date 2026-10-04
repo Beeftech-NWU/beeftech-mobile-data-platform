@@ -216,7 +216,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
     companion object {
 
         /** Current Room schema version. Bump here when adding a migration. */
-        const val VERSION = 33
+        const val VERSION = 34
 
         /**
          * Phase 3 Migration (Version 9 -> 10):
@@ -3242,6 +3242,67 @@ abstract class BeefTechDatabase : RoomDatabase() {
 
                         db.execSQL(
                             "ALTER TABLE `users` ADD COLUMN `site_id` TEXT"
+                        )
+                    }
+                }
+            }
+
+        /*
+         * v34: mortalities.sync_status and synced_at, so mortalities can sync.
+         * Existing rows were never uploaded, so they start as PENDING and the
+         * sync repository queues them. Both columns are added only if absent,
+         * so the migration is idempotent. No existing data is touched.
+         */
+        val MIGRATION_33_34 =
+            object : Migration(33, 34) {
+
+                private fun hasColumn(
+                    db: SupportSQLiteDatabase,
+                    column: String
+                ): Boolean {
+
+                    db.query(
+                        "PRAGMA table_info(`mortalities`)"
+                    ).use { cursor ->
+
+                        val nameIndex =
+                            cursor.getColumnIndex(
+                                "name"
+                            )
+
+                        while (
+                            cursor.moveToNext()
+                        ) {
+
+                            if (
+                                cursor.getString(
+                                    nameIndex
+                                ) == column
+                            ) {
+
+                                return true
+                            }
+                        }
+                    }
+
+                    return false
+                }
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+
+                    if (!hasColumn(db, "sync_status")) {
+
+                        db.execSQL(
+                            "ALTER TABLE `mortalities` ADD COLUMN `sync_status` TEXT NOT NULL DEFAULT 'PENDING'"
+                        )
+                    }
+
+                    if (!hasColumn(db, "synced_at")) {
+
+                        db.execSQL(
+                            "ALTER TABLE `mortalities` ADD COLUMN `synced_at` INTEGER"
                         )
                     }
                 }

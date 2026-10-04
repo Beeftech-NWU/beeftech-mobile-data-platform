@@ -69,6 +69,8 @@ import com.beeftech.farmtraceability.viewmodel.CostSummaryViewModel
 import com.beeftech.farmtraceability.viewmodel.CostSummaryViewModelFactory
 import com.beeftech.farmtraceability.viewmodel.LocationFeedViewModel
 import com.beeftech.farmtraceability.viewmodel.LocationFeedViewModelFactory
+import com.beeftech.farmtraceability.data.MortalityApiClient
+import com.beeftech.farmtraceability.data.MortalityRepository
 import com.beeftech.farmtraceability.viewmodel.MortalityViewModel
 import com.beeftech.farmtraceability.viewmodel.MortalityViewModelFactory
 import com.beeftech.farmtraceability.viewmodel.SupplierViewModel
@@ -258,13 +260,23 @@ class MainActivity : ComponentActivity() {
                     /*
                      * Mortality setup
                      */
-                    val mortalityDao =
-                        database.mortalityDao()
+                    val mortalityRepository =
+                        MortalityRepository(
+                            mortalityDao =
+                                database.mortalityDao(),
+                            pendingSyncRepository =
+                                pendingSyncRepository,
+                            apiClient =
+                                MortalityApiClient(
+                                    tokenProvider =
+                                        sessionStore
+                                )
+                        )
 
                     val mortalityViewModelFactory =
                         MortalityViewModelFactory(
-                            mortalityDao =
-                                mortalityDao
+                            repository =
+                                mortalityRepository
                         )
 
                     val mortalityViewModel =
@@ -1020,6 +1032,22 @@ class MainActivity : ComponentActivity() {
                                                             .retrySync(
                                                                 animalId = ""
                                                             ) {
+                                                                    _,
+                                                                    message ->
+
+                                                                Toast.makeText(
+                                                                    this@MainActivity,
+                                                                    message,
+                                                                    Toast.LENGTH_SHORT
+                                                                ).show()
+                                                            }
+                                                    }
+
+                                                    if (
+                                                        "MORTALITY" in pendingTypes
+                                                    ) {
+                                                        mortalityViewModel
+                                                            .retrySync {
                                                                     _,
                                                                     message ->
 

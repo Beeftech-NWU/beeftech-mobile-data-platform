@@ -130,5 +130,14 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     inserts a duplicate reading. The app does not post Feed Crib at all yet (`:android:feed-crib` is
     UI only, in memory), so nothing is duplicated today. Add a `recordguid` and an upsert when the
     device gets a Feed Crib sync worker.
-34. **Mortalities and costs still have no sync path.** There is no backend table or endpoint, and no
-    Android API client or worker, for either. Each needs both sides, plus a `pending_sync` entity type.
+34. **Costs still have no sync path; mortalities now do (PR pending).** Mortalities sync through
+    `POST /api/mortalities/sync` (backend table, Android client, worker, Room v34). Costs still have no
+    backend table or endpoint and no Android API client or worker; they need both sides, plus a
+    `pending_sync` entity type that the Day-7 wipe in `SyncSecurityDao` also learns.
+35. **Legacy mortalities belong to whoever syncs first.** Mortalities recorded before v34 were never
+    queued (the queue is user-scoped and they have no owner). `MortalityRepository.syncPending` queues
+    them for the signed-in user, so on a shared device the first user to sync owns them on the server.
+36. **Mortality queue items start their Day-7 clock when queued.** Legacy mortalities get a fresh
+    `pending_sync.createdAt` when they are first queued, not when they were recorded, so the 7-day wipe
+    window starts then. This is deliberate (it avoids wiping data that never had a chance to sync),
+    but it means an old unsynced mortality can outlive 7 days.
