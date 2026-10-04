@@ -34,4 +34,13 @@ object AppSettingsTable : Table("app_settings") {
 object AppSettingKeys {
     /* Bumped whenever a reference value is added or its active flag changes. */
     const val REFERENCE_DATA_VERSION = "reference_data_version"
+
+    /* The days of unsynced data that raise the three warnings, e.g. "2,4,6". */
+    const val SYNC_WARNING_DAYS = "sync.warning_days"
+
+    /* Hours without contact after which the dashboard flags a worker. */
+    const val SYNC_STALE_ALERT_HOURS = "sync.stale_alert_hours"
+
+    /* Bumped whenever the sync policy changes. */
+    const val SYNC_POLICY_VERSION = "sync_policy_version"
 }

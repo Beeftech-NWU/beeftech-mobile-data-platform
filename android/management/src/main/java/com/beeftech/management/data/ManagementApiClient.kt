@@ -10,6 +10,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.patch
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
@@ -122,6 +123,22 @@ class ManagementApiClient(
                 bearerAuth(token)
                 contentType(ContentType.Application.Json)
                 setBody(VoidBody(reason))
+            }
+        }
+
+    /* Any signed-in user may read it; phones pull it to set their warning days. */
+    suspend fun syncPolicy(): ManagementResult<SyncPolicyDto> =
+        call(decode = { decodeSyncPolicy(it) }) { token ->
+            httpClient.get("${baseUrl}api/sync-policy") { bearerAuth(token) }
+        }
+
+    /* Admin only. The server checks the rules; a bad set is a 400 with its message. */
+    suspend fun saveSyncPolicy(warningDays: List<Int>, staleSyncAlertHours: Int): ManagementResult<SyncPolicyDto> =
+        call(decode = { decodeSyncPolicy(it) }) { token ->
+            httpClient.put("${baseUrl}api/sync-policy") {
+                bearerAuth(token)
+                contentType(ContentType.Application.Json)
+                setBody(SaveSyncPolicyBody(warningDays, staleSyncAlertHours))
             }
         }
 
@@ -271,6 +288,10 @@ class ManagementApiClient(
                 parameter("limit", limit)
             }
         }
+
+    private fun decodeSyncPolicy(body: String): SyncPolicyDto =
+        JSON.decodeFromString<Envelope<SyncPolicyDto>>(body).data
+            ?: error("Missing sync policy in response")
 
     private fun decodeReferenceChange(body: String): ReferenceChange =
         JSON.decodeFromString<Envelope<ReferenceChange>>(body).data

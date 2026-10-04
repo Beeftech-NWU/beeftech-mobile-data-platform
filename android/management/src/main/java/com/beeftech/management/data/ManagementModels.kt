@@ -227,6 +227,24 @@ data class AuditLogEntry(
     val details: String? = null
 )
 
+/*
+ * The sync policy the phones follow. The wipe day is fixed in the app and only reported here;
+ * an admin changes the three warning days and the dashboard's stale-sync alert.
+ */
+@Serializable
+data class SyncPolicyDto(
+    val version: Long,
+    val warningDays: List<Int>,
+    val wipeDay: Int,
+    val staleSyncAlertHours: Int
+)
+
+@Serializable
+data class SaveSyncPolicyBody(
+    val warningDays: List<Int>,
+    val staleSyncAlertHours: Int
+)
+
 /* A disease or treatment type in the server's reference-data snapshot. */
 @Serializable
 data class ReferenceValueDto(
@@ -307,7 +325,8 @@ val AUDIT_ACTIONS = listOf(
     "DEVICE_REINSTATE" to "Phone unblocked",
     "REFDATA_CREATE" to "Value added",
     "REFDATA_ACTIVATE" to "Value turned on",
-    "REFDATA_DEACTIVATE" to "Value turned off"
+    "REFDATA_DEACTIVATE" to "Value turned off",
+    "SYNC_POLICY_UPDATE" to "Sync policy changed"
 )
 
 fun auditActionLabel(action: String): String =

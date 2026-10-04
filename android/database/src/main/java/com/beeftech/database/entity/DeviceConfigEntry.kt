@@ -21,5 +21,9 @@ data class DeviceConfigEntry(
 ) {
     companion object {
         const val REFERENCE_DATA_VERSION = "reference_data_version"
+
+        /* "2,4,6": the days of unsynced data that raise the three warnings. The wipe day is not stored. */
+        const val SYNC_WARNING_DAYS = "sync_warning_days"
+        const val SYNC_POLICY_VERSION = "sync_policy_version"
     }
 }

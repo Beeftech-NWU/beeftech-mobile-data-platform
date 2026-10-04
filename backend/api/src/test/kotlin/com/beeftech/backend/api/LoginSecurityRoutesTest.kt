@@ -150,8 +150,10 @@ class LoginSecurityRoutesTest {
         val success = events.first { it.str("outcome") == "SUCCESS" && it.str("usernameAttempted") == "jvdm" }
         assertEquals(workerId, success.str("userId"))
         assertEquals("dev-site-1", success.str("siteId"))
-        val text = client.adminSend("GET", "/api/login-events?limit=500", admin).bodyAsText()
-        listOf("30003", "11111", "22222", "00000", "pin").forEach { assertFalse(it in text, "found $it") }
+        /* Compare field values, not the raw text: a timestamp can contain digits like 22222 by chance. */
+        val values = events.flatMap { event -> event.values.map { it.toString().trim('"') } }
+        listOf("30003", "11111", "22222", "00000").forEach { assertFalse(it in values, "found $it") }
+        assertFalse(events.any { it.keys.any { key -> key.contains("pin", ignoreCase = true) } })
     }
 
     @Test

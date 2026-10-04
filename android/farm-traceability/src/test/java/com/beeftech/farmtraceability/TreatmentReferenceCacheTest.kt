@@ -42,6 +42,7 @@ class TreatmentReferenceCacheTest {
             return if (key == DeviceConfigEntry.REFERENCE_DATA_VERSION) version else null
         }
         override suspend fun putConfig(entry: DeviceConfigEntry) = Unit
+        override suspend fun putConfigs(entries: List<DeviceConfigEntry>) = Unit
     }
 
     /*

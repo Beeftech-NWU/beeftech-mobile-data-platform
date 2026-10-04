@@ -185,6 +185,11 @@ fun Application.module() {
             SiteService(userRepository, SiteRepository())
         )
 
+        syncPolicyRoutes(
+            jwtService,
+            SyncPolicyService(userRepository, SyncPolicyRepository())
+        )
+
         referenceDataRoutes(
             jwtService,
             ReferenceDataService(userRepository, ReferenceDataRepository())

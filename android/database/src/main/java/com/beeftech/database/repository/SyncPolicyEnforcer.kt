@@ -3,6 +3,7 @@ package com.beeftech.database.repository
 import com.beeftech.database.dao.PendingSyncDao
 import com.beeftech.database.dao.SyncSecurityDao
 import com.beeftech.database.entity.SyncSecurityEvent
+import kotlinx.coroutines.CancellationException
 
 data class SyncPolicyEvaluation(
     val pendingCount: Int,
@@ -14,7 +15,12 @@ data class SyncPolicyEvaluation(
 
 class SyncPolicyEnforcer(
     private val pendingSyncDao: PendingSyncDao,
-    private val syncSecurityDao: SyncSecurityDao
+    private val syncSecurityDao: SyncSecurityDao,
+    /*
+     * Where the three warning days come from (the server can change them). It only ever affects
+     * the warnings: the wipe at [SyncWarningPolicy.WIPE_DAY] never reads it.
+     */
+    private val policyProvider: suspend () -> SyncWarningPolicy = { SyncWarningPolicy.DEFAULT }
 ) {
 
     suspend fun evaluate(
@@ -37,10 +43,10 @@ class SyncPolicyEnforcer(
                     pendingSyncDao.getPendingCountForUser(userId),
 
                 oldestPendingAgeDays =
-                    7,
+                    SyncWarningPolicy.WIPE_DAY.toLong(),
 
                 warningLevel =
-                    4,
+                    SyncWarningPolicy.WIPE_LEVEL,
 
                 accountLocked =
                     true
@@ -84,69 +90,43 @@ class SyncPolicyEnforcer(
                     ONE_DAY_MS
 
         /*
+         * The wipe is decided here, from a constant, before any policy is read: nothing the
+         * server sends can bring it forward, push it back or stop it.
+         */
+        val wipeDue =
+            ageDays >= SyncWarningPolicy.WIPE_DAY
+
+        val policy =
+            loadPolicy()
+
+        /*
          * Record each threshold only once.
          *
          * event_key is UNIQUE, so repeated hourly evaluation
-         * cannot duplicate Day 2/4/6 audit entries.
+         * cannot duplicate warning audit entries.
          */
-        if (ageDays >= 2) {
-            recordWarning(
-                userId =
-                    userId,
+        policy.warningDays
+            .filter { ageDays >= it }
+            .forEach { warningDay ->
+                recordWarning(
+                    userId =
+                        userId,
 
-                warningDay =
-                    2,
+                    warningDay =
+                        warningDay,
 
-                pendingCount =
-                    pending.size,
+                    pendingCount =
+                        pending.size,
 
-                oldestPendingCreatedAt =
-                    oldest,
+                    oldestPendingCreatedAt =
+                        oldest,
 
-                now =
-                    now
-            )
-        }
+                    now =
+                        now
+                )
+            }
 
-        if (ageDays >= 4) {
-            recordWarning(
-                userId =
-                    userId,
-
-                warningDay =
-                    4,
-
-                pendingCount =
-                    pending.size,
-
-                oldestPendingCreatedAt =
-                    oldest,
-
-                now =
-                    now
-            )
-        }
-
-        if (ageDays >= 6) {
-            recordWarning(
-                userId =
-                    userId,
-
-                warningDay =
-                    6,
-
-                pendingCount =
-                    pending.size,
-
-                oldestPendingCreatedAt =
-                    oldest,
-
-                now =
-                    now
-            )
-        }
-
-        if (ageDays >= 7) {
+        if (wipeDue) {
 
             val wiped =
                 syncSecurityDao.enforceDay7(
@@ -171,7 +151,7 @@ class SyncPolicyEnforcer(
                     ageDays,
 
                 warningLevel =
-                    4,
+                    SyncWarningPolicy.WIPE_LEVEL,
 
                 accountLocked =
                     true,
@@ -189,7 +169,7 @@ class SyncPolicyEnforcer(
                 ageDays,
 
             warningLevel =
-                warningLevel(
+                policy.levelFor(
                     ageDays
                 ),
 
@@ -197,6 +177,16 @@ class SyncPolicyEnforcer(
                 false
         )
     }
+
+    /* A policy that can't be read is the default; it never stops an evaluation. */
+    private suspend fun loadPolicy(): SyncWarningPolicy =
+        try {
+            policyProvider()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            SyncWarningPolicy.DEFAULT
+        }
 
     private suspend fun recordWarning(
         userId: String,
@@ -239,28 +229,5 @@ class SyncPolicyEnforcer(
 
         private const val ONE_DAY_MS =
             24L * 60L * 60L * 1000L
-
-        internal fun warningLevel(
-            ageDays: Long
-        ): Int {
-
-            return when {
-
-                ageDays >= 7 ->
-                    4
-
-                ageDays >= 6 ->
-                    3
-
-                ageDays >= 4 ->
-                    2
-
-                ageDays >= 2 ->
-                    1
-
-                else ->
-                    0
-            }
-        }
     }
 }

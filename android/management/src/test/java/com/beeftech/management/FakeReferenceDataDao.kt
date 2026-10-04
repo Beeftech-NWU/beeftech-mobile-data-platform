@@ -45,6 +45,10 @@ class FakeReferenceDataDao : ReferenceDataDao() {
         config[entry.configKey] = entry.value
     }
 
+    override suspend fun putConfigs(entries: List<DeviceConfigEntry>) {
+        entries.forEach { config[it.configKey] = it.value }
+    }
+
     override suspend fun apply(snapshot: com.beeftech.database.dao.ReferenceSnapshot, now: Long) {
         applyCount++
         super.apply(snapshot, now)

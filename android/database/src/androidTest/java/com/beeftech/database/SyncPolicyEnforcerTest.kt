@@ -17,6 +17,8 @@ import com.beeftech.database.entity.AnimalIdentifierEntity
 import com.beeftech.database.entity.Animal
 import com.beeftech.database.entity.PendingSync
 import com.beeftech.database.repository.SyncPolicyEnforcer
+import com.beeftech.database.repository.SyncPolicyStore
+import com.beeftech.database.repository.SyncWarningPolicy
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
@@ -1936,6 +1938,151 @@ class SyncPolicyEnforcerTest {
             return it.getInt(0)
         }
     }
+
+    // ========================================================
+    // CONFIGURABLE WARNING DAYS (the wipe is not configurable)
+    // ========================================================
+
+    private fun enforcerWith(
+        policy: suspend () -> SyncWarningPolicy
+    ) = SyncPolicyEnforcer(
+        pendingSyncDao = database.pendingSyncDao(),
+        syncSecurityDao = database.syncSecurityDao(),
+        policyProvider = policy
+    )
+
+    @Test
+    fun customWarningDays_raiseTheLevelsOnTheirOwnDays() =
+        runBlocking {
+
+            val custom = enforcerWith { SyncWarningPolicy.sanitize(listOf(1, 3, 5)) }
+            insertPendingFarmer(farmerId = "CUSTOM-FARMER", ageDays = 1)
+
+            val atDay1 = custom.evaluate(USER_ID, NOW)
+            assertEquals(1, atDay1.warningLevel)
+            assertEquals(setOf(1), warningDays())
+
+            /* The same record, three days old. */
+            database.pendingSyncDao().getAllForUser(USER_ID)
+            val atDay3 = custom.evaluate(USER_ID, NOW + 2 * DAY_MS)
+            assertEquals(2, atDay3.warningLevel)
+            assertEquals(setOf(1, 3), warningDays())
+
+            val atDay5 = custom.evaluate(USER_ID, NOW + 4 * DAY_MS)
+            assertEquals(3, atDay5.warningLevel)
+            assertFalse(atDay5.accountLocked)
+            assertEquals(setOf(1, 3, 5), warningDays())
+            assertNotNull(database.farmerDao().getFarmerById("CUSTOM-FARMER"))
+        }
+
+    @Test
+    fun laterWarningDays_doNotWarnEarly() =
+        runBlocking {
+
+            val custom = enforcerWith { SyncWarningPolicy.sanitize(listOf(3, 5, 6)) }
+            insertPendingFarmer(farmerId = "LATE-FARMER", ageDays = 2)
+
+            val result = custom.evaluate(USER_ID, NOW)
+
+            assertEquals(0, result.warningLevel)
+            assertEquals(emptySet<Int>(), warningDays())
+        }
+
+    @Test
+    fun theWipeHappensAtDay7_evenWhenEveryWarningIsMovedEarly() =
+        runBlocking {
+
+            val early = enforcerWith { SyncWarningPolicy.sanitize(listOf(1, 2, 3)) }
+            insertPendingFarmer(farmerId = "EARLY-FARMER", ageDays = 7)
+
+            val result = early.evaluate(USER_ID, NOW)
+
+            assertTrue(result.accountLocked)
+            assertEquals(4, result.warningLevel)
+            assertNull(database.farmerDao().getFarmerById("EARLY-FARMER"))
+        }
+
+    @Test
+    fun theWipeHappensAtDay7_evenWhenEveryWarningIsMovedLate() =
+        runBlocking {
+
+            val late = enforcerWith { SyncWarningPolicy.sanitize(listOf(4, 5, 6)) }
+            insertPendingFarmer(farmerId = "LATE-WIPE-FARMER", ageDays = 7)
+
+            val result = late.evaluate(USER_ID, NOW)
+
+            assertTrue(result.accountLocked)
+            assertEquals(4, result.warningLevel)
+            assertNull(database.farmerDao().getFarmerById("LATE-WIPE-FARMER"))
+        }
+
+    @Test
+    fun nothingIsWipedBeforeDay7_whateverThePolicy() =
+        runBlocking {
+
+            insertPendingFarmer(farmerId = "SAFE-FARMER", ageDays = 6)
+
+            listOf(
+                SyncWarningPolicy.sanitize(listOf(1, 2, 3)),
+                SyncWarningPolicy.sanitize(listOf(4, 5, 6)),
+                SyncWarningPolicy.sanitize(listOf(6, 6, 6)),
+                SyncWarningPolicy.sanitize(listOf(0, 4, 6)),
+                SyncWarningPolicy.sanitize(listOf(2, 4, 7)),
+                SyncWarningPolicy.sanitize(null),
+                SyncWarningPolicy.DEFAULT
+            ).forEach { policy ->
+
+                val result = enforcerWith { policy }.evaluate(USER_ID, NOW)
+
+                assertFalse("Locked under $policy", result.accountLocked)
+                assertEquals(0, result.wipedOperationCount)
+                assertNotNull(database.farmerDao().getFarmerById("SAFE-FARMER"))
+                assertEquals(1, database.pendingSyncDao().getPendingCount())
+            }
+        }
+
+    @Test
+    fun aPolicyThatCannotBeLoaded_fallsBackToTheDefaultAndStillWipesAtDay7() =
+        runBlocking {
+
+            val broken = enforcerWith { error("device_config unreadable") }
+
+            insertPendingFarmer(farmerId = "BROKEN-6", ageDays = 6)
+            val atDay6 = broken.evaluate(USER_ID, NOW)
+            assertEquals(3, atDay6.warningLevel)
+            assertFalse(atDay6.accountLocked)
+            assertEquals(setOf(2, 4, 6), warningDays())
+
+            val atDay7 = broken.evaluate(USER_ID, NOW + DAY_MS)
+            assertTrue(atDay7.accountLocked)
+            assertNull(database.farmerDao().getFarmerById("BROKEN-6"))
+        }
+
+    @Test
+    fun policyStore_roundTripsAndNeverReturnsAnInvalidPolicy() =
+        runBlocking {
+
+            val store = SyncPolicyStore(database.referenceDataDao())
+            assertEquals(SyncWarningPolicy.DEFAULT, store.current())
+            assertNull(store.version())
+
+            store.save(listOf(1, 3, 5), version = 4, now = NOW)
+            assertEquals(listOf(1, 3, 5), store.current().warningDays)
+            assertEquals(4L, store.version())
+
+            /* An invalid set from the server is stored as the default, and its version is remembered. */
+            store.save(listOf(6, 6, 6), version = 5, now = NOW)
+            assertEquals(SyncWarningPolicy.DEFAULT, store.current())
+            assertEquals(5L, store.version())
+
+            /* A hand-corrupted stored value reads as the default. */
+            database.referenceDataDao().putConfig(
+                com.beeftech.database.entity.DeviceConfigEntry(
+                    com.beeftech.database.entity.DeviceConfigEntry.SYNC_WARNING_DAYS, "9,x,1", NOW
+                )
+            )
+            assertEquals(SyncWarningPolicy.DEFAULT, store.current())
+        }
 
     private suspend fun insertPendingFarmer(
         farmerId: String,

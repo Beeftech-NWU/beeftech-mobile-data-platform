@@ -30,6 +30,7 @@ object AuditActions {
     const val REFDATA_CREATE = "REFDATA_CREATE"
     const val REFDATA_ACTIVATE = "REFDATA_ACTIVATE"
     const val REFDATA_DEACTIVATE = "REFDATA_DEACTIVATE"
+    const val SYNC_POLICY_UPDATE = "SYNC_POLICY_UPDATE"
 
     /* entity_type for actions on a user account. */
     const val ENTITY_USER = "USER"
@@ -39,6 +40,9 @@ object AuditActions {
 
     /* entity_type for actions on a phone. */
     const val ENTITY_DEVICE = "DEVICE"
+
+    /* entity_type for the sync policy (there is only one). */
+    const val ENTITY_SYNC_POLICY = "SYNC_POLICY"
 }
 
 class AuditEntry(

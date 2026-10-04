@@ -47,6 +47,7 @@ import com.beeftech.database.DatabaseResult
 import com.beeftech.database.repository.PendingSyncRepository
 import com.beeftech.database.repository.SyncRepository
 import com.beeftech.database.repository.SyncPolicyEnforcer
+import com.beeftech.database.repository.SyncPolicyStore
 import com.beeftech.authentication.data.AuthApiClient
 import com.beeftech.authentication.data.DeviceInfo
 import com.beeftech.authentication.data.AuthRepository
@@ -573,7 +574,12 @@ class MainActivity : ComponentActivity() {
                                 database.pendingSyncDao(),
 
                             syncSecurityDao =
-                                database.syncSecurityDao()
+                                database.syncSecurityDao(),
+
+                            /* The server can move the warnings, never the wipe. */
+                            policyProvider = {
+                                SyncPolicyStore(database.referenceDataDao()).current()
+                            }
                         )
 
                     /*

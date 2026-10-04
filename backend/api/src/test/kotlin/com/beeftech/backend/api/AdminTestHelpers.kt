@@ -6,6 +6,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.patch
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
@@ -64,6 +65,7 @@ internal suspend fun HttpClient.adminSend(method: String, path: String, token: S
     return when (method) {
         "GET" -> get(path, block)
         "PATCH" -> patch(path, block)
+        "PUT" -> put(path, block)
         else -> post(path, block)
     }
 }

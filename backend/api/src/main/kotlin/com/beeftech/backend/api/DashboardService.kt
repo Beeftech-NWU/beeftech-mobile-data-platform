@@ -22,7 +22,8 @@ sealed interface DashboardResult {
 
 class DashboardService(
     private val now: () -> Long = System::currentTimeMillis,
-    private val userRepository: UserRepository = UserRepository()
+    private val userRepository: UserRepository = UserRepository(),
+    private val syncPolicyRepository: SyncPolicyRepository = SyncPolicyRepository()
 ) {
 
     /**
@@ -58,7 +59,10 @@ class DashboardService(
 
         val generatedAt = now()
         val weekAgo = generatedAt - WEEK_MS
-        val staleBefore = generatedAt - STALE_SYNC_MS
+
+        /* An admin can change how long without contact counts as stale (Admin > Sync policy). */
+        val staleHours = syncPolicyRepository.get().staleSyncAlertHours
+        val staleBefore = generatedAt - staleHours * HOUR_MS
 
         return newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
             val calfScope = scope.predicate(CalfRegistrationTable.submittedByUserId, CalfRegistrationTable.siteId, CalfRegistrationTable.voidedAt)
@@ -108,7 +112,7 @@ class DashboardService(
                     DashboardAlert(
                         type = "STALE_SYNC",
                         message = if (last == null) "${it[UsersTable.username]} has never synced"
-                        else "${it[UsersTable.username]} hasn't synced in over 48 hours",
+                        else "${it[UsersTable.username]} hasn't synced in over $staleHours hours",
                         username = it[UsersTable.username],
                         lastSyncAt = last
                     )
@@ -145,6 +149,6 @@ class DashboardService(
 
     private companion object {
         const val WEEK_MS = 7 * 24 * 60 * 60 * 1000L
-        const val STALE_SYNC_MS = 48 * 60 * 60 * 1000L
+        const val HOUR_MS = 60 * 60 * 1000L
     }
 }

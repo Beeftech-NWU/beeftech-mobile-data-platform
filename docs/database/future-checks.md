@@ -270,3 +270,26 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     phone cache. The Reference data screen, the check-in worker and the Treatment cache have not been run on a
     device; the Room migration and cache queries have (`Migration35To36Test`, `ReferenceDataDaoTest`, and the
     whole `:android:database` instrumented suite, 112 tests, on the emulator).
+
+## Found during the Admin tab, Phase 4e (sync policy)
+
+73. **The wipe day is fixed at 7 in the app, by design.** An admin can move only the three warning days (each
+    from 1 to 6, strictly increasing) and the dashboard's stale-sync alert (12 to 336 hours). `GET /api/sync-policy`
+    reports `wipeDay: 7` for information; the app never reads it. `SyncWarningPolicy.WIPE_DAY` is a constant, the
+    enforcer decides the wipe from it before it reads any policy, and a policy that can't be read falls back to 2, 4, 6.
+    Instrumented tests prove no policy wipes before day 7 or later than day 7.
+74. **Old apps ignore the configured warning days.** They keep 2, 4 and 6 until they are updated. The Sync policy
+    screen says so. The server-side stale-sync alert applies to everyone at once, because the dashboard is
+    computed on the server.
+75. **A phone follows a new policy only after it next checks in.** The check-in runs when someone signs in and
+    with the twice-daily batch job, and needs a connection and a server token. A phone that has been offline
+    keeps its stored warning days (or 2, 4, 6 if it has never pulled). It never affects the wipe.
+76. **Warning events record the days in force at the time.** `sync_security_events` rows for earlier days stay as
+    they were when an admin later changes the policy. Events are still not uploaded to the server (4f).
+77. **The stale-sync hours are measured from `users.device_last_sync`,** which is "last contact" since 4c (any
+    authenticated request, refreshed at most every 15 minutes), so a worker who is signed in and only browsing
+    counts as in contact.
+78. **The Sync policy screen and the pull have not been run on a device.** The wipe-safety rules have: the whole
+    `:android:database` instrumented suite ran on the emulator, including 7 new enforcer tests (custom days,
+    wipe at day 7 with every warning moved early or late, nothing wiped before day 7 under any policy, an
+    unreadable policy falling back to the default).

@@ -8,6 +8,11 @@ import androidx.room.Transaction
 import com.beeftech.database.entity.DeviceConfigEntry
 import com.beeftech.database.entity.ReferenceItem
 
+/*
+ * Reference data and the small key/value settings the server hands to the device. The settings
+ * share this DAO because they share the pull that fills it.
+ */
+
 /* A value from the server's reference-data snapshot. [id] is the server's id. */
 data class ReferenceValue(
     val id: Int,
@@ -56,6 +61,10 @@ abstract class ReferenceDataDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun putConfig(entry: DeviceConfigEntry)
+
+    /* Several settings in one statement, so they are never saved half-way. */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun putConfigs(entries: List<DeviceConfigEntry>)
 
     /*
      * Applies a snapshot in one transaction, so a device never ends up with half of one.
