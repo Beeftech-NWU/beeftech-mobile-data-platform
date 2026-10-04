@@ -3,11 +3,16 @@ package com.beeftech.backend.api
 import com.beeftech.backend.api.auth.AuthPrincipal
 import com.beeftech.backend.api.auth.Role
 import com.beeftech.backend.api.auth.UsersTable
+import com.beeftech.backend.api.feedcrib.FeedCribTable
 import kotlinx.coroutines.Dispatchers
 import org.jetbrains.exposed.sql.Op
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.greaterEq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.isNull
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.neq
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.or
+import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.sum
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
@@ -72,6 +77,43 @@ class DashboardService(
                     .count()
             )
 
+            val mortalityScope = scope.predicate(MortalityTable.submittedByUserId, MortalityTable.siteId, MortalityTable.voidedAt)
+            val mortalities = RecordCount(
+                total = MortalityTable.selectAll().where { mortalityScope }.count(),
+                last7Days = MortalityTable.selectAll()
+                    .where { mortalityScope and (MortalityTable.timestamp greaterEq weekAgo) }
+                    .count()
+            )
+
+            val movementScope = scope.predicate(AnimalMovementTable.submittedByUserId, AnimalMovementTable.siteId, AnimalMovementTable.voidedAt)
+            val movements = RecordCount(
+                total = AnimalMovementTable.selectAll().where { movementScope }.count(),
+                last7Days = AnimalMovementTable.selectAll()
+                    .where { movementScope and (AnimalMovementTable.timestamp greaterEq weekAgo) }
+                    .count()
+            )
+
+            /* Treatment-derived costs are already in the treatment cost above. */
+            val costScope = scope.predicate(CostTable.submittedByUserId, CostTable.siteId) and
+                (CostTable.sourceEntity.isNull() or (CostTable.sourceEntity neq "TREATMENT"))
+            val costAmount = CostTable.amount.sum()
+            val costs = CostCount(
+                total = CostTable.selectAll().where { costScope }.count(),
+                last7Days = CostTable.selectAll()
+                    .where { costScope and (CostTable.timestamp greaterEq weekAgo) }
+                    .count(),
+                totalAmount = CostTable.select(costAmount).where { costScope }
+                    .singleOrNull()?.get(costAmount) ?: 0.0
+            )
+
+            val feedScope = scope.predicate(FeedCribTable.submittedByUserId, FeedCribTable.siteId)
+            val feedReadings = RecordCount(
+                total = FeedCribTable.selectAll().where { feedScope }.count(),
+                last7Days = FeedCribTable.selectAll()
+                    .where { feedScope and (FeedCribTable.timestamp greaterEq weekAgo) }
+                    .count()
+            )
+
             val workers = UsersTable.selectAll()
                 .where { workerFilter(scope) }
                 .map { it }
@@ -103,6 +145,10 @@ class DashboardService(
                     calves = calves,
                     treatments = treatments,
                     farmers = farmers,
+                    mortalities = mortalities,
+                    movements = movements,
+                    costs = costs,
+                    feedReadings = feedReadings,
                     team = team,
                     alerts = alerts
                 )

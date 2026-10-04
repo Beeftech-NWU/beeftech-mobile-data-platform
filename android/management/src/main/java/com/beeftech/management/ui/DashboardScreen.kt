@@ -101,6 +101,22 @@ private fun SummaryCards(summary: DashboardSummary) {
         "${summary.farmers.total} registered",
         "${summary.farmers.last7Days} reached the server in the last 7 days"
     )
+    summary.mortalities?.let {
+        StatCard("Mortalities", "${it.total} total", "${it.last7Days} in the last 7 days")
+    }
+    summary.movements?.let {
+        StatCard("Movements", "${it.total} total", "${it.last7Days} in the last 7 days")
+    }
+    summary.costs?.let {
+        StatCard(
+            "Other costs",
+            "${it.total} total · ${formatMoney(it.totalAmount)}",
+            "${it.last7Days} in the last 7 days, not counting treatment costs"
+        )
+    }
+    summary.feedReadings?.let {
+        StatCard("Feed readings", "${it.total} total", "${it.last7Days} in the last 7 days")
+    }
     StatCard(
         "Team",
         "${summary.team.activeWorkers} active workers",

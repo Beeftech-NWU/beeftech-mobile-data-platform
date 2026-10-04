@@ -16,6 +16,13 @@ data class TreatmentCount(
 )
 
 @Serializable
+data class CostCount(
+    val total: Long,
+    val last7Days: Long,
+    val totalAmount: Double
+)
+
+@Serializable
 data class TeamCount(
     val activeWorkers: Long,
     val inactiveWorkers: Long
@@ -30,8 +37,11 @@ data class DashboardAlert(
 )
 
 /**
- * Counts for one site (or every site, for an admin). Mortalities, costs, movements and
- * feed are not here yet: the backend has no sync path for them.
+ * Counts for one site (or every site, for an admin). The newer sections default to null so
+ * an old app reading a new server, or the reverse, still works.
+ *
+ * [costs] leaves out costs derived from treatments, which [treatments] already counts, so
+ * a treatment's cost is never added twice. Voided records are left out everywhere.
  */
 @Serializable
 data class DashboardSummary(
@@ -40,6 +50,10 @@ data class DashboardSummary(
     val calves: RecordCount,
     val treatments: TreatmentCount,
     val farmers: RecordCount,
+    val mortalities: RecordCount? = null,
+    val movements: RecordCount? = null,
+    val costs: CostCount? = null,
+    val feedReadings: RecordCount? = null,
     val team: TeamCount,
     val alerts: List<DashboardAlert>
 )
