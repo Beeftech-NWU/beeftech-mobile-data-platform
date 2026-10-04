@@ -192,6 +192,27 @@ class ManagementApiClientTest {
     }
 
     @Test
+    fun `dashboardSummary decodes the newer sections and tolerates their absence`() = runTest {
+        val withSections = client {
+            HttpStatusCode.OK to
+                """{"success":true,"message":"ok","data":{"generatedAt":5,
+                "mortalities":{"total":2,"last7Days":1},"movements":{"total":7,"last7Days":3},
+                "costs":{"total":4,"last7Days":2,"totalAmount":250.5},
+                "feedReadings":{"total":9,"last7Days":9}}}"""
+        }
+        val full = (withSections.dashboardSummary() as ManagementResult.Success).value
+        assertEquals(2L, full.mortalities!!.total)
+        assertEquals(3L, full.movements!!.last7Days)
+        assertEquals(250.5, full.costs!!.totalAmount, 0.0)
+        assertEquals(9L, full.feedReadings!!.total)
+
+        /* An older server sends none of them. */
+        val old = (client { HttpStatusCode.OK to summaryJson }.dashboardSummary() as ManagementResult.Success).value
+        assertEquals(null, old.mortalities)
+        assertEquals(null, old.costs)
+    }
+
+    @Test
     fun `dashboardSummary without siteId sends no query`() = runTest {
         var url = ""
         val api = client {

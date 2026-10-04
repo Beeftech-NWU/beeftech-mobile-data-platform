@@ -115,7 +115,7 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     ("Unknown site"). Replace it with a site picker when Sites CRUD lands.
 28. **RESOLVED (Phase 3, dashboard summary, PR #74): the Dashboard tab now loads `GET /api/dashboard/summary`.** Original note: **Dashboard tab is a placeholder.** It shows static text until Phase 3 adds
     `GET /api/dashboard/summary`.
-29. **The dashboard covers only what the backend stores.** It counts calves, treatments, farmers,
+29. **RESOLVED (Phase 3, dashboard additions, `feature/dashboard-more`): the summary now includes mortalities, movements, costs and feed readings.** Original note: **The dashboard covers only what the backend stores.** It counts calves, treatments, farmers,
     workers and stale syncs. Mortalities, costs, movements and feed are missing because the backend
     has no sync path or table for them (movements have no `GET`, Feed Crib is in memory). Add each
     to the summary once its sync path exists.
@@ -145,7 +145,7 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
 37. **Costs derived from treatments sync as separate rows.** `TreatmentDao.insertWithCost` writes an
     `animal_costs` row (`source_entity = TREATMENT`) next to the treatment, and both now reach the server.
     A future dashboard or report that adds treatment cost to cost totals must use one source, or it counts
-    the treatment twice. Derived rows are queued by `CostRepository.syncPending`, not when the treatment
+    the treatment twice. The dashboard `costs` section excludes `source_entity = TREATMENT` rows for this reason. Derived rows are queued by `CostRepository.syncPending`, not when the treatment
     is saved, so they upload on the next cost sync (scheduled, or Retry Sync).
 38. **Costs recorded before v35 belong to whoever syncs first, and their Day-7 clock starts when queued.**
     Same behaviour as #35 and #36, for `animal_costs`.
@@ -166,7 +166,8 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     scoped (see #22) and do not check `voided_at`. Scope them and hide voided calves together.
 42. **Voiding a treatment leaves its derived cost row.** The treatment's `animal_costs` row
     (`source_entity = TREATMENT`) is not voided with it, and costs have no void yet. Void the derived cost
-    with its treatment, or add cost void, before cost totals feed any report.
+    with its treatment, or add cost void, before cost totals feed any report. The dashboard cost total is affected until then: a voided treatment's
+    derived cost is not counted under treatments, and is excluded from costs too.
 43. **Void has no un-void and no edit.** A wrong void can only be fixed by the worker re-capturing the
     record. Add an audited un-void if managers ask for one.
 44. **The records review list is capped and has no paging or filters.** `GET /api/records/{type}` returns
