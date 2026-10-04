@@ -2,6 +2,7 @@ package com.beeftech.demoapp
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -40,6 +41,7 @@ import com.beeftech.calfregistration.ui.CalfRegistrationFlow
 import com.beeftech.calfregistration.viewmodel.CalfRegistrationViewModel
 import com.beeftech.calfregistration.viewmodel.CalfRegistrationViewModelFactory
 import com.beeftech.database.DatabaseProvider
+import com.beeftech.database.security.CurrentUserIdRegistry
 import com.beeftech.database.DatabaseResult
 import com.beeftech.database.repository.PendingSyncRepository
 import com.beeftech.database.repository.SyncRepository
@@ -200,6 +202,160 @@ class MainActivity : ComponentActivity() {
                             tokenProvider =
                                 sessionStore
                         )
+
+                    /*
+                     * BEEFTECH_TEST22_LEGACY_QUEUE_REPAIR
+                     *
+                     * TEST22 was queued before the user-ID
+                     * reconciliation fix existed.
+                     *
+                     * The raw queue confirms that the only pending
+                     * operation still belongs to the previous
+                     * fmanager server identity.
+                     *
+                     * Move that legacy queue to the currently
+                     * authenticated identity and reset retryCount.
+                     */
+                    withContext(Dispatchers.IO) {
+
+                        val currentUserId =
+                            CurrentUserIdRegistry
+                                .currentUserId()
+
+                        if (
+                            !currentUserId.isNullOrBlank()
+                        ) {
+
+                            val moved =
+                                database
+                                    .pendingSyncDao()
+                                    .reassignUserOperations(
+                                        oldUserId =
+                                            "113e7515-2c61-4de2-93c8-99ff5a61b1b2",
+
+                                        newUserId =
+                                            currentUserId
+                                    )
+
+                            Log.i(
+                                "BeefTechQueueDebug",
+                                "TEST22_LEGACY_QUEUE_REPAIR " +
+                                    "moved=$moved, " +
+                                    "newUserId=$currentUserId"
+                            )
+                        }
+                    }
+
+
+                    /*
+                     * BEEFTECH_QUEUE_DIAGNOSTIC
+                     *
+                     * Temporary diagnostic only.
+                     * Does not modify any data.
+                     */
+                    withContext(Dispatchers.IO) {
+
+                        val activeUserId =
+                            CurrentUserIdRegistry
+                                .currentUserId()
+
+                        val rawPending =
+                            database
+                                .pendingSyncDao()
+                                .getAll()
+
+                        val test21Farmers =
+                            database
+                                .farmerDao()
+                                .getAllFarmers()
+                                .filter {
+                                    it.client_code
+                                        ?.trim()
+                                        ?.equals(
+                                            "TEST21",
+                                            ignoreCase = true
+                                        ) == true
+                                }
+
+                        Log.i(
+                            "BeefTechQueueDebug",
+                            "ACTIVE_USER_ID=$activeUserId"
+                        )
+
+                        Log.i(
+                            "BeefTechQueueDebug",
+                            "RAW_PENDING_COUNT=${rawPending.size}"
+                        )
+
+                        rawPending.forEach { pending ->
+
+                            Log.i(
+                                "BeefTechQueueDebug",
+                                "QUEUE id=${pending.id}, " +
+                                    "userId=${pending.userId}, " +
+                                    "type=${pending.entityType}, " +
+                                    "entityId=${pending.entityId}, " +
+                                    "retryCount=${pending.retryCount}"
+                            )
+                        }
+
+                        test21Farmers.forEach { farmer ->
+
+                            Log.i(
+                                "BeefTechQueueDebug",
+                                "TEST21 farmerId=${farmer.farmer_id}, " +
+                                    "status=${farmer.sync_status}"
+                            )
+                        }
+
+                        if (test21Farmers.isEmpty()) {
+
+                            Log.i(
+                                "BeefTechQueueDebug",
+                                "TEST21_NOT_FOUND"
+                            )
+                        }
+
+                        /*
+                         * BEEFTECH_TEST21_OWNER_REPAIR
+                         *
+                         * One-time development repair.
+                         *
+                         * TEST21 existed before the Render development
+                         * user ID changed. Reassign only this Farmer
+                         * Registration queue entry to the account which
+                         * is currently authenticated.
+                         */
+                        val test21 =
+                            test21Farmers
+                                .firstOrNull()
+
+                        if (
+                            activeUserId != null &&
+                            test21 != null
+                        ) {
+
+                            database
+                                .pendingSyncDao()
+                                .reassignEntityToUser(
+                                    entityType =
+                                        "FARMER_REGISTRATION",
+
+                                    entityId =
+                                        test21.farmer_id,
+
+                                    userId =
+                                        activeUserId
+                                )
+
+                            Log.i(
+                                "BeefTechQueueDebug",
+                                "REPAIRED_TEST21_QUEUE_OWNER " +
+                                    "farmerId=${test21.farmer_id}, " +
+                                    "newUserId=$activeUserId"
+                            )
+                        }
+                    }
 
                     /*
                      * Animal Movement setup
@@ -991,6 +1147,27 @@ class MainActivity : ComponentActivity() {
                                                     if (
                                                         "FARMER_REGISTRATION" in pendingTypes
                                                     ) {
+
+                                                        /*
+                                                         * Reset Farmer Registration retry counters.
+                                                         *
+                                                         * Automatic retries are capped, but pressing Retry Sync
+                                                         * is an explicit user request to try the record again.
+                                                         */
+                                                        withContext(Dispatchers.IO) {
+                                                            pendingOperations
+                                                                .filter {
+                                                                    it.entityType ==
+                                                                        "FARMER_REGISTRATION"
+                                                                }
+                                                                .forEach { pendingOperation ->
+                                                                    pendingSyncRepository
+                                                                        .resetRetryCount(
+                                                                            pendingOperation.id
+                                                                        )
+                                                                }
+                                                        }
+
                                                         FarmerSyncScheduler.enqueue(
                                                             applicationContext
                                                         )
