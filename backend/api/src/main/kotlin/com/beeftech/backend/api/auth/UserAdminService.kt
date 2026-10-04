@@ -69,7 +69,7 @@ class UserAdminService(
             siteId = ownSite
         }
 
-        checkSite(role, siteId)?.let { return it }
+        checkSite(role, siteId, requireActive = true)?.let { return it }
 
         if (userRepository.findByUsername(username) != null) {
             return UserAdminResult.Conflict("Username already taken")
@@ -114,7 +114,9 @@ class UserAdminService(
         val siteId = request.siteId ?: target.siteId
 
         if (request.role != null || request.siteId != null) {
-            checkSite(role, siteId)?.let { return it }
+            /* Only a newly assigned site has to be active, so a role change at an inactive site still works. */
+            checkSite(role, siteId, requireActive = request.siteId != null && request.siteId != target.siteId)
+                ?.let { return it }
         }
 
         val newRole = role?.id ?: target.role
@@ -194,9 +196,10 @@ class UserAdminService(
         return target.takeIf { inScope }
     }
 
-    private suspend fun checkSite(role: Role?, siteId: String?): UserAdminResult<Nothing>? {
-        if (siteId != null && !userRepository.siteExists(siteId)) {
-            return UserAdminResult.Invalid("Unknown site")
+    private suspend fun checkSite(role: Role?, siteId: String?, requireActive: Boolean): UserAdminResult<Nothing>? {
+        if (siteId != null) {
+            val active = userRepository.siteActive(siteId) ?: return UserAdminResult.Invalid("Unknown site")
+            if (requireActive && !active) return UserAdminResult.Invalid("That site is inactive")
         }
         if (role != Role.ADMIN && siteId == null) {
             return UserAdminResult.Invalid("Managers and workers need a site")

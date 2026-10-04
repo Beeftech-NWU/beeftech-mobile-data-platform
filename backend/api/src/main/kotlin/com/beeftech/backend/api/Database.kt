@@ -1,5 +1,6 @@
 ﻿package com.beeftech.backend.api
 
+import com.beeftech.backend.api.auth.SitesSchemaMigration
 import com.beeftech.backend.api.auth.SitesTable
 import com.beeftech.backend.api.auth.UsersSchemaMigration
 import com.beeftech.backend.api.feedcrib.FeedCribTable
@@ -38,6 +39,7 @@ object DatabaseFactory {
         CalfRegistrationSchemaMigration.run(database)
         FarmerSchemaMigration.run(database)
         UsersSchemaMigration.run(database)
+        SitesSchemaMigration.run(database)
         RecordScopeSchemaMigration.run(database)
         RecordVoidSchemaMigration.run(database)
         AuditLogSchemaMigration.run(database)

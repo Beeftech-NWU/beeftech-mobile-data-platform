@@ -18,8 +18,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.beeftech.management.data.ManagementApiClient
 
-/* One entry per admin screen. Later Phase 4 PRs add Sites, Devices, Reference data and so on. */
+/* One entry per admin screen. Later Phase 4 PRs add Devices, Reference data and so on. */
 enum class AdminSection(val label: String) {
+    SITES("Sites"),
     AUDIT_LOG("Audit log")
 }
 
@@ -30,7 +31,7 @@ fun AdminTab(
     currentUserId: String,
     modifier: Modifier = Modifier
 ) {
-    var section by rememberSaveable { mutableStateOf(AdminSection.AUDIT_LOG) }
+    var section by rememberSaveable { mutableStateOf(AdminSection.SITES) }
 
     Column(modifier = modifier.fillMaxSize()) {
         Row(
@@ -49,6 +50,11 @@ fun AdminTab(
         }
 
         when (section) {
+            AdminSection.SITES -> SitesTab(
+                apiClient = apiClient,
+                currentUserId = currentUserId,
+                modifier = Modifier.weight(1f)
+            )
             AdminSection.AUDIT_LOG -> AuditLogTab(
                 apiClient = apiClient,
                 currentUserId = currentUserId,
