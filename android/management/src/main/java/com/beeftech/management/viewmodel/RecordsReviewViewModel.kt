@@ -47,7 +47,13 @@ class RecordsReviewViewModel(
         _uiState.update { it.copy(showVoided = show) }
     }
 
-    fun refresh() {
+    fun refresh() = load(keepError = false)
+
+    /*
+     * keepError is for the reload that follows a rejected void: the list now shows the record as it
+     * is, and the message explaining why the void was rejected must still be there when it arrives.
+     */
+    private fun load(keepError: Boolean) {
         /* A slower answer for a previous type must not overwrite the current one. */
         loadJob?.cancel()
         val type = _uiState.value.type
@@ -57,7 +63,12 @@ class RecordsReviewViewModel(
             _uiState.update { state ->
                 when (result) {
                     is ManagementResult.Success ->
-                        state.copy(records = result.value, loading = false, needsConnection = false, error = null)
+                        state.copy(
+                            records = result.value,
+                            loading = false,
+                            needsConnection = false,
+                            error = if (keepError) state.error else null
+                        )
                     else -> failed(state.copy(loading = false), result, LIST_NOT_FOUND)
                 }
             }
@@ -82,14 +93,12 @@ class RecordsReviewViewModel(
                             error = null,
                             needsConnection = false
                         )
-                    /* Voided by someone else in the meantime: show it as it now is. */
-                    is ManagementResult.Rejected -> {
-                        refresh()
-                        failed(state, result)
-                    }
+                    is ManagementResult.Rejected -> failed(state, result)
                     else -> failed(state, result, RECORD_NOT_FOUND)
                 }
             }
+            /* Voided by someone else in the meantime: show it as it now is. Not inside update, which can run twice. */
+            if (result is ManagementResult.Rejected) load(keepError = true)
         }
     }
 

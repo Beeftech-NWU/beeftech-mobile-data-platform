@@ -13,6 +13,7 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -91,11 +92,10 @@ class SitesViewModelTest {
         vm.refresh()
         vm.await { it.sites.isNotEmpty() }
 
-        var created = false
-        vm.createSite("  Alpha ") { created = true }
-        vm.await { it.sites.size == 2 }
+        val created = CompletableDeferred<Unit>()
+        vm.createSite("  Alpha ") { created.complete(Unit) }
+        created.awaitFired()
 
-        assertTrue(created)
         assertEquals(listOf("Alpha", "North"), vm.uiState.value.sites.map { it.name })
         assertEquals("Created Alpha", vm.uiState.value.notice)
     }
@@ -130,11 +130,10 @@ class SitesViewModelTest {
         vm.refresh()
         vm.await { it.sites.isNotEmpty() }
 
-        var renamed = false
-        vm.rename(vm.uiState.value.sites.single(), "North Farm") { renamed = true }
-        vm.await { it.sites.single().name == "North Farm" }
+        val renamed = CompletableDeferred<Unit>()
+        vm.rename(vm.uiState.value.sites.single(), "North Farm") { renamed.complete(Unit) }
+        renamed.awaitFired()
 
-        assertTrue(renamed)
         assertEquals("Renamed to North Farm", vm.uiState.value.notice)
     }
 
