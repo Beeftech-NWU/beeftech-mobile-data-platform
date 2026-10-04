@@ -7,6 +7,7 @@ enum class AppTab(val label: String) {
     CALF_REGISTRATION("Calf Registration"),
     FEED_CRIB("Feed Crib"),
     DASHBOARD("Dashboard"),
+    RECORDS("Records"),
     TEAM("Team")
 }
 
@@ -20,7 +21,7 @@ fun tabsFor(role: Role?): List<AppTab> {
 
     /* An unknown or missing role gets the least privilege. */
     return when (role) {
-        Role.ADMIN, Role.MANAGER -> capture + listOf(AppTab.DASHBOARD, AppTab.TEAM)
+        Role.ADMIN, Role.MANAGER -> capture + listOf(AppTab.DASHBOARD, AppTab.RECORDS, AppTab.TEAM)
         else -> capture
     }
 }

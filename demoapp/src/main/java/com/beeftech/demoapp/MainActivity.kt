@@ -56,6 +56,7 @@ import com.beeftech.authentication.domain.Role
 import com.beeftech.database.security.TokenProviderRegistry
 import com.beeftech.management.data.ManagementApiClient
 import com.beeftech.management.ui.DashboardTab
+import com.beeftech.management.ui.RecordsReviewTab
 import com.beeftech.management.ui.MyActivityScreen
 import com.beeftech.management.ui.TeamTab
 import com.beeftech.demoapp.ui.theme.BeeftechTheme
@@ -842,6 +843,15 @@ class MainActivity : ComponentActivity() {
                                     } else if (currentTab == AppTab.DASHBOARD) {
 
                                         DashboardTab(
+                                            apiClient =
+                                                managementApiClient,
+                                            currentUserId =
+                                                loggedInUser.userId
+                                        )
+
+                                    } else if (currentTab == AppTab.RECORDS) {
+
+                                        RecordsReviewTab(
                                             apiClient =
                                                 managementApiClient,
                                             currentUserId =

@@ -2,8 +2,11 @@ package com.beeftech.backend.api
 
 import kotlinx.coroutines.Dispatchers
 import org.jetbrains.exposed.sql.Column
+import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.isNull
+import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
@@ -23,34 +26,56 @@ class VoidTarget(
     val siteId: Column<String?>,
     val voidedAt: Column<Long?>,
     val voidedByUserId: Column<String?>,
-    val voidReason: Column<String?>
+    val voidReason: Column<String?>,
+    val submittedByUserId: Column<String?>,
+    /* Orders the review list, newest first. */
+    val orderColumn: Column<*>,
+    /* A short line for the review list, and when the record was captured (null if unknown). */
+    val summarize: (ResultRow) -> Pair<String, Long?>
 )
 
 val VOID_TARGETS: List<VoidTarget> = listOf(
     VoidTarget(
         "calf-registrations", "CALF_REGISTRATION", CalfRegistrationTable, CalfRegistrationTable.recordguid,
         CalfRegistrationTable.siteId, CalfRegistrationTable.voidedAt,
-        CalfRegistrationTable.voidedByUserId, CalfRegistrationTable.voidReason
+        CalfRegistrationTable.voidedByUserId, CalfRegistrationTable.voidReason,
+        CalfRegistrationTable.submittedByUserId, CalfRegistrationTable.captureAt,
+        { it[CalfRegistrationTable.tagNumber] to it[CalfRegistrationTable.captureAt] }
     ),
     VoidTarget(
         "treatments", "TREATMENT", TreatmentTable, TreatmentTable.recordguid,
         TreatmentTable.siteId, TreatmentTable.voidedAt,
-        TreatmentTable.voidedByUserId, TreatmentTable.voidReason
+        TreatmentTable.voidedByUserId, TreatmentTable.voidReason,
+        TreatmentTable.submittedByUserId, TreatmentTable.timestamp,
+        { "${it[TreatmentTable.animalId]} - ${it[TreatmentTable.treatmentName]}" to it[TreatmentTable.timestamp] }
     ),
     VoidTarget(
         "farmers", "FARMER_REGISTRATION", FarmerTable, FarmerTable.farmerId,
         FarmerTable.siteId, FarmerTable.voidedAt,
-        FarmerTable.voidedByUserId, FarmerTable.voidReason
+        FarmerTable.voidedByUserId, FarmerTable.voidReason,
+        FarmerTable.submittedByUserId, FarmerTable.syncedAt,
+        /* Farmers carry no capture time, so this is when the record reached the server. */
+        {
+            (it[FarmerTable.organisationName] ?: it[FarmerTable.clientCode] ?: it[FarmerTable.farmerId]) to
+                it[FarmerTable.syncedAt]
+        }
     ),
     VoidTarget(
         "animal-movements", "ANIMAL_MOVEMENT", AnimalMovementTable, AnimalMovementTable.recordguid,
         AnimalMovementTable.siteId, AnimalMovementTable.voidedAt,
-        AnimalMovementTable.voidedByUserId, AnimalMovementTable.voidReason
+        AnimalMovementTable.voidedByUserId, AnimalMovementTable.voidReason,
+        AnimalMovementTable.submittedByUserId, AnimalMovementTable.timestamp,
+        {
+            "${it[AnimalMovementTable.animalId]} - ${it[AnimalMovementTable.movementType]}" to
+                it[AnimalMovementTable.timestamp]
+        }
     ),
     VoidTarget(
         "mortalities", "MORTALITY", MortalityTable, MortalityTable.recordguid,
         MortalityTable.siteId, MortalityTable.voidedAt,
-        MortalityTable.voidedByUserId, MortalityTable.voidReason
+        MortalityTable.voidedByUserId, MortalityTable.voidReason,
+        MortalityTable.submittedByUserId, MortalityTable.timestamp,
+        { "${it[MortalityTable.animalId]} - ${it[MortalityTable.causeOfDeath]}" to it[MortalityTable.timestamp] }
     )
 )
 
@@ -116,6 +141,45 @@ class VoidRepository {
             }
 
             VoidOutcome.Voided(now)
+        }
+
+    /*
+     * Records of one type for the review screen, newest first, voided ones included
+     * unless [includeVoided] is false. A manager only gets their own site's records.
+     */
+    suspend fun review(
+        target: VoidTarget,
+        siteScope: SiteScope,
+        includeVoided: Boolean,
+        limit: Int
+    ): List<ReviewRecordDto> =
+        newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
+            target.table
+                .selectAll()
+                .apply {
+                    if (siteScope is SiteScope.Only) {
+                        andWhere { target.siteId eq siteScope.siteId }
+                    }
+                    if (!includeVoided) {
+                        andWhere { target.voidedAt.isNull() }
+                    }
+                }
+                .orderBy(target.orderColumn, SortOrder.DESC)
+                .limit(limit)
+                .map {
+                    val (label, capturedAt) = target.summarize(it)
+                    ReviewRecordDto(
+                        type = target.slug,
+                        id = it[target.idColumn],
+                        label = label,
+                        capturedAt = capturedAt,
+                        submittedByUserId = it[target.submittedByUserId],
+                        siteId = it[target.siteId],
+                        voidedAt = it[target.voidedAt],
+                        voidedByUserId = it[target.voidedByUserId],
+                        voidReason = it[target.voidReason]
+                    )
+                }
         }
 
     /* Newest first. A manager only gets entries about their own site. */

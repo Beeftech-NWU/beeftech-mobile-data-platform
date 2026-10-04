@@ -60,6 +60,32 @@ class VoidService(
         }
     }
 
+    suspend fun review(
+        principal: AuthPrincipal,
+        slug: String,
+        includeVoided: Boolean,
+        limit: Int?
+    ): VoidResult<List<ReviewRecordDto>> {
+
+        val actor = resolveActor(principal) ?: return VoidResult.Forbidden("Forbidden")
+
+        val target = VOID_TARGETS.firstOrNull { it.slug == slug } ?: return VoidResult.NotFound
+
+        /* A manager without a site sees no records, as with scoped record reads. */
+        val siteScope = siteScope(actor) ?: return VoidResult.Ok(emptyList())
+
+        val records = repository.review(
+            target, siteScope, includeVoided, (limit ?: DEFAULT_LIMIT).coerceIn(1, MAX_LIMIT)
+        )
+
+        val usernames = records
+            .mapNotNull { it.submittedByUserId }
+            .distinct()
+            .associateWith { userRepository.findById(it)?.username }
+
+        return VoidResult.Ok(records.map { it.copy(submittedByUsername = usernames[it.submittedByUserId]) })
+    }
+
     suspend fun auditLog(principal: AuthPrincipal, limit: Int?): VoidResult<List<AuditLogEntryDto>> {
 
         val actor = resolveActor(principal) ?: return VoidResult.Forbidden("Forbidden")

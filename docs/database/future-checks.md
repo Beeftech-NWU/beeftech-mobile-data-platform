@@ -169,3 +169,9 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     with its treatment, or add cost void, before cost totals feed any report.
 43. **Void has no un-void and no edit.** A wrong void can only be fixed by the worker re-capturing the
     record. Add an audited un-void if managers ask for one.
+44. **The records review list is capped and has no paging or filters.** `GET /api/records/{type}` returns
+    the newest 100 records (at most 500 with `limit`) for one type, with no search, date range or per-worker
+    filter. The screen asks for the default 100. Add paging and a worker filter when a site has more.
+45. **The records review screen has not been run on a device.** It is covered by view model tests and the
+    backend tests only. Check the Records tab, the Void dialog and the voided state on an emulator against a
+    local backend (patch both `DEFAULT_BASE_URL`s, see the handoff notes).
