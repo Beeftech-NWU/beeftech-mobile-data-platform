@@ -116,6 +116,17 @@ abstract class SyncSecurityDao {
         recordGuid: String
     ): Int
 
+    @Query(
+        """
+        DELETE FROM animal_costs
+        WHERE record_guid = :recordGuid
+          AND sync_status != 'SYNCED'
+        """
+    )
+    protected abstract suspend fun deleteUnsyncedCost(
+        recordGuid: String
+    ): Int
+
 
     // ========================================================
     // Treatment
@@ -333,6 +344,13 @@ abstract class SyncSecurityDao {
                     )
                 }
 
+                ENTITY_ANIMAL_COST -> {
+
+                    deleteUnsyncedCost(
+                        pending.entityId
+                    )
+                }
+
                 ENTITY_TREATMENT -> {
 
                     if (
@@ -476,6 +494,9 @@ abstract class SyncSecurityDao {
 
         const val ENTITY_MORTALITY =
             "MORTALITY"
+
+        const val ENTITY_ANIMAL_COST =
+            "ANIMAL_COST"
 
         const val ENTITY_FARMER_REGISTRATION =
             "FARMER_REGISTRATION"

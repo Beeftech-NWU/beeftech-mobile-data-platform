@@ -71,6 +71,8 @@ import com.beeftech.farmtraceability.viewmodel.CostSummaryViewModel
 import com.beeftech.farmtraceability.viewmodel.CostSummaryViewModelFactory
 import com.beeftech.farmtraceability.viewmodel.LocationFeedViewModel
 import com.beeftech.farmtraceability.viewmodel.LocationFeedViewModelFactory
+import com.beeftech.farmtraceability.data.CostApiClient
+import com.beeftech.farmtraceability.data.CostRepository
 import com.beeftech.farmtraceability.data.MortalityApiClient
 import com.beeftech.farmtraceability.data.MortalityRepository
 import com.beeftech.farmtraceability.viewmodel.MortalityViewModel
@@ -458,7 +460,19 @@ class MainActivity : ComponentActivity() {
                             animalCostDao =
                                 animalCostDao,
                             costTypeDao =
-                                database.costTypeDao()
+                                database.costTypeDao(),
+                            repository =
+                                CostRepository(
+                                    animalCostDao =
+                                        animalCostDao,
+                                    pendingSyncRepository =
+                                        pendingSyncRepository,
+                                    apiClient =
+                                        CostApiClient(
+                                            tokenProvider =
+                                                sessionStore
+                                        )
+                                )
                         )
 
                     val costSummaryViewModel =
@@ -1224,6 +1238,22 @@ class MainActivity : ComponentActivity() {
                                                         "MORTALITY" in pendingTypes
                                                     ) {
                                                         mortalityViewModel
+                                                            .retrySync {
+                                                                    _,
+                                                                    message ->
+
+                                                                Toast.makeText(
+                                                                    this@MainActivity,
+                                                                    message,
+                                                                    Toast.LENGTH_SHORT
+                                                                ).show()
+                                                            }
+                                                    }
+
+                                                    if (
+                                                        "ANIMAL_COST" in pendingTypes
+                                                    ) {
+                                                        costSummaryViewModel
                                                             .retrySync {
                                                                     _,
                                                                     message ->

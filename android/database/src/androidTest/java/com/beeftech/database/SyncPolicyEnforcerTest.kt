@@ -10,6 +10,8 @@ import com.beeftech.database.entity.IdentifierTypes
 import com.beeftech.database.entity.CalfRegistrationEntity
 import com.beeftech.database.entity.AnimalMovementEntity
 import com.beeftech.database.entity.Mortality
+import com.beeftech.database.entity.AnimalCost
+import com.beeftech.database.entity.CostType
 import com.beeftech.database.entity.AnimalMediaEntity
 import com.beeftech.database.entity.AnimalIdentifierEntity
 import com.beeftech.database.entity.Animal
@@ -972,6 +974,180 @@ class SyncPolicyEnforcerTest {
             assertNotNull(
                 database
                     .mortalityDao()
+                    .findByRecordGuid(
+                        recordGuid
+                    )
+            )
+        }
+
+
+    // ========================================================
+    // DAY 7 - ANIMAL COST
+    // ========================================================
+
+    private suspend fun insertCostWithParents(
+        animalId: String,
+        recordGuid: String,
+        syncStatus: String
+    ) {
+
+        database
+            .animalDao()
+            .insert(
+                testAnimal(
+                    animalId =
+                        animalId,
+
+                    syncStatus =
+                        "SYNCED"
+                )
+            )
+
+        database
+            .costTypeDao()
+            .insertAll(
+                listOf(
+                    CostType(
+                        code = "TRANSPORT",
+                        displayName = "Transport",
+                        sortOrder = 1
+                    )
+                )
+            )
+
+        database
+            .animalCostDao()
+            .insert(
+                AnimalCost(
+                    animalId =
+                        animalId,
+
+                    costType =
+                        "TRANSPORT",
+
+                    amount =
+                        100.0,
+
+                    gpsLat =
+                        0.0,
+
+                    gpsLng =
+                        0.0,
+
+                    timestamp =
+                        NOW,
+
+                    recordGuid =
+                        recordGuid,
+
+                    syncStatus =
+                        syncStatus
+                )
+            )
+    }
+
+    @Test
+    fun day7_wipesUnsyncedCostButPreservesAnimal() =
+        runBlocking {
+
+            val animalId =
+                "DAY7-COST-ANIMAL"
+
+            val recordGuid =
+                "DAY7-COST-GUID"
+
+            insertCostWithParents(
+                animalId = animalId,
+                recordGuid = recordGuid,
+                syncStatus = "PENDING"
+            )
+
+            insertDay7Queue(
+                entityType =
+                    SyncSecurityDao
+                        .ENTITY_ANIMAL_COST,
+
+                entityId =
+                    recordGuid
+            )
+
+            val result =
+                enforcer.evaluate(
+                    userId =
+                        USER_ID,
+
+                    now =
+                        NOW
+                )
+
+            assertTrue(
+                result.accountLocked
+            )
+
+            assertNull(
+                database
+                    .animalCostDao()
+                    .findByRecordGuid(
+                        recordGuid
+                    )
+            )
+
+            assertNotNull(
+                database
+                    .animalDao()
+                    .getById(
+                        animalId
+                    )
+            )
+
+            assertEquals(
+                0,
+                database
+                    .pendingSyncDao()
+                    .getPendingCount()
+            )
+        }
+
+    @Test
+    fun day7_keepsSyncedCostWithLeftoverQueueItem() =
+        runBlocking {
+
+            val animalId =
+                "DAY7-SYNCED-COST-ANIMAL"
+
+            val recordGuid =
+                "DAY7-SYNCED-COST-GUID"
+
+            insertCostWithParents(
+                animalId = animalId,
+                recordGuid = recordGuid,
+                syncStatus = "SYNCED"
+            )
+
+            insertDay7Queue(
+                entityType =
+                    SyncSecurityDao
+                        .ENTITY_ANIMAL_COST,
+
+                entityId =
+                    recordGuid
+            )
+
+            enforcer.evaluate(
+                userId =
+                    USER_ID,
+
+                now =
+                    NOW
+            )
+
+            /*
+             * The server already has this cost, so the wipe
+             * must not delete the local copy.
+             */
+            assertNotNull(
+                database
+                    .animalCostDao()
                     .findByRecordGuid(
                         recordGuid
                     )

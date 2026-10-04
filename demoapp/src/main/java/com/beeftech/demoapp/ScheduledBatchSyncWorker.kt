@@ -14,6 +14,7 @@ import androidx.work.WorkerParameters
 import com.beeftech.calfregistration.worker.CalfRegistrationSyncWorker
 import com.beeftech.farmerregistration.worker.FarmerSyncWorker
 import com.beeftech.farmtraceability.worker.AnimalMovementSyncWorker
+import com.beeftech.farmtraceability.worker.CostSyncWorker
 import com.beeftech.farmtraceability.worker.MortalitySyncWorker
 import com.beeftech.farmtraceability.worker.TreatmentSyncWorker
 
@@ -83,6 +84,14 @@ class ScheduledBatchSyncWorker(
                 >()
             )
 
+            workManager.enqueueUniqueWork(
+                COST_SYNC_WORK_NAME,
+                ExistingWorkPolicy.KEEP,
+                connectedWorkRequest<
+                    CostSyncWorker
+                >()
+            )
+
             Log.i(
                 TAG,
                 "Scheduled BeefTech batch sync dispatched."
@@ -149,5 +158,8 @@ class ScheduledBatchSyncWorker(
 
         private const val MORTALITY_SYNC_WORK_NAME =
             "mortality-scheduled-sync"
+
+        private const val COST_SYNC_WORK_NAME =
+            "cost-scheduled-sync"
     }
 }
