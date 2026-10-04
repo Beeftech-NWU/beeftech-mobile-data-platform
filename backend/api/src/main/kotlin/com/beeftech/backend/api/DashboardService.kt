@@ -43,9 +43,9 @@ class DashboardService(
         val staleBefore = generatedAt - STALE_SYNC_MS
 
         return newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
-            val calfScope = scope.predicate(CalfRegistrationTable.submittedByUserId, CalfRegistrationTable.siteId)
-            val treatmentScope = scope.predicate(TreatmentTable.submittedByUserId, TreatmentTable.siteId)
-            val farmerScope = scope.predicate(FarmerTable.submittedByUserId, FarmerTable.siteId)
+            val calfScope = scope.predicate(CalfRegistrationTable.submittedByUserId, CalfRegistrationTable.siteId, CalfRegistrationTable.voidedAt)
+            val treatmentScope = scope.predicate(TreatmentTable.submittedByUserId, TreatmentTable.siteId, TreatmentTable.voidedAt)
+            val farmerScope = scope.predicate(FarmerTable.submittedByUserId, FarmerTable.siteId, FarmerTable.voidedAt)
 
             val calves = RecordCount(
                 total = CalfRegistrationTable.selectAll().where { calfScope }.count(),

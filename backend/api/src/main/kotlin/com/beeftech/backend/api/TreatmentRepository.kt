@@ -103,7 +103,7 @@ class TreatmentRepository {
             TreatmentTable
                 .selectAll()
                 .where {
-                    scope.predicate(TreatmentTable.submittedByUserId, TreatmentTable.siteId)
+                    scope.predicate(TreatmentTable.submittedByUserId, TreatmentTable.siteId, TreatmentTable.voidedAt)
                 }
                 .map { it.toDto() }
         }
@@ -117,7 +117,7 @@ class TreatmentRepository {
                 .selectAll()
                 .where {
                     (TreatmentTable.animalId eq animalId) and
-                        scope.predicate(TreatmentTable.submittedByUserId, TreatmentTable.siteId)
+                        scope.predicate(TreatmentTable.submittedByUserId, TreatmentTable.siteId, TreatmentTable.voidedAt)
                 }
                 .map { it.toDto() }
         }

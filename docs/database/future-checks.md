@@ -158,3 +158,14 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     `PendingSyncDao` methods broke the `PendingSyncDao` fakes in `:android:farm-traceability` and
     `:android:calf-registration` unit tests, so those modules did not compile their tests on `main`; fixed in
     the cost sync PR.
+40. **A voided record stays on the device and the device is not told.** Void is server-side only
+    (corrections are void-only, so there is no server-to-device pull path yet). The worker's phone keeps
+    showing the record as synced, and a retried sync still reports `SYNCED` without bringing the record back.
+    Add a read-only "voided" flag on the device when the pull path is built.
+41. **The calf certificate and media routes still serve voided calves.** They are reached by tag, are not
+    scoped (see #22) and do not check `voided_at`. Scope them and hide voided calves together.
+42. **Voiding a treatment leaves its derived cost row.** The treatment's `animal_costs` row
+    (`source_entity = TREATMENT`) is not voided with it, and costs have no void yet. Void the derived cost
+    with its treatment, or add cost void, before cost totals feed any report.
+43. **Void has no un-void and no edit.** A wrong void can only be fixed by the worker re-capturing the
+    record. Add an audited un-void if managers ask for one.

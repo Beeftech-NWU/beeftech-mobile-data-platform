@@ -66,7 +66,7 @@ class MortalityRepository {
         newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
             MortalityTable
                 .selectAll()
-                .where { scope.predicate(MortalityTable.submittedByUserId, MortalityTable.siteId) }
+                .where { scope.predicate(MortalityTable.submittedByUserId, MortalityTable.siteId, MortalityTable.voidedAt) }
                 .orderBy(MortalityTable.timestamp, SortOrder.DESC)
                 .map { it.toDto() }
         }
@@ -77,7 +77,7 @@ class MortalityRepository {
                 .selectAll()
                 .where {
                     (MortalityTable.animalId eq animalId) and
-                        scope.predicate(MortalityTable.submittedByUserId, MortalityTable.siteId)
+                        scope.predicate(MortalityTable.submittedByUserId, MortalityTable.siteId, MortalityTable.voidedAt)
                 }
                 .orderBy(MortalityTable.timestamp, SortOrder.DESC)
                 .map { it.toDto() }
