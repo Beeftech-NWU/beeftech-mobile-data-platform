@@ -124,6 +124,33 @@ class ManagementApiClient(
             }
         }
 
+    /* An admin gets every site; a manager gets only their own. */
+    suspend fun listSites(): ManagementResult<List<Site>> =
+        call(
+            decode = { JSON.decodeFromString<Envelope<List<Site>>>(it).data.orEmpty() }
+        ) { token ->
+            httpClient.get("${baseUrl}api/sites") { bearerAuth(token) }
+        }
+
+    suspend fun createSite(name: String): ManagementResult<Site> =
+        call(decode = { decodeSite(it) }) { token ->
+            httpClient.post("${baseUrl}api/sites") {
+                bearerAuth(token)
+                contentType(ContentType.Application.Json)
+                setBody(CreateSiteBody(name))
+            }
+        }
+
+    /* Leave a field null to keep it. Deactivating a site that still has active users is a 409. */
+    suspend fun updateSite(siteId: String, name: String? = null, active: Boolean? = null): ManagementResult<Site> =
+        call(decode = { decodeSite(it) }) { token ->
+            httpClient.patch("${baseUrl}api/sites/$siteId") {
+                bearerAuth(token)
+                contentType(ContentType.Application.Json)
+                setBody(UpdateSiteBody(name, active))
+            }
+        }
+
     /*
      * Newest first. Pass the id of the last entry you have as [before] to get the next page.
      * [from] is a time in epoch milliseconds.
@@ -145,6 +172,10 @@ class ManagementApiClient(
                 parameter("limit", limit)
             }
         }
+
+    private fun decodeSite(body: String): Site =
+        JSON.decodeFromString<Envelope<Site>>(body).data
+            ?: error("Missing site in response")
 
     private fun decodeMember(body: String): TeamMember =
         JSON.decodeFromString<Envelope<TeamMember>>(body).data

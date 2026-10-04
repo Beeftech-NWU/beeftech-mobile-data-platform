@@ -2,6 +2,8 @@ package com.beeftech.backend.api
 
 import com.beeftech.backend.api.auth.AuthPrincipal
 import com.beeftech.backend.api.auth.Role
+import com.beeftech.backend.api.auth.SitesTable
+import com.beeftech.backend.api.auth.UserRepository
 import com.beeftech.backend.api.auth.UsersTable
 import kotlinx.coroutines.Dispatchers
 import org.jetbrains.exposed.sql.Op
@@ -15,25 +17,41 @@ import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransacti
 sealed interface DashboardResult {
     data class Ok(val summary: DashboardSummary) : DashboardResult
     data class Forbidden(val message: String) : DashboardResult
+    data class BadRequest(val message: String) : DashboardResult
 }
 
 class DashboardService(
-    private val now: () -> Long = System::currentTimeMillis
+    private val now: () -> Long = System::currentTimeMillis,
+    private val userRepository: UserRepository = UserRepository()
 ) {
 
     /**
      * A manager always gets their own site. An admin gets every site, or one site
-     * when [requestedSiteId] is given. Workers have no dashboard.
+     * when [requestedSiteId] is given (an unknown id is a 400). Workers have no dashboard.
+     *
+     * The caller's role and site come from the database, not the token, so a demoted,
+     * deactivated or moved manager sees the change straight away.
      */
     suspend fun summary(principal: AuthPrincipal, requestedSiteId: String?): DashboardResult {
-        val scope: RecordScope = when (principal.roleEnum) {
+        val record = userRepository.findById(principal.userId)
+        val role = Role.fromId(record?.role)
+        if (record == null || !record.active) return DashboardResult.Forbidden("Forbidden")
+
+        val scope: RecordScope = when (role) {
             Role.ADMIN ->
-                if (requestedSiteId == null) RecordScope.All else RecordScope.Site(requestedSiteId)
+                if (requestedSiteId == null) {
+                    RecordScope.All
+                } else {
+                    if (userRepository.siteActive(requestedSiteId) == null) {
+                        return DashboardResult.BadRequest("Unknown site")
+                    }
+                    RecordScope.Site(requestedSiteId)
+                }
             Role.MANAGER -> {
-                if (requestedSiteId != null && requestedSiteId != principal.siteId) {
+                if (requestedSiteId != null && requestedSiteId != record.siteId) {
                     return DashboardResult.Forbidden("Managers can only view their own site")
                 }
-                RecordScope.Site(principal.siteId)
+                RecordScope.Site(record.siteId)
             }
             else -> return DashboardResult.Forbidden("Forbidden")
         }
@@ -96,9 +114,15 @@ class DashboardService(
                     )
                 }
 
+            val summarySiteId = (scope as? RecordScope.Site)?.siteId
+            val siteName = summarySiteId?.let { id ->
+                SitesTable.selectAll().where { SitesTable.siteId eq id }.singleOrNull()?.get(SitesTable.name)
+            }
+
             DashboardResult.Ok(
                 DashboardSummary(
-                    siteId = (scope as? RecordScope.Site)?.siteId,
+                    siteId = summarySiteId,
+                    siteName = siteName,
                     generatedAt = generatedAt,
                     calves = calves,
                     treatments = treatments,

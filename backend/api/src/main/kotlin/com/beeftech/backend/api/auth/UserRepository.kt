@@ -138,6 +138,16 @@ class UserRepository {
         }
     }
 
+    /* Null when the site doesn't exist, otherwise its active flag. */
+    suspend fun siteActive(siteId: String): Boolean? {
+        return newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
+            SitesTable.selectAll()
+                .where { SitesTable.siteId eq siteId }
+                .singleOrNull()
+                ?.get(SitesTable.active)
+        }
+    }
+
     suspend fun updateSite(userId: String, siteId: String?) {
         newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
             UsersTable.update({ UsersTable.userId eq userId }) {

@@ -110,7 +110,7 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
 26. **A PIN reset does not clear the login lockout.** `AuthService.loginAttempts` is an
     in-memory map, so a worker locked out for 5 minutes stays locked after a manager resets
     their PIN.
-27. **Admins type a site ID by hand in the Team tab.** There is no sites endpoint until Phase 4, so
+27. **RESOLVED (Phase 4b, `feature/admin-sites`): the Add user dialog has a site picker.** Sites come from `GET /api/sites` (active sites only), and the server still rejects unknown ones. Original note: **Admins type a site ID by hand in the Team tab.** There is no sites endpoint until Phase 4, so
     the "Add user" dialog takes a free-text site ID and the backend rejects unknown ones
     ("Unknown site"). Replace it with a site picker when Sites CRUD lands.
 28. **RESOLVED (Phase 3, dashboard summary, PR #74): the Dashboard tab now loads `GET /api/dashboard/summary`.** Original note: **Dashboard tab is a placeholder.** It shows static text until Phase 3 adds
@@ -124,7 +124,7 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
 31. **Dashboard stale-sync alerts use `users.device_last_sync`, which login sets.** It moves on login,
     not on every sync, so a worker who stays logged in and syncs can still look stale. Stamp it from
     the sync routes if the alert proves noisy.
-32. **The dashboard has no site switch for admins in the app.** The endpoint takes `siteId`, but the
+32. **RESOLVED (Phase 4b, `feature/admin-sites`): admins get an "All sites" / per-site switch on the Dashboard.** An unknown `siteId` is now a 400. Original note: **The dashboard has no site switch for admins in the app.** The endpoint takes `siteId`, but the
     app always asks for all sites. Add the switch with Sites CRUD in Phase 4.
 33. **Feed Crib `POST` is not idempotent.** `FeedCribRequest` has no record GUID, so a retried request
     inserts a duplicate reading. The app does not post Feed Crib at all yet (`:android:feed-crib` is
@@ -190,3 +190,17 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
 49. **The audit log screens have not been run on a device.** The Admin tab, the manager's Team "Activity"
     section and the audit log screen are covered by view model, backend and tab tests only. Check them on an
     emulator against a local backend (patch both `DEFAULT_BASE_URL`s, see the handoff notes).
+
+## Found during the Admin tab, Phase 4b (sites)
+
+50. **Deactivated sites still accept syncs.** A site's `active` flag only stops new users being assigned
+    to it (and a site with active users can't be deactivated). Workers already on it keep signing in and
+    syncing, and their records are stamped with its id as before. There is no delete: users and records
+    point at a site by id.
+51. **Site ids are server-generated (`site-<8 hex>`), and a site's name is not a key.** Rename is safe; an
+    id can't be changed. The dev seed site `dev-site-1` keeps its hand-written id.
+52. **Managers see only their own site in `GET /api/sites`.** The Team tab's picker is for admins, so
+    managers don't load sites and still see a raw site id on member cards.
+53. **The Dashboard now reads the caller's role and site from the database, not the token.** A manager who
+    is moved, demoted or deactivated sees it on the next request (4c extends this to every route). Records
+    and the site picker have not been run on a device.

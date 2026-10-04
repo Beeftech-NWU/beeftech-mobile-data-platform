@@ -23,6 +23,10 @@ fun Route.dashboardRoutes(
                 HttpStatusCode.Forbidden,
                 ApiResponse<String>(success = false, message = result.message)
             )
+            is DashboardResult.BadRequest -> call.respond(
+                HttpStatusCode.BadRequest,
+                ApiResponse<String>(success = false, message = result.message)
+            )
         }
     }
 }

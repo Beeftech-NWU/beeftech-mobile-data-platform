@@ -22,9 +22,14 @@ object AuditActions {
     const val USER_UPDATE = "USER_UPDATE"
     const val USER_RESET_PIN = "USER_RESET_PIN"
     const val USER_UNBIND_DEVICE = "USER_UNBIND_DEVICE"
+    const val SITE_CREATE = "SITE_CREATE"
+    const val SITE_UPDATE = "SITE_UPDATE"
 
     /* entity_type for actions on a user account. */
     const val ENTITY_USER = "USER"
+
+    /* entity_type for actions on a site. */
+    const val ENTITY_SITE = "SITE"
 }
 
 class AuditEntry(

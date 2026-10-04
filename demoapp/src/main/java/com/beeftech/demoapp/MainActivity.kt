@@ -847,7 +847,9 @@ class MainActivity : ComponentActivity() {
                                             apiClient =
                                                 managementApiClient,
                                             currentUserId =
-                                                loggedInUser.userId
+                                                loggedInUser.userId,
+                                            isAdmin =
+                                                loggedInUser.roleEnum == Role.ADMIN
                                         )
 
                                     } else if (currentTab == AppTab.RECORDS) {

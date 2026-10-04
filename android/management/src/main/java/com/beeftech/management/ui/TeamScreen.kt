@@ -13,6 +13,10 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -32,6 +36,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.beeftech.management.data.ManagementApiClient
+import com.beeftech.management.data.Site
 import com.beeftech.management.data.TeamMember
 import com.beeftech.management.data.roleLabel
 import com.beeftech.management.viewmodel.TeamViewModel
@@ -111,11 +116,15 @@ fun TeamScreen(
     val state by viewModel.uiState.collectAsState()
     var showCreate by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) { viewModel.refresh() }
+    LaunchedEffect(Unit) {
+        viewModel.refresh()
+        if (isAdmin) viewModel.loadSites()
+    }
 
     if (showCreate) {
         CreateUserDialog(
             askForSite = isAdmin,
+            sites = state.sites.filter { it.active },
             onDismiss = { showCreate = false },
             onCreate = { username, pin, siteId ->
                 viewModel.createWorker(username, pin, siteId) { showCreate = false }
@@ -153,7 +162,14 @@ fun TeamScreen(
             Text("Team", style = MaterialTheme.typography.titleLarge)
             Row {
                 TextButton(onClick = viewModel::refresh) { Text("Refresh") }
-                Button(onClick = { showCreate = true }, enabled = !state.needsConnection) {
+                Button(
+                    onClick = {
+                        /* A fresh list, so a site added a moment ago is in the picker. */
+                        if (isAdmin) viewModel.loadSites()
+                        showCreate = true
+                    },
+                    enabled = !state.needsConnection
+                ) {
                     Text(if (isAdmin) "Add user" else "Add worker")
                 }
             }
@@ -175,6 +191,7 @@ fun TeamScreen(
             items(state.members, key = { it.userId }) { member ->
                 MemberCard(
                     member = member,
+                    siteName = state.sites.firstOrNull { it.siteId == member.siteId }?.name,
                     isSelf = member.userId == currentUserId,
                     onToggleActive = { viewModel.setActive(member, !member.active) },
                     onResetPin = { viewModel.resetPin(member) },
@@ -188,6 +205,7 @@ fun TeamScreen(
 @Composable
 private fun MemberCard(
     member: TeamMember,
+    siteName: String?,
     isSelf: Boolean,
     onToggleActive: () -> Unit,
     onResetPin: () -> Unit,
@@ -202,7 +220,7 @@ private fun MemberCard(
             Text(
                 buildString {
                     append(roleLabel(member.role))
-                    member.siteId?.let { append(" · $it") }
+                    (siteName ?: member.siteId)?.let { append(" · $it") }
                     append(if (member.active) " · Active" else " · Deactivated")
                     append(if (member.deviceAssignedId != null) " · Phone linked" else " · No phone linked")
                 },
@@ -223,19 +241,22 @@ private fun MemberCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CreateUserDialog(
     askForSite: Boolean,
+    sites: List<Site>,
     onDismiss: () -> Unit,
     onCreate: (username: String, pin: String, siteId: String?) -> Unit
 ) {
     var username by remember { mutableStateOf("") }
     var pin by remember { mutableStateOf("") }
-    var siteId by remember { mutableStateOf("") }
+    var site by remember { mutableStateOf<Site?>(null) }
+    var menuOpen by remember { mutableStateOf(false) }
 
     val valid = username.trim().length >= 3 &&
         isValidPin(pin) &&
-        (!askForSite || siteId.isNotBlank())
+        (!askForSite || site != null)
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -256,20 +277,38 @@ private fun CreateUserDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword)
                 )
                 if (askForSite) {
-                    OutlinedTextField(
-                        value = siteId,
-                        onValueChange = { siteId = it },
-                        label = { Text("Site ID") },
-                        singleLine = true
-                    )
+                    ExposedDropdownMenuBox(expanded = menuOpen, onExpandedChange = { menuOpen = it }) {
+                        OutlinedTextField(
+                            value = site?.name.orEmpty(),
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Site") },
+                            placeholder = { Text(if (sites.isEmpty()) "No active sites" else "Choose a site") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuOpen) },
+                            modifier = Modifier.menuAnchor()
+                        )
+                        ExposedDropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            sites.forEach { option ->
+                                DropdownMenuItem(
+                                    text = { Text(option.name) },
+                                    onClick = {
+                                        site = option
+                                        menuOpen = false
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
             }
         },
         confirmButton = {
             TextButton(
-                enabled = valid,
-                onClick = { onCreate(username, pin, siteId.takeIf { askForSite }) }
-            ) { Text("Create") }
+                onClick = { onCreate(username, pin, site?.siteId.takeIf { askForSite }) },
+                enabled = valid
+            ) {
+                Text("Create")
+            }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel") }

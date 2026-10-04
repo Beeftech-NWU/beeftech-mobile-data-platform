@@ -78,6 +78,8 @@ data class DashboardAlert(
 @Serializable
 data class DashboardSummary(
     val siteId: String? = null,
+    /* The site's name when the summary is for one site; null for all sites or an older server. */
+    val siteName: String? = null,
     val generatedAt: Long = 0,
     val calves: RecordCount = RecordCount(),
     val treatments: TreatmentCount = TreatmentCount(),
@@ -121,6 +123,29 @@ data class VoidResult(
     val entityType: String,
     val entityId: String,
     val voidedAt: Long
+)
+
+@Serializable
+data class Site(
+    val siteId: String,
+    val name: String,
+    val active: Boolean = true,
+    val createdAt: Long = 0,
+    val updatedAt: Long? = null,
+    /* Active users of any role on this site. */
+    val activeUserCount: Long = 0
+)
+
+@Serializable
+data class CreateSiteBody(
+    val name: String
+)
+
+/* A null field is left out of the request and means "leave unchanged". */
+@Serializable
+data class UpdateSiteBody(
+    val name: String? = null,
+    val active: Boolean? = null
 )
 
 @Serializable
