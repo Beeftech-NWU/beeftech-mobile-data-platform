@@ -8,7 +8,9 @@ import org.jetbrains.exposed.sql.Op
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.sql.update
@@ -22,7 +24,8 @@ data class UserRecord(
     val deviceLastSync: Long?,
     val failedSyncAttempts: Int,
     val siteId: String? = null,
-    val active: Boolean = true
+    val active: Boolean = true,
+    val tokensValidAfter: Long? = null
 )
 
 class UserRepository {
@@ -102,7 +105,9 @@ class UserRepository {
         role: Int?,
         siteId: String?,
         active: Boolean,
-        audit: AuditEntry? = null
+        audit: AuditEntry? = null,
+        /* True when deactivating: tokens issued so far stop working at once. */
+        invalidateTokens: Boolean = false
     ) {
         newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
             audit?.let { insertAuditRow(it) }
@@ -110,6 +115,7 @@ class UserRepository {
                 it[UsersTable.role] = role
                 it[UsersTable.siteId] = siteId
                 it[UsersTable.active] = active
+                if (invalidateTokens) it[tokensValidAfter] = System.currentTimeMillis()
             }
         }
     }
@@ -117,9 +123,16 @@ class UserRepository {
     suspend fun updatePinHash(userId: String, pinHash: String, audit: AuditEntry? = null) {
         newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
             audit?.let { insertAuditRow(it) }
+            val username = UsersTable.select(UsersTable.username)
+                .where { UsersTable.userId eq userId }
+                .singleOrNull()?.get(UsersTable.username)
             UsersTable.update({ UsersTable.userId eq userId }) {
                 it[UsersTable.pinHash] = pinHash
+                /* A new PIN ends every session signed in with the old one. */
+                it[tokensValidAfter] = System.currentTimeMillis()
             }
+            /* A reset also lifts a login lockout (future-checks #26). */
+            if (username != null) LoginAttemptsTable.deleteWhere { LoginAttemptsTable.username eq username }
         }
     }
 
@@ -128,6 +141,8 @@ class UserRepository {
             audit?.let { insertAuditRow(it) }
             UsersTable.update({ UsersTable.userId eq userId }) {
                 it[deviceAssignedId] = null
+                /* The old phone is logged out straight away. */
+                it[tokensValidAfter] = System.currentTimeMillis()
             }
         }
     }
@@ -166,7 +181,8 @@ class UserRepository {
             deviceLastSync = this[UsersTable.deviceLastSync],
             failedSyncAttempts = this[UsersTable.failedSyncAttempts],
             siteId = this[UsersTable.siteId],
-            active = this[UsersTable.active]
+            active = this[UsersTable.active],
+            tokensValidAfter = this[UsersTable.tokensValidAfter]
         )
     }
 }

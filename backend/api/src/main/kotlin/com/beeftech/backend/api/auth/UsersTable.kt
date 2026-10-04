@@ -13,5 +13,11 @@ object UsersTable : Table("users") {
     val siteId = varchar("site_id", 64).nullable()
     val active = bool("active").default(true)
 
+    /*
+     * Tokens issued before this time (epoch ms) are rejected. Set when an account is
+     * deactivated, its phone unbound or its PIN reset, so those take effect at once.
+     */
+    val tokensValidAfter = long("tokens_valid_after").nullable()
+
     override val primaryKey = PrimaryKey(userId)
 }

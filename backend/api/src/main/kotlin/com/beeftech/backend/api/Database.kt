@@ -1,5 +1,8 @@
 ﻿package com.beeftech.backend.api
 
+import com.beeftech.backend.api.auth.DevicesTable
+import com.beeftech.backend.api.auth.LoginAttemptsTable
+import com.beeftech.backend.api.auth.LoginEventsTable
 import com.beeftech.backend.api.auth.SitesSchemaMigration
 import com.beeftech.backend.api.auth.SitesTable
 import com.beeftech.backend.api.auth.UsersSchemaMigration
@@ -60,7 +63,10 @@ object DatabaseFactory {
                 FeedCribTable,
                 MortalityTable,
                 CostTable,
-                AuditLogTable
+                AuditLogTable,
+                DevicesTable,
+                LoginAttemptsTable,
+                LoginEventsTable
             )
         }
 

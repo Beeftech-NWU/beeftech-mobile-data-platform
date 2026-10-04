@@ -96,18 +96,18 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
 22. **Routes left unscoped on purpose.** `GET /api/treatments/reference-data` is shared
     reference data. `POST /api/calf-registrations/{tagNumber}/media` and
     `GET /api/calf-registrations/{tagNumber}/certificate` are reached by tag and do not
-    check the caller's scope. Revisit these when the records review lands (Phase 3).
+    check the caller's scope. Revisit these when the records review lands (Phase 3). **Update (Phase 4c):** these routes now go through the same database token check as every other route (a deactivated user or revoked phone is rejected), but they are still not scoped by site.
 23. **RESOLVED (Phase 3, sync gaps, PR #75): `GET /api/animal-movements` and `/{animalId}` are scoped.** Original note: **Animal movements have no `GET` list.** Movements are stamped with the submitter
     and site on sync, but nothing reads them back yet, so there is nothing to scope.
-24. **Tokens issued before the deploy have no `site_id` claim.** They stay valid for up
+24. **RESOLVED (Phase 4c, `feature/admin-revocation-devices`): tokens are checked against the database on every request.** Original note: **Tokens issued before the deploy have no `site_id` claim.** They stay valid for up
     to 24 h. A manager on such a token sees no site-scoped records until they log in
     again.
-25. **Deactivated users keep working tokens on non-admin routes.** `users.active` is checked at
+25. **RESOLVED (Phase 4c, `feature/admin-revocation-devices`): deactivating a user, unbinding their phone or resetting their PIN ends their tokens at once.** Original note: **Deactivated users keep working tokens on non-admin routes.** `users.active` is checked at
     login and on every `/api/users` call (the caller is re-read from the DB), but the sync and
     record routes only validate the JWT. A deactivated worker can still sync for up to 24 h
     from a token issued before deactivation. Fix with a short token lifetime or an `active`
     check in `requireAuthPrincipal` (Phase 4's revoke list is the natural home).
-26. **A PIN reset does not clear the login lockout.** `AuthService.loginAttempts` is an
+26. **RESOLVED (Phase 4c, `feature/admin-revocation-devices`): a PIN reset (and `POST /api/users/{id}/unlock-login`) clears the login lockout, which is now stored in the database.** Original note: **A PIN reset does not clear the login lockout.** `AuthService.loginAttempts` is an
     in-memory map, so a worker locked out for 5 minutes stays locked after a manager resets
     their PIN.
 27. **RESOLVED (Phase 4b, `feature/admin-sites`): the Add user dialog has a site picker.** Sites come from `GET /api/sites` (active sites only), and the server still rejects unknown ones. Original note: **Admins type a site ID by hand in the Team tab.** There is no sites endpoint until Phase 4, so
@@ -123,7 +123,7 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     when the record reached the server, not when it was captured.
 31. **Dashboard stale-sync alerts use `users.device_last_sync`, which login sets.** It moves on login,
     not on every sync, so a worker who stays logged in and syncs can still look stale. Stamp it from
-    the sync routes if the alert proves noisy.
+    the sync routes if the alert proves noisy. **Update (Phase 4c):** any authenticated request now refreshes it (at most every 15 minutes), so it means "last contact", not "last sync" or "last login".
 32. **RESOLVED (Phase 4b, `feature/admin-sites`): admins get an "All sites" / per-site switch on the Dashboard.** An unknown `siteId` is now a 400. Original note: **The dashboard has no site switch for admins in the app.** The endpoint takes `siteId`, but the
     app always asks for all sites. Add the switch with Sites CRUD in Phase 4.
 33. **Feed Crib `POST` is not idempotent.** `FeedCribRequest` has no record GUID, so a retried request
@@ -204,3 +204,25 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
 53. **The Dashboard now reads the caller's role and site from the database, not the token.** A manager who
     is moved, demoted or deactivated sees it on the next request (4c extends this to every route). Records
     and the site picker have not been run on a device.
+
+## Found during the Admin tab, Phase 4c (revocation, devices, login security)
+
+54. **The device id is client-supplied and can be spoofed.** `devices` and the revoke check use the `device_id`
+    the app sends at login (and puts in the token). A malicious client can claim another id. Revoking a phone
+    stops the honest app on it; it is not hardware attestation.
+55. **`devices` and `login_events` grow forever.** Nothing is pruned. A busy deployment will want a retention
+    window. `login_events.username_attempted` holds whatever was typed, including names that don't exist,
+    so treat it as personal data (admin-only).
+56. **Old apps send no device model or app version.** The device list shows them blank until the worker updates.
+    A login request with `device_model` / `app_version` reaches an old server as unknown keys: deploy the server first.
+57. **A revoked phone that isn't reinstated hits the Day-7 wipe.** Revoking blocks sign-in and sync; the unsynced
+    data on it can only upload after an admin reinstates the phone. Revoke only when the phone is lost, and
+    reinstate promptly if the data matters.
+58. **The login lockout counter now starts again after a lock runs out.** Before, one wrong PIN after the
+    lock expired locked the user again at once (the count was never reset). Users now get a fresh five attempts.
+59. **Every authenticated request now reads the user and phone from the database.** One small SQLite
+    transaction per request; the `last_seen` / `device_last_sync` writes are throttled to every 15 minutes.
+    Tokens issued before `iat_ms` existed stay valid until they expire, unless that user has a cut-off set.
+60. **Role and site now come from the database on every route, not only the services.** A role or site change
+    takes effect on the next request without a new login. The Android half of 4c (401 handling, device and
+    login-security screens) is not built yet.

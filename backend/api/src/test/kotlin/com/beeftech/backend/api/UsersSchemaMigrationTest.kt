@@ -94,4 +94,25 @@ class UsersSchemaMigrationTest {
 
         assertTrue(columns(database).isEmpty())
     }
+
+    @Test
+    fun `legacy users gain tokens_valid_after as NULL and a second run is a no-op`() {
+        val database = newDatabase()
+        transaction(database) {
+            exec("CREATE TABLE users (user_id VARCHAR(64) NOT NULL PRIMARY KEY, username VARCHAR(255) NOT NULL)")
+            exec("INSERT INTO users (user_id, username) VALUES ('u-1', 'jvdm')")
+        }
+
+        UsersSchemaMigration.run(database)
+        UsersSchemaMigration.run(database)
+
+        assertEquals(1, columns(database).count { it == "tokens_valid_after" })
+        val value = transaction(database) {
+            exec("SELECT tokens_valid_after FROM users WHERE user_id = 'u-1'") { rs ->
+                rs.next()
+                rs.getObject(1)
+            }
+        }
+        assertEquals(null, value)
+    }
 }

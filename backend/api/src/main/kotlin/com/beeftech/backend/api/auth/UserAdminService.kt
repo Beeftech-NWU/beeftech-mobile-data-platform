@@ -23,7 +23,8 @@ sealed interface UserAdminResult<out T> {
  * keeping it for the rest of their 24 h token.
  */
 class UserAdminService(
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val loginSecurity: LoginSecurityRepository = LoginSecurityRepository()
 ) {
 
     suspend fun list(principal: AuthPrincipal, siteId: String?): UserAdminResult<List<UserSummary>> {
@@ -132,6 +133,7 @@ class UserAdminService(
             role = newRole,
             siteId = siteId,
             active = newActive,
+            invalidateTokens = target.active && !newActive,
             /* A call that changes nothing leaves no audit row. */
             audit = changes.takeIf { it.isNotEmpty() }?.let {
                 auditEntry(actor, AuditActions.USER_UPDATE, target.userId, siteId, auditDetails(*it.toTypedArray()))
@@ -174,6 +176,19 @@ class UserAdminService(
                 actor, AuditActions.USER_UNBIND_DEVICE, target.userId, target.siteId,
                 auditDetails("device" to "${target.deviceAssignedId ?: "none"}->none")
             )
+        )
+
+        return UserAdminResult.Ok(userRepository.findById(target.userId)!!.toSummary())
+    }
+
+    /* Lifts a login lockout (5 wrong PINs) without changing the PIN. Same scope as reset-pin. */
+    suspend fun unlockLogin(principal: AuthPrincipal, targetId: String): UserAdminResult<UserSummary> {
+        val actor = resolveActor(principal) ?: return forbidden()
+        val target = findManageable(actor, targetId) ?: return UserAdminResult.NotFound
+
+        loginSecurity.clear(
+            target.username,
+            auditEntry(actor, AuditActions.LOGIN_UNLOCK, target.userId, target.siteId)
         )
 
         return UserAdminResult.Ok(userRepository.findById(target.userId)!!.toSummary())

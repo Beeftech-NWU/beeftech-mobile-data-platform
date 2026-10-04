@@ -206,7 +206,7 @@ class DashboardRoutesTest {
         assertEquals("other-site", client.summary(manager).second!!["siteId"]!!.jsonPrimitive.content)
 
         UserRepository().updateAccount(managerId, 2, "other-site", false)
-        assertEquals(HttpStatusCode.Forbidden, client.summary(manager).first)
+        assertEquals(HttpStatusCode.Unauthorized, client.summary(manager).first)
     }
 
     @Test

@@ -6,8 +6,12 @@ import com.beeftech.backend.api.auth.JwtService
 import com.beeftech.backend.api.auth.UserRepository
 import com.beeftech.backend.api.auth.UserAdminService
 import com.beeftech.backend.api.auth.authRoutes
+import com.beeftech.backend.api.auth.DeviceAdminService
+import com.beeftech.backend.api.auth.DeviceRepository
+import com.beeftech.backend.api.auth.LoginSecurityRepository
 import com.beeftech.backend.api.auth.SiteRepository
 import com.beeftech.backend.api.auth.SiteService
+import com.beeftech.backend.api.auth.deviceAdminRoutes
 import com.beeftech.backend.api.auth.siteRoutes
 import com.beeftech.backend.api.auth.userAdminRoutes
 import com.beeftech.backend.api.feedcrib.FeedCribRepository
@@ -174,6 +178,11 @@ fun Application.module() {
         siteRoutes(
             jwtService,
             SiteService(userRepository, SiteRepository())
+        )
+
+        deviceAdminRoutes(
+            jwtService,
+            DeviceAdminService(userRepository, DeviceRepository(), LoginSecurityRepository())
         )
 
         mortalityRoutes(

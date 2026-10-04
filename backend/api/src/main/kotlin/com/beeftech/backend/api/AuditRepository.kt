@@ -24,12 +24,18 @@ object AuditActions {
     const val USER_UNBIND_DEVICE = "USER_UNBIND_DEVICE"
     const val SITE_CREATE = "SITE_CREATE"
     const val SITE_UPDATE = "SITE_UPDATE"
+    const val DEVICE_REVOKE = "DEVICE_REVOKE"
+    const val DEVICE_REINSTATE = "DEVICE_REINSTATE"
+    const val LOGIN_UNLOCK = "LOGIN_UNLOCK"
 
     /* entity_type for actions on a user account. */
     const val ENTITY_USER = "USER"
 
     /* entity_type for actions on a site. */
     const val ENTITY_SITE = "SITE"
+
+    /* entity_type for actions on a phone. */
+    const val ENTITY_DEVICE = "DEVICE"
 }
 
 class AuditEntry(

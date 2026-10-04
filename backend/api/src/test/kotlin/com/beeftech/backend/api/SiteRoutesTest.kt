@@ -257,6 +257,6 @@ class SiteRoutesTest {
             .first { it.jsonObject["username"]!!.jsonPrimitive.content == "fmanager" }.jsonObject["user_id"]!!.jsonPrimitive.content
         client.send("PATCH", "/api/users/$managerId", admin, """{"active":false}""")
 
-        assertEquals(HttpStatusCode.Forbidden, client.send("GET", "/api/sites", manager).status)
+        assertEquals(HttpStatusCode.Unauthorized, client.send("GET", "/api/sites", manager).status)
     }
 }
