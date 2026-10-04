@@ -150,6 +150,72 @@ class DashboardRoutesTest {
     }
 
     @Test
+    fun `mortalities, movements, costs and feed are counted per scope and voided records are left out`() = testApplication {
+        startApp()
+        val client = createClient { }
+        client.seedOtherSiteWorker()
+        val worker = client.login("jvdm", "30003")
+        val other = client.login("other", "40004")
+        val manager = client.login("fmanager", "20002")
+        val admin = client.login("admin", "10001")
+        val now = System.currentTimeMillis()
+        val tenDaysAgo = now - 10 * 24 * 60 * 60 * 1000L
+
+        suspend fun sync(path: String, token: String, record: String) =
+            client.post(path) {
+                header("Authorization", "Bearer $token")
+                contentType(ContentType.Application.Json)
+                setBody("""{"deviceId":"d","records":[$record]}""")
+            }
+
+        sync("/api/mortalities/sync", worker, """{"animalId":"A-1","causeOfDeath":"x","timestamp":$now,"recordguid":"m-1"}""")
+        sync("/api/mortalities/sync", worker, """{"animalId":"A-2","causeOfDeath":"x","timestamp":$tenDaysAgo,"recordguid":"m-2"}""")
+        sync("/api/mortalities/sync", other, """{"animalId":"A-3","causeOfDeath":"x","timestamp":$now,"recordguid":"m-other"}""")
+        sync("/api/animal-movements/sync", worker, """{"animalId":"A-1","movementType":"PEN_TO_PEN","responsibleWorker":"w","timestamp":$now,"recordguid":"mv-1"}""")
+        sync("/api/costs/sync", worker, """{"animalId":"A-1","costType":"TRANSPORT","amount":200.0,"timestamp":$now,"recordguid":"c-1"}""")
+        sync("/api/costs/sync", worker, """{"animalId":"A-1","costType":"TREATMENT","amount":50.0,"timestamp":$now,"sourceEntity":"TREATMENT","sourceRecordId":"t-1","recordguid":"c-derived"}""")
+        sync("/api/costs/sync", other, """{"animalId":"A-3","costType":"FEED","amount":1000.0,"timestamp":$now,"recordguid":"c-other"}""")
+        client.post("/api/feed-crib") {
+            header("Authorization", "Bearer $worker")
+            contentType(ContentType.Application.Json)
+            setBody("""{"penName":"P1","adiValue":1.5,"morning":"1","midDay":"2","evening":"3","timestamp":$now}""")
+        }
+
+        val managerSummary = client.summary(manager).second!!
+        assertEquals(2.0, managerSummary.count("mortalities", "total"))
+        assertEquals(1.0, managerSummary.count("mortalities", "last7Days"))
+        assertEquals(1.0, managerSummary.count("movements", "total"))
+        /* The treatment-derived cost is left out: the treatment already counts it. */
+        assertEquals(1.0, managerSummary.count("costs", "total"))
+        assertEquals(200.0, managerSummary.count("costs", "totalAmount"))
+        assertEquals(1.0, managerSummary.count("feedReadings", "total"))
+
+        val adminAll = client.summary(admin).second!!
+        assertEquals(3.0, adminAll.count("mortalities", "total"))
+        assertEquals(1200.0, adminAll.count("costs", "totalAmount"))
+
+        val adminOther = client.summary(admin, "?siteId=other-site").second!!
+        assertEquals(1.0, adminOther.count("mortalities", "total"))
+        assertEquals(0.0, adminOther.count("movements", "total"))
+        assertEquals(1000.0, adminOther.count("costs", "totalAmount"))
+
+        client.post("/api/records/mortalities/m-1/void") {
+            header("Authorization", "Bearer $manager")
+            contentType(ContentType.Application.Json)
+            setBody("""{"reason":"dup"}""")
+        }
+        client.post("/api/records/animal-movements/mv-1/void") {
+            header("Authorization", "Bearer $manager")
+            contentType(ContentType.Application.Json)
+            setBody("""{"reason":"dup"}""")
+        }
+        val after = client.summary(manager).second!!
+        assertEquals(1.0, after.count("mortalities", "total"))
+        assertEquals(0.0, after.count("mortalities", "last7Days"))
+        assertEquals(0.0, after.count("movements", "total"))
+    }
+
+    @Test
     fun `manager cannot ask for another site and an empty site is all zeros`() = testApplication {
         startApp()
         val client = createClient { }

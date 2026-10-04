@@ -62,6 +62,13 @@ data class TreatmentCount(
 )
 
 @Serializable
+data class CostCount(
+    val total: Long = 0,
+    val last7Days: Long = 0,
+    val totalAmount: Double = 0.0
+)
+
+@Serializable
 data class TeamCount(
     val activeWorkers: Long = 0,
     val inactiveWorkers: Long = 0
@@ -82,6 +89,12 @@ data class DashboardSummary(
     val calves: RecordCount = RecordCount(),
     val treatments: TreatmentCount = TreatmentCount(),
     val farmers: RecordCount = RecordCount(),
+    /* Null from an older server that doesn't send these sections yet. */
+    val mortalities: RecordCount? = null,
+    val movements: RecordCount? = null,
+    /* Leaves out costs derived from treatments, which the treatments card already counts. */
+    val costs: CostCount? = null,
+    val feedReadings: RecordCount? = null,
     val team: TeamCount = TeamCount(),
     val alerts: List<DashboardAlert> = emptyList()
 )
