@@ -130,7 +130,7 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     inserts a duplicate reading. The app does not post Feed Crib at all yet (`:android:feed-crib` is
     UI only, in memory), so nothing is duplicated today. Add a `recordguid` and an upsert when the
     device gets a Feed Crib sync worker.
-34. **Costs still have no sync path; mortalities now do (PR pending).** Mortalities sync through
+34. **Costs still have no sync path; mortalities now do (PR #77).** Mortalities sync through
     `POST /api/mortalities/sync` (backend table, Android client, worker, Room v34). Costs still have no
     backend table or endpoint and no Android API client or worker; they need both sides, plus a
     `pending_sync` entity type that the Day-7 wipe in `SyncSecurityDao` also learns.
