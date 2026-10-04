@@ -17,8 +17,8 @@ interface AnimalMovementDao {
 
     @Query(
         """
-        SELECT * 
-        FROM animal_movements 
+        SELECT *
+        FROM animal_movements
         WHERE animal_id = :animalId
         ORDER BY movement_date DESC
         """
@@ -67,4 +67,33 @@ interface AnimalMovementDao {
     suspend fun findByRecordGuid(
         recordGuid: String
     ): AnimalMovementEntity?
+
+
+    @Query(
+        """
+        UPDATE animal_movements
+        SET
+            sync_status = 'SYNCED',
+            synced_at = :syncedAt
+        WHERE record_guid = :recordGuid
+        """
+    )
+    suspend fun markSynced(
+        recordGuid: String,
+        syncedAt: Long
+    ): Int
+
+    @Query(
+        """
+        UPDATE animal_movements
+        SET
+            sync_status = 'PENDING',
+            synced_at = NULL
+        WHERE record_guid = :recordGuid
+        """
+    )
+    suspend fun markPending(
+        recordGuid: String
+    ): Int
+
 }

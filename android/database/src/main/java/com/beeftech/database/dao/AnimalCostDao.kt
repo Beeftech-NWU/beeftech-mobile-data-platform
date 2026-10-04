@@ -54,4 +54,18 @@ interface AnimalCostDao {
     suspend fun getTotalsByType(
         animalId: String
     ): List<CostTypeTotal>
+
+
+    @Query(
+        """
+        SELECT *
+        FROM animal_costs
+        WHERE record_guid = :recordGuid
+        LIMIT 1
+        """
+    )
+    suspend fun findByRecordGuid(
+        recordGuid: String
+    ): AnimalCost?
+
 }

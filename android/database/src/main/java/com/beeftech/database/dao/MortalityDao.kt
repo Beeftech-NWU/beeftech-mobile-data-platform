@@ -33,4 +33,18 @@ interface MortalityDao {
     suspend fun getByAnimalId(
         animalId: String
     ): List<Mortality>
+
+
+    @Query(
+        """
+        SELECT *
+        FROM mortalities
+        WHERE record_guid = :recordGuid
+        LIMIT 1
+        """
+    )
+    suspend fun findByRecordGuid(
+        recordGuid: String
+    ): Mortality?
+
 }

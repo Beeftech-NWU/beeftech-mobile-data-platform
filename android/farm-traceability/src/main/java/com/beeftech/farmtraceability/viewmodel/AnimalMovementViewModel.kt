@@ -3,6 +3,10 @@ package com.beeftech.farmtraceability.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.beeftech.database.dao.AnimalMovementDao
+import com.beeftech.database.DatabaseProvider
+import com.beeftech.database.repository.PendingSyncRepository
+import com.beeftech.farmtraceability.data.AnimalMovementRepository
+import com.beeftech.farmtraceability.worker.TraceabilitySyncScheduler
 import com.beeftech.database.entity.AnimalMovementEntity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -85,6 +89,27 @@ class AnimalMovementViewModel(
                     movement
                 )
 
+                val database =
+                    DatabaseProvider.getDatabase()
+                        ?: throw IllegalStateException(
+                            "The encrypted database is not available."
+                        )
+
+                PendingSyncRepository(
+                    database.pendingSyncDao()
+                ).queueOperation(
+                    entityType =
+                        AnimalMovementRepository.ENTITY_TYPE,
+                    entityId =
+                        movement.recordGuid,
+                    operation =
+                        "UPSERT",
+                    payload =
+                        movement.recordGuid
+                )
+
+                TraceabilitySyncScheduler.kick()
+
                 _movements.value =
                     animalMovementDao.getByAnimalId(
                         animalId
@@ -107,6 +132,7 @@ class AnimalMovementViewModel(
         animalId: String,
         onResult: (Boolean, String) -> Unit = { _, _ -> }
     ) {
-        onResult(true, "Movement sync completed.")
+        TraceabilitySyncScheduler.kick()
+        onResult(true, "Movement synchronization scheduled.")
     }
 }

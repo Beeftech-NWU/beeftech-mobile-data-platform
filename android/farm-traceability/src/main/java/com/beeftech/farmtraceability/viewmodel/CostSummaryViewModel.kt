@@ -4,6 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.beeftech.database.dao.AnimalCostDao
 import com.beeftech.database.dao.CostTypeDao
+import com.beeftech.database.DatabaseProvider
+import com.beeftech.database.repository.PendingSyncRepository
+import com.beeftech.farmtraceability.worker.TraceabilityOutboxWorker
+import com.beeftech.farmtraceability.worker.TraceabilitySyncScheduler
 import com.beeftech.database.entity.AnimalCost
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -54,7 +58,7 @@ class CostSummaryViewModel(
                 val transportCost = totals[COST_TRANSPORT] ?: 0.0
                 val processingCost = totals[COST_PROCESSING] ?: 0.0
                 val treatmentCost = totals[COST_TREATMENT] ?: 0.0
-                // TODO: feed rows will be derived from LocationFeed in a later phase.
+                // FEED costs are derived automatically from Location & Feed.
                 val feedCost = totals[COST_FEED] ?: 0.0
                 val handlingCost = totals[COST_HANDLING] ?: 0.0
                 val interestCost = totals[COST_INTEREST] ?: 0.0
@@ -132,7 +136,7 @@ class CostSummaryViewModel(
                     return@launch
                 }
 
-                animalCostDao.insert(
+                val cost =
                     AnimalCost(
                         animalId = animalId,
                         costType = costType,
@@ -142,7 +146,31 @@ class CostSummaryViewModel(
                         gpsLng = gpsLng,
                         timestamp = System.currentTimeMillis()
                     )
+
+                animalCostDao.insert(
+                    cost
                 )
+
+                val database =
+                    DatabaseProvider.getDatabase()
+                        ?: throw IllegalStateException(
+                            "The encrypted database is not available."
+                        )
+
+                PendingSyncRepository(
+                    database.pendingSyncDao()
+                ).queueOperation(
+                    entityType =
+                        TraceabilityOutboxWorker.ENTITY_ANIMAL_COST,
+                    entityId =
+                        cost.recordGuid,
+                    operation =
+                        "UPSERT",
+                    payload =
+                        cost.recordGuid
+                )
+
+                TraceabilitySyncScheduler.kick()
 
                 loadCostSummary(animalId)
 

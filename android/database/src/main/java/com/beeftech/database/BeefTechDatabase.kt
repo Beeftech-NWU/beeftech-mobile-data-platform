@@ -22,6 +22,7 @@ import com.beeftech.database.entity.FarmerBusinessRole
 import com.beeftech.database.entity.FeedCribEntity
 import com.beeftech.database.entity.FeedCribReadingEntity
 import com.beeftech.database.entity.FeedCribReadingValueEntity
+import com.beeftech.database.entity.RationEntity
 import com.beeftech.database.entity.LocationEntity
 import com.beeftech.database.entity.Mortality
 import com.beeftech.database.entity.PenEntity
@@ -92,6 +93,7 @@ import com.beeftech.database.dao.FeedCribReadingDao
 import com.beeftech.database.dao.LocationDao
 import com.beeftech.database.dao.MortalityDao
 import com.beeftech.database.dao.PenDao
+import com.beeftech.database.dao.RationDao
 import com.beeftech.database.dao.PendingSyncDao
 import com.beeftech.database.dao.SyncSecurityDao
 import com.beeftech.database.dao.RoleDao
@@ -116,6 +118,7 @@ import com.beeftech.database.dao.UserDao
         FeedCribEntity::class,
         FeedCribReadingEntity::class,
         FeedCribReadingValueEntity::class,
+        RationEntity::class,
         Role::class,
         User::class,
         SyncBatchEntity::class,
@@ -174,6 +177,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
     abstract fun penDao(): PenDao
     abstract fun feedCribDao(): FeedCribDao
     abstract fun feedCribReadingDao(): FeedCribReadingDao
+    abstract fun rationDao(): RationDao
     abstract fun roleDao(): RoleDao
     abstract fun userDao(): UserDao
     abstract fun syncBatchDao(): SyncBatchDao
@@ -216,7 +220,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
     companion object {
 
         /** Current Room schema version. Bump here when adding a migration. */
-        const val VERSION = 33
+        const val VERSION = 35
 
         /**
          * Phase 3 Migration (Version 9 -> 10):
@@ -3247,6 +3251,139 @@ abstract class BeefTechDatabase : RoomDatabase() {
                 }
             }
 
+
+        /*
+         * Version 33 -> 34
+         *
+         * Connect Supplier / Animal Purchase records with
+         * Farmer Registration.
+         *
+         * supplier_farmer_id remains nullable because external
+         * suppliers that are not registered in BeefTech are valid.
+         */
+        val MIGRATION_33_34 =
+            object : Migration(33, 34) {
+
+                private fun addColumnIfMissing(
+                    db: SupportSQLiteDatabase,
+                    column: String
+                ) {
+
+                    var exists =
+                        false
+
+                    db.query(
+                        "PRAGMA table_info(`animal_purchases`)"
+                    ).use { cursor ->
+
+                        val nameIndex =
+                            cursor.getColumnIndex(
+                                "name"
+                            )
+
+                        while (
+                            cursor.moveToNext()
+                        ) {
+
+                            if (
+                                cursor.getString(
+                                    nameIndex
+                                ) == column
+                            ) {
+
+                                exists =
+                                    true
+
+                                break
+                            }
+                        }
+                    }
+
+                    if (!exists) {
+
+                        db.execSQL(
+                            "ALTER TABLE `animal_purchases` " +
+                                "ADD COLUMN `$column` TEXT"
+                        )
+                    }
+                }
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+
+                    addColumnIfMissing(
+                        db,
+                        "supplier_farmer_id"
+                    )
+
+                    addColumnIfMissing(
+                        db,
+                        "gln_number"
+                    )
+
+                    addColumnIfMissing(
+                        db,
+                        "purchase_batch_number"
+                    )
+
+                    db.execSQL(
+                        """
+                        CREATE INDEX IF NOT EXISTS
+                        `index_animal_purchases_supplier_farmer_id`
+                        ON `animal_purchases`
+                        (`supplier_farmer_id`)
+                        """.trimIndent()
+                    )
+
+                    db.execSQL(
+                        """
+                        CREATE INDEX IF NOT EXISTS
+                        `index_animal_purchases_purchase_batch_number`
+                        ON `animal_purchases`
+                        (`purchase_batch_number`)
+                        """.trimIndent()
+                    )
+                }
+            }
+
+
+        /*
+         * Version 34 -> 35
+         *
+         * Offline ration master catalog.
+         */
+        val MIGRATION_34_35 =
+            object : Migration(34, 35) {
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+
+                    db.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS `rations`
+                        (
+                            `ration_id` TEXT NOT NULL,
+                            `name` TEXT NOT NULL,
+                            `active` INTEGER NOT NULL DEFAULT 1,
+                            PRIMARY KEY(`ration_id`)
+                        )
+                        """.trimIndent()
+                    )
+
+                    db.execSQL(
+                        """
+                        CREATE UNIQUE INDEX IF NOT EXISTS
+                        `index_rations_name`
+                        ON `rations` (`name`)
+                        """.trimIndent()
+                    )
+
+                    RationSeed.execute(db)
+                }
+            }
+
         val SEED_CALLBACK = object : Callback() {
             private fun createLookupTriggers(db: SupportSQLiteDatabase) {
                 db.execSQL(
@@ -3310,6 +3447,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
             }
 
             override fun onCreate(db: SupportSQLiteDatabase) {
+                RationSeed.execute(db)
                 CostTypeSeed.execute(db)
                 RoleSeed.execute(db)
                 FarmerBusinessRoleSeed.execute(db)
@@ -3324,6 +3462,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
             }
 
             override fun onOpen(db: SupportSQLiteDatabase) {
+                RationSeed.execute(db)
                 CostTypeSeed.execute(db)
                 RoleSeed.execute(db)
                 FarmerBusinessRoleSeed.execute(db)

@@ -10,19 +10,23 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.beeftech.database.DatabaseProvider
 import com.beeftech.database.entity.AnimalMovementEntity
 import com.beeftech.database.entity.AnimalPurchaseEntity
+import com.beeftech.database.entity.FarmerEntity
 import com.beeftech.database.entity.Mortality
 import com.beeftech.database.entity.Treatment
 import com.beeftech.database.repository.SyncRepository
 import com.beeftech.farmtraceability.repository.FindAnimalRepository
+import com.beeftech.farmtraceability.repository.TraceabilityLookupRepository
 import com.beeftech.farmtraceability.viewmodel.FindAnimalUiState
 import com.beeftech.farmtraceability.viewmodel.FindAnimalViewModel
 import com.beeftech.farmtraceability.viewmodel.FindAnimalViewModelFactory
 import com.beeftech.farmtraceability.viewmodel.SyncStatusViewModel
 import com.beeftech.farmtraceability.viewmodel.SyncStatusViewModelFactory
+import com.beeftech.farmtraceability.worker.TraceabilitySyncScheduler
 
 private enum class TraceabilityScreen {
     HOME,
@@ -119,6 +123,19 @@ fun FarmTraceabilityFlow(
 
     onRetrySyncClick: () -> Unit = {}
 ) {
+
+    val traceabilityContext =
+        LocalContext.current
+
+    LaunchedEffect(
+        traceabilityContext
+    ) {
+
+        TraceabilitySyncScheduler
+            .initialize(
+                traceabilityContext
+            )
+    }
 
     var currentScreen by remember {
         mutableStateOf(
@@ -358,8 +375,13 @@ fun FarmTraceabilityFlow(
                     retrySyncAvailable =
                         (syncState.pendingRecordCount ?: 0) > 0,
 
-                    onRetrySyncClick =
-                        onRetrySyncClick,
+                    onRetrySyncClick = {
+
+                        TraceabilitySyncScheduler
+                            .kick()
+
+                        onRetrySyncClick()
+                    },
 
                     onBackClick = {
                         navigateBack()
@@ -1075,7 +1097,10 @@ fun FarmTraceabilityFlow(
 
             AnimalMovementScreen(
                 animalReference =
-                    selectedAnimalReference,
+                    selectedTagNumber
+                        .ifBlank {
+                            selectedAnimalReference
+                        },
 
                 movementRecords =
                     movementRecords,
@@ -1112,25 +1137,193 @@ fun FarmTraceabilityFlow(
         TraceabilityScreen
             .SUPPLIER -> {
 
+            val database =
+                DatabaseProvider.getDatabase()
+
+            var registeredSuppliers by
+                remember(
+                    database,
+                    selectedAnimalReference
+                ) {
+
+                    mutableStateOf(
+                        emptyList<FarmerEntity>()
+                    )
+                }
+
+            var selectedSupplierName by
+                remember(
+                    selectedAnimalReference
+                ) {
+
+                    mutableStateOf("")
+                }
+
+
+            LaunchedEffect(
+                database,
+                selectedAnimalReference
+            ) {
+
+                registeredSuppliers =
+                    try {
+
+                        database
+                            ?.farmerDao()
+                            ?.getSupplierFarmers()
+                            .orEmpty()
+
+                    } catch (
+                        _: Exception
+                    ) {
+
+                        emptyList()
+                    }
+            }
+
+
+            val selectedSupplier =
+                registeredSuppliers
+                    .firstOrNull {
+                            farmer ->
+
+                        val displayName =
+                            farmer
+                                .organisation_name
+                                ?.takeIf {
+                                    it.isNotBlank()
+                                }
+                                ?: farmer
+                                    .client_code
+                                    .orEmpty()
+
+                        displayName.equals(
+                            selectedSupplierName,
+                            ignoreCase = true
+                        )
+                    }
+
+
+            val supplierOptions =
+                registeredSuppliers
+                    .mapNotNull {
+                            farmer ->
+
+                        farmer
+                            .organisation_name
+                            ?.takeIf {
+                                it.isNotBlank()
+                            }
+                            ?: farmer
+                                .client_code
+                                ?.takeIf {
+                                    it.isNotBlank()
+                                }
+                    }
+                    .distinct()
+
+
+            val linkedFarm =
+                selectedSupplier
+                    ?.let {
+                            farmer ->
+
+                        val organisation =
+                            farmer
+                                .organisation_name
+                                ?.takeIf {
+                                    it.isNotBlank()
+                                }
+                                ?: farmer
+                                    .client_code
+                                    .orEmpty()
+
+                        val code =
+                            farmer
+                                .client_code
+                                ?.takeIf {
+                                    it.isNotBlank() &&
+                                        it != organisation
+                                }
+
+                        if (
+                            code == null
+                        ) {
+                            organisation
+                        } else {
+                            "$organisation ? $code"
+                        }
+                    }
+                    .orEmpty()
+
+
             LaunchedEffect(
                 selectedAnimalReference
             ) {
+
                 if (
                     selectedAnimalReference
                         .isNotBlank()
                 ) {
+
                     onLoadSuppliers(
                         selectedAnimalReference
                     )
                 }
             }
 
+
             SupplierScreen(
                 animalReference =
-                    selectedAnimalReference,
+                    selectedTagNumber
+                        .ifBlank {
+                            selectedAnimalReference
+                        },
+
+                supplierName =
+                    selectedSupplierName,
+
+                glnNumber =
+                    selectedSupplier
+                        ?.gln_number
+                        .orEmpty(),
+
+                linkedFarm =
+                    linkedFarm,
+
+                supplierOptions =
+                    supplierOptions,
 
                 supplierRecords =
                     supplierRecords,
+
+                onSupplierNameChange = {
+                        value ->
+
+                    selectedSupplierName =
+                        value
+                },
+
+                onViewFarmClick = {
+
+                    val supplierFarmerId =
+                        selectedSupplier
+                            ?.farmer_id
+
+                    if (
+                        !supplierFarmerId
+                            .isNullOrBlank()
+                    ) {
+
+                        selectedFarmerId =
+                            supplierFarmerId
+
+                        navigateTo(
+                            TraceabilityScreen
+                                .FARMER_FARM_PROFILE
+                        )
+                    }
+                },
 
                 onBackClick = {
                     navigateBack()
@@ -1153,25 +1346,95 @@ fun FarmTraceabilityFlow(
             )
         }
 
+
         TraceabilityScreen
             .LOCATION_FEED -> {
 
+            val database =
+                DatabaseProvider
+                    .getDatabase()
+
+
+            var destinationOptions by
+                remember(
+                    database
+                ) {
+
+                    mutableStateOf(
+                        emptyList<String>()
+                    )
+                }
+
+
+            var rationOptions by
+                remember(
+                    database
+                ) {
+
+                    mutableStateOf(
+                        emptyList<String>()
+                    )
+                }
+
+
             LaunchedEffect(
-                selectedAnimalReference
+                selectedAnimalReference,
+                database
             ) {
+
                 if (
                     selectedAnimalReference
                         .isNotBlank()
                 ) {
+
                     onLoadLocationFeed(
                         selectedAnimalReference
                     )
                 }
+
+
+                if (
+                    database != null
+                ) {
+
+                    val lookupRepository =
+                        TraceabilityLookupRepository(
+                            database
+                        )
+
+
+                    destinationOptions =
+                        lookupRepository
+                            .getDestinationOptions()
+
+
+                    rationOptions =
+                        lookupRepository
+                            .getRationOptions()
+
+                } else {
+
+                    destinationOptions =
+                        emptyList()
+
+                    rationOptions =
+                        emptyList()
+                }
             }
+
 
             LocationFeedScreen(
                 animalReference =
-                    selectedAnimalReference,
+                    selectedTagNumber
+                        .ifBlank {
+                            selectedAnimalReference
+                        },
+
+                destinationOptions =
+                    destinationOptions,
+
+                rationOptions =
+                    rationOptions,
 
                 locationFeedRecords =
                     locationFeedRecords,
@@ -1199,6 +1462,7 @@ fun FarmTraceabilityFlow(
             )
         }
 
+
         TraceabilityScreen
             .TREATMENTS -> {
 
@@ -1217,7 +1481,10 @@ fun FarmTraceabilityFlow(
 
             TreatmentsScreen(
                 animalReference =
-                    selectedAnimalReference,
+                    selectedTagNumber
+                        .ifBlank {
+                            selectedAnimalReference
+                        },
 
                 diseaseOptions =
                     diseaseOptions,
@@ -1269,7 +1536,10 @@ fun FarmTraceabilityFlow(
 
             CostSummaryScreen(
                 animalReference =
-                    selectedAnimalReference,
+                    selectedTagNumber
+                        .ifBlank {
+                            selectedAnimalReference
+                        },
 
                 transportCost =
                     "%.2f".format(
@@ -1335,7 +1605,10 @@ fun FarmTraceabilityFlow(
 
             MortalityScreen(
                 animalReference =
-                    selectedAnimalReference,
+                    selectedTagNumber
+                        .ifBlank {
+                            selectedAnimalReference
+                        },
 
                 mortalityRecords =
                     mortalityRecords,

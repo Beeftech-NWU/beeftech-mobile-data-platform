@@ -3,6 +3,10 @@ package com.beeftech.farmtraceability.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.beeftech.database.dao.MortalityDao
+import com.beeftech.database.DatabaseProvider
+import com.beeftech.database.repository.PendingSyncRepository
+import com.beeftech.farmtraceability.worker.TraceabilityOutboxWorker
+import com.beeftech.farmtraceability.worker.TraceabilitySyncScheduler
 import com.beeftech.database.entity.Mortality
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -101,6 +105,27 @@ class MortalityViewModel(
                 mortalityDao.insert(
                     mortality
                 )
+
+                val database =
+                    DatabaseProvider.getDatabase()
+                        ?: throw IllegalStateException(
+                            "The encrypted database is not available."
+                        )
+
+                PendingSyncRepository(
+                    database.pendingSyncDao()
+                ).queueOperation(
+                    entityType =
+                        TraceabilityOutboxWorker.ENTITY_MORTALITY,
+                    entityId =
+                        mortality.recordGuid,
+                    operation =
+                        "UPSERT",
+                    payload =
+                        mortality.recordGuid
+                )
+
+                TraceabilitySyncScheduler.kick()
 
                 _mortalities.value =
                     mortalityDao.getByAnimalId(
