@@ -140,40 +140,9 @@ fun MortalityScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
-
-            TraceabilitySecondaryButton(
-                text = "Add Mortality Record",
-                icon = Icons.Outlined.Add,
-                onClick = {
-                    val reference = animalReferenceState.trim()
-                    val reason = reasonState.trim()
-                    val worker = workerState.trim()
-
-                    if (
-                        reference.isNotBlank() &&
-                        reason.isNotBlank() &&
-                        worker.isNotBlank()
-                    ) {
-                        onAddMortalityClick(
-                            reference,
-                            reason,
-                            worker
-                        )
-
-                        reasonState = ""
-                        workerState = ""
-
-                        onMortalityReasonChange("")
-                        onResponsibleWorkerChange("")
-                    }
-                }
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
 
             TraceabilityPrimaryButton(
-                text = "Save Mortality Records",
+                text = "Save Mortality",
                 icon = Icons.Outlined.Save,
                 onClick = {
                     onSaveClick(

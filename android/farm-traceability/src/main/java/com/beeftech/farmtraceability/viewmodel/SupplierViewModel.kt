@@ -10,48 +10,53 @@ import com.beeftech.farmtraceability.worker.TraceabilityOutboxWorker
 import com.beeftech.farmtraceability.worker.TraceabilitySyncScheduler
 import java.text.SimpleDateFormat
 import java.util.Locale
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class SupplierViewModel(
     private val animalPurchaseDao:
-            AnimalPurchaseDao
+        AnimalPurchaseDao
 ) : ViewModel() {
 
     private val _purchases =
         MutableStateFlow<
             List<AnimalPurchaseEntity>
-            >(
+        >(
             emptyList()
         )
 
     val purchases:
             StateFlow<
                 List<AnimalPurchaseEntity>
-                > =
+            > =
         _purchases.asStateFlow()
-
 
     val suppliers:
             StateFlow<
                 List<AnimalPurchaseEntity>
-                >
+            >
         get() = purchases
 
+    private var loadJob:
+            Job? =
+        null
 
-    /*
-     * Loads purchase history and automatically repairs exact
-     * duplicate rows that may have been produced by an older
-     * build.
-     */
+
     fun loadSuppliers(
         animalId: String
     ) {
 
+        loadJob?.cancel()
+
+        val normalizedAnimalId =
+            animalId.trim()
+
         if (
-            animalId.isBlank()
+            normalizedAnimalId.isBlank()
         ) {
 
             _purchases.value =
@@ -60,75 +65,39 @@ class SupplierViewModel(
             return
         }
 
+        loadJob =
+            viewModelScope.launch {
 
-        viewModelScope.launch {
+                try {
 
-            try {
+                    animalPurchaseDao
+                        .getPurchasesForAnimal(
+                            normalizedAnimalId
+                        )
+                        .collect {
+                                rows ->
 
-                animalPurchaseDao
-                    .getPurchasesForAnimal(
-                        animalId
-                    )
-                    .collect {
-                            list ->
-
-                        val unique =
-                            mutableListOf<
-                                AnimalPurchaseEntity
-                                >()
-
-                        val duplicateIds =
-                            mutableListOf<String>()
-
-                        val seen =
-                            mutableSetOf<String>()
-
-
-                        list.forEach {
-                                purchase ->
-
-                            val key =
-                                duplicateIdentity(
-                                    purchase
-                                )
-
-                            if (
-                                seen.add(key)
-                            ) {
-
-                                unique +=
-                                    purchase
-
-                            } else {
-
-                                duplicateIds +=
-                                    purchase.purchaseId
-                            }
-                        }
-
-
-                        duplicateIds.forEach {
-                                purchaseId ->
-
-                            animalPurchaseDao
-                                .deletePurchaseById(
-                                    purchaseId
+                            /*
+                             * Historical builds may contain duplicate
+                             * entries for the same supplier.
+                             *
+                             * Supplier History now shows only the newest
+                             * row for each supplier.
+                             */
+                            _purchases.value =
+                                collapseHistory(
+                                    rows
                                 )
                         }
 
+                } catch (
+                    _: Exception
+                ) {
 
-                        _purchases.value =
-                            unique
-                    }
-
-            } catch (
-                _: Exception
-            ) {
-
-                _purchases.value =
-                    emptyList()
+                    _purchases.value =
+                        emptyList()
+                }
             }
-        }
     }
 
 
@@ -144,8 +113,14 @@ class SupplierViewModel(
         ) -> Unit = { _, _ -> }
     ) {
 
+        val normalizedAnimalId =
+            animalId.trim()
+
+        val normalizedSupplier =
+            supplierName.trim()
+
         if (
-            animalId.isBlank()
+            normalizedAnimalId.isBlank()
         ) {
 
             onResult(
@@ -156,19 +131,17 @@ class SupplierViewModel(
             return
         }
 
-
         if (
-            supplierName.isBlank()
+            normalizedSupplier.isBlank()
         ) {
 
             onResult(
                 false,
-                "Please enter the seller/supplier name."
+                "Please select or enter a supplier."
             )
 
             return
         }
-
 
         viewModelScope.launch {
 
@@ -181,200 +154,209 @@ class SupplierViewModel(
                             "The encrypted database is not available."
                         )
 
-
                 /*
-                 * IMPORTANT:
+                 * Look up the Farmer Registration supplier.
                  *
-                 * Supplier does NOT create another Farmer.
-                 *
-                 * It searches Farmer Registration and references the
-                 * farmer_id of the existing supplier farm.
+                 * Supplier never creates a second Farmer.
                  */
                 val linkedFarmer =
                     database
                         .farmerDao()
                         .findSupplierFarmerByDisplayName(
-                            supplierName.trim()
+                            normalizedSupplier
                         )
-
 
                 val resolvedSupplierName =
                     linkedFarmer
                         ?.organisation_name
                         ?.trim()
                         ?.takeIf {
-                            it.isNotEmpty()
+                            it.isNotBlank()
                         }
-                        ?: supplierName
-                            .trim()
-
+                        ?: normalizedSupplier
 
                 val resolvedGln =
                     linkedFarmer
                         ?.gln_number
                         ?.trim()
                         ?.takeIf {
-                            it.isNotEmpty()
+                            it.isNotBlank()
                         }
                         ?: glnNumber
                             .trim()
                             .takeIf {
-                                it.isNotEmpty()
+                                it.isNotBlank()
                             }
-
 
                 val resolvedBatch =
                     purchaseBatchNumber
                         .trim()
                         .takeIf {
-                            it.isNotEmpty()
+                            it.isNotBlank()
                         }
-
 
                 val resolvedPurchaseDate =
                     parsePurchaseDate(
                         purchaseDate
                     )
 
-
-                /*
-                 * DUPLICATE GUARD
-                 *
-                 * Check before creating a UUID/new row.
-                 */
-                val existingPurchase =
+                val currentRows =
                     animalPurchaseDao
-                        .findEquivalentPurchase(
-                            animalId =
-                                animalId.trim(),
-
-                            supplierFarmerId =
-                                linkedFarmer
-                                    ?.farmer_id,
-
-                            sellerName =
-                                resolvedSupplierName,
-
-                            glnNumber =
-                                resolvedGln,
-
-                            purchaseDate =
-                                resolvedPurchaseDate,
-
-                            purchaseBatchNumber =
-                                resolvedBatch
+                        .getPurchasesForAnimal(
+                            normalizedAnimalId
                         )
-
-
-                if (
-                    existingPurchase != null
-                ) {
-
-                    /*
-                     * Use the existing transaction instead of
-                     * inserting another AnimalPurchase row.
-                     */
-                    onResult(
-                        true,
-                        "This supplier purchase is already saved. " +
-                            "The existing record was reused."
-                    )
-
-                    return@launch
-                }
-
+                        .first()
 
                 /*
-                 * Only a genuinely new purchase transaction reaches
-                 * this point.
-                 */
-                val purchase =
-                    AnimalPurchaseEntity(
-                        animalId =
-                            animalId.trim(),
-
-                        purchasePrice =
-                            0.0,
-
-                        purchaseDate =
-                            resolvedPurchaseDate,
-
-                        sellerName =
-                            resolvedSupplierName,
-
-                        supplierFarmerId =
-                            linkedFarmer
-                                ?.farmer_id,
-
-                        glnNumber =
-                            resolvedGln,
-
-                        purchaseBatchNumber =
-                            resolvedBatch,
-
-                        notes =
-                            if (
-                                linkedFarmer ==
-                                null
-                            ) {
-
-                                "External supplier"
-
-                            } else {
-
-                                "Linked to registered BeefTech farm"
-                            }
-                    )
-
-
-                animalPurchaseDao
-                    .insertPurchase(
-                        purchase
-                    )
-
-
-                /*
-                 * Only queue the newly-created transaction.
+                 * IMPORTANT:
                  *
-                 * Re-selecting an existing farmer/calf therefore
-                 * cannot produce another queue entry through this
-                 * save operation.
+                 * History represents suppliers linked to the animal.
+                 *
+                 * Selecting/saving Khanyisa Livestock Farm again
+                 * therefore updates the existing Khanyisa row rather
+                 * than appending another row.
                  */
+                val existing =
+                    currentRows
+                        .sortedByDescending {
+                            it.purchaseDate
+                        }
+                        .firstOrNull {
+                                row ->
+
+                            sameSupplier(
+                                existingName =
+                                    row.sellerName,
+
+                                newName =
+                                    resolvedSupplierName
+                            )
+                        }
+
+                val savedPurchase =
+                    if (
+                        existing != null
+                    ) {
+
+                        val updated =
+                            existing.copy(
+                                purchaseDate =
+                                    resolvedPurchaseDate,
+
+                                sellerName =
+                                    resolvedSupplierName,
+
+                                supplierFarmerId =
+                                    linkedFarmer
+                                        ?.farmer_id,
+
+                                glnNumber =
+                                    resolvedGln,
+
+                                purchaseBatchNumber =
+                                    resolvedBatch,
+
+                                notes =
+                                    if (
+                                        linkedFarmer ==
+                                        null
+                                    ) {
+
+                                        "External supplier"
+
+                                    } else {
+
+                                        "Linked to registered BeefTech farm"
+                                    }
+                            )
+
+                        animalPurchaseDao
+                            .insertPurchase(
+                                updated
+                            )
+
+                        updated
+
+                    } else {
+
+                        val created =
+                            AnimalPurchaseEntity(
+                                animalId =
+                                    normalizedAnimalId,
+
+                                purchasePrice =
+                                    0.0,
+
+                                purchaseDate =
+                                    resolvedPurchaseDate,
+
+                                sellerName =
+                                    resolvedSupplierName,
+
+                                supplierFarmerId =
+                                    linkedFarmer
+                                        ?.farmer_id,
+
+                                glnNumber =
+                                    resolvedGln,
+
+                                purchaseBatchNumber =
+                                    resolvedBatch,
+
+                                notes =
+                                    if (
+                                        linkedFarmer ==
+                                        null
+                                    ) {
+
+                                        "External supplier"
+
+                                    } else {
+
+                                        "Linked to registered BeefTech farm"
+                                    }
+                            )
+
+                        animalPurchaseDao
+                            .insertPurchase(
+                                created
+                            )
+
+                        created
+                    }
+
                 PendingSyncRepository(
                     database.pendingSyncDao()
-                ).queueOperation(
-                    entityType =
-                        TraceabilityOutboxWorker
-                            .ENTITY_ANIMAL_PURCHASE,
-
-                    entityId =
-                        purchase.recordGuid,
-
-                    operation =
-                        "UPSERT",
-
-                    payload =
-                        purchase.recordGuid
                 )
+                    .queueOperation(
+                        entityType =
+                            TraceabilityOutboxWorker
+                                .ENTITY_ANIMAL_PURCHASE,
 
+                        entityId =
+                            savedPurchase.recordGuid,
+
+                        operation =
+                            "UPSERT",
+
+                        payload =
+                            savedPurchase.recordGuid
+                    )
 
                 TraceabilitySyncScheduler
                     .kick()
 
-
                 onResult(
                     true,
                     if (
-                        linkedFarmer ==
-                        null
+                        existing != null
                     ) {
 
-                        "Supplier purchase saved offline and queued for sync."
+                        "Supplier record updated successfully."
 
                     } else {
 
-                        "Existing registered farm linked to this animal. " +
-                            "No duplicate farmer was created."
+                        "Supplier saved successfully."
                     }
                 )
 
@@ -392,69 +374,53 @@ class SupplierViewModel(
     }
 
 
-    /*
-     * Identity used to repair duplicate rows from builds that
-     * existed before duplicate protection was added.
-     *
-     * Registered suppliers use supplierFarmerId as their stable
-     * identity.
-     *
-     * External suppliers fall back to seller name + GLN.
-     */
-    private fun duplicateIdentity(
-        purchase:
-            AnimalPurchaseEntity
+    private fun collapseHistory(
+        rows:
+            List<AnimalPurchaseEntity>
+    ): List<AnimalPurchaseEntity> {
+
+        val seen =
+            mutableSetOf<String>()
+
+        return rows
+            .sortedByDescending {
+                it.purchaseDate
+            }
+            .filter {
+                    row ->
+
+                seen.add(
+                    supplierHistoryKey(
+                        row.sellerName
+                    )
+                )
+            }
+    }
+
+
+    private fun sameSupplier(
+        existingName: String,
+        newName: String
+    ): Boolean {
+
+        return supplierHistoryKey(
+            existingName
+        ) ==
+            supplierHistoryKey(
+                newName
+            )
+    }
+
+
+    private fun supplierHistoryKey(
+        supplierName: String
     ): String {
 
-        val supplierIdentity =
-            purchase
-                .supplierFarmerId
-                ?.trim()
-                ?.takeIf {
-                    it.isNotEmpty()
-                }
-                ?.lowercase(
-                    Locale.ROOT
-                )
-                ?: (
-                    purchase
-                        .sellerName
-                        .trim()
-                        .lowercase(
-                            Locale.ROOT
-                        ) +
-                        "|" +
-                        purchase
-                            .glnNumber
-                            .orEmpty()
-                            .trim()
-                )
-
-
-        return listOf(
-            purchase
-                .animalId
-                .trim()
-                .lowercase(
-                    Locale.ROOT
-                ),
-
-            supplierIdentity,
-
-            purchase
-                .purchaseDate
-                .toString(),
-
-            purchase
-                .purchaseBatchNumber
-                .orEmpty()
-                .trim()
-                .lowercase(
-                    Locale.ROOT
-                )
-        ).joinToString(
-            separator = "|"
-        )
+        return supplierName
+            .trim()
+            .lowercase(
+                Locale.ROOT
+            )
     }
 
 
@@ -465,13 +431,11 @@ class SupplierViewModel(
         val value =
             rawValue.trim()
 
-
         value
             .toLongOrNull()
             ?.let {
                 return it
             }
-
 
         listOf(
             "yyyy-MM-dd'T'HH:mm:ss.SSS",
@@ -479,33 +443,35 @@ class SupplierViewModel(
             "yyyy-MM-dd",
             "yyyy/MM/dd",
             "dd/MM/yyyy"
-        ).forEach {
-                pattern ->
+        )
+            .forEach {
+                    pattern ->
 
-            try {
+                try {
 
-                val formatter =
-                    SimpleDateFormat(
-                        pattern,
-                        Locale.US
-                    )
+                    val formatter =
+                        SimpleDateFormat(
+                            pattern,
+                            Locale.US
+                        )
 
-                formatter.isLenient =
-                    false
+                    formatter.isLenient =
+                        false
 
-                formatter
-                    .parse(value)
-                    ?.let {
-                        return it.time
-                    }
+                    formatter
+                        .parse(
+                            value
+                        )
+                        ?.let {
+                            return it.time
+                        }
 
-            } catch (
-                _: Exception
-            ) {
-                // Try next supported format.
+                } catch (
+                    _: Exception
+                ) {
+                    // Try next supported format.
+                }
             }
-        }
-
 
         return System.currentTimeMillis()
     }

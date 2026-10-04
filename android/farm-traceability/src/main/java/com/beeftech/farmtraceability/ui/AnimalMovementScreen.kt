@@ -148,62 +148,12 @@ fun AnimalMovementScreen(
                 modifier = Modifier.height(20.dp)
             )
 
-            /*
-             * Add Movement Record
-             *
-             * IMPORTANT:
-             * Do NOT clear movementState or workerState here.
-             *
-             * Previously this button cleared the worker before the
-             * Save button could use it, which caused:
-             *
-             * "Please enter the responsible worker."
-             */
-            TraceabilitySecondaryButton(
-                text = "Add Movement Record",
-                icon = Icons.Outlined.Add,
-                onClick = {
-
-                    val reference =
-                        animalReferenceState.trim()
-
-                    val movement =
-                        movementState.trim()
-
-                    val worker =
-                        workerState.trim()
-
-                    if (
-                        reference.isNotBlank() &&
-                        movement.isNotBlank() &&
-                        worker.isNotBlank()
-                    ) {
-
-                        onAddMovementClick(
-                            reference,
-                            movement,
-                            worker
-                        )
-
-                        /*
-                         * Keep the values visible.
-                         *
-                         * The Save button can therefore use exactly
-                         * the same movement and responsible worker.
-                         */
-                    }
-                }
-            )
-
-            Spacer(
-                modifier = Modifier.height(12.dp)
-            )
 
             /*
              * Save exactly what is currently visible in the fields.
              */
             TraceabilityPrimaryButton(
-                text = "Save Movement Records",
+                text = "Save Movement",
                 icon = Icons.Outlined.Save,
                 onClick = {
 

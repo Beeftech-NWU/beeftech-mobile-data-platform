@@ -208,19 +208,7 @@ fun LocationFeedScreen(
                         Icons.Outlined.Payments
                 )
 
-                Spacer(
-                    modifier =
-                        Modifier.height(18.dp)
-                )
 
-                TraceabilitySecondaryButton(
-                    text =
-                        "Add Ration Entry",
-                    icon =
-                        Icons.Outlined.Add,
-                    onClick =
-                        onAddRationClick
-                )
             }
 
             Spacer(

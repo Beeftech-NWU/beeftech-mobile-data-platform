@@ -189,15 +189,7 @@ fun TreatmentsScreen(
                     icon = Icons.Outlined.Payments
                 )
 
-                Spacer(
-                    modifier = Modifier.height(18.dp)
-                )
 
-                TraceabilitySecondaryButton(
-                    text = "Add Another Treatment",
-                    icon = Icons.Outlined.Add,
-                    onClick = onAddTreatmentClick
-                )
             }
 
             Spacer(
@@ -205,7 +197,7 @@ fun TreatmentsScreen(
             )
 
             TraceabilityPrimaryButton(
-                text = "Save Treatment Record",
+                text = "Save Treatment",
                 icon = Icons.Outlined.Save,
                 onClick = {
                     onSaveClick(
