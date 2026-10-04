@@ -17,9 +17,9 @@ class AppTabTest {
     }
 
     @Test
-    fun `managers get Dashboard, Records and Team after the capture tabs`() {
+    fun `managers get Dashboard, Reports, Records and Team after the capture tabs`() {
         assertEquals(
-            captureTabs + listOf(AppTab.DASHBOARD, AppTab.RECORDS, AppTab.TEAM),
+            captureTabs + listOf(AppTab.DASHBOARD, AppTab.REPORTS, AppTab.RECORDS, AppTab.TEAM),
             tabsFor(Role.MANAGER)
         )
     }
@@ -39,7 +39,7 @@ class AppTabTest {
             tabsFor(Role.WORKER).map { it.label }
         )
         assertEquals(
-            listOf("Dashboard", "Records", "Team"),
+            listOf("Dashboard", "Reports", "Records", "Team"),
             tabsFor(Role.MANAGER).drop(3).map { it.label }
         )
         assertEquals("Admin", tabsFor(Role.ADMIN).last().label)

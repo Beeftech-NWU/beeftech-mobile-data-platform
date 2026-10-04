@@ -149,7 +149,7 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
 37. **Costs derived from treatments sync as separate rows.** `TreatmentDao.insertWithCost` writes an
     `animal_costs` row (`source_entity = TREATMENT`) next to the treatment, and both now reach the server.
     A future dashboard or report that adds treatment cost to cost totals must use one source, or it counts
-    the treatment twice. The dashboard `costs` section excludes `source_entity = TREATMENT` rows for this reason. Derived rows are queued by `CostRepository.syncPending`, not when the treatment
+    the treatment twice. The dashboard `costs` section excludes `source_entity = TREATMENT` rows for this reason. **Worked around for reports by Phase 5 (PR #91):** see 42. Derived rows are queued by `CostRepository.syncPending`, not when the treatment
     is saved, so they upload on the next cost sync (scheduled, or Retry Sync).
 38. **Costs recorded before v35 belong to whoever syncs first, and their Day-7 clock starts when queued.**
     Same behaviour as #35 and #36, for `animal_costs`.
@@ -172,6 +172,9 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     (`source_entity = TREATMENT`) is not voided with it, and costs have no void yet. Void the derived cost
     with its treatment, or add cost void, before cost totals feed any report. The dashboard cost total is affected until then: a voided treatment's
     derived cost is not counted under treatments, and is excluded from costs too.
+    **Worked around for reports by Phase 5 (PR #91):** the report endpoints read treatment cost from `treatments`
+    only (voided rows excluded) and skip `source_entity = TREATMENT` rows in `animal_costs`. The cost void itself is
+    still missing; see 89.
 43. **Void has no un-void and no edit.** A wrong void can only be fixed by the worker re-capturing the
     record. Add an audited un-void if managers ask for one.
 44. **The records review list is capped and has no paging or filters.** `GET /api/records/{type}` returns
@@ -327,3 +330,24 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
 86. **The Sync security screen, the upload and the remote unlock have not been run on a device.** Covered by
     backend route tests, view-model and sync unit tests, and on the emulator by `Migration36To37Test` and
     `SyncSecurityUploadDaoTest` (the whole `:android:database` instrumented suite, 125 tests, passed).
+
+## Found during Phase 5 (reports and export)
+
+88. **The mortality rate divides by calves registered in the same period,** because the backend has no herd or
+    animal-count table. A period with many deaths of animals registered earlier can read above 100%, and a period
+    with no registrations reads "n/a". Replace the denominator when a real herd size (animals on hand per site)
+    is available.
+89. **Cost reports depend on the #42 workaround.** `animal_costs` still has no `voided_at`, so a voided manual cost
+    cannot be taken out of the cost-per-animal report, and the reports skip treatment-derived rows instead of voiding
+    them. Add a cost void (a `voided_at` migration like `RecordVoidSchemaMigration.kt`, plus the void route and
+    an audit row), then read costs from one source and drop the `source_entity` filter.
+90. **Reports are unpaged and unaudited.** Each report is built in memory over at most 366 days, with no row cap,
+    and a CSV or PDF export is not written to the audit log. Add a row cap and an audited export if sites grow or
+    managers want to know who exported what. The PDF table is plain (columns spread evenly, long text cut to
+    the column), and the in-app table scrolls sideways for wide reports.
+91. **The Reports tab was run on a device for the admin only (emulator, local backend, 2026-10-04).** Passed:
+    the mortality and cost-per-animal figures matched the Dashboard, Share PDF and Share CSV opened the share sheet,
+    the exported PDF was valid, the CSV neutralised a `=` cell and the cache kept only the latest export, and the
+    screen kept the last report with a "needs a connection" notice when the backend was stopped. Not covered on a
+    device: the manager's view (the emulator was bound to `admin`; covered by `ReportRoutesTest`), a site switch
+    in the UI, the other three reports, and opening the shared file in a viewer.
