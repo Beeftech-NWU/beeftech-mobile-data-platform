@@ -130,10 +130,11 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     inserts a duplicate reading. The app does not post Feed Crib at all yet (`:android:feed-crib` is
     UI only, in memory), so nothing is duplicated today. Add a `recordguid` and an upsert when the
     device gets a Feed Crib sync worker.
-34. **Costs still have no sync path; mortalities now do (PR #77).** Mortalities sync through
-    `POST /api/mortalities/sync` (backend table, Android client, worker, Room v34). Costs still have no
-    backend table or endpoint and no Android API client or worker; they need both sides, plus a
-    `pending_sync` entity type that the Day-7 wipe in `SyncSecurityDao` also learns.
+34. **RESOLVED (cost sync, PR #79): costs now sync.** Backend
+    `animal_costs` table and `POST /api/costs/sync`, scoped `GET /api/costs` and `/{animalId}`; Android
+    `CostApiClient`, `CostRepository`, `CostSyncWorker`, Room v35 (`animal_costs.sync_status`, `synced_at`,
+    `MIGRATION_34_35`), and `ANIMAL_COST` in the Day-7 wipe. Original note: **Costs still have no sync path;
+    mortalities now do (PR #77).**
 35. **Legacy mortalities belong to whoever syncs first.** Mortalities recorded before v34 were never
     queued (the queue is user-scoped and they have no owner). `MortalityRepository.syncPending` queues
     them for the signed-in user, so on a shared device the first user to sync owns them on the server.
@@ -141,3 +142,19 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     `pending_sync.createdAt` when they are first queued, not when they were recorded, so the 7-day wipe
     window starts then. This is deliberate (it avoids wiping data that never had a chance to sync),
     but it means an old unsynced mortality can outlive 7 days.
+37. **Costs derived from treatments sync as separate rows.** `TreatmentDao.insertWithCost` writes an
+    `animal_costs` row (`source_entity = TREATMENT`) next to the treatment, and both now reach the server.
+    A future dashboard or report that adds treatment cost to cost totals must use one source, or it counts
+    the treatment twice. Derived rows are queued by `CostRepository.syncPending`, not when the treatment
+    is saved, so they upload on the next cost sync (scheduled, or Retry Sync).
+38. **Costs recorded before v35 belong to whoever syncs first, and their Day-7 clock starts when queued.**
+    Same behaviour as #35 and #36, for `animal_costs`.
+39. **PR #78 left problems on `main`.** (a) `MainActivity` runs hard-coded dev repair and diagnostic blocks
+    on every launch (`BEEFTECH_TEST22_LEGACY_QUEUE_REPAIR`, `BEEFTECH_QUEUE_DIAGNOSTIC`,
+    `BEEFTECH_TEST21_OWNER_REPAIR`) that reassign queued rows to the signed-in user, breaking the
+    `pending_sync.user_id` ownership boundary. (b) `AuthRepository`'s identity reconciliation takes an
+    optional `pendingSyncDao` that `MainActivity` never passes, so it never runs, and it is untested.
+    (c) There are two `FarmerSyncScheduler` objects and `FarmerMappers.kt` is unused. (d) The new
+    `PendingSyncDao` methods broke the `PendingSyncDao` fakes in `:android:farm-traceability` and
+    `:android:calf-registration` unit tests, so those modules did not compile their tests on `main`; fixed in
+    the cost sync PR.

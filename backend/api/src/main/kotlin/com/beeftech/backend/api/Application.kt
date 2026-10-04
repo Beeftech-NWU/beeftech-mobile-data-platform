@@ -173,6 +173,11 @@ fun Application.module() {
             MortalityService(MortalityRepository())
         )
 
+        costRoutes(
+            jwtService,
+            CostService(CostRepository())
+        )
+
         dashboardRoutes(
             jwtService,
             DashboardService()

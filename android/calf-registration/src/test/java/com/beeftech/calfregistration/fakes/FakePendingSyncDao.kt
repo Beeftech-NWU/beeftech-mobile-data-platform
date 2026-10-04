@@ -107,5 +107,35 @@ class FakePendingSyncDao : PendingSyncDao {
         return flowOf(items.filter { it.userId == userId }.minOfOrNull { it.createdAt })
     }
 
+    override suspend fun resetRetryCount(id: Long) {
+        val index = items.indexOfFirst { it.id == id }
+        if (index >= 0) {
+            items[index] = items[index].copy(retryCount = 0)
+        }
+    }
+
+    override suspend fun reassignEntityToUser(entityType: String, entityId: String, userId: String) {
+        items.replaceAll {
+            if (it.entityType == entityType && it.entityId == entityId) {
+                it.copy(userId = userId, retryCount = 0)
+            } else {
+                it
+            }
+        }
+    }
+
+    override suspend fun reassignUserOperations(oldUserId: String, newUserId: String): Int {
+        var moved = 0
+        items.replaceAll {
+            if (it.userId == oldUserId) {
+                moved++
+                it.copy(userId = newUserId, retryCount = 0)
+            } else {
+                it
+            }
+        }
+        return moved
+    }
+
     fun snapshot(): List<PendingSync> = items.toList()
 }

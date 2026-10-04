@@ -1,12 +1,13 @@
 package com.beeftech.farmtraceability
 
-import com.beeftech.database.dao.MortalityDao
-import com.beeftech.database.entity.Mortality
+import com.beeftech.database.dao.AnimalCostDao
+import com.beeftech.database.dao.CostTypeTotal
+import com.beeftech.database.entity.AnimalCost
 import com.beeftech.database.entity.PendingSync
 import com.beeftech.database.repository.PendingSyncRepository
 import com.beeftech.database.security.TokenProvider
-import com.beeftech.farmtraceability.data.MortalityApiClient
-import com.beeftech.farmtraceability.data.MortalityRepository
+import com.beeftech.farmtraceability.data.CostApiClient
+import com.beeftech.farmtraceability.data.CostRepository
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -24,19 +25,25 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
 
-class MortalityRepositoryTest {
+class CostRepositoryTest {
 
-    private class FakeMortalityDao : MortalityDao {
-        val rows = mutableListOf<Mortality>()
+    private class FakeAnimalCostDao : AnimalCostDao {
+        val rows = mutableListOf<AnimalCost>()
 
-        override suspend fun insert(mortality: Mortality) {
-            rows += mortality
+        override suspend fun insert(cost: AnimalCost) {
+            rows += cost
         }
-
-        override suspend fun getAll() = rows.sortedByDescending { it.timestamp }
 
         override suspend fun getByAnimalId(animalId: String) =
             rows.filter { it.animalId == animalId }.sortedByDescending { it.timestamp }
+
+        override suspend fun getTotalByType(animalId: String, costType: String) =
+            rows.filter { it.animalId == animalId && it.costType == costType }.sumOf { it.amount }
+
+        override suspend fun getTotalsByType(animalId: String) =
+            rows.filter { it.animalId == animalId }
+                .groupBy { it.costType }
+                .map { (type, list) -> CostTypeTotal(type, list.sumOf { it.amount }) }
 
         override suspend fun findByRecordGuid(recordGuid: String) =
             rows.firstOrNull { it.recordGuid == recordGuid }
@@ -52,12 +59,12 @@ class MortalityRepositoryTest {
     }
 
     private class Env(handler: (String) -> Pair<HttpStatusCode, String>) {
-        val mortalities = FakeMortalityDao()
+        val costs = FakeAnimalCostDao()
         val pending = FakePendingSyncDao()
-        val repository = MortalityRepository(
-            mortalityDao = mortalities,
+        val repository = CostRepository(
+            animalCostDao = costs,
             pendingSyncRepository = PendingSyncRepository(pending) { "u1" },
-            apiClient = MortalityApiClient(
+            apiClient = CostApiClient(
                 tokenProvider = object : TokenProvider {
                     override suspend fun token(): String? = "tok"
                 },
@@ -84,16 +91,17 @@ class MortalityRepositoryTest {
     fun `saving stores locally, queues, syncs and clears the queue`() = runTest {
         lateinit var env: Env
         env = Env { _ ->
-            val guid = env.mortalities.rows.single().recordGuid
+            val guid = env.costs.rows.single().recordGuid
             syncedFor(guid)
         }
 
-        val outcome = env.repository.saveMortality("A-1", " Bloat ", " jvdm ")
+        val outcome = env.repository.saveCost("A-1", "TRANSPORT", 100.0, " Truck ", -25.0, 28.0)
 
         assertNull(outcome.syncErrorMessage)
-        val row = env.mortalities.rows.single()
-        assertEquals("Bloat", row.causeOfDeath)
-        assertEquals("jvdm", row.responsibleWorker)
+        val row = env.costs.rows.single()
+        assertEquals("TRANSPORT", row.costType)
+        assertEquals(100.0, row.amount, 0.0)
+        assertEquals("Truck", row.description)
         assertEquals("SYNCED", row.syncStatus)
         assertEquals(99L, row.syncedAt)
         assertTrue(env.pending.items.isEmpty())
@@ -103,13 +111,13 @@ class MortalityRepositoryTest {
     fun `an offline save keeps the record pending and queued`() = runTest {
         val env = Env { _ -> throw IOException("offline") }
 
-        val outcome = env.repository.saveMortality("A-1", "Bloat", "jvdm")
+        val outcome = env.repository.saveCost("A-1", "TRANSPORT", 100.0, "Truck", -25.0, 28.0)
 
         assertNotNull(outcome.syncErrorMessage)
-        val row = env.mortalities.rows.single()
+        val row = env.costs.rows.single()
         assertEquals("PENDING", row.syncStatus)
         val queued = env.pending.items.single()
-        assertEquals("MORTALITY", queued.entityType)
+        assertEquals("ANIMAL_COST", queued.entityType)
         assertEquals(row.recordGuid, queued.entityId)
         assertEquals("u1", queued.userId)
     }
@@ -118,37 +126,37 @@ class MortalityRepositoryTest {
     fun `a server-reported error keeps the record queued and counts a retry`() = runTest {
         lateinit var env: Env
         env = Env { _ ->
-            val guid = env.mortalities.rows.single().recordGuid
+            val guid = env.costs.rows.single().recordGuid
             HttpStatusCode.OK to """{"success":true,"message":"ok","data":{"results":[
                 {"recordguid":"$guid","animalId":"A-1","status":"ERROR","message":"bad row"}]}}"""
         }
 
-        val outcome = env.repository.saveMortality("A-1", "Bloat", "jvdm")
+        val outcome = env.repository.saveCost("A-1", "TRANSPORT", 100.0, "Truck", -25.0, 28.0)
 
         assertEquals("bad row", outcome.syncErrorMessage)
-        assertEquals("PENDING", env.mortalities.rows.single().syncStatus)
+        assertEquals("PENDING", env.costs.rows.single().syncStatus)
         assertEquals(1, env.pending.items.single().retryCount)
     }
 
     @Test
-    fun `mortalities recorded before sync existed are queued and uploaded`() = runTest {
+    fun `costs recorded before sync existed are queued and uploaded`() = runTest {
         lateinit var env: Env
-        env = Env { _ -> syncedFor(*env.mortalities.rows.map { it.recordGuid }.toTypedArray()) }
-        /* Legacy rows: PENDING in Room (from the migration default) but never queued. */
-        env.mortalities.rows += Mortality(animalId = "A-1", causeOfDeath = "Old", timestamp = 1, recordGuid = "legacy-1")
-        env.mortalities.rows += Mortality(animalId = "A-2", causeOfDeath = "Older", timestamp = 2, recordGuid = "legacy-2")
+        env = Env { _ -> syncedFor(*env.costs.rows.map { it.recordGuid }.toTypedArray()) }
+        /* Legacy or derived rows: PENDING in Room (migration default) but never queued. */
+        env.costs.rows += AnimalCost(animalId = "A-1", costType = "TRANSPORT", amount = 1.0, gpsLat = 0.0, gpsLng = 0.0, timestamp = 1, recordGuid = "legacy-1")
+        env.costs.rows += AnimalCost(animalId = "A-2", costType = "FEED", amount = 2.0, gpsLat = 0.0, gpsLng = 0.0, timestamp = 2, recordGuid = "legacy-2")
 
         val outcome = env.repository.syncPending()
 
         assertEquals(2, outcome.syncedCount)
-        assertTrue(env.mortalities.rows.all { it.syncStatus == "SYNCED" })
+        assertTrue(env.costs.rows.all { it.syncStatus == "SYNCED" })
         assertTrue(env.pending.items.isEmpty())
     }
 
     @Test
     fun `syncing twice does not queue a record twice`() = runTest {
         val env = Env { _ -> throw IOException("offline") }
-        env.mortalities.rows += Mortality(animalId = "A-1", causeOfDeath = "Old", timestamp = 1, recordGuid = "legacy-1")
+        env.costs.rows += AnimalCost(animalId = "A-1", costType = "TRANSPORT", amount = 1.0, gpsLat = 0.0, gpsLng = 0.0, timestamp = 1, recordGuid = "legacy-1")
 
         env.repository.syncPending()
         env.repository.syncPending()
@@ -163,11 +171,12 @@ class MortalityRepositoryTest {
             requests++
             syncedFor()
         }
-        env.mortalities.rows += Mortality(
-            animalId = "A-1", causeOfDeath = "Done", timestamp = 1, recordGuid = "g", syncStatus = "SYNCED"
+        env.costs.rows += AnimalCost(
+            animalId = "A-1", costType = "TRANSPORT", amount = 1.0, gpsLat = 0.0, gpsLng = 0.0,
+            timestamp = 1, recordGuid = "g", syncStatus = "SYNCED"
         )
         env.pending.insert(
-            PendingSync(userId = "u1", entityType = "MORTALITY", entityId = "g", operation = "CREATE", payload = "g", createdAt = 1)
+            PendingSync(userId = "u1", entityType = "ANIMAL_COST", entityId = "g", operation = "CREATE", payload = "g", createdAt = 1)
         )
 
         env.repository.syncPending()
@@ -180,7 +189,7 @@ class MortalityRepositoryTest {
     fun `another users queue is not touched`() = runTest {
         val env = Env { _ -> syncedFor() }
         env.pending.insert(
-            PendingSync(userId = "u2", entityType = "MORTALITY", entityId = "theirs", operation = "CREATE", payload = "theirs", createdAt = 1)
+            PendingSync(userId = "u2", entityType = "ANIMAL_COST", entityId = "theirs", operation = "CREATE", payload = "theirs", createdAt = 1)
         )
 
         env.repository.syncPending()

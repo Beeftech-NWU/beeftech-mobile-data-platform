@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.beeftech.database.dao.AnimalCostDao
 import com.beeftech.database.dao.CostTypeDao
-import com.beeftech.database.entity.AnimalCost
+import com.beeftech.farmtraceability.data.CostRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,7 +24,8 @@ data class CostSummaryUiState(
 
 class CostSummaryViewModel(
     private val animalCostDao: AnimalCostDao,
-    private val costTypeDao: CostTypeDao
+    private val costTypeDao: CostTypeDao,
+    private val repository: CostRepository
 ) : ViewModel() {
 
     private val _uiState =
@@ -132,26 +133,55 @@ class CostSummaryViewModel(
                     return@launch
                 }
 
-                animalCostDao.insert(
-                    AnimalCost(
-                        animalId = animalId,
-                        costType = costType,
-                        amount = amount,
-                        description = description.trim(),
-                        gpsLat = gpsLat,
-                        gpsLng = gpsLng,
-                        timestamp = System.currentTimeMillis()
-                    )
+                val outcome = repository.saveCost(
+                    animalId = animalId,
+                    costType = costType,
+                    amount = amount,
+                    description = description,
+                    gpsLat = gpsLat,
+                    gpsLng = gpsLng
                 )
 
                 loadCostSummary(animalId)
 
-                onResult(true, "Cost saved successfully.")
+                /*
+                 * The cost is saved either way; a sync problem only
+                 * means it is waiting for a connection.
+                 */
+                onResult(
+                    true,
+                    if (outcome.syncErrorMessage == null) {
+                        "Cost saved successfully."
+                    } else {
+                        "Cost saved. It will sync when a connection is available."
+                    }
+                )
 
             } catch (exception: Exception) {
 
                 onResult(false, "Unable to save cost.")
             }
+        }
+    }
+
+    fun retrySync(
+        onResult: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+
+        viewModelScope.launch {
+
+            val outcome = repository.syncPending()
+
+            val failed = outcome.errorMessagesByRecordGuid.isNotEmpty()
+
+            onResult(
+                !failed,
+                when {
+                    failed -> "Cost sync failed. We'll try again later."
+                    outcome.syncedCount > 0 -> "Costs synced successfully."
+                    else -> "No costs to sync."
+                }
+            )
         }
     }
 
