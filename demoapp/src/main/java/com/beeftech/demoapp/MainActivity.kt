@@ -55,6 +55,7 @@ import com.beeftech.database.security.PinLockoutManager
 import com.beeftech.authentication.domain.Role
 import com.beeftech.database.security.TokenProviderRegistry
 import com.beeftech.management.data.ManagementApiClient
+import com.beeftech.management.ui.AdminTab
 import com.beeftech.management.ui.DashboardTab
 import com.beeftech.management.ui.RecordsReviewTab
 import com.beeftech.management.ui.MyActivityScreen
@@ -867,6 +868,15 @@ class MainActivity : ComponentActivity() {
                                                 loggedInUser.userId,
                                             isAdmin =
                                                 loggedInUser.roleEnum == Role.ADMIN
+                                        )
+
+                                    } else if (currentTab == AppTab.ADMIN) {
+
+                                        AdminTab(
+                                            apiClient =
+                                                managementApiClient,
+                                            currentUserId =
+                                                loggedInUser.userId
                                         )
 
                                     } else if (currentTab == AppTab.CALF_REGISTRATION) {

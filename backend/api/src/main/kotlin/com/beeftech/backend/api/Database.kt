@@ -40,6 +40,7 @@ object DatabaseFactory {
         UsersSchemaMigration.run(database)
         RecordScopeSchemaMigration.run(database)
         RecordVoidSchemaMigration.run(database)
+        AuditLogSchemaMigration.run(database)
 
         transaction(database) {
 

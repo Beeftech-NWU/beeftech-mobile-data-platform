@@ -175,3 +175,18 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
 45. **The records review screen has not been run on a device.** It is covered by view model tests and the
     backend tests only. Check the Records tab, the Void dialog and the voided state on an emulator against a
     local backend (patch both `DEFAULT_BASE_URL`s, see the handoff notes).
+
+## Found during the Admin tab, Phase 4a (audit log)
+
+46. **Admin actions before 4a are not in the audit log.** User create, update, PIN reset and unbind now
+    write `audit_log` rows (actions `USER_CREATE`, `USER_UPDATE`, `USER_RESET_PIN`, `USER_UNBIND_DEVICE`),
+    but anything done before the deploy has no row. Only voids were logged before.
+47. **Audit log details are plain strings.** `audit_log.details` holds a flat JSON object of strings such as
+    `{"role":"3->2"}`. The app shows it as text and does not parse it. A PIN or hash is never written to it;
+    `AuditLogRoutesTest` checks this.
+48. **The audit log grows forever and has no search.** `GET /api/audit-log` filters by action, entity,
+    actor, site and time, and pages by `before=<id>`, but there is no free-text search and nothing is pruned.
+    The Android screen filters only by action and time range (24 hours, 7 days, 30 days, all).
+49. **The audit log screens have not been run on a device.** The Admin tab, the manager's Team "Activity"
+    section and the audit log screen are covered by view model, backend and tab tests only. Check them on an
+    emulator against a local backend (patch both `DEFAULT_BASE_URL`s, see the handoff notes).

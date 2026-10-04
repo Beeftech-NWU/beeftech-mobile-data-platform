@@ -178,6 +178,11 @@ fun Application.module() {
             VoidService(UserRepository(), VoidRepository())
         )
 
+        auditRoutes(
+            jwtService,
+            AuditService(UserRepository(), AuditRepository())
+        )
+
         costRoutes(
             jwtService,
             CostService(CostRepository())

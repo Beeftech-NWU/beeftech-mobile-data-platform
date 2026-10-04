@@ -68,10 +68,7 @@ fun DashboardScreen(
         }
 
         if (state.needsConnection) {
-            Text(
-                "The dashboard needs a connection. Check your signal and tap Refresh.",
-                color = MaterialTheme.colorScheme.error
-            )
+            NeedsConnectionNotice("The dashboard")
         }
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 

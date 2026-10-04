@@ -124,6 +124,28 @@ class ManagementApiClient(
             }
         }
 
+    /*
+     * Newest first. Pass the id of the last entry you have as [before] to get the next page.
+     * [from] is a time in epoch milliseconds.
+     */
+    suspend fun auditLog(
+        action: String? = null,
+        from: Long? = null,
+        before: Long? = null,
+        limit: Int = AUDIT_PAGE_SIZE
+    ): ManagementResult<List<AuditLogEntry>> =
+        call(
+            decode = { JSON.decodeFromString<Envelope<List<AuditLogEntry>>>(it).data.orEmpty() }
+        ) { token ->
+            httpClient.get("${baseUrl}api/audit-log") {
+                bearerAuth(token)
+                if (action != null) parameter("action", action)
+                if (from != null) parameter("from", from)
+                if (before != null) parameter("before", before)
+                parameter("limit", limit)
+            }
+        }
+
     private fun decodeMember(body: String): TeamMember =
         JSON.decodeFromString<Envelope<TeamMember>>(body).data
             ?: error("Missing user in response")
@@ -167,6 +189,8 @@ class ManagementApiClient(
         }
 
     companion object {
+        const val AUDIT_PAGE_SIZE = 50
+
         const val DEFAULT_BASE_URL = "https://beeftech-backend.onrender.com/"
 
         private val JSON = Json {

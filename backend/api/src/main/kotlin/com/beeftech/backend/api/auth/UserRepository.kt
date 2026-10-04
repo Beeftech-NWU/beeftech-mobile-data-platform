@@ -1,6 +1,8 @@
 package com.beeftech.backend.api.auth
 
+import com.beeftech.backend.api.AuditEntry
 import com.beeftech.backend.api.DatabaseFactory
+import com.beeftech.backend.api.insertAuditRow
 import kotlinx.coroutines.Dispatchers
 import org.jetbrains.exposed.sql.Op
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -57,9 +59,11 @@ class UserRepository {
         role: Int?,
         deviceAssignedId: String? = null,
         siteId: String? = null,
-        active: Boolean = true
+        active: Boolean = true,
+        audit: AuditEntry? = null
     ) {
         newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
+            audit?.let { insertAuditRow(it) }
             UsersTable.insert {
                 it[UsersTable.userId] = userId
                 it[UsersTable.username] = username
@@ -97,9 +101,11 @@ class UserRepository {
         userId: String,
         role: Int?,
         siteId: String?,
-        active: Boolean
+        active: Boolean,
+        audit: AuditEntry? = null
     ) {
         newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
+            audit?.let { insertAuditRow(it) }
             UsersTable.update({ UsersTable.userId eq userId }) {
                 it[UsersTable.role] = role
                 it[UsersTable.siteId] = siteId
@@ -108,16 +114,18 @@ class UserRepository {
         }
     }
 
-    suspend fun updatePinHash(userId: String, pinHash: String) {
+    suspend fun updatePinHash(userId: String, pinHash: String, audit: AuditEntry? = null) {
         newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
+            audit?.let { insertAuditRow(it) }
             UsersTable.update({ UsersTable.userId eq userId }) {
                 it[UsersTable.pinHash] = pinHash
             }
         }
     }
 
-    suspend fun clearDevice(userId: String) {
+    suspend fun clearDevice(userId: String, audit: AuditEntry? = null) {
         newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
+            audit?.let { insertAuditRow(it) }
             UsersTable.update({ UsersTable.userId eq userId }) {
                 it[deviceAssignedId] = null
             }
