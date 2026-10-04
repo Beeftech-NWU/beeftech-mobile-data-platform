@@ -1,7 +1,6 @@
 package com.beeftech.farmtraceability
 
 import com.beeftech.database.dao.MortalityDao
-import com.beeftech.database.dao.PendingSyncDao
 import com.beeftech.database.entity.Mortality
 import com.beeftech.database.entity.PendingSync
 import com.beeftech.database.repository.PendingSyncRepository
@@ -16,8 +15,6 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
@@ -52,62 +49,6 @@ class MortalityRepositoryTest {
             rows[index] = rows[index].copy(syncStatus = "SYNCED", syncedAt = syncedAt)
             return 1
         }
-    }
-
-    private class FakePendingSyncDao : PendingSyncDao {
-        val items = mutableListOf<PendingSync>()
-        private var nextId = 1L
-
-        override suspend fun insert(item: PendingSync): Long {
-            val id = nextId++
-            items += item.copy(id = id)
-            return id
-        }
-
-        override suspend fun getAll() = items.toList()
-        override suspend fun getPendingForRetry(maxRetries: Int) = items.filter { it.retryCount < maxRetries }
-        override suspend fun getByEntity(entityType: String, entityId: String) =
-            items.filter { it.entityType == entityType && it.entityId == entityId }
-
-        override suspend fun incrementRetryCount(id: Long) {
-            val i = items.indexOfFirst { it.id == id }
-            if (i >= 0) items[i] = items[i].copy(retryCount = items[i].retryCount + 1)
-        }
-
-        override suspend fun update(item: PendingSync) {
-            val i = items.indexOfFirst { it.id == item.id }
-            if (i >= 0) items[i] = item
-        }
-
-        override suspend fun delete(item: PendingSync) {
-            items.removeAll { it.id == item.id }
-        }
-
-        override suspend fun deleteById(id: Long) {
-            items.removeAll { it.id == id }
-        }
-
-        override suspend fun deleteByEntity(entityType: String, entityId: String) {
-            items.removeAll { it.entityType == entityType && it.entityId == entityId }
-        }
-
-        override suspend fun clearAll() = items.clear()
-        override suspend fun getPendingCount() = items.size
-        override fun observePendingCount(): Flow<Int> = flowOf(items.size)
-        override fun observeOldestPendingCreatedAt(): Flow<Long?> = flowOf(items.minOfOrNull { it.createdAt })
-        override suspend fun getAllForUser(userId: String) = items.filter { it.userId == userId }
-        override suspend fun getPendingForRetryForUser(userId: String, maxRetries: Int) =
-            items.filter { it.userId == userId && it.retryCount < maxRetries }
-
-        override suspend fun getByEntityForUser(userId: String, entityType: String, entityId: String) =
-            items.filter { it.userId == userId && it.entityType == entityType && it.entityId == entityId }
-
-        override suspend fun getPendingCountForUser(userId: String) = items.count { it.userId == userId }
-        override fun observePendingCountForUser(userId: String): Flow<Int> =
-            flowOf(items.count { it.userId == userId })
-
-        override fun observeOldestPendingCreatedAtForUser(userId: String): Flow<Long?> =
-            flowOf(items.filter { it.userId == userId }.minOfOrNull { it.createdAt })
     }
 
     private class Env(handler: (String) -> Pair<HttpStatusCode, String>) {
