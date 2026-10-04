@@ -86,6 +86,43 @@ data class DashboardSummary(
     val alerts: List<DashboardAlert> = emptyList()
 )
 
+/* The record types a manager can review and void; slugs match the backend's /api/records/{type}. */
+val REVIEW_TYPES: List<Pair<String, String>> = listOf(
+    "calf-registrations" to "Calves",
+    "treatments" to "Treatments",
+    "farmers" to "Farmers",
+    "animal-movements" to "Movements",
+    "mortalities" to "Mortalities"
+)
+
+@Serializable
+data class ReviewRecord(
+    val type: String,
+    val id: String,
+    val label: String,
+    val capturedAt: Long? = null,
+    val submittedByUserId: String? = null,
+    val submittedByUsername: String? = null,
+    val siteId: String? = null,
+    val voidedAt: Long? = null,
+    val voidedByUserId: String? = null,
+    val voidReason: String? = null
+) {
+    val isVoided: Boolean get() = voidedAt != null
+}
+
+@Serializable
+data class VoidBody(
+    val reason: String
+)
+
+@Serializable
+data class VoidResult(
+    val entityType: String,
+    val entityId: String,
+    val voidedAt: Long
+)
+
 @Serializable
 internal data class Envelope<T>(
     val success: Boolean = false,

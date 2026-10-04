@@ -16,8 +16,8 @@ class AppTabTest {
     }
 
     @Test
-    fun `managers and admins get Dashboard and Team after the capture tabs`() {
-        val expected = captureTabs + listOf(AppTab.DASHBOARD, AppTab.TEAM)
+    fun `managers and admins get Dashboard, Records and Team after the capture tabs`() {
+        val expected = captureTabs + listOf(AppTab.DASHBOARD, AppTab.RECORDS, AppTab.TEAM)
 
         assertEquals(expected, tabsFor(Role.MANAGER))
         assertEquals(expected, tabsFor(Role.ADMIN))
@@ -30,7 +30,7 @@ class AppTabTest {
             tabsFor(Role.WORKER).map { it.label }
         )
         assertEquals(
-            listOf("Dashboard", "Team"),
+            listOf("Dashboard", "Records", "Team"),
             tabsFor(Role.MANAGER).drop(3).map { it.label }
         )
     }

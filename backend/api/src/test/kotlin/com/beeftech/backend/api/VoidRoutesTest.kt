@@ -324,4 +324,70 @@ class VoidRoutesTest {
         assertEquals(HttpStatusCode.Forbidden, client.void(manager, "mortalities", "g-1").status)
         assertEquals(listOf("g-1"), client.guids("/api/mortalities", worker))
     }
+
+    @Test
+    fun `the review list includes voided records, is scoped by site and names the submitter`() = testApplication {
+        startApp()
+        val client = createClient { }
+        client.insertOtherSiteWorker()
+        val worker = client.login("jvdm", "30003")
+        val other = client.login("other", "40004")
+        val manager = client.login("fmanager", "20002")
+        val admin = client.login("admin", "10001")
+        client.syncMortality(worker, "A-1", "g-1")
+        client.syncMortality(worker, "A-2", "g-2")
+        client.syncMortality(other, "A-3", "g-other")
+        client.void(manager, "mortalities", "g-1", reason = "Wrong animal")
+
+        fun List<JsonObject>.ids() = map { it["id"]!!.jsonPrimitive.content }
+
+        val managerView = client.rows("/api/records/mortalities", manager)
+        assertEquals(setOf("g-1", "g-2"), managerView.ids().toSet())
+
+        val voided = managerView.single { it["id"]!!.jsonPrimitive.content == "g-1" }
+        assertEquals("Wrong animal", voided["voidReason"]!!.jsonPrimitive.content)
+        assertNotNull(voided["voidedAt"])
+        assertEquals("jvdm", voided["submittedByUsername"]!!.jsonPrimitive.content)
+        assertEquals("A-1 - Bloat", voided["label"]!!.jsonPrimitive.content)
+
+        assertEquals(
+            listOf("g-2"),
+            client.rows("/api/records/mortalities?includeVoided=false", manager).ids()
+        )
+        assertEquals(setOf("g-1", "g-2", "g-other"), client.rows("/api/records/mortalities", admin).ids().toSet())
+        assertEquals(1, client.rows("/api/records/mortalities?limit=1", admin).size)
+    }
+
+    @Test
+    fun `the review list covers every record type and rejects workers and unknown types`() = testApplication {
+        startApp()
+        val client = createClient { }
+        val worker = client.login("jvdm", "30003")
+        val manager = client.login("fmanager", "20002")
+        client.syncJson(
+            "/api/farmers/sync", worker,
+            """{"deviceId":"d","records":[{"farmerId":"farmer-1","clientCode":"F001","organisationName":"Karoo Beef"}]}"""
+        )
+        client.syncJson(
+            "/api/calf-registrations/sync", worker,
+            """{"deviceId":"d","records":[{"tagNumber":"TAG0000001","animalUuid":"${java.util.UUID.randomUUID()}",
+            "birthdate":1700000000000,"breed":"Angus","gpsLat":-26.1,"gpsLng":27.9,"captureAt":1700000100000,
+            "deviceId":"d","recordguid":"calf-1"}]}"""
+        )
+
+        assertEquals("Karoo Beef", client.rows("/api/records/farmers", manager).single()["label"]!!.jsonPrimitive.content)
+        assertEquals("TAG0000001", client.rows("/api/records/calf-registrations", manager).single()["label"]!!.jsonPrimitive.content)
+        listOf("treatments", "animal-movements", "mortalities").forEach {
+            assertEquals(emptyList(), client.rows("/api/records/$it", manager))
+        }
+
+        assertEquals(
+            HttpStatusCode.Forbidden,
+            client.get("/api/records/farmers") { header("Authorization", "Bearer $worker") }.status
+        )
+        assertEquals(
+            HttpStatusCode.NotFound,
+            client.get("/api/records/nope") { header("Authorization", "Bearer $manager") }.status
+        )
+    }
 }

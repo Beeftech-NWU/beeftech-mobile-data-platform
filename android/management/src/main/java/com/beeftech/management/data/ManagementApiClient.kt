@@ -95,6 +95,35 @@ class ManagementApiClient(
             }
         }
 
+    /* Voided records are included by default so a manager can see what was voided and why. */
+    suspend fun reviewRecords(
+        type: String,
+        includeVoided: Boolean = true
+    ): ManagementResult<List<ReviewRecord>> =
+        call(
+            decode = { JSON.decodeFromString<Envelope<List<ReviewRecord>>>(it).data.orEmpty() }
+        ) { token ->
+            httpClient.get("${baseUrl}api/records/$type") {
+                bearerAuth(token)
+                parameter("includeVoided", includeVoided)
+            }
+        }
+
+    /* Corrections are void-only: a worker re-captures the record. The reason is required. */
+    suspend fun voidRecord(type: String, id: String, reason: String): ManagementResult<VoidResult> =
+        call(
+            decode = {
+                JSON.decodeFromString<Envelope<VoidResult>>(it).data
+                    ?: error("Missing result in response")
+            }
+        ) { token ->
+            httpClient.post("${baseUrl}api/records/$type/$id/void") {
+                bearerAuth(token)
+                contentType(ContentType.Application.Json)
+                setBody(VoidBody(reason))
+            }
+        }
+
     private fun decodeMember(body: String): TeamMember =
         JSON.decodeFromString<Envelope<TeamMember>>(body).data
             ?: error("Missing user in response")

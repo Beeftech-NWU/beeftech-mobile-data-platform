@@ -36,6 +36,22 @@ fun Route.voidRoutes(
         )
     }
 
+    /* Voided records are included unless includeVoided=false. */
+    get("/api/records/{type}") {
+
+        val principal = call.requireRole(jwtService, Role.ADMIN, Role.MANAGER) ?: return@get
+
+        call.respondResult(
+            voidService.review(
+                principal,
+                call.parameters["type"].orEmpty(),
+                call.request.queryParameters["includeVoided"] != "false",
+                call.request.queryParameters["limit"]?.toIntOrNull()
+            ),
+            "Records loaded"
+        )
+    }
+
     get("/api/audit-log") {
 
         val principal = call.requireRole(jwtService, Role.ADMIN, Role.MANAGER) ?: return@get
