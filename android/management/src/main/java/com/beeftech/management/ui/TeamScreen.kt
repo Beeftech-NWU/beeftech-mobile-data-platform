@@ -13,6 +13,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -23,6 +24,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,7 +42,15 @@ const val PIN_LENGTH = 5
 /* A pin is exactly PIN_LENGTH digits, matching the login screen and the backend. */
 fun isValidPin(pin: String): Boolean = pin.length == PIN_LENGTH && pin.all { it in '0'..'9' }
 
-/* Keyed by user, so a different user logging in on the same device never sees the previous list. */
+private enum class TeamSection(val label: String) {
+    PEOPLE("People"),
+    ACTIVITY("Activity")
+}
+
+/*
+ * Keyed by user, so a different user logging in on the same device never sees the previous list.
+ * A manager also gets their site's audit log here, read-only; an admin has it in the Admin tab.
+ */
 @Composable
 fun TeamTab(
     apiClient: ManagementApiClient,
@@ -52,13 +62,39 @@ fun TeamTab(
         key = "team-$currentUserId",
         factory = TeamViewModelFactory(apiClient)
     )
+    var section by rememberSaveable { mutableStateOf(TeamSection.PEOPLE) }
 
-    TeamScreen(
-        viewModel = viewModel,
-        currentUserId = currentUserId,
-        isAdmin = isAdmin,
-        modifier = modifier
-    )
+    Column(modifier = modifier.fillMaxSize()) {
+        if (!isAdmin) {
+            Row(
+                modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                TeamSection.entries.forEach {
+                    FilterChip(
+                        selected = section == it,
+                        onClick = { section = it },
+                        label = { Text(it.label) }
+                    )
+                }
+            }
+        }
+
+        if (isAdmin || section == TeamSection.PEOPLE) {
+            TeamScreen(
+                viewModel = viewModel,
+                currentUserId = currentUserId,
+                isAdmin = isAdmin,
+                modifier = Modifier.weight(1f)
+            )
+        } else {
+            AuditLogTab(
+                apiClient = apiClient,
+                currentUserId = currentUserId,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
 }
 
 /**
@@ -124,10 +160,7 @@ fun TeamScreen(
         }
 
         if (state.needsConnection) {
-            Text(
-                "Team management needs a connection. Check your signal and tap Refresh.",
-                color = MaterialTheme.colorScheme.error
-            )
+            NeedsConnectionNotice("Team management")
         }
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary) }

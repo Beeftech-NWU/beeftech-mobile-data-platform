@@ -124,6 +124,34 @@ data class VoidResult(
 )
 
 @Serializable
+data class AuditLogEntry(
+    val id: Long,
+    val action: String,
+    val entityType: String,
+    val entityId: String,
+    val reason: String = "",
+    val actorUserId: String = "",
+    val actorUsername: String = "",
+    val actorRole: Int? = null,
+    val siteId: String? = null,
+    val createdAt: Long,
+    /* A JSON object of what changed, e.g. {"role":"3->2"}; null for a void and older rows. */
+    val details: String? = null
+)
+
+/* Audit actions the log can be filtered by: the backend's AuditActions value to a label. */
+val AUDIT_ACTIONS = listOf(
+    "VOID" to "Voids",
+    "USER_CREATE" to "User created",
+    "USER_UPDATE" to "User changed",
+    "USER_RESET_PIN" to "PIN reset",
+    "USER_UNBIND_DEVICE" to "Phone unbound"
+)
+
+fun auditActionLabel(action: String): String =
+    AUDIT_ACTIONS.firstOrNull { it.first == action }?.second ?: action
+
+@Serializable
 internal data class Envelope<T>(
     val success: Boolean = false,
     val message: String = "",

@@ -51,16 +51,6 @@ fun Route.voidRoutes(
             "Records loaded"
         )
     }
-
-    get("/api/audit-log") {
-
-        val principal = call.requireRole(jwtService, Role.ADMIN, Role.MANAGER) ?: return@get
-
-        call.respondResult(
-            voidService.auditLog(principal, call.request.queryParameters["limit"]?.toIntOrNull()),
-            "Audit log loaded"
-        )
-    }
 }
 
 private suspend inline fun <reified T : Any> ApplicationCall.respondResult(
