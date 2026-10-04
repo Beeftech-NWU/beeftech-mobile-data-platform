@@ -66,7 +66,9 @@ object DatabaseFactory {
                 AuditLogTable,
                 DevicesTable,
                 LoginAttemptsTable,
-                LoginEventsTable
+                LoginEventsTable,
+                CostTypeTable,
+                AppSettingsTable
             )
         }
 
@@ -74,7 +76,7 @@ object DatabaseFactory {
          * Seed treatment reference/master data
          * after the reference tables exist.
          */
-        TreatmentReferenceSeeder.seed()
+        ReferenceDataSeeder.seed()
 
         return database
     }

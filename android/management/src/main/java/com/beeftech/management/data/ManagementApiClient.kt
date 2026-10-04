@@ -125,6 +125,43 @@ class ManagementApiClient(
             }
         }
 
+    /*
+     * Everything the server publishes. Pass the version you already have as [ifVersion] and an
+     * unchanged answer comes back without the lists. Any signed-in user may read it.
+     */
+    suspend fun referenceData(ifVersion: Long? = null): ManagementResult<ReferenceSnapshotDto> =
+        call(
+            decode = {
+                JSON.decodeFromString<Envelope<ReferenceSnapshotDto>>(it).data
+                    ?: error("Missing reference data in response")
+            }
+        ) { token ->
+            httpClient.get("${baseUrl}api/reference-data") {
+                bearerAuth(token)
+                if (ifVersion != null) parameter("ifVersion", ifVersion)
+            }
+        }
+
+    /* Admin only. [kind] is a slug from REFERENCE_KINDS. A duplicate is a 409. */
+    suspend fun createReferenceValue(kind: String, body: CreateReferenceBody): ManagementResult<ReferenceChange> =
+        call(decode = { decodeReferenceChange(it) }) { token ->
+            httpClient.post("${baseUrl}api/reference-data/$kind") {
+                bearerAuth(token)
+                contentType(ContentType.Application.Json)
+                setBody(body)
+            }
+        }
+
+    /* Admin only. Turning a value off only hides it from pickers; nothing is deleted. */
+    suspend fun setReferenceActive(kind: String, id: String, active: Boolean): ManagementResult<ReferenceChange> =
+        call(decode = { decodeReferenceChange(it) }) { token ->
+            httpClient.patch("${baseUrl}api/reference-data/$kind/$id") {
+                bearerAuth(token)
+                contentType(ContentType.Application.Json)
+                setBody(SetReferenceActiveBody(active))
+            }
+        }
+
     /* An admin gets every phone; a manager only their own site's. [status] is ACTIVE or REVOKED. */
     suspend fun devices(status: String? = null): ManagementResult<List<Device>> =
         call(
@@ -234,6 +271,10 @@ class ManagementApiClient(
                 parameter("limit", limit)
             }
         }
+
+    private fun decodeReferenceChange(body: String): ReferenceChange =
+        JSON.decodeFromString<Envelope<ReferenceChange>>(body).data
+            ?: error("Missing reference value in response")
 
     private fun decodeDevice(body: String): Device =
         JSON.decodeFromString<Envelope<Device>>(body).data

@@ -185,6 +185,11 @@ fun Application.module() {
             SiteService(userRepository, SiteRepository())
         )
 
+        referenceDataRoutes(
+            jwtService,
+            ReferenceDataService(userRepository, ReferenceDataRepository())
+        )
+
         deviceAdminRoutes(
             jwtService,
             DeviceAdminService(userRepository, DeviceRepository(), LoginSecurityRepository())

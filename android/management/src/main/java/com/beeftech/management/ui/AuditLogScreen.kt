@@ -164,6 +164,9 @@ private fun auditTarget(entry: AuditLogEntry): String =
         "USER" -> "User ${entry.entityId}"
         "SITE" -> "Site ${entry.entityId}"
         "DEVICE" -> "Phone ${entry.entityId}"
+        "DISEASE" -> "Disease ${entry.entityId}"
+        "TREATMENT_TYPE" -> "Treatment type ${entry.entityId}"
+        "COST_TYPE" -> "Cost type ${entry.entityId}"
         else -> "${entry.entityType} ${entry.entityId}"
     }
 

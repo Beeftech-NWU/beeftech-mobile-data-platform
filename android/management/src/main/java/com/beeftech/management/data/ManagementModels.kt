@@ -227,6 +227,72 @@ data class AuditLogEntry(
     val details: String? = null
 )
 
+/* A disease or treatment type in the server's reference-data snapshot. */
+@Serializable
+data class ReferenceValueDto(
+    val id: Int,
+    val name: String,
+    val active: Boolean = true
+)
+
+@Serializable
+data class CostTypeDto(
+    val code: String,
+    val displayName: String,
+    val sortOrder: Int = 0,
+    val active: Boolean = true
+)
+
+/*
+ * Everything the server publishes, inactive values included. When the version the caller sent is
+ * current, [unchanged] is true and the lists are null.
+ */
+@Serializable
+data class ReferenceSnapshotDto(
+    val version: Long,
+    val unchanged: Boolean = false,
+    val diseases: List<ReferenceValueDto>? = null,
+    val treatmentTypes: List<ReferenceValueDto>? = null,
+    val costTypes: List<CostTypeDto>? = null
+)
+
+/* One value as a flat entry, the same shape for every kind; [id] is the code for cost types. */
+@Serializable
+data class ReferenceEntry(
+    val kind: String,
+    val id: String,
+    val name: String,
+    val active: Boolean = true,
+    val sortOrder: Int? = null
+)
+
+@Serializable
+data class ReferenceChange(
+    val version: Long,
+    val item: ReferenceEntry
+)
+
+/* name for diseases and treatment types; code and displayName (and optional sortOrder) for cost types. */
+@Serializable
+data class CreateReferenceBody(
+    val name: String? = null,
+    val code: String? = null,
+    val displayName: String? = null,
+    val sortOrder: Int? = null
+)
+
+@Serializable
+data class SetReferenceActiveBody(
+    val active: Boolean
+)
+
+/* The kinds of reference value, with the path segment the API uses. */
+val REFERENCE_KINDS = listOf(
+    "diseases" to "Diseases",
+    "treatment-types" to "Treatment types",
+    "cost-types" to "Cost types"
+)
+
 /* Audit actions the log can be filtered by: the backend's AuditActions value to a label. */
 val AUDIT_ACTIONS = listOf(
     "VOID" to "Voids",
@@ -238,7 +304,10 @@ val AUDIT_ACTIONS = listOf(
     "SITE_CREATE" to "Site created",
     "SITE_UPDATE" to "Site changed",
     "DEVICE_REVOKE" to "Phone blocked",
-    "DEVICE_REINSTATE" to "Phone unblocked"
+    "DEVICE_REINSTATE" to "Phone unblocked",
+    "REFDATA_CREATE" to "Value added",
+    "REFDATA_ACTIVATE" to "Value turned on",
+    "REFDATA_DEACTIVATE" to "Value turned off"
 )
 
 fun auditActionLabel(action: String): String =

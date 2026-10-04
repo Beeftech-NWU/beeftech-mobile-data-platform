@@ -243,3 +243,30 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     still sign in. The app version comes from the package's `versionName` (currently `1.0` for every build).
 65. **Devices, Login security and the manager's Phones view have not been run on a device.** They are covered by
     view model and client tests only.
+
+## Found during the Admin tab, Phase 4d (reference data)
+
+66. **The reference-data cache never prunes.** `reference_items` (and the local `diseases` / `cost_types`
+    rows the cache adds) only grow: a value the server turns off is kept with `active = 0`, and a value the
+    server stops listing is left alone. This is deliberate (records point at values by name or code), so a
+    typo added by an admin and then switched off stays on every phone.
+67. **Old apps still offer switched-off values, and the server still accepts them.** Treatment and cost
+    columns on the server are free text, and the older `GET /api/treatments/reference-data` (names only,
+    active only) is unchanged. A phone that hasn't updated keeps its old lists until it does.
+68. **The cost-type seed is duplicated.** `ReferenceDataSeeder` (backend) copies `CostTypeSeed.TYPES`
+    (Android). A cost type added to one must be added to the other, or the server's list and a fresh install's
+    local list disagree until the first pull. Existing devices keep their local seeds either way.
+69. **No screen offers a cost-type picker yet, so cost-type admin has no visible effect on phones.** Costs
+    are derived from treatments (the `TREATMENT` type, which can't be switched off); `CostSummaryViewModel.saveCost`
+    validates against `CostTypeDao.getActive()` but nothing in the UI calls it. A cost entry screen should
+    read that list, so a switched-off type disappears and a new one appears.
+70. **The Treatment screen reads the cache once per screen load.** A pull that finishes while the screen is
+    open shows on the next load, not live. There is no "Refresh lists" button; the check-in worker runs when
+    someone signs in and with the twice-daily batch sync.
+71. **A failed live request with an empty cache is still an error.** Before the first pull, the Treatment
+    screen asks the server directly, as before. There is no fallback to the local `diseases` table (it has no
+    treatment types), so a brand-new phone with no signal still can't fill those two pickers.
+72. **Reference data admin is online-only and admin-only.** Managers and workers read the lists through the
+    phone cache. The Reference data screen, the check-in worker and the Treatment cache have not been run on a
+    device; the Room migration and cache queries have (`Migration35To36Test`, `ReferenceDataDaoTest`, and the
+    whole `:android:database` instrumented suite, 112 tests, on the emulator).

@@ -27,6 +27,9 @@ object AuditActions {
     const val DEVICE_REVOKE = "DEVICE_REVOKE"
     const val DEVICE_REINSTATE = "DEVICE_REINSTATE"
     const val LOGIN_UNLOCK = "LOGIN_UNLOCK"
+    const val REFDATA_CREATE = "REFDATA_CREATE"
+    const val REFDATA_ACTIVATE = "REFDATA_ACTIVATE"
+    const val REFDATA_DEACTIVATE = "REFDATA_DEACTIVATE"
 
     /* entity_type for actions on a user account. */
     const val ENTITY_USER = "USER"

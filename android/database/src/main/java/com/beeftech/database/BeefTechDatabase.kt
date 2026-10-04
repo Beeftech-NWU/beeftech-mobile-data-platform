@@ -11,6 +11,8 @@ import java.util.UUID
 
 // Existing Base Entities
 import com.beeftech.database.entity.Animal
+import com.beeftech.database.entity.DeviceConfigEntry
+import com.beeftech.database.entity.ReferenceItem
 import com.beeftech.database.entity.AnimalCost
 import com.beeftech.database.entity.AnimalGroupMembershipEntity
 import com.beeftech.database.entity.AnimalMovementEntity
@@ -64,6 +66,7 @@ import com.beeftech.database.entity.Device
 import com.beeftech.database.entity.IdentifierType
 
 // DAOs
+import com.beeftech.database.dao.ReferenceDataDao
 import com.beeftech.database.dao.AnimalDao
 import com.beeftech.database.dao.AnimalCostDao
 import com.beeftech.database.dao.CostTypeDao
@@ -153,7 +156,11 @@ import com.beeftech.database.dao.UserDao
         Device::class,
 
         // Phase 0 / R4 Lookup Entity
-        IdentifierType::class
+        IdentifierType::class,
+
+        // Phase 4 (Admin) reference data pulled from the server
+        ReferenceItem::class,
+        DeviceConfigEntry::class
     ],
     version = BeefTechDatabase.VERSION,
     exportSchema = true
@@ -209,6 +216,9 @@ abstract class BeefTechDatabase : RoomDatabase() {
     abstract fun deviceDao(): DeviceDao
     abstract fun identifierTypeDao(): IdentifierTypeDao
 
+    // Phase 4 (Admin) reference data and server-provided settings
+    abstract fun referenceDataDao(): ReferenceDataDao
+
 
     // =========================================================================
     // Migration Configurations
@@ -216,7 +226,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
     companion object {
 
         /** Current Room schema version. Bump here when adding a migration. */
-        const val VERSION = 35
+        const val VERSION = 36
 
         /**
          * Phase 3 Migration (Version 9 -> 10):
@@ -3366,6 +3376,31 @@ abstract class BeefTechDatabase : RoomDatabase() {
                             "ALTER TABLE `animal_costs` ADD COLUMN `synced_at` INTEGER"
                         )
                     }
+                }
+            }
+
+        /*
+         * v36: two new tables for server-provided reference data and settings (Phase 4d):
+         * reference_items (disease and treatment-type pickers) and device_config (key/value).
+         *
+         * Both are new, so nothing existing is touched: no ALTER, no copy, no DROP. They have no
+         * foreign keys and no triggers. CREATE TABLE IF NOT EXISTS makes the migration idempotent.
+         * The SQL below is exactly what Room expects (it is the createSql in 36.json).
+         */
+        val MIGRATION_35_36 =
+            object : Migration(35, 36) {
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+
+                    db.execSQL(
+                        "CREATE TABLE IF NOT EXISTS `reference_items` (`kind` TEXT NOT NULL, `item_key` TEXT NOT NULL, `display_name` TEXT NOT NULL, `active` INTEGER NOT NULL DEFAULT 1, `sort_order` INTEGER NOT NULL DEFAULT 0, `server_id` INTEGER, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`kind`, `item_key`))"
+                    )
+
+                    db.execSQL(
+                        "CREATE TABLE IF NOT EXISTS `device_config` (`config_key` TEXT NOT NULL, `value` TEXT NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`config_key`))"
+                    )
                 }
             }
 

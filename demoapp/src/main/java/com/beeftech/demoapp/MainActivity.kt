@@ -23,6 +23,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -411,7 +412,9 @@ class MainActivity : ComponentActivity() {
                             pendingSyncRepository =
                                 pendingSyncRepository,
                             apiClient =
-                                treatmentApiClient
+                                treatmentApiClient,
+                            referenceDataDao =
+                                database.referenceDataDao()
                         )
 
                     val treatmentViewModelFactory =
@@ -630,6 +633,15 @@ class MainActivity : ComponentActivity() {
                             locationFeedViewModel
                                 .records
                                 .collectAsState()
+
+                            /*
+                             * Pull the server's reference data (disease and treatment-type
+                             * lists, cost types) whenever someone is signed in. Waits for a
+                             * connection and a server token, and never touches queued records.
+                             */
+                            LaunchedEffect(loggedInUser.userId) {
+                                DeviceCheckInWorker.enqueue(applicationContext)
+                            }
 
                             var selectedDemoTab by
                             remember {
