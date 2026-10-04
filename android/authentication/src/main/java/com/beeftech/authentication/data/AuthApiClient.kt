@@ -1,5 +1,6 @@
 package com.beeftech.authentication.data
 
+import com.beeftech.database.BackendConfig
 import com.beeftech.authentication.data.dto.LoginRequestDto
 import com.beeftech.authentication.data.dto.LoginResponseDto
 import io.ktor.client.HttpClient
@@ -51,7 +52,7 @@ sealed class LoginApiResult {
 }
 
 class AuthApiClient(
-    private val baseUrl: String = DEFAULT_BASE_URL,
+    private val baseUrl: String = BackendConfig.baseUrl,
     private val httpClient: HttpClient = HttpClient(OkHttp) {
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true })
@@ -107,7 +108,4 @@ class AuthApiClient(
         }
     }
 
-    companion object {
-        const val DEFAULT_BASE_URL = "https://beeftech-backend.onrender.com/"
-    }
 }

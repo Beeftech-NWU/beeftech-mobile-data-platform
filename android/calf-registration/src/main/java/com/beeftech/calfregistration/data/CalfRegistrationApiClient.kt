@@ -1,5 +1,6 @@
 package com.beeftech.calfregistration.data
 
+import com.beeftech.database.BackendConfig
 import com.beeftech.database.dao.CalfRegistrationView
 import com.beeftech.database.security.TokenProvider
 import io.ktor.http.HttpStatusCode
@@ -25,7 +26,7 @@ import kotlinx.serialization.json.Json
  */
 class CalfRegistrationApiClient(
     private val tokenProvider: TokenProvider,
-    private val baseUrl: String = DEFAULT_BASE_URL,
+    private val baseUrl: String = BackendConfig.baseUrl,
     private val httpClient: HttpClient = HttpClient(OkHttp) {
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true })
@@ -81,7 +82,4 @@ class CalfRegistrationApiClient(
         }
     }
 
-    companion object {
-        const val DEFAULT_BASE_URL = "https://beeftech-backend.onrender.com/"
-    }
 }

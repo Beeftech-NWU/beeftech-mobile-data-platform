@@ -1,5 +1,6 @@
 package com.beeftech.management.data
 
+import com.beeftech.database.BackendConfig
 import com.beeftech.database.security.TokenProvider
 import com.beeftech.database.security.reportUnauthorized
 import io.ktor.client.HttpClient
@@ -26,7 +27,7 @@ import java.nio.channels.UnresolvedAddressException
 
 class ManagementApiClient(
     private val tokenProvider: TokenProvider,
-    private val baseUrl: String = DEFAULT_BASE_URL,
+    private val baseUrl: String = BackendConfig.baseUrl,
     private val httpClient: HttpClient = HttpClient(OkHttp) {
         install(ContentNegotiation) {
             json(JSON)
@@ -472,8 +473,6 @@ class ManagementApiClient(
 
     companion object {
         const val AUDIT_PAGE_SIZE = 50
-
-        const val DEFAULT_BASE_URL = "https://beeftech-backend.onrender.com/"
 
         private val JSON = Json {
             ignoreUnknownKeys = true
