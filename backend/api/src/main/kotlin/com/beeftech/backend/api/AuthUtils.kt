@@ -2,6 +2,7 @@ package com.beeftech.backend.api
 
 import com.beeftech.backend.api.auth.AuthPrincipal
 import com.beeftech.backend.api.auth.JwtService
+import com.beeftech.backend.api.auth.Role
 import com.beeftech.backend.api.common.ApiResponse
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
@@ -72,6 +73,29 @@ suspend fun ApplicationCall.requireAuthPrincipal(jwtService: JwtService): AuthPr
             ApiResponse<String>(
                 success = false,
                 message = "Invalid token"
+            )
+        )
+
+        return null
+    }
+
+    return principal
+}
+
+suspend fun ApplicationCall.requireRole(
+    jwtService: JwtService,
+    vararg roles: Role
+): AuthPrincipal? {
+
+    val principal = requireAuthPrincipal(jwtService) ?: return null
+
+    if (principal.roleEnum !in roles) {
+
+        respond(
+            HttpStatusCode.Forbidden,
+            ApiResponse<String>(
+                success = false,
+                message = "Forbidden"
             )
         )
 

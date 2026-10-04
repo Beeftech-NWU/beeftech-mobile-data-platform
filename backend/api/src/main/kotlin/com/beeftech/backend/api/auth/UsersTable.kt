@@ -10,6 +10,8 @@ object UsersTable : Table("users") {
     val deviceAssignedId = varchar("device_assigned_id", 255).nullable()
     val deviceLastSync = long("device_last_sync").nullable()
     val failedSyncAttempts = integer("failed_sync_attempts").default(0)
+    val siteId = varchar("site_id", 64).nullable()
+    val active = bool("active").default(true)
 
     override val primaryKey = PrimaryKey(userId)
 }

@@ -134,6 +134,9 @@ class EncryptedSessionStore(
 
         private const val KEY_DEVICE_ID =
             "device_id"
+
+        private const val KEY_SITE_ID =
+            "site_id"
     }
 
 
@@ -175,6 +178,10 @@ class EncryptedSessionStore(
             ?.putString(
                 KEY_DEVICE_ID,
                 user.deviceId
+            )
+            ?.putString(
+                KEY_SITE_ID,
+                user.siteId
             )
             ?.apply()
 
@@ -281,6 +288,10 @@ class EncryptedSessionStore(
                 KEY_DEVICE_ID,
                 user.deviceId
             )
+            ?.putString(
+                KEY_SITE_ID,
+                user.siteId
+            )
             ?.apply()
 
         CurrentUserIdRegistry
@@ -321,6 +332,13 @@ class EncryptedSessionStore(
                 )
                 ?: ""
 
+        val siteId =
+            prefs
+                ?.getString(
+                    KEY_SITE_ID,
+                    null
+                )
+
         val roleValue =
             prefs
                 ?.getInt(
@@ -340,7 +358,8 @@ class EncryptedSessionStore(
             userId = userId,
             username = username,
             role = role,
-            deviceId = deviceId
+            deviceId = deviceId,
+            siteId = siteId
         )
     }
 

@@ -16,11 +16,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -50,7 +52,12 @@ import com.beeftech.authentication.data.EncryptedDeviceIdProvider
 import com.beeftech.authentication.data.EncryptedSessionStore
 import com.beeftech.authentication.viewmodel.LoginViewModelFactory
 import com.beeftech.database.security.PinLockoutManager
+import com.beeftech.authentication.domain.Role
 import com.beeftech.database.security.TokenProviderRegistry
+import com.beeftech.management.data.ManagementApiClient
+import com.beeftech.management.ui.DashboardTab
+import com.beeftech.management.ui.MyActivityScreen
+import com.beeftech.management.ui.TeamTab
 import com.beeftech.demoapp.ui.theme.BeeftechTheme
 import com.beeftech.farmerregistration.ClientDetailsScreen
 import com.beeftech.farmerregistration.FarmerSyncScheduler
@@ -186,6 +193,12 @@ class MainActivity : ComponentActivity() {
                     val pendingSyncRepository =
                         PendingSyncRepository(
                             database.pendingSyncDao()
+                        )
+
+                    val managementApiClient =
+                        ManagementApiClient(
+                            tokenProvider =
+                                sessionStore
                         )
 
                     /*
@@ -584,6 +597,28 @@ class MainActivity : ComponentActivity() {
                                 mutableIntStateOf(0)
                             }
 
+                            val tabs =
+                                remember(loggedInUser.role) {
+                                    tabsFor(loggedInUser.roleEnum)
+                                }
+
+                            var showMyActivity by
+                            remember {
+                                mutableStateOf(false)
+                            }
+
+                            val pendingCount by
+                            remember(loggedInUser.userId) {
+                                pendingSyncRepository
+                                    .observePendingCount(loggedInUser.userId)
+                            }.collectAsState(initial = 0)
+
+                            val oldestPendingAt by
+                            remember(loggedInUser.userId) {
+                                pendingSyncRepository
+                                    .observeOldestPendingAt(loggedInUser.userId)
+                            }.collectAsState(initial = null)
+
                             var showLogoutDialog by
                             remember {
                                 mutableStateOf(false)
@@ -667,61 +702,73 @@ class MainActivity : ComponentActivity() {
                                                 text = "Signed in as ${loggedInUser.username}"
                                             )
 
-                                            TextButton(
-                                                onClick = {
-                                                    showLogoutDialog =
-                                                        true
+                                            Row {
+                                                TextButton(
+                                                    onClick = {
+                                                        showMyActivity =
+                                                            !showMyActivity
+                                                    }
+                                                ) {
+                                                    Text(
+                                                        text = "My activity"
+                                                    )
                                                 }
-                                            ) {
-                                                Text(
-                                                    text = "Log out"
+
+                                                TextButton(
+                                                    onClick = {
+                                                        showLogoutDialog =
+                                                            true
+                                                    }
+                                                ) {
+                                                    Text(
+                                                        text = "Log out"
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        val tabContent: @Composable () -> Unit = {
+
+                                            tabs.forEachIndexed { index, tab ->
+
+                                                Tab(
+                                                    selected =
+                                                        selectedDemoTab == index,
+                                                    onClick = {
+                                                        selectedDemoTab = index
+                                                    },
+                                                    text = {
+                                                        Text(
+                                                            tab.label
+                                                        )
+                                                    }
                                                 )
                                             }
                                         }
 
-                                        PrimaryTabRow(
-                                            selectedTabIndex =
-                                                selectedDemoTab
-                                        ) {
+                                        /*
+                                         * Workers keep the evenly spread three tabs. With five, the
+                                         * labels no longer fit, so managers and admins scroll.
+                                         */
+                                        if (tabs.size > 3) {
 
-                                            Tab(
-                                                selected =
-                                                    selectedDemoTab == 0,
-                                                onClick = {
-                                                    selectedDemoTab = 0
-                                                },
-                                                text = {
-                                                    Text(
-                                                        "Farm Traceability"
-                                                    )
-                                                }
-                                            )
+                                            PrimaryScrollableTabRow(
+                                                selectedTabIndex =
+                                                    selectedDemoTab,
+                                                edgePadding =
+                                                    0.dp
+                                            ) {
+                                                tabContent()
+                                            }
 
-                                            Tab(
-                                                selected =
-                                                    selectedDemoTab == 1,
-                                                onClick = {
-                                                    selectedDemoTab = 1
-                                                },
-                                                text = {
-                                                    Text(
-                                                        "Calf Registration"
-                                                    )
-                                                }
-                                            )
+                                        } else {
 
-                                            Tab(
-                                                selected =
-                                                    selectedDemoTab == 2,
-                                                onClick = {
-                                                    selectedDemoTab = 2
-                                                },
-                                                text = {
-                                                    Text(
-                                                        "Feed Crib"
-                                                    )
-                                                }
-                                            )
+                                            PrimaryTabRow(
+                                                selectedTabIndex =
+                                                    selectedDemoTab
+                                            ) {
+                                                tabContent()
+                                            }
                                         }
                                     }
                                 }
@@ -734,14 +781,66 @@ class MainActivity : ComponentActivity() {
                                             .padding(innerPadding)
                                 ) {
 
-                                    if (selectedDemoTab == 1) {
+                                    val currentTab =
+                                        tabs[selectedDemoTab.coerceIn(tabs.indices)]
+
+                                    if (showMyActivity) {
+
+                                        Column {
+
+                                            TextButton(
+                                                onClick = {
+                                                    showMyActivity =
+                                                        false
+                                                }
+                                            ) {
+                                                Text(
+                                                    text = "Back"
+                                                )
+                                            }
+
+                                            MyActivityScreen(
+                                                username =
+                                                    loggedInUser.username,
+                                                role =
+                                                    loggedInUser.role,
+                                                siteId =
+                                                    loggedInUser.siteId,
+                                                pendingCount =
+                                                    pendingCount,
+                                                oldestPendingAt =
+                                                    oldestPendingAt
+                                            )
+                                        }
+
+                                    } else if (currentTab == AppTab.DASHBOARD) {
+
+                                        DashboardTab(
+                                            apiClient =
+                                                managementApiClient,
+                                            currentUserId =
+                                                loggedInUser.userId
+                                        )
+
+                                    } else if (currentTab == AppTab.TEAM) {
+
+                                        TeamTab(
+                                            apiClient =
+                                                managementApiClient,
+                                            currentUserId =
+                                                loggedInUser.userId,
+                                            isAdmin =
+                                                loggedInUser.roleEnum == Role.ADMIN
+                                        )
+
+                                    } else if (currentTab == AppTab.CALF_REGISTRATION) {
 
                                         CalfRegistrationFlow(
                                             viewModel =
                                                 calfRegistrationViewModel
                                         )
 
-                                    } else if (selectedDemoTab == 0) {
+                                    } else if (currentTab == AppTab.TRACEABILITY) {
 
                                         FarmTraceabilityFlow(
 

@@ -78,3 +78,57 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     which is why migrations can still be edited in place. Re-confirm this with the
     maintainer once field deployment starts. From then on, no merged migration may be
     edited.
+
+## Found during role and site foundation (Manager & Admin, Phase 1)
+
+19. **RESOLVED (Phase 2, PR #73): the stub route was removed.** Original note: **`POST /api/auth/register` is a stub.** `AuthService.register` returns `true` and
+    creates nothing. It is not a privilege-escalation risk today, but lock it down
+    (admin-only with `requireRole`) or remove it in Phase 2, when user management lands.
+20. **RESOLVED (Phase 3, sync gaps, PR #75): Feed Crib is stored in `feed_crib_readings`.** Original note: **Feed Crib is not persisted on the backend.** `FeedCribService` keeps readings in
+    memory, so they are lost on restart. The submitter and site are stamped on the
+    in-memory record and `GET /api/feed-crib` is scoped by them, but the data needs a
+    table before the Dashboard can rely on it.
+21. **Records from before the deploy have `site_id = NULL`.** `submitted_by_user_id` and
+    `site_id` are not backfilled on `calf_registrations`, `animal_movements`,
+    `treatments` and `farmers`. A manager's site filter never matches them, and workers
+    don't see them either; only admins do. Decide whether to backfill from `device_id` or
+    leave them.
+22. **Routes left unscoped on purpose.** `GET /api/treatments/reference-data` is shared
+    reference data. `POST /api/calf-registrations/{tagNumber}/media` and
+    `GET /api/calf-registrations/{tagNumber}/certificate` are reached by tag and do not
+    check the caller's scope. Revisit these when the records review lands (Phase 3).
+23. **RESOLVED (Phase 3, sync gaps, PR #75): `GET /api/animal-movements` and `/{animalId}` are scoped.** Original note: **Animal movements have no `GET` list.** Movements are stamped with the submitter
+    and site on sync, but nothing reads them back yet, so there is nothing to scope.
+24. **Tokens issued before the deploy have no `site_id` claim.** They stay valid for up
+    to 24 h. A manager on such a token sees no site-scoped records until they log in
+    again.
+25. **Deactivated users keep working tokens on non-admin routes.** `users.active` is checked at
+    login and on every `/api/users` call (the caller is re-read from the DB), but the sync and
+    record routes only validate the JWT. A deactivated worker can still sync for up to 24 h
+    from a token issued before deactivation. Fix with a short token lifetime or an `active`
+    check in `requireAuthPrincipal` (Phase 4's revoke list is the natural home).
+26. **A PIN reset does not clear the login lockout.** `AuthService.loginAttempts` is an
+    in-memory map, so a worker locked out for 5 minutes stays locked after a manager resets
+    their PIN.
+27. **Admins type a site ID by hand in the Team tab.** There is no sites endpoint until Phase 4, so
+    the "Add user" dialog takes a free-text site ID and the backend rejects unknown ones
+    ("Unknown site"). Replace it with a site picker when Sites CRUD lands.
+28. **RESOLVED (Phase 3, dashboard summary, PR #74): the Dashboard tab now loads `GET /api/dashboard/summary`.** Original note: **Dashboard tab is a placeholder.** It shows static text until Phase 3 adds
+    `GET /api/dashboard/summary`.
+29. **The dashboard covers only what the backend stores.** It counts calves, treatments, farmers,
+    workers and stale syncs. Mortalities, costs, movements and feed are missing because the backend
+    has no sync path or table for them (movements have no `GET`, Feed Crib is in memory). Add each
+    to the summary once its sync path exists.
+30. **Farmer "recent" uses `synced_at`.** Farmers carry no capture time, so "last 7 days" means
+    when the record reached the server, not when it was captured.
+31. **Dashboard stale-sync alerts use `users.device_last_sync`, which login sets.** It moves on login,
+    not on every sync, so a worker who stays logged in and syncs can still look stale. Stamp it from
+    the sync routes if the alert proves noisy.
+32. **The dashboard has no site switch for admins in the app.** The endpoint takes `siteId`, but the
+    app always asks for all sites. Add the switch with Sites CRUD in Phase 4.
+33. **Feed Crib `POST` is not idempotent.** `FeedCribRequest` has no record GUID, so a retried request
+    inserts a duplicate reading. The app does not post Feed Crib at all yet (`:android:feed-crib` is
+    UI only, in memory), so nothing is duplicated today. Add a `recordguid` and an upsert when the
+    device gets a Feed Crib sync worker.
+34. **Mortalities and costs still have no sync path.** There is no backend table or endpoint, and no
+    Android API client or worker, for either. Each needs both sides, plus a `pending_sync` entity type.

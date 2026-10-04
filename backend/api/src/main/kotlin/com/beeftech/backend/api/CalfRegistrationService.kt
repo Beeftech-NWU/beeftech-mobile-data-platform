@@ -2,7 +2,11 @@ package com.beeftech.backend.api
 
 class CalfRegistrationService(private val repository: CalfRegistrationRepository) {
 
-    suspend fun syncRecords(request: CalfRegistrationSyncRequest): CalfRegistrationSyncResponse {
+    suspend fun syncRecords(
+        request: CalfRegistrationSyncRequest,
+        submittedBy: String? = null,
+        siteId: String? = null
+    ): CalfRegistrationSyncResponse {
 
         val results = request.records.map { dto ->
 
@@ -10,7 +14,9 @@ class CalfRegistrationService(private val repository: CalfRegistrationRepository
 
                 val persisted = repository.upsertByRecordGuid(
                     dto,
-                    System.currentTimeMillis()
+                    System.currentTimeMillis(),
+                    submittedBy,
+                    siteId
                 )
 
                 CalfRegistrationSyncResult(
@@ -34,12 +40,15 @@ class CalfRegistrationService(private val repository: CalfRegistrationRepository
         return CalfRegistrationSyncResponse(results = results)
     }
 
-    suspend fun listAll(): List<CalfRegistrationDto> {
-        return repository.findAll()
+    suspend fun listAll(scope: RecordScope = RecordScope.All): List<CalfRegistrationDto> {
+        return repository.findAll(scope)
     }
 
-    suspend fun findByTagNumber(tagNumber: String): CalfRegistrationDto? {
-        return repository.findByTagNumber(tagNumber)
+    suspend fun findByTagNumber(
+        tagNumber: String,
+        scope: RecordScope = RecordScope.All
+    ): CalfRegistrationDto? {
+        return repository.findByTagNumber(tagNumber, scope)
     }
 
     suspend fun updateMedia(tagNumber: String, photoPath: String): Boolean {

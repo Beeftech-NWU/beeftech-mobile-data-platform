@@ -22,7 +22,9 @@ class FarmerService(
 
                     repository.save(
                         dto = farmer,
-                        serverSyncedAt = serverSyncedAt
+                        serverSyncedAt = serverSyncedAt,
+                        submittedBy = principal.userId,
+                        submitterSiteId = principal.siteId
                     )
 
                     /*
@@ -131,13 +133,17 @@ class FarmerService(
         )
     }
 
-    fun findAll(): List<FarmerDto> =
-        repository.findAll()
+    fun findAll(
+        scope: RecordScope = RecordScope.All
+    ): List<FarmerDto> =
+        repository.findAll(scope)
 
     fun findById(
-        farmerId: String
+        farmerId: String,
+        scope: RecordScope = RecordScope.All
     ): FarmerDto? =
         repository.findById(
-            farmerId
+            farmerId,
+            scope
         )
 }

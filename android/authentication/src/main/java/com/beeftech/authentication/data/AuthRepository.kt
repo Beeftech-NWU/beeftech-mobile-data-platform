@@ -52,7 +52,8 @@ class AuthRepository(
                     userId = dto.user.userId,
                     username = dto.user.username,
                     role = dto.user.role,
-                    deviceId = deviceId
+                    deviceId = deviceId,
+                    siteId = dto.user.siteId
                 )
 
                 /*
@@ -118,6 +119,9 @@ class AuthRepository(
                         deviceAssignedId =
                             dto.user.deviceAssignedId
                                 ?: deviceId,
+
+                        siteId =
+                            dto.user.siteId,
 
                         deviceLastSync =
                             existingUserRow
@@ -186,7 +190,8 @@ class AuthRepository(
                             userId = cachedUser.userId,
                             username = cachedUser.username,
                             role = cachedUser.role?.toInt(),
-                            deviceId = deviceId
+                            deviceId = deviceId,
+                            siteId = cachedUser.siteId
                         )
                         /*
                          * Offline authentication grants LOCAL access

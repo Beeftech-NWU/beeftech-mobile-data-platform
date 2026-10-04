@@ -1,6 +1,7 @@
 package com.beeftech.database.repository
 
 import com.beeftech.database.dao.PendingSyncDao
+import kotlinx.coroutines.flow.Flow
 import com.beeftech.database.entity.PendingSync
 import com.beeftech.database.security.CurrentUserIdRegistry
 
@@ -164,6 +165,13 @@ class PendingSyncRepository(
                 )
         }
     }
+
+    /* For the "My activity" screen: the backlog for one user, as it changes. */
+    fun observePendingCount(userId: String): Flow<Int> =
+        pendingSyncDao.observePendingCountForUser(userId)
+
+    fun observeOldestPendingAt(userId: String): Flow<Long?> =
+        pendingSyncDao.observeOldestPendingCreatedAtForUser(userId)
 
     suspend fun getPendingCount():
             Int {

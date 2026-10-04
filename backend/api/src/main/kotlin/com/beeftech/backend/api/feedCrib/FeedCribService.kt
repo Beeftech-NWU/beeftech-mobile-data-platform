@@ -1,45 +1,26 @@
 package com.beeftech.backend.api.feedcrib
 
-class FeedCribService {
+import com.beeftech.backend.api.RecordScope
 
-    private val records =
-        mutableListOf<FeedCribResponse>()
+class FeedCribService(
+    private val repository: FeedCribRepository
+) {
 
-    private var nextId = 1L
+    suspend fun saveReading(
+        request: FeedCribRequest,
+        submittedByUserId: String? = null,
+        siteId: String? = null
+    ): FeedCribResponse =
+        repository.insert(request, submittedByUserId, siteId)
 
-    fun saveReading(
-        request: FeedCribRequest
-    ): FeedCribResponse {
+    suspend fun getAll(
+        scope: RecordScope = RecordScope.All
+    ): List<FeedCribResponse> =
+        repository.list(scope)
 
-        val record =
-            FeedCribResponse(
-                id = nextId++,
-                penName = request.penName,
-                adiValue = request.adiValue,
-                morning = request.morning,
-                midDay = request.midDay,
-                evening = request.evening,
-                timestamp = request.timestamp
-            )
-
-        records.add(record)
-
-        return record
-    }
-
-    fun getAll(): List<FeedCribResponse> {
-        return records
-    }
-
-    fun getByPenName(
-        penName: String
-    ): List<FeedCribResponse> {
-
-        return records.filter {
-            it.penName.equals(
-                penName,
-                ignoreCase = true
-            )
-        }
-    }
+    suspend fun getByPenName(
+        penName: String,
+        scope: RecordScope = RecordScope.All
+    ): List<FeedCribResponse> =
+        repository.list(scope, penName)
 }

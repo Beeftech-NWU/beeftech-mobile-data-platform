@@ -1,5 +1,8 @@
 ﻿package com.beeftech.backend.api
 
+import com.beeftech.backend.api.auth.SitesTable
+import com.beeftech.backend.api.auth.UsersSchemaMigration
+import com.beeftech.backend.api.feedcrib.FeedCribTable
 import com.beeftech.backend.api.auth.UsersTable
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
@@ -34,6 +37,8 @@ object DatabaseFactory {
         // Must run before SchemaUtils.create, which never alters an existing table.
         CalfRegistrationSchemaMigration.run(database)
         FarmerSchemaMigration.run(database)
+        UsersSchemaMigration.run(database)
+        RecordScopeSchemaMigration.run(database)
 
         transaction(database) {
 
@@ -46,7 +51,9 @@ object DatabaseFactory {
                 FarmerTable,
                 FarmerAddressTable,
                 FarmerRoleTable,
-                UsersTable
+                UsersTable,
+                SitesTable,
+                FeedCribTable
             )
         }
 

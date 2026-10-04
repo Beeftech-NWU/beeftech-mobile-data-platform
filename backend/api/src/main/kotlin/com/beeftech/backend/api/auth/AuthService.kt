@@ -32,6 +32,11 @@ class AuthService(
             return recordFailedAttempt(username, now)
         }
 
+        /* After the PIN check, so a wrong PIN can't be used to probe which accounts are deactivated. */
+        if (!user.active) {
+            return LoginResult.Failure("This account has been deactivated")
+        }
+
         if (user.deviceAssignedId != null && user.deviceAssignedId != deviceId) {
             return LoginResult.WrongDevice
         }
@@ -47,7 +52,8 @@ class AuthService(
             username = user.username,
             userId = user.userId,
             role = user.role,
-            deviceId = deviceId
+            deviceId = deviceId,
+            siteId = user.siteId
         )
 
         val expiresAt = DateTimeFormatter.ISO_INSTANT.format(
@@ -59,7 +65,8 @@ class AuthService(
             username = user.username,
             role = user.role,
             pinHash = user.pinHash,
-            deviceAssignedId = user.deviceAssignedId ?: deviceId
+            deviceAssignedId = user.deviceAssignedId ?: deviceId,
+            siteId = user.siteId
         )
 
         return LoginResult.Success(
@@ -67,13 +74,6 @@ class AuthService(
             expiresAt = expiresAt,
             profile = profile
         )
-    }
-
-    fun register(
-        username: String,
-        password: String
-    ): Boolean {
-        return true
     }
 
     private fun recordFailedAttempt(

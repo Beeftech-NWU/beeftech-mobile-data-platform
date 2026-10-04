@@ -108,6 +108,95 @@ class AuthRepositoryTest {
     }
 
     @Test
+    fun `site id from the login response is cached and restored by offline login`() = runTest {
+        val pinHash = BCrypt.hashpw("20002", BCrypt.gensalt(10))
+        val onlineEngine = MockEngine {
+            respond(
+                content = """
+                    {
+                        "success": true,
+                        "message": "Login successful",
+                        "data": {
+                            "token": "test-jwt-token",
+                            "expires_at": "2026-12-31T23:59:59Z",
+                            "user": {
+                                "user_id": "u2",
+                                "username": "fmanager",
+                                "role": 2,
+                                "pin_hash": "$pinHash",
+                                "device_assigned_id": "DEV_123",
+                                "site_id": "dev-site-1"
+                            }
+                        }
+                    }
+                """.trimIndent(),
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+
+        val online = AuthRepository(
+            apiClient = createApiClient(onlineEngine),
+            sessionStore = sessionStore,
+            userDao = userDao,
+            lockoutManager = lockoutManager,
+            deviceIdProvider = deviceIdProvider
+        ).login("fmanager", "20002")
+
+        assertEquals("dev-site-1", (online as LoginOutcome.Success).user.siteId)
+        assertEquals("dev-site-1", sessionStore.currentUser()!!.siteId)
+        assertEquals("dev-site-1", userDao.getUserByUsername("fmanager")!!.siteId)
+
+        sessionStore.clear()
+
+        val offline = AuthRepository(
+            apiClient = createApiClient(MockEngine { throw IOException("No network") }),
+            sessionStore = sessionStore,
+            userDao = userDao,
+            lockoutManager = lockoutManager,
+            deviceIdProvider = deviceIdProvider
+        ).login("fmanager", "20002")
+
+        assertEquals("dev-site-1", (offline as LoginOutcome.Success).user.siteId)
+    }
+
+    @Test
+    fun `login response without a site id leaves it null`() = runTest {
+        val engine = MockEngine {
+            respond(
+                content = """
+                    {
+                        "success": true,
+                        "message": "Login successful",
+                        "data": {
+                            "token": "t",
+                            "expires_at": "2026-12-31T23:59:59Z",
+                            "user": {
+                                "user_id": "u1",
+                                "username": "jvdm",
+                                "role": 3,
+                                "pin_hash": "${BCrypt.hashpw("30003", BCrypt.gensalt(10))}"
+                            }
+                        }
+                    }
+                """.trimIndent(),
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+
+        val outcome = AuthRepository(
+            apiClient = createApiClient(engine),
+            sessionStore = sessionStore,
+            userDao = userDao,
+            lockoutManager = lockoutManager,
+            deviceIdProvider = deviceIdProvider
+        ).login("jvdm", "30003")
+
+        assertNull((outcome as LoginOutcome.Success).user.siteId)
+    }
+
+    @Test
     fun `online 401 maps to BadCredentials`() = runTest {
         val engine = MockEngine {
             respond(

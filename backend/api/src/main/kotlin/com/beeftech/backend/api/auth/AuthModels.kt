@@ -16,7 +16,8 @@ data class UserProfile(
     val username: String,
     val role: Int?,
     @SerialName("pin_hash") val pinHash: String,
-    @SerialName("device_assigned_id") val deviceAssignedId: String?
+    @SerialName("device_assigned_id") val deviceAssignedId: String?,
+    @SerialName("site_id") val siteId: String? = null
 )
 
 @Serializable
@@ -24,12 +25,6 @@ data class LoginResponse(
     val token: String,
     @SerialName("expires_at") val expiresAt: String,
     val user: UserProfile
-)
-
-@Serializable
-data class RegisterRequest(
-    val username: String,
-    val password: String
 )
 
 @Serializable

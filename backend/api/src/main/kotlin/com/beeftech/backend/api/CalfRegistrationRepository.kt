@@ -2,6 +2,7 @@ package com.beeftech.backend.api
 
 import kotlinx.coroutines.Dispatchers
 import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
@@ -42,7 +43,9 @@ class CalfRegistrationRepository {
 
     suspend fun upsertByRecordGuid(
         dto: CalfRegistrationDto,
-        serverSyncedAt: Long
+        serverSyncedAt: Long,
+        submittedBy: String? = null,
+        submitterSiteId: String? = null
     ): CalfRegistrationDto = newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
 
         val existing = CalfRegistrationTable
@@ -71,6 +74,8 @@ class CalfRegistrationRepository {
                 it[deviceId] = dto.deviceId
                 it[syncStatus] = "SYNCED"
                 it[syncedAt] = serverSyncedAt
+                it[submittedByUserId] = submittedBy
+                it[siteId] = submitterSiteId
             }
 
         } else {
@@ -93,6 +98,8 @@ class CalfRegistrationRepository {
                 it[recordguid] = dto.recordguid
                 it[syncStatus] = "SYNCED"
                 it[syncedAt] = serverSyncedAt
+                it[submittedByUserId] = submittedBy
+                it[siteId] = submitterSiteId
             }
         }
 
@@ -102,18 +109,25 @@ class CalfRegistrationRepository {
         )
     }
 
-    suspend fun findAll(): List<CalfRegistrationDto> = newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
+    suspend fun findAll(scope: RecordScope = RecordScope.All): List<CalfRegistrationDto> = newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
 
         CalfRegistrationTable
             .selectAll()
+            .where { scope.predicate(CalfRegistrationTable.submittedByUserId, CalfRegistrationTable.siteId) }
             .map { it.toDto() }
     }
 
-    suspend fun findByTagNumber(tagNumber: String): CalfRegistrationDto? = newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
+    suspend fun findByTagNumber(
+        tagNumber: String,
+        scope: RecordScope = RecordScope.All
+    ): CalfRegistrationDto? = newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
 
         CalfRegistrationTable
             .selectAll()
-            .where { CalfRegistrationTable.tagNumber eq tagNumber }
+            .where {
+                (CalfRegistrationTable.tagNumber eq tagNumber) and
+                    scope.predicate(CalfRegistrationTable.submittedByUserId, CalfRegistrationTable.siteId)
+            }
             .map { it.toDto() }
             .singleOrNull()
     }
