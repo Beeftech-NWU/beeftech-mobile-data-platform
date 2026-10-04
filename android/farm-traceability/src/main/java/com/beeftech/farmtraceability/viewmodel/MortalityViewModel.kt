@@ -2,7 +2,7 @@ package com.beeftech.farmtraceability.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.beeftech.database.dao.MortalityDao
+import com.beeftech.farmtraceability.data.MortalityRepository
 import com.beeftech.database.entity.Mortality
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class MortalityViewModel(
-    private val mortalityDao: MortalityDao
+    private val repository: MortalityRepository
 ) : ViewModel() {
 
     private val _mortalities =
@@ -33,7 +33,7 @@ class MortalityViewModel(
             try {
 
                 _mortalities.value =
-                    mortalityDao.getByAnimalId(
+                    repository.loadMortalities(
                         animalId
                     )
 
@@ -86,30 +86,29 @@ class MortalityViewModel(
 
             try {
 
-                val mortality =
-                    Mortality(
+                val outcome =
+                    repository.saveMortality(
                         animalId = animalId,
-                        causeOfDeath =
-                            mortalityReason.trim(),
-                        responsibleWorker =
-                            responsibleWorker.trim(),
-                        notes = null,
-                        timestamp =
-                            System.currentTimeMillis()
+                        causeOfDeath = mortalityReason,
+                        responsibleWorker = responsibleWorker
                     )
 
-                mortalityDao.insert(
-                    mortality
-                )
-
                 _mortalities.value =
-                    mortalityDao.getByAnimalId(
+                    repository.loadMortalities(
                         animalId
                     )
 
+                /*
+                 * The record is saved either way; a sync problem only
+                 * means it is waiting for a connection.
+                 */
                 onResult(
                     true,
-                    "Mortality record saved successfully."
+                    if (outcome.syncErrorMessage == null) {
+                        "Mortality record saved successfully."
+                    } else {
+                        "Mortality record saved. It will sync when a connection is available."
+                    }
                 )
 
             } catch (exception: Exception) {
@@ -119,6 +118,27 @@ class MortalityViewModel(
                     "Unable to save mortality record."
                 )
             }
+        }
+    }
+
+    fun retrySync(
+        onResult: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+
+        viewModelScope.launch {
+
+            val outcome = repository.syncPending()
+
+            val failed = outcome.errorMessagesByRecordGuid.isNotEmpty()
+
+            onResult(
+                !failed,
+                when {
+                    failed -> "Mortality sync failed. We'll try again later."
+                    outcome.syncedCount > 0 -> "Mortality records synced successfully."
+                    else -> "No mortality records to sync."
+                }
+            )
         }
     }
 }
