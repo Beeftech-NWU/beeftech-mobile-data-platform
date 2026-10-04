@@ -130,6 +130,10 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     inserts a duplicate reading. The app does not post Feed Crib at all yet (`:android:feed-crib` is
     UI only, in memory), so nothing is duplicated today. Add a `recordguid` and an upsert when the
     device gets a Feed Crib sync worker.
+    **Out of scope for now (decided 2026-10-04):** the Feed Crib screens are in-memory (mock sessions, a readings
+    list, and a Save button that only shows a toast), so there is nothing on the device to sync. Leave Feed Crib
+    sync until the Feed Crib team has implemented the feature properly; then do the GUID, upsert, Room table,
+    worker and Day-7 wipe entry together.
 34. **RESOLVED (cost sync, PR #79): costs now sync.** Backend
     `animal_costs` table and `POST /api/costs/sync`, scoped `GET /api/costs` and `/{animalId}`; Android
     `CostApiClient`, `CostRepository`, `CostSyncWorker`, Room v35 (`animal_costs.sync_status`, `synced_at`,
