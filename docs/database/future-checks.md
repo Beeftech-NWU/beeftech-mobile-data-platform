@@ -130,7 +130,7 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     inserts a duplicate reading. The app does not post Feed Crib at all yet (`:android:feed-crib` is
     UI only, in memory), so nothing is duplicated today. Add a `recordguid` and an upsert when the
     device gets a Feed Crib sync worker.
-34. **RESOLVED (cost sync, PR number to be filled in when the PR is opened): costs now sync.** Backend
+34. **RESOLVED (cost sync, PR #79): costs now sync.** Backend
     `animal_costs` table and `POST /api/costs/sync`, scoped `GET /api/costs` and `/{animalId}`; Android
     `CostApiClient`, `CostRepository`, `CostSyncWorker`, Room v35 (`animal_costs.sync_status`, `synced_at`,
     `MIGRATION_34_35`), and `ANIMAL_COST` in the Day-7 wipe. Original note: **Costs still have no sync path;
