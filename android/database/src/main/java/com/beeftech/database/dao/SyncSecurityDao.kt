@@ -34,6 +34,41 @@ abstract class SyncSecurityDao {
             List<SyncSecurityEvent>
 
 
+    /*
+     * Events the server hasn't acknowledged yet, oldest first, so a partial upload keeps its order.
+     * Only the signed-in user's: the server turns away events that name anyone else, so another
+     * user's events wait for that user's own sign-in.
+     */
+    @Query(
+        """
+        SELECT *
+        FROM sync_security_events
+        WHERE uploaded_at IS NULL
+          AND (user_id = :userId OR user_id IS NULL)
+        ORDER BY event_time ASC, id ASC
+        LIMIT :limit
+        """
+    )
+    abstract suspend fun getNotUploaded(
+        userId: String,
+        limit: Int
+    ): List<SyncSecurityEvent>
+
+    /* Only sets the flag: an event is never edited or deleted after it is recorded. */
+    @Query(
+        """
+        UPDATE sync_security_events
+        SET uploaded_at = :uploadedAt
+        WHERE id IN (:ids)
+          AND uploaded_at IS NULL
+        """
+    )
+    abstract suspend fun markUploaded(
+        ids: List<Long>,
+        uploadedAt: Long
+    ): Int
+
+
     // ========================================================
     // Persistent Day-7 lock
     // ========================================================

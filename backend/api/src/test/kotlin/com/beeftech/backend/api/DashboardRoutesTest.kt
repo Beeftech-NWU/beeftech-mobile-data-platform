@@ -22,6 +22,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import java.nio.file.Files
@@ -221,14 +222,57 @@ class DashboardRoutesTest {
         val client = createClient { }
         val manager = client.login("fmanager", "20002")
         val admin = client.login("admin", "10001")
+        client.get("/health")
+        transaction(DatabaseFactory.getDatabase()) {
+            SitesTable.insert {
+                it[siteId] = "empty-site"
+                it[name] = "Empty"
+                it[createdAt] = 0L
+            }
+        }
 
         assertEquals(HttpStatusCode.Forbidden, client.summary(manager, "?siteId=other-site").first)
         assertEquals(HttpStatusCode.OK, client.summary(manager, "?siteId=dev-site-1").first)
 
-        val empty = client.summary(admin, "?siteId=no-such-site").second!!
+        val empty = client.summary(admin, "?siteId=empty-site").second!!
         assertEquals(0.0, empty.count("calves", "total"))
         assertEquals(0.0, empty.count("treatments", "totalCost"))
         assertEquals(0.0, empty.count("team", "activeWorkers"))
+    }
+
+    @Test
+    fun `an admin asking for an unknown site gets a 400 and the summary names its site`() = testApplication {
+        startApp()
+        val client = createClient { }
+        val manager = client.login("fmanager", "20002")
+        val admin = client.login("admin", "10001")
+
+        assertEquals(HttpStatusCode.BadRequest, client.summary(admin, "?siteId=no-such-site").first)
+
+        assertEquals("Dev Feedlot", client.summary(admin, "?siteId=dev-site-1").second!!["siteName"]!!.jsonPrimitive.content)
+        assertEquals("Dev Feedlot", client.summary(manager).second!!["siteName"]!!.jsonPrimitive.content)
+        /* All sites has no single name. */
+        assertEquals(null, client.summary(admin).second!!["siteName"]?.takeIf { it !is kotlinx.serialization.json.JsonNull })
+    }
+
+    @Test
+    fun `a manager moved to another site or deactivated loses the old view straight away`() = testApplication {
+        startApp()
+        val client = createClient { }
+        client.seedOtherSiteWorker()
+        val manager = client.login("fmanager", "20002")
+        val managerId = transaction(DatabaseFactory.getDatabase()) {
+            com.beeftech.backend.api.auth.UsersTable.selectAll()
+                .single { it[com.beeftech.backend.api.auth.UsersTable.username] == "fmanager" }[com.beeftech.backend.api.auth.UsersTable.userId]
+        }
+        assertEquals("dev-site-1", client.summary(manager).second!!["siteId"]!!.jsonPrimitive.content)
+
+        /* The token still says dev-site-1; the database now says other-site. */
+        UserRepository().updateSite(managerId, "other-site")
+        assertEquals("other-site", client.summary(manager).second!!["siteId"]!!.jsonPrimitive.content)
+
+        UserRepository().updateAccount(managerId, 2, "other-site", false)
+        assertEquals(HttpStatusCode.Unauthorized, client.summary(manager).first)
     }
 
     @Test

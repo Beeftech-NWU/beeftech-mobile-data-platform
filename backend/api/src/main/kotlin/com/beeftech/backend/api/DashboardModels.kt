@@ -46,6 +46,8 @@ data class DashboardAlert(
 @Serializable
 data class DashboardSummary(
     val siteId: String? = null,
+    /* The site's name when the summary is for one site; null for all sites. */
+    val siteName: String? = null,
     val generatedAt: Long,
     val calves: RecordCount,
     val treatments: TreatmentCount,

@@ -1,7 +1,10 @@
 package com.beeftech.farmtraceability.data
 
 import android.os.Build
+import com.beeftech.database.dao.ReferenceDataDao
 import com.beeftech.database.dao.TreatmentDao
+import com.beeftech.database.entity.DeviceConfigEntry
+import com.beeftech.database.entity.ReferenceItem
 import com.beeftech.database.entity.Treatment
 import com.beeftech.database.entity.PendingSync
 import com.beeftech.database.repository.PendingSyncRepository
@@ -10,13 +13,44 @@ import java.util.UUID
 class TreatmentRepository(
     private val treatmentDao: TreatmentDao,
     private val pendingSyncRepository: PendingSyncRepository,
-    private val apiClient: TreatmentApiClient
+    private val apiClient: TreatmentApiClient,
+    /* The reference data pulled from the server. Null where no cache is wanted (the sync worker). */
+    private val referenceDataDao: ReferenceDataDao? = null
 ) {
 
+    /*
+     * The disease and treatment-type pickers.
+     *
+     * The cache is read first, so the lists work offline and show what an admin has switched on
+     * or off. Until a first pull has filled it, the live request is used as before.
+     */
     suspend fun loadReferenceData():
             Result<TreatmentReferenceDataDto> {
 
+        readCachedReferenceData()?.let { return Result.success(it) }
+
         return apiClient.getReferenceData()
+    }
+
+    private suspend fun readCachedReferenceData(): TreatmentReferenceDataDto? {
+
+        val dao = referenceDataDao ?: return null
+
+        return try {
+
+            /* A stored version means a pull has completed, even if an admin switched every value off. */
+            if (dao.getConfig(DeviceConfigEntry.REFERENCE_DATA_VERSION) == null) {
+                return null
+            }
+
+            TreatmentReferenceDataDto(
+                diseases = dao.getActive(ReferenceItem.KIND_DISEASES).map { it.displayName },
+                treatmentTypes = dao.getActive(ReferenceItem.KIND_TREATMENT_TYPES).map { it.displayName }
+            )
+
+        } catch (_: Exception) {
+            null
+        }
     }
 
     suspend fun loadTreatments(

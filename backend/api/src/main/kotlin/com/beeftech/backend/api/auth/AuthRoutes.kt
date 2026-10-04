@@ -20,7 +20,9 @@ fun Route.authRoutes(
         val result = authService.login(
             request.username,
             request.pin,
-            request.deviceId
+            request.deviceId,
+            request.deviceModel,
+            request.appVersion
         )
 
         when (result) {
@@ -61,6 +63,17 @@ fun Route.authRoutes(
                         data = mapOf(
                             "remainingSeconds" to result.remainingSeconds
                         )
+                    )
+                )
+            }
+
+            is LoginResult.DeviceRevoked -> {
+
+                call.respond(
+                    HttpStatusCode.Forbidden,
+                    ApiResponse<String>(
+                        success = false,
+                        message = "This device has been revoked"
                     )
                 )
             }

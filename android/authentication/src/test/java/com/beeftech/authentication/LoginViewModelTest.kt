@@ -118,6 +118,25 @@ class LoginViewModelTest {
     }
 
     @Test
+    fun `revoked phone and revoked access outcomes map to clear messages`() = runTest {
+        `when`(authRepository.login("jvdm", "30003")).thenReturn(LoginOutcome.DeviceRevoked)
+        viewModel.login("jvdm", "30003")
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(
+            "This phone has been blocked. Contact your administrator.",
+            (viewModel.uiState.value as LoginUiState.Error).message
+        )
+
+        `when`(authRepository.login("jvdm", "30003")).thenReturn(LoginOutcome.AccessRevoked)
+        viewModel.login("jvdm", "30003")
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(
+            "Your access was ended. Connect to the internet and sign in again.",
+            (viewModel.uiState.value as LoginUiState.Error).message
+        )
+    }
+
+    @Test
     fun `needs first online login outcome maps to setup message`() = runTest {
         `when`(authRepository.login("new_user", "10001")).thenReturn(LoginOutcome.NeedsFirstOnlineLogin)
 

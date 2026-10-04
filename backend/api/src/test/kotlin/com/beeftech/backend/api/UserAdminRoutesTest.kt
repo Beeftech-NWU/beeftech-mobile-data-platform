@@ -273,8 +273,8 @@ class UserAdminRoutesTest {
         assertEquals("2", dataOf(promoted.bodyAsText()).jsonObject["role"]!!.jsonPrimitive.content)
 
         client.send("PATCH", "/api/users/$managerId", admin, """{"active":false}""")
-        /* The manager's token is still valid for 24 h, but the DB check rejects it. */
-        assertEquals(HttpStatusCode.Forbidden, client.send("GET", "/api/users", manager).status)
+        /* The manager's token would last 24 h, but deactivating ended their session at once. */
+        assertEquals(HttpStatusCode.Unauthorized, client.send("GET", "/api/users", manager).status)
     }
 
     @Test

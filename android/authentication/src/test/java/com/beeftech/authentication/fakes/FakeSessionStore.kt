@@ -24,11 +24,21 @@ class FakeSessionStore :
         null
 
 
+    /* Set by a test to simulate the server having revoked this user's access. */
+    var revokedUser: String? = null
+
+    override fun revokedUserId(): String? =
+        revokedUser
+
     override fun save(
         token: String,
         expiresAt: Long,
         user: LoggedInUser
     ) {
+
+        if (revokedUser == user.userId) {
+            revokedUser = null
+        }
 
         cachedToken =
             token

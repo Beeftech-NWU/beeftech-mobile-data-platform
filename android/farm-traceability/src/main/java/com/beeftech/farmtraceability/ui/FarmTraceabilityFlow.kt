@@ -16,6 +16,7 @@ import com.beeftech.database.entity.AnimalMovementEntity
 import com.beeftech.database.entity.AnimalPurchaseEntity
 import com.beeftech.database.entity.Mortality
 import com.beeftech.database.entity.Treatment
+import com.beeftech.database.repository.SyncPolicyStore
 import com.beeftech.database.repository.SyncRepository
 import com.beeftech.farmtraceability.repository.FindAnimalRepository
 import com.beeftech.farmtraceability.viewmodel.FindAnimalUiState
@@ -325,7 +326,10 @@ fun FarmTraceabilityFlow(
                 val syncFactory =
                     remember(syncRepository) {
                         SyncStatusViewModelFactory(
-                            syncRepository
+                            syncRepository,
+                            policyProvider = {
+                                SyncPolicyStore(database.referenceDataDao()).current()
+                            }
                         )
                     }
 

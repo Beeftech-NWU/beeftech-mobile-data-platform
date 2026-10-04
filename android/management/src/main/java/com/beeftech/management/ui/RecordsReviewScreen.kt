@@ -115,10 +115,7 @@ fun RecordsReviewScreen(
         }
 
         if (state.needsConnection) {
-            Text(
-                "Records review needs a connection. Check your signal and tap Refresh.",
-                color = MaterialTheme.colorScheme.error
-            )
+            NeedsConnectionNotice("Records review")
         }
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary) }

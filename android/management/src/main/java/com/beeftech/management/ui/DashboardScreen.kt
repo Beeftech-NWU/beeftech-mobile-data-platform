@@ -1,5 +1,6 @@
 package com.beeftech.management.ui
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -32,11 +34,12 @@ import java.util.Locale
 fun DashboardTab(
     apiClient: ManagementApiClient,
     currentUserId: String,
+    isAdmin: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val viewModel: DashboardViewModel = viewModel(
         key = "dashboard-$currentUserId",
-        factory = DashboardViewModelFactory(apiClient)
+        factory = DashboardViewModelFactory(apiClient, canSwitchSite = isAdmin)
     )
 
     DashboardScreen(viewModel = viewModel, modifier = modifier)
@@ -63,15 +66,35 @@ fun DashboardScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Dashboard", style = MaterialTheme.typography.titleLarge)
+            Text(
+                state.summary?.siteName?.let { "Dashboard · $it" } ?: "Dashboard",
+                style = MaterialTheme.typography.titleLarge
+            )
             TextButton(onClick = viewModel::refresh) { Text("Refresh") }
         }
 
+        if (state.sites.isNotEmpty()) {
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = state.selectedSiteId == null,
+                    onClick = { viewModel.selectSite(null) },
+                    label = { Text("All sites") }
+                )
+                state.sites.forEach { site ->
+                    FilterChip(
+                        selected = state.selectedSiteId == site.siteId,
+                        onClick = { viewModel.selectSite(site.siteId) },
+                        label = { Text(site.name) }
+                    )
+                }
+            }
+        }
+
         if (state.needsConnection) {
-            Text(
-                "The dashboard needs a connection. Check your signal and tap Refresh.",
-                color = MaterialTheme.colorScheme.error
-            )
+            NeedsConnectionNotice("The dashboard")
         }
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
