@@ -14,6 +14,7 @@ import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
+import io.ktor.client.statement.readRawBytes
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
@@ -46,6 +47,69 @@ class ManagementApiClient(
                 if (siteId != null) parameter("siteId", siteId)
             }
         }
+
+    /* A manager always gets their own site; an admin may pass siteId. bucket only matters for calf registrations. */
+    suspend fun report(
+        kind: ReportKind,
+        from: Long,
+        to: Long,
+        siteId: String? = null,
+        bucket: String? = null
+    ): ManagementResult<ReportData> =
+        call(
+            decode = {
+                JSON.decodeFromString<Envelope<ReportData>>(it).data
+                    ?: error("Missing report in response")
+            }
+        ) { token ->
+            httpClient.get("${baseUrl}api/reports/${kind.path}") {
+                bearerAuth(token)
+                reportParameters(from, to, siteId, bucket)
+            }
+        }
+
+    /* The CSV or PDF as bytes. The name is built here so it doesn't depend on a header. */
+    suspend fun reportFile(
+        kind: ReportKind,
+        format: ReportFormat,
+        from: Long,
+        to: Long,
+        siteId: String? = null,
+        bucket: String? = null
+    ): ManagementResult<ReportFile> =
+        call(
+            decode = { error("unused") },
+            readSuccess = { response ->
+                ReportFile(
+                    name = "beeftech-${kind.path}-${fileDate(to)}.${format.extension}",
+                    mimeType = format.mimeType,
+                    bytes = response.readRawBytes()
+                )
+            }
+        ) { token ->
+            httpClient.get("${baseUrl}api/reports/${kind.path}") {
+                bearerAuth(token)
+                reportParameters(from, to, siteId, bucket)
+                parameter("format", format.query)
+            }
+        }
+
+    private fun io.ktor.client.request.HttpRequestBuilder.reportParameters(
+        from: Long,
+        to: Long,
+        siteId: String?,
+        bucket: String?
+    ) {
+        parameter("from", from)
+        parameter("to", to)
+        if (siteId != null) parameter("siteId", siteId)
+        if (bucket != null) parameter("bucket", bucket)
+    }
+
+    private fun fileDate(epochMs: Long): String =
+        java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT)
+            .apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
+            .format(java.util.Date(epochMs))
 
     suspend fun listUsers(siteId: String? = null): ManagementResult<List<TeamMember>> =
         call(
@@ -360,14 +424,19 @@ class ManagementApiClient(
         JSON.decodeFromString<Envelope<TeamMember>>(body).data
             ?: error("Missing user in response")
 
+    /* readSuccess replaces the text decode for a binary body, which must not go through bodyAsText. */
     private suspend fun <T> call(
         decode: (String) -> T,
+        readSuccess: (suspend (HttpResponse) -> T)? = null,
         request: suspend (token: String) -> HttpResponse
     ): ManagementResult<T> {
         val token = tokenProvider.token() ?: return ManagementResult.Unauthorized
 
         return try {
             val response = request(token)
+            if (readSuccess != null && response.status == HttpStatusCode.OK) {
+                return ManagementResult.Success(readSuccess(response))
+            }
             val body = response.bodyAsText()
 
             when (response.status) {

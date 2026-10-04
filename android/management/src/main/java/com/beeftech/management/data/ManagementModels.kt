@@ -434,3 +434,45 @@ val SECURITY_EVENT_TYPES = listOf(
 
 fun securityEventLabel(type: String): String =
     SECURITY_EVENT_TYPES.firstOrNull { it.first == type }?.second ?: type
+
+@Serializable
+data class ReportFigure(
+    val label: String = "",
+    val value: String = ""
+)
+
+/* Every report has the same shape: headline figures plus a table. */
+@Serializable
+data class ReportData(
+    val report: String = "",
+    val title: String = "",
+    val siteId: String? = null,
+    val siteName: String? = null,
+    val from: Long = 0,
+    val to: Long = 0,
+    val generatedAt: Long = 0,
+    val summary: List<ReportFigure> = emptyList(),
+    val columns: List<String> = emptyList(),
+    val rows: List<List<String>> = emptyList(),
+    val footer: String? = null
+)
+
+enum class ReportKind(val path: String, val label: String) {
+    MORTALITY("mortality", "Mortality"),
+    TREATMENT_COST("treatment-cost", "Treatment cost"),
+    COST_PER_ANIMAL("cost-per-animal", "Cost per animal"),
+    CALF_REGISTRATIONS("calf-registrations", "Calf registrations"),
+    WORKER_PRODUCTIVITY("worker-productivity", "Worker productivity")
+}
+
+enum class ReportFormat(val query: String, val extension: String, val mimeType: String) {
+    CSV("csv", "csv", "text/csv"),
+    PDF("pdf", "pdf", "application/pdf")
+}
+
+/* An exported report, ready to write to a file and share. */
+class ReportFile(
+    val name: String,
+    val mimeType: String,
+    val bytes: ByteArray
+)

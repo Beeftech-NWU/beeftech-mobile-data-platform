@@ -58,6 +58,7 @@ import com.beeftech.database.security.TokenProviderRegistry
 import com.beeftech.management.data.ManagementApiClient
 import com.beeftech.management.ui.AdminTab
 import com.beeftech.management.ui.DashboardTab
+import com.beeftech.management.ui.ReportsTab
 import com.beeftech.management.ui.RecordsReviewTab
 import com.beeftech.management.ui.MyActivityScreen
 import com.beeftech.management.ui.TeamTab
@@ -719,6 +720,17 @@ class MainActivity : ComponentActivity() {
                                     } else if (currentTab == AppTab.DASHBOARD) {
 
                                         DashboardTab(
+                                            apiClient =
+                                                managementApiClient,
+                                            currentUserId =
+                                                loggedInUser.userId,
+                                            isAdmin =
+                                                loggedInUser.roleEnum == Role.ADMIN
+                                        )
+
+                                    } else if (currentTab == AppTab.REPORTS) {
+
+                                        ReportsTab(
                                             apiClient =
                                                 managementApiClient,
                                             currentUserId =
