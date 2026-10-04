@@ -80,6 +80,11 @@ object AnimalMovementTable :
         )
             .nullable()
 
+    /* A voided record is kept but hidden from lists and counts. See VoidRepository. */
+    val voidedAt = long("voided_at").nullable()
+    val voidedByUserId = varchar("voided_by_user_id", 64).nullable()
+    val voidReason = text("void_reason").nullable()
+
     override val primaryKey =
         PrimaryKey(id)
 }

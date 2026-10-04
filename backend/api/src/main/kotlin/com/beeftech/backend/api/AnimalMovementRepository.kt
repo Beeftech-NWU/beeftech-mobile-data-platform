@@ -129,7 +129,7 @@ class AnimalMovementRepository {
         newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
             AnimalMovementTable
                 .selectAll()
-                .where { scope.predicate(AnimalMovementTable.submittedByUserId, AnimalMovementTable.siteId) }
+                .where { scope.predicate(AnimalMovementTable.submittedByUserId, AnimalMovementTable.siteId, AnimalMovementTable.voidedAt) }
                 .orderBy(AnimalMovementTable.timestamp, SortOrder.DESC)
                 .map { it.toDto() }
         }
@@ -140,7 +140,7 @@ class AnimalMovementRepository {
                 .selectAll()
                 .where {
                     (AnimalMovementTable.animalId eq animalId) and
-                        scope.predicate(AnimalMovementTable.submittedByUserId, AnimalMovementTable.siteId)
+                        scope.predicate(AnimalMovementTable.submittedByUserId, AnimalMovementTable.siteId, AnimalMovementTable.voidedAt)
                 }
                 .orderBy(AnimalMovementTable.timestamp, SortOrder.DESC)
                 .map { it.toDto() }

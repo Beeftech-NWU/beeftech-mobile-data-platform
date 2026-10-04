@@ -39,6 +39,7 @@ object DatabaseFactory {
         FarmerSchemaMigration.run(database)
         UsersSchemaMigration.run(database)
         RecordScopeSchemaMigration.run(database)
+        RecordVoidSchemaMigration.run(database)
 
         transaction(database) {
 
@@ -55,7 +56,8 @@ object DatabaseFactory {
                 SitesTable,
                 FeedCribTable,
                 MortalityTable,
-                CostTable
+                CostTable,
+                AuditLogTable
             )
         }
 

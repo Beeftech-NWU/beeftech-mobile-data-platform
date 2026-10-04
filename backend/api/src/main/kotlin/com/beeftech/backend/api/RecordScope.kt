@@ -5,6 +5,8 @@ import com.beeftech.backend.api.auth.Role
 import org.jetbrains.exposed.sql.Column
 import org.jetbrains.exposed.sql.Op
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.isNull
+import org.jetbrains.exposed.sql.and
 
 /**
  * Which synced records a caller may read: worker = their own, manager = their
@@ -28,13 +30,23 @@ fun AuthPrincipal.recordScope(): RecordScope =
         else -> RecordScope.User(userId)
     }
 
+/*
+ * Pass the table's voided_at column to hide voided records, which is what every
+ * list, single-record read and dashboard count does.
+ */
 fun RecordScope.predicate(
     submittedByUserId: Column<String?>,
-    siteId: Column<String?>
-): Op<Boolean> =
-    when (this) {
-        RecordScope.All -> Op.TRUE
-        is RecordScope.Site ->
-            if (this.siteId == null) Op.FALSE else siteId eq this.siteId
-        is RecordScope.User -> submittedByUserId eq userId
-    }
+    siteId: Column<String?>,
+    voidedAt: Column<Long?>? = null
+): Op<Boolean> {
+
+    val inScope: Op<Boolean> =
+        when (this) {
+            RecordScope.All -> Op.TRUE
+            is RecordScope.Site ->
+                if (this.siteId == null) Op.FALSE else siteId eq this.siteId
+            is RecordScope.User -> submittedByUserId eq userId
+        }
+
+    return if (voidedAt == null) inScope else inScope and voidedAt.isNull()
+}
