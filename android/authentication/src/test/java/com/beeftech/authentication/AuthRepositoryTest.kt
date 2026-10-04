@@ -6,6 +6,7 @@ import com.beeftech.authentication.data.LoginOutcome
 import com.beeftech.authentication.fakes.FakeDeviceIdProvider
 import com.beeftech.authentication.fakes.FakeSessionStore
 import com.beeftech.authentication.fakes.FakeUserDao
+import com.beeftech.database.dao.PendingSyncDao
 import com.beeftech.database.entity.User
 import com.beeftech.database.security.PinLockoutManager
 import io.ktor.client.HttpClient
@@ -26,6 +27,7 @@ import org.junit.Before
 import org.junit.Test
 import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.mockingDetails
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 import org.mindrot.jbcrypt.BCrypt
@@ -55,6 +57,89 @@ class AuthRepositoryTest {
             }
         }
         return AuthApiClient("http://localhost/", client)
+    }
+
+    private fun loginResponseEngine(userId: String, pinHash: String) = MockEngine {
+        respond(
+            content = """
+                {
+                    "success": true,
+                    "message": "Login successful",
+                    "data": {
+                        "token": "test-jwt-token",
+                        "expires_at": "2026-12-31T23:59:59Z",
+                        "user": {
+                            "user_id": "$userId",
+                            "username": "jvdm",
+                            "role": 3,
+                            "pin_hash": "$pinHash",
+                            "device_assigned_id": "DEV_123"
+                        }
+                    }
+                }
+            """.trimIndent(),
+            status = HttpStatusCode.OK,
+            headers = headersOf(HttpHeaders.ContentType, "application/json")
+        )
+    }
+
+    /* Mockito can't match the continuation of a suspend call, so inspect the recorded calls. */
+    private fun PendingSyncDao.reassignCalls() =
+        mockingDetails(this).invocations
+            .filter { it.method.name == "reassignUserOperations" }
+            .map { it.arguments[0] as String to it.arguments[1] as String }
+
+    @Test
+    fun `online login with a changed server user id moves the queue to the new id`() = runTest {
+        val pendingSyncDao = mock(PendingSyncDao::class.java)
+        userDao.insertUser(User(userId = "old-id", username = "jvdm", pinHash = "x"))
+
+        val repository = AuthRepository(
+            apiClient = createApiClient(loginResponseEngine("new-id", BCrypt.hashpw("30003", BCrypt.gensalt(10)))),
+            sessionStore = sessionStore,
+            userDao = userDao,
+            lockoutManager = lockoutManager,
+            deviceIdProvider = deviceIdProvider,
+            pendingSyncDao = pendingSyncDao
+        )
+
+        assertTrue(repository.login("jvdm", "30003") is LoginOutcome.Success)
+        assertEquals(listOf("old-id" to "new-id"), pendingSyncDao.reassignCalls())
+    }
+
+    @Test
+    fun `online login with the same user id moves nothing`() = runTest {
+        val pendingSyncDao = mock(PendingSyncDao::class.java)
+        userDao.insertUser(User(userId = "u1", username = "jvdm", pinHash = "x"))
+
+        val repository = AuthRepository(
+            apiClient = createApiClient(loginResponseEngine("u1", BCrypt.hashpw("30003", BCrypt.gensalt(10)))),
+            sessionStore = sessionStore,
+            userDao = userDao,
+            lockoutManager = lockoutManager,
+            deviceIdProvider = deviceIdProvider,
+            pendingSyncDao = pendingSyncDao
+        )
+
+        assertTrue(repository.login("jvdm", "30003") is LoginOutcome.Success)
+        assertTrue(pendingSyncDao.reassignCalls().isEmpty())
+    }
+
+    @Test
+    fun `first online login with no cached user moves nothing`() = runTest {
+        val pendingSyncDao = mock(PendingSyncDao::class.java)
+
+        val repository = AuthRepository(
+            apiClient = createApiClient(loginResponseEngine("u1", BCrypt.hashpw("30003", BCrypt.gensalt(10)))),
+            sessionStore = sessionStore,
+            userDao = userDao,
+            lockoutManager = lockoutManager,
+            deviceIdProvider = deviceIdProvider,
+            pendingSyncDao = pendingSyncDao
+        )
+
+        assertTrue(repository.login("jvdm", "30003") is LoginOutcome.Success)
+        assertTrue(pendingSyncDao.reassignCalls().isEmpty())
     }
 
     @Test
