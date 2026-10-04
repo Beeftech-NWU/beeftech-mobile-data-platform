@@ -15,6 +15,7 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -105,11 +106,10 @@ class ReferenceDataViewModelTest {
         vm.refresh()
         vm.await { it.entries.isNotEmpty() }
 
-        var added = false
-        vm.add("  Pinkeye ") { added = true }
-        vm.await { it.version == 4L }
+        val added = CompletableDeferred<Unit>()
+        vm.add("  Pinkeye ") { added.complete(Unit) }
+        added.awaitFired()
 
-        assertTrue(added)
         assertEquals("""{"name":"Pinkeye"}""", body)
         assertEquals(listOf("Anthrax", "Pinkeye", "Rabies"), vm.uiState.value.visibleEntries.map { it.name })
         assertEquals("Added Pinkeye", vm.uiState.value.notice)

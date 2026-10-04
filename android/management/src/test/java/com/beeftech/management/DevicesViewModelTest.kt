@@ -15,6 +15,7 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -106,11 +107,10 @@ class DevicesViewModelTest {
         vm.refresh()
         vm.await { it.devices.isNotEmpty() }
 
-        var done = false
-        vm.block(vm.uiState.value.devices.single(), "  Stolen  ") { done = true }
-        vm.await { it.devices.single().isRevoked }
+        val done = CompletableDeferred<Unit>()
+        vm.block(vm.uiState.value.devices.single(), "  Stolen  ") { done.complete(Unit) }
+        done.awaitFired()
 
-        assertTrue(done)
         assertEquals("""{"reason":"Stolen"}""", body)
         assertEquals("Stolen", vm.uiState.value.devices.single().revokeReason)
         assertEquals("Blocked Pixel", vm.uiState.value.notice)

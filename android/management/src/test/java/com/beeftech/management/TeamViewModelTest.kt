@@ -14,6 +14,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -160,10 +161,9 @@ class TeamViewModelTest {
         vm.refresh()
         vm.await { it.members.isNotEmpty() }
 
-        var created = false
-        vm.createWorker("amy", "12345") { created = true }
-        vm.await { it.notice != null }
-        assertTrue(created)
+        val created = CompletableDeferred<Unit>()
+        vm.createWorker("amy", "12345") { created.complete(Unit) }
+        created.awaitFired()
         assertEquals(listOf("amy", "zed"), vm.uiState.value.members.map { it.username })
 
         reject = true

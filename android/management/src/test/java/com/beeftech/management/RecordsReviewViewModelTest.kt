@@ -153,9 +153,11 @@ class RecordsReviewViewModelTest {
     }
 
     @Test
-    fun `a rejected void shows the server's message`() = runTest {
+    fun `a rejected void shows the server's message and reloads the list without clearing it`() = runTest {
+        val lists = java.util.concurrent.atomic.AtomicInteger()
         val vm = viewModel { method, _, _ ->
             if (method == HttpMethod.Get) {
+                lists.incrementAndGet()
                 list(record("g-1", "x"))
             } else {
                 HttpStatusCode.Conflict to """{"success":false,"message":"Record is already voided"}"""
@@ -165,8 +167,18 @@ class RecordsReviewViewModelTest {
         vm.await { it.records.isNotEmpty() }
 
         vm.voidRecord(vm.uiState.value.records.single(), "dup")
-        vm.await { it.error != null }
 
+        /*
+         * The rejection reloads the list (the second GET). loading goes true before that request is
+         * sent, so "second GET seen and not loading" means the reload has been applied.
+         */
+        withContext(Dispatchers.Default) {
+            withTimeout(5_000) {
+                while (lists.get() < 2 || vm.uiState.value.loading) kotlinx.coroutines.delay(10)
+            }
+        }
+
+        assertEquals(2, lists.get())
         assertEquals("Record is already voided", vm.uiState.value.error)
     }
 
