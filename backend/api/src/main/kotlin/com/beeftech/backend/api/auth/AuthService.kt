@@ -5,39 +5,58 @@ import java.time.format.DateTimeFormatter
 
 class AuthService(
     private val userRepository: UserRepository,
-    private val jwtService: JwtService
+    private val jwtService: JwtService,
+    private val loginSecurity: LoginSecurityRepository = LoginSecurityRepository(),
+    private val deviceRepository: DeviceRepository = DeviceRepository(),
+    private val now: () -> Long = System::currentTimeMillis
 ) {
 
     suspend fun login(
         username: String,
         pin: String,
-        deviceId: String
+        deviceId: String,
+        deviceModel: String? = null,
+        appVersion: String? = null
     ): LoginResult {
 
-        val currentState = loginAttempts[username]
-        val now = System.currentTimeMillis()
+        val time = now()
 
-        if (currentState?.lockedUntil != null && currentState.lockedUntil > now) {
-            val remainingSeconds = (currentState.lockedUntil - now) / 1000
-            return LoginResult.Locked(remainingSeconds)
-        }
-
+        /* Looked up first so every outcome, even a bad one, can name the user and site. */
         val user = userRepository.findByUsername(username)
 
+        suspend fun event(outcome: String) =
+            loginSecurity.recordEvent(username, user?.userId, deviceId, outcome, user?.siteId, appVersion, time)
+
+        val currentState = loginSecurity.state(username)
+
+        if (currentState?.lockedUntil != null && currentState.lockedUntil > time) {
+            event(LoginOutcome.LOCKED)
+            return LoginResult.Locked((currentState.lockedUntil - time) / 1000)
+        }
+
         if (user == null) {
-            return recordFailedAttempt(username, now)
+            event(LoginOutcome.UNKNOWN_USER)
+            return recordFailedAttempt(username, time)
         }
 
         if (!PinHasher.verify(pin, user.pinHash)) {
-            return recordFailedAttempt(username, now)
+            event(LoginOutcome.BAD_CREDENTIALS)
+            return recordFailedAttempt(username, time)
         }
 
         /* After the PIN check, so a wrong PIN can't be used to probe which accounts are deactivated. */
         if (!user.active) {
+            event(LoginOutcome.INACTIVE)
             return LoginResult.Failure("This account has been deactivated")
         }
 
+        if (deviceRepository.isRevoked(deviceId)) {
+            event(LoginOutcome.DEVICE_REVOKED)
+            return LoginResult.DeviceRevoked
+        }
+
         if (user.deviceAssignedId != null && user.deviceAssignedId != deviceId) {
+            event(LoginOutcome.WRONG_DEVICE)
             return LoginResult.WrongDevice
         }
 
@@ -46,7 +65,9 @@ class AuthService(
         }
 
         userRepository.touchLastSync(user.userId)
-        loginAttempts.remove(username)
+        loginSecurity.clear(username)
+        deviceRepository.recordLogin(deviceId, deviceModel, appVersion, user.userId, user.siteId, time)
+        event(LoginOutcome.SUCCESS)
 
         val token = jwtService.generateToken(
             username = user.username,
@@ -57,7 +78,7 @@ class AuthService(
         )
 
         val expiresAt = DateTimeFormatter.ISO_INSTANT.format(
-            Instant.ofEpochMilli(now + 24 * 60 * 60 * 1000L)
+            Instant.ofEpochMilli(time + 24 * 60 * 60 * 1000L)
         )
 
         val profile = UserProfile(
@@ -76,35 +97,19 @@ class AuthService(
         )
     }
 
-    private fun recordFailedAttempt(
+    private suspend fun recordFailedAttempt(
         username: String,
-        now: Long
+        time: Long
     ): LoginResult {
 
-        val currentState = loginAttempts[username]
-        val failedAttempts = (currentState?.failedAttempts ?: 0) + 1
+        val state = loginSecurity.recordFailure(username, time, MAX_FAILED_ATTEMPTS, LOCK_DURATION_MS)
 
-        if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
-
-            val lockedUntil = now + LOCK_DURATION_MS
-
-            loginAttempts[username] = LoginSecurityState(
-                failedAttempts,
-                lockedUntil
-            )
-
+        if (state.lockedUntil != null) {
             return LoginResult.Locked(LOCK_DURATION_MS / 1000)
         }
 
-        loginAttempts[username] = LoginSecurityState(
-            failedAttempts,
-            null
-        )
-
         return LoginResult.Failure("Incorrect username or PIN")
     }
-
-    private val loginAttempts = mutableMapOf<String, LoginSecurityState>()
 
     private companion object {
 

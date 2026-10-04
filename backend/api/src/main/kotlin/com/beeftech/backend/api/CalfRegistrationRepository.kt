@@ -113,7 +113,7 @@ class CalfRegistrationRepository {
 
         CalfRegistrationTable
             .selectAll()
-            .where { scope.predicate(CalfRegistrationTable.submittedByUserId, CalfRegistrationTable.siteId) }
+            .where { scope.predicate(CalfRegistrationTable.submittedByUserId, CalfRegistrationTable.siteId, CalfRegistrationTable.voidedAt) }
             .map { it.toDto() }
     }
 
@@ -126,7 +126,7 @@ class CalfRegistrationRepository {
             .selectAll()
             .where {
                 (CalfRegistrationTable.tagNumber eq tagNumber) and
-                    scope.predicate(CalfRegistrationTable.submittedByUserId, CalfRegistrationTable.siteId)
+                    scope.predicate(CalfRegistrationTable.submittedByUserId, CalfRegistrationTable.siteId, CalfRegistrationTable.voidedAt)
             }
             .map { it.toDto() }
             .singleOrNull()

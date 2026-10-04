@@ -11,6 +11,8 @@ import java.util.UUID
 
 // Existing Base Entities
 import com.beeftech.database.entity.Animal
+import com.beeftech.database.entity.DeviceConfigEntry
+import com.beeftech.database.entity.ReferenceItem
 import com.beeftech.database.entity.AnimalCost
 import com.beeftech.database.entity.AnimalGroupMembershipEntity
 import com.beeftech.database.entity.AnimalMovementEntity
@@ -65,6 +67,7 @@ import com.beeftech.database.entity.Device
 import com.beeftech.database.entity.IdentifierType
 
 // DAOs
+import com.beeftech.database.dao.ReferenceDataDao
 import com.beeftech.database.dao.AnimalDao
 import com.beeftech.database.dao.AnimalCostDao
 import com.beeftech.database.dao.CostTypeDao
@@ -156,7 +159,11 @@ import com.beeftech.database.dao.UserDao
         Device::class,
 
         // Phase 0 / R4 Lookup Entity
-        IdentifierType::class
+        IdentifierType::class,
+
+        // Phase 4 (Admin) reference data pulled from the server
+        ReferenceItem::class,
+        DeviceConfigEntry::class
     ],
     version = BeefTechDatabase.VERSION,
     exportSchema = true
@@ -213,6 +220,9 @@ abstract class BeefTechDatabase : RoomDatabase() {
     abstract fun deviceDao(): DeviceDao
     abstract fun identifierTypeDao(): IdentifierTypeDao
 
+    // Phase 4 (Admin) reference data and server-provided settings
+    abstract fun referenceDataDao(): ReferenceDataDao
+
 
     // =========================================================================
     // Migration Configurations
@@ -220,7 +230,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
     companion object {
 
         /** Current Room schema version. Bump here when adding a migration. */
-        const val VERSION = 35
+        const val VERSION = 38
 
         /**
          * Phase 3 Migration (Version 9 -> 10):
@@ -3251,29 +3261,22 @@ abstract class BeefTechDatabase : RoomDatabase() {
                 }
             }
 
-
         /*
-         * Version 33 -> 34
-         *
-         * Connect Supplier / Animal Purchase records with
-         * Farmer Registration.
-         *
-         * supplier_farmer_id remains nullable because external
-         * suppliers that are not registered in BeefTech are valid.
+         * v34: mortalities.sync_status and synced_at, so mortalities can sync.
+         * Existing rows were never uploaded, so they start as PENDING and the
+         * sync repository queues them. Both columns are added only if absent,
+         * so the migration is idempotent. No existing data is touched.
          */
         val MIGRATION_33_34 =
             object : Migration(33, 34) {
 
-                private fun addColumnIfMissing(
+                private fun hasColumn(
                     db: SupportSQLiteDatabase,
                     column: String
-                ) {
-
-                    var exists =
-                        false
+                ): Boolean {
 
                     db.query(
-                        "PRAGMA table_info(`animal_purchases`)"
+                        "PRAGMA table_info(`mortalities`)"
                     ).use { cursor ->
 
                         val nameIndex =
@@ -3291,6 +3294,155 @@ abstract class BeefTechDatabase : RoomDatabase() {
                                 ) == column
                             ) {
 
+                                return true
+                            }
+                        }
+                    }
+
+                    return false
+                }
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+
+                    if (!hasColumn(db, "sync_status")) {
+
+                        db.execSQL(
+                            "ALTER TABLE `mortalities` ADD COLUMN `sync_status` TEXT NOT NULL DEFAULT 'PENDING'"
+                        )
+                    }
+
+                    if (!hasColumn(db, "synced_at")) {
+
+                        db.execSQL(
+                            "ALTER TABLE `mortalities` ADD COLUMN `synced_at` INTEGER"
+                        )
+                    }
+                }
+            }
+
+        /*
+         * v35: animal_costs.sync_status and synced_at, so costs can sync.
+         * Existing rows were never uploaded, so they start as PENDING and the
+         * sync repository queues them. Both columns are added only if absent,
+         * so the migration is idempotent. No existing data is touched.
+         */
+        val MIGRATION_34_35 =
+            object : Migration(34, 35) {
+
+                private fun hasColumn(
+                    db: SupportSQLiteDatabase,
+                    column: String
+                ): Boolean {
+
+                    db.query(
+                        "PRAGMA table_info(`animal_costs`)"
+                    ).use { cursor ->
+
+                        val nameIndex =
+                            cursor.getColumnIndex(
+                                "name"
+                            )
+
+                        while (
+                            cursor.moveToNext()
+                        ) {
+
+                            if (
+                                cursor.getString(
+                                    nameIndex
+                                ) == column
+                            ) {
+
+                                return true
+                            }
+                        }
+                    }
+
+                    return false
+                }
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+
+                    if (!hasColumn(db, "sync_status")) {
+
+                        db.execSQL(
+                            "ALTER TABLE `animal_costs` ADD COLUMN `sync_status` TEXT NOT NULL DEFAULT 'PENDING'"
+                        )
+                    }
+
+                    if (!hasColumn(db, "synced_at")) {
+
+                        db.execSQL(
+                            "ALTER TABLE `animal_costs` ADD COLUMN `synced_at` INTEGER"
+                        )
+                    }
+                }
+            }
+
+        /*
+         * v36: two new tables for server-provided reference data and settings (Phase 4d):
+         * reference_items (disease and treatment-type pickers) and device_config (key/value).
+         *
+         * Both are new, so nothing existing is touched: no ALTER, no copy, no DROP. They have no
+         * foreign keys and no triggers. CREATE TABLE IF NOT EXISTS makes the migration idempotent.
+         * The SQL below is exactly what Room expects (it is the createSql in 36.json).
+         */
+        val MIGRATION_35_36 =
+            object : Migration(35, 36) {
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+
+                    db.execSQL(
+                        "CREATE TABLE IF NOT EXISTS `reference_items` (`kind` TEXT NOT NULL, `item_key` TEXT NOT NULL, `display_name` TEXT NOT NULL, `active` INTEGER NOT NULL DEFAULT 1, `sort_order` INTEGER NOT NULL DEFAULT 0, `server_id` INTEGER, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`kind`, `item_key`))"
+                    )
+
+                    db.execSQL(
+                        "CREATE TABLE IF NOT EXISTS `device_config` (`config_key` TEXT NOT NULL, `value` TEXT NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`config_key`))"
+                    )
+                }
+            }
+
+        /*
+         * v37: sync_security_events.uploaded_at, so the phone can tell the server what it recorded
+         * (Phase 4f). Nullable INTEGER, added only if absent so the migration is idempotent.
+         * Existing events start NULL, so they upload once after the next online sign-in. No data
+         * is touched, and nothing else changes.
+         */
+        val MIGRATION_36_37 =
+            object : Migration(36, 37) {
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+
+                    var exists =
+                        false
+
+                    db.query(
+                        "PRAGMA table_info(`sync_security_events`)"
+                    ).use { cursor ->
+
+                        val nameIndex =
+                            cursor.getColumnIndex(
+                                "name"
+                            )
+
+                        while (
+                            cursor.moveToNext()
+                        ) {
+
+                            if (
+                                cursor.getString(
+                                    nameIndex
+                                ) == "uploaded_at"
+                            ) {
+
                                 exists =
                                     true
 
@@ -3302,30 +3454,191 @@ abstract class BeefTechDatabase : RoomDatabase() {
                     if (!exists) {
 
                         db.execSQL(
-                            "ALTER TABLE `animal_purchases` " +
-                                "ADD COLUMN `$column` TEXT"
+                            "ALTER TABLE `sync_security_events` ADD COLUMN `uploaded_at` INTEGER"
                         )
                     }
                 }
+            }
+
+
+        /*
+         * Version 37 -> 38
+         *
+         * Consolidates the database work that was developed in parallel
+         * on sync-status-backend and main.
+         *
+         * Official main history already owns:
+         *
+         * 33 -> 34 mortality sync columns
+         * 34 -> 35 cost sync columns
+         * 35 -> 36 server reference/config tables
+         * 36 -> 37 sync-security uploaded_at
+         *
+         * Our branch had independently used versions 34/35 for Supplier
+         * purchase linkage and the offline ration catalog.
+         *
+         * This migration therefore:
+         *
+         * 1. Adds Supplier purchase linkage.
+         * 2. Adds the offline ration catalog.
+         * 3. Defensively repairs mortality/cost sync columns when opening
+         *    a database that had already reached our old branch v35.
+         *
+         * Every operation is idempotent.
+         */
+        val MIGRATION_37_38 =
+            object : Migration(37, 38) {
+
+                private fun hasColumn(
+                    db: SupportSQLiteDatabase,
+                    table: String,
+                    column: String
+                ): Boolean {
+
+                    db.query(
+                        "PRAGMA table_info(`$table`)"
+                    ).use { cursor ->
+
+                        val nameIndex =
+                            cursor.getColumnIndex(
+                                "name"
+                            )
+
+                        while (
+                            cursor.moveToNext()
+                        ) {
+
+                            if (
+                                cursor.getString(
+                                    nameIndex
+                                ) == column
+                            ) {
+
+                                return true
+                            }
+                        }
+                    }
+
+                    return false
+                }
+
 
                 override fun migrate(
                     db: SupportSQLiteDatabase
                 ) {
 
-                    addColumnIfMissing(
-                        db,
-                        "supplier_farmer_id"
-                    )
+                    /*
+                     * Repair the two official-main migrations for a
+                     * device that had already reached the divergent
+                     * sync-status-backend v35 schema.
+                     */
+                    if (
+                        !hasColumn(
+                            db,
+                            "mortalities",
+                            "sync_status"
+                        )
+                    ) {
 
-                    addColumnIfMissing(
-                        db,
-                        "gln_number"
-                    )
+                        db.execSQL(
+                            "ALTER TABLE `mortalities` " +
+                                "ADD COLUMN `sync_status` TEXT NOT NULL DEFAULT 'PENDING'"
+                        )
+                    }
 
-                    addColumnIfMissing(
-                        db,
-                        "purchase_batch_number"
-                    )
+
+                    if (
+                        !hasColumn(
+                            db,
+                            "mortalities",
+                            "synced_at"
+                        )
+                    ) {
+
+                        db.execSQL(
+                            "ALTER TABLE `mortalities` " +
+                                "ADD COLUMN `synced_at` INTEGER"
+                        )
+                    }
+
+
+                    if (
+                        !hasColumn(
+                            db,
+                            "animal_costs",
+                            "sync_status"
+                        )
+                    ) {
+
+                        db.execSQL(
+                            "ALTER TABLE `animal_costs` " +
+                                "ADD COLUMN `sync_status` TEXT NOT NULL DEFAULT 'PENDING'"
+                        )
+                    }
+
+
+                    if (
+                        !hasColumn(
+                            db,
+                            "animal_costs",
+                            "synced_at"
+                        )
+                    ) {
+
+                        db.execSQL(
+                            "ALTER TABLE `animal_costs` " +
+                                "ADD COLUMN `synced_at` INTEGER"
+                        )
+                    }
+
+
+                    /*
+                     * Supplier / Animal Purchase linkage.
+                     */
+                    if (
+                        !hasColumn(
+                            db,
+                            "animal_purchases",
+                            "supplier_farmer_id"
+                        )
+                    ) {
+
+                        db.execSQL(
+                            "ALTER TABLE `animal_purchases` " +
+                                "ADD COLUMN `supplier_farmer_id` TEXT"
+                        )
+                    }
+
+
+                    if (
+                        !hasColumn(
+                            db,
+                            "animal_purchases",
+                            "gln_number"
+                        )
+                    ) {
+
+                        db.execSQL(
+                            "ALTER TABLE `animal_purchases` " +
+                                "ADD COLUMN `gln_number` TEXT"
+                        )
+                    }
+
+
+                    if (
+                        !hasColumn(
+                            db,
+                            "animal_purchases",
+                            "purchase_batch_number"
+                        )
+                    ) {
+
+                        db.execSQL(
+                            "ALTER TABLE `animal_purchases` " +
+                                "ADD COLUMN `purchase_batch_number` TEXT"
+                        )
+                    }
+
 
                     db.execSQL(
                         """
@@ -3336,6 +3649,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
                         """.trimIndent()
                     )
 
+
                     db.execSQL(
                         """
                         CREATE INDEX IF NOT EXISTS
@@ -3344,22 +3658,11 @@ abstract class BeefTechDatabase : RoomDatabase() {
                         (`purchase_batch_number`)
                         """.trimIndent()
                     )
-                }
-            }
 
 
-        /*
-         * Version 34 -> 35
-         *
-         * Offline ration master catalog.
-         */
-        val MIGRATION_34_35 =
-            object : Migration(34, 35) {
-
-                override fun migrate(
-                    db: SupportSQLiteDatabase
-                ) {
-
+                    /*
+                     * Offline ration catalog.
+                     */
                     db.execSQL(
                         """
                         CREATE TABLE IF NOT EXISTS `rations`
@@ -3372,6 +3675,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
                         """.trimIndent()
                     )
 
+
                     db.execSQL(
                         """
                         CREATE UNIQUE INDEX IF NOT EXISTS
@@ -3380,9 +3684,13 @@ abstract class BeefTechDatabase : RoomDatabase() {
                         """.trimIndent()
                     )
 
-                    RationSeed.execute(db)
+
+                    RationSeed.execute(
+                        db
+                    )
                 }
             }
+
 
         val SEED_CALLBACK = object : Callback() {
             private fun createLookupTriggers(db: SupportSQLiteDatabase) {

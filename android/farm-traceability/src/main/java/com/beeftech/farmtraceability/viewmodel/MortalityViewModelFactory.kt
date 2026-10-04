@@ -2,10 +2,10 @@ package com.beeftech.farmtraceability.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.beeftech.database.dao.MortalityDao
+import com.beeftech.farmtraceability.data.MortalityRepository
 
 class MortalityViewModelFactory(
-    private val mortalityDao: MortalityDao
+    private val repository: MortalityRepository
 ) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
@@ -20,7 +20,7 @@ class MortalityViewModelFactory(
         ) {
 
             return MortalityViewModel(
-                mortalityDao = mortalityDao
+                repository = repository
             ) as T
         }
 

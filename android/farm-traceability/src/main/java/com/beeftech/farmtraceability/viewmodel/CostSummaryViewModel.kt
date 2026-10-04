@@ -4,11 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.beeftech.database.dao.AnimalCostDao
 import com.beeftech.database.dao.CostTypeDao
-import com.beeftech.database.DatabaseProvider
-import com.beeftech.database.repository.PendingSyncRepository
-import com.beeftech.farmtraceability.worker.TraceabilityOutboxWorker
-import com.beeftech.farmtraceability.worker.TraceabilitySyncScheduler
-import com.beeftech.database.entity.AnimalCost
+import com.beeftech.farmtraceability.data.CostRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,7 +24,8 @@ data class CostSummaryUiState(
 
 class CostSummaryViewModel(
     private val animalCostDao: AnimalCostDao,
-    private val costTypeDao: CostTypeDao
+    private val costTypeDao: CostTypeDao,
+    private val repository: CostRepository
 ) : ViewModel() {
 
     private val _uiState =
@@ -58,7 +55,7 @@ class CostSummaryViewModel(
                 val transportCost = totals[COST_TRANSPORT] ?: 0.0
                 val processingCost = totals[COST_PROCESSING] ?: 0.0
                 val treatmentCost = totals[COST_TREATMENT] ?: 0.0
-                // FEED costs are derived automatically from Location & Feed.
+                // TODO: feed rows will be derived from LocationFeed in a later phase.
                 val feedCost = totals[COST_FEED] ?: 0.0
                 val handlingCost = totals[COST_HANDLING] ?: 0.0
                 val interestCost = totals[COST_INTEREST] ?: 0.0
@@ -136,50 +133,55 @@ class CostSummaryViewModel(
                     return@launch
                 }
 
-                val cost =
-                    AnimalCost(
-                        animalId = animalId,
-                        costType = costType,
-                        amount = amount,
-                        description = description.trim(),
-                        gpsLat = gpsLat,
-                        gpsLng = gpsLng,
-                        timestamp = System.currentTimeMillis()
-                    )
-
-                animalCostDao.insert(
-                    cost
+                val outcome = repository.saveCost(
+                    animalId = animalId,
+                    costType = costType,
+                    amount = amount,
+                    description = description,
+                    gpsLat = gpsLat,
+                    gpsLng = gpsLng
                 )
-
-                val database =
-                    DatabaseProvider.getDatabase()
-                        ?: throw IllegalStateException(
-                            "The encrypted database is not available."
-                        )
-
-                PendingSyncRepository(
-                    database.pendingSyncDao()
-                ).queueOperation(
-                    entityType =
-                        TraceabilityOutboxWorker.ENTITY_ANIMAL_COST,
-                    entityId =
-                        cost.recordGuid,
-                    operation =
-                        "UPSERT",
-                    payload =
-                        cost.recordGuid
-                )
-
-                TraceabilitySyncScheduler.kick()
 
                 loadCostSummary(animalId)
 
-                onResult(true, "Cost saved successfully.")
+                /*
+                 * The cost is saved either way; a sync problem only
+                 * means it is waiting for a connection.
+                 */
+                onResult(
+                    true,
+                    if (outcome.syncErrorMessage == null) {
+                        "Cost saved successfully."
+                    } else {
+                        "Cost saved. It will sync when a connection is available."
+                    }
+                )
 
             } catch (exception: Exception) {
 
                 onResult(false, "Unable to save cost.")
             }
+        }
+    }
+
+    fun retrySync(
+        onResult: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+
+        viewModelScope.launch {
+
+            val outcome = repository.syncPending()
+
+            val failed = outcome.errorMessagesByRecordGuid.isNotEmpty()
+
+            onResult(
+                !failed,
+                when {
+                    failed -> "Cost sync failed. We'll try again later."
+                    outcome.syncedCount > 0 -> "Costs synced successfully."
+                    else -> "No costs to sync."
+                }
+            )
         }
     }
 

@@ -1,80 +1,107 @@
 package com.beeftech.management.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.beeftech.management.data.DashboardSummary
 import com.beeftech.management.data.ManagementApiClient
 import com.beeftech.management.viewmodel.DashboardViewModel
 import com.beeftech.management.viewmodel.DashboardViewModelFactory
-import java.text.NumberFormat
 import java.util.Locale
 
+private val DashboardSage =
+    Color(
+        0xFF4F6256
+    )
 
-private val BeefGreen = Color(0xFF4F6256)
-private val BeefDarkGreen = Color(0xFF4F6256)
-private val BeefDeepGreen = Color(0xFF4F6256)
+private val DashboardAccent =
+    Color(
+        0xFF667A6C
+    )
 
-private val BeefBackground = Color(0xFFFAF9F2)
-private val BeefCard = Color.White
+private val DashboardBackground =
+    Color(
+        0xFFFAF9F2
+    )
 
-private val BeefLightGreen = Color(0xFFE7F4EC)
-private val BeefMint = Color(0xFFF0F8F3)
+private val DashboardCard =
+    Color.White
 
-private val BeefText = Color(0xFF4F6256)
-private val BeefMuted = Color(0xFF6B7D73)
-private val BeefLine = Color(0xFFE3EAE6)
+private val DashboardSoftGreen =
+    Color(
+        0xFFE3E8E2
+    )
 
-private val SoftBlue = Color(0xFFE8F2F5)
-private val Blue = Color(0xFF397587)
+private val DashboardSoftAmber =
+    Color(
+        0xFFF3E9DD
+    )
 
-private val SoftPurple = Color(0xFFF0EBF7)
-private val Purple = Color(0xFF725B98)
-
-private val SoftAmber = Color(0xFFFFF3D9)
-private val Amber = Color(0xFFE39A18)
-
-private val SoftRed = Color(0xFFFBE9E9)
-private val Red = Color(0xFFB64A4A)
+private val DashboardDanger =
+    Color(
+        0xFF8A4F4F
+    )
 
 
 @Composable
 fun DashboardTab(
     apiClient: ManagementApiClient,
     currentUserId: String,
+    isAdmin: Boolean = false,
     modifier: Modifier = Modifier
 ) {
 
-    val dashboardViewModel: DashboardViewModel =
+    val viewModel:
+            DashboardViewModel =
         viewModel(
-            key = "dashboard-$currentUserId",
+            key =
+                "dashboard-$currentUserId",
+
             factory =
                 DashboardViewModelFactory(
-                    apiClient
+                    apiClient,
+                    canSwitchSite =
+                        isAdmin
                 )
         )
 
-    LaunchedEffect(currentUserId) {
-        dashboardViewModel.refresh()
-    }
 
     DashboardScreen(
-        viewModel = dashboardViewModel,
-        modifier = modifier
+        viewModel =
+            viewModel,
+        modifier =
+            modifier
     )
 }
 
@@ -90,11 +117,21 @@ fun DashboardScreen(
             .uiState
             .collectAsState()
 
+
+    LaunchedEffect(
+        Unit
+    ) {
+
+        viewModel.refresh()
+    }
+
+
     Surface(
         modifier =
-            modifier.fillMaxSize(),
+            modifier
+                .fillMaxSize(),
         color =
-            BeefBackground
+            DashboardBackground
     ) {
 
         Column(
@@ -107,113 +144,247 @@ fun DashboardScreen(
         ) {
 
             DashboardHeader(
-                summary = state.summary,
-                loading = state.loading,
-                onRefresh = viewModel::refresh
+                summary =
+                    state.summary,
+                loading =
+                    state.loading,
+                onRefresh =
+                    viewModel::refresh
             )
+
 
             Column(
                 modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            horizontal = 15.dp
-                        )
+                    Modifier.padding(
+                        16.dp
+                    ),
+                verticalArrangement =
+                    Arrangement.spacedBy(
+                        14.dp
+                    )
             ) {
 
-                Spacer(
-                    Modifier.height(18.dp)
-                )
+                if (
+                    state.sites
+                        .isNotEmpty()
+                ) {
 
-                when {
+                    Text(
+                        text =
+                            "VIEW SITE",
+                        style =
+                            MaterialTheme
+                                .typography
+                                .labelSmall,
+                        color =
+                            DashboardAccent
+                    )
 
-                    state.needsConnection -> {
 
-                        StatusNotice(
-                            title = "You're offline",
-                            message =
-                                "Dashboard information will update when BeefTech reconnects.",
-                            background =
-                                SoftAmber,
-                            foreground =
-                                Color(0xFF74530D)
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(
+                                    rememberScrollState()
+                                ),
+                        horizontalArrangement =
+                            Arrangement.spacedBy(
+                                8.dp
+                            )
+                    ) {
+
+                        FilterChip(
+                            selected =
+                                state.selectedSiteId ==
+                                    null,
+                            onClick = {
+
+                                viewModel
+                                    .selectSite(
+                                        null
+                                    )
+                            },
+                            label = {
+
+                                Text(
+                                    "All sites"
+                                )
+                            }
                         )
 
-                        Spacer(
-                            Modifier.height(14.dp)
-                        )
-                    }
 
-                    !state.error.isNullOrBlank() -> {
+                        state.sites
+                            .forEach {
+                                    site ->
 
-                        StatusNotice(
-                            title = "Dashboard unavailable",
-                            message =
-                                state.error
-                                    ?: "Unable to load dashboard.",
-                            background =
-                                SoftRed,
-                            foreground =
-                                Red
-                        )
+                                FilterChip(
+                                    selected =
+                                        state.selectedSiteId ==
+                                            site.siteId,
 
-                        Spacer(
-                            Modifier.height(14.dp)
-                        )
+                                    onClick = {
+
+                                        viewModel
+                                            .selectSite(
+                                                site.siteId
+                                            )
+                                    },
+
+                                    label = {
+
+                                        Text(
+                                            site.name
+                                        )
+                                    }
+                                )
+                            }
                     }
                 }
+
+
+                if (
+                    state.needsConnection
+                ) {
+
+                    NeedsConnectionNotice(
+                        "The dashboard"
+                    )
+                }
+
+
+                state.error
+                    ?.let {
+                            error ->
+
+                        StatusCard(
+                            title =
+                                "Dashboard unavailable",
+
+                            message =
+                                error,
+
+                            background =
+                                Color(
+                                    0xFFF4E3E1
+                                ),
+
+                            foreground =
+                                DashboardDanger
+                        )
+                    }
+
 
                 val summary =
                     state.summary
 
+
                 if (
-                    summary == null &&
+                    summary !=
+                    null
+                ) {
+
+                    Text(
+                        text =
+                            "FARM OVERVIEW",
+                        style =
+                            MaterialTheme
+                                .typography
+                                .labelSmall,
+                        color =
+                            DashboardAccent
+                    )
+
+
+                    Text(
+                        text =
+                            "Operational snapshot",
+                        style =
+                            MaterialTheme
+                                .typography
+                                .titleLarge,
+                        fontWeight =
+                            FontWeight.SemiBold
+                    )
+
+
+                    MetricGrid(
+                        summary =
+                            summary
+                    )
+
+
+                    CostPanel(
+                        summary =
+                            summary
+                    )
+
+
+                    TeamPanel(
+                        summary =
+                            summary
+                    )
+
+
+                    AlertsPanel(
+                        summary =
+                            summary
+                    )
+
+                } else if (
                     state.loading
                 ) {
 
-                    LoadingDashboard()
+                    Card(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth(),
+                        shape =
+                            RoundedCornerShape(
+                                16.dp
+                            ),
+                        colors =
+                            CardDefaults
+                                .cardColors(
+                                    containerColor =
+                                        DashboardCard
+                                )
+                    ) {
 
-                } else if (
-                    summary != null
-                ) {
+                        Column(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(
+                                        28.dp
+                                    ),
+                            horizontalAlignment =
+                                Alignment.CenterHorizontally,
+                            verticalArrangement =
+                                Arrangement.spacedBy(
+                                    10.dp
+                                )
+                        ) {
 
-                    Overview(
-                        summary
-                    )
+                            CircularProgressIndicator(
+                                color =
+                                    DashboardSage
+                            )
 
-                    Spacer(
-                        Modifier.height(22.dp)
-                    )
 
-                    ActivityPanel(
-                        summary
-                    )
-
-                    Spacer(
-                        Modifier.height(22.dp)
-                    )
-
-                    TeamPanel(
-                        summary
-                    )
-
-                    Spacer(
-                        Modifier.height(22.dp)
-                    )
-
-                    AlertPanel(
-                        summary
-                    )
+                            Text(
+                                "Loading dashboard?"
+                            )
+                        }
+                    }
                 }
 
-                Spacer(
-                    Modifier.height(28.dp)
-                )
-
-                BeefTechFooter()
 
                 Spacer(
-                    Modifier.height(28.dp)
+                    modifier =
+                        Modifier.height(
+                            14.dp
+                        )
                 )
             }
         }
@@ -233,13 +404,11 @@ private fun DashboardHeader(
             Modifier
                 .fillMaxWidth()
                 .background(
-                    BeefDarkGreen
+                    DashboardSage
                 )
                 .padding(
-                    start = 18.dp,
-                    end = 18.dp,
-                    top = 22.dp,
-                    bottom = 20.dp
+                    horizontal = 18.dp,
+                    vertical = 20.dp
                 )
     ) {
 
@@ -252,639 +421,272 @@ private fun DashboardHeader(
 
             Column(
                 modifier =
-                    Modifier.weight(1f)
+                    Modifier.weight(
+                        1f
+                    )
             ) {
 
                 Text(
-                    text = "BEEFTECH",
-                    color = Color.White,
-                    fontSize = 11.sp,
-                    fontWeight =
-                        FontWeight.Bold,
-                    letterSpacing = 2.sp
+                    text =
+                        "BEEFTECH",
+                    color =
+                        Color.White
+                            .copy(
+                                alpha = 0.72f
+                            ),
+                    style =
+                        MaterialTheme
+                            .typography
+                            .labelSmall
                 )
 
-                Spacer(
-                    Modifier.height(5.dp)
-                )
-
-                Text(
-                    text = "Farm Dashboard",
-                    color = Color.White,
-                    fontSize = 25.sp,
-                    fontWeight =
-                        FontWeight.Bold
-                )
-
-                Spacer(
-                    Modifier.height(3.dp)
-                )
 
                 Text(
                     text =
-                        "Data driven. Healthy herds.",
+                        "Farm Dashboard",
                     color =
-                        Color.White.copy(
-                            alpha = 0.72f
-                        ),
-                    fontSize = 12.sp
+                        Color.White,
+                    style =
+                        MaterialTheme
+                            .typography
+                            .headlineSmall,
+                    fontWeight =
+                        FontWeight.SemiBold
+                )
+
+
+                Text(
+                    text =
+                        summary
+                            ?.siteName
+                            ?.takeIf {
+                                it.isNotBlank()
+                            }
+                            ?: summary
+                                ?.siteId
+                                ?.takeIf {
+                                    it.isNotBlank()
+                                }
+                            ?: "Farm management",
+
+                    color =
+                        Color.White
+                            .copy(
+                                alpha = 0.80f
+                            ),
+                    style =
+                        MaterialTheme
+                            .typography
+                            .bodySmall
                 )
             }
 
+
             Surface(
-                shape = CircleShape,
+                shape =
+                    CircleShape,
                 color =
-                    Color.White.copy(
-                        alpha = 0.14f
-                    )
+                    Color.White
+                        .copy(
+                            alpha = 0.14f
+                        )
             ) {
 
                 Box(
                     modifier =
-                        Modifier.size(46.dp),
+                        Modifier.size(
+                            44.dp
+                        ),
                     contentAlignment =
                         Alignment.Center
                 ) {
 
                     Text(
-                        text = "BT",
-                        color = Color.White,
+                        text =
+                            "BT",
+                        color =
+                            Color.White,
                         fontWeight =
                             FontWeight.Bold
                     )
                 }
             }
         }
+
 
         Spacer(
-            Modifier.height(18.dp)
+            modifier =
+                Modifier.height(
+                    12.dp
+                )
         )
 
-        Surface(
-            shape =
-                RoundedCornerShape(
-                    16.dp
-                ),
-            color =
-                Color.White.copy(
-                    alpha = 0.10f
-                )
+
+        TextButton(
+            onClick =
+                onRefresh,
+            enabled =
+                !loading
         ) {
 
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            horizontal = 13.dp,
-                            vertical = 10.dp
-                        ),
-                verticalAlignment =
-                    Alignment.CenterVertically
-            ) {
-
-                Box(
-                    modifier =
-                        Modifier
-                            .size(9.dp)
-                            .clip(
-                                CircleShape
-                            )
-                            .background(
-                                if (
-                                    summary != null
-                                ) {
-                                    Color(0xFFAEBBAF)
-                                } else {
-                                    Amber
-                                }
-                            )
-                )
-
-                Spacer(
-                    Modifier.width(9.dp)
-                )
-
-                Column(
-                    modifier =
-                        Modifier.weight(1f)
-                ) {
-
-                    Text(
-                        text =
-                            summary
-                                ?.siteId
-                                ?.takeIf {
-                                    it.isNotBlank()
-                                }
-                                ?: "Farm management",
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight =
-                            FontWeight.SemiBold
-                    )
-
-                    Text(
-                        text =
-                            if (
-                                summary != null
-                            ) {
-                                "Connected to management service"
-                            } else {
-                                "Waiting for farm data"
-                            },
-                        color =
-                            Color.White.copy(
-                                alpha = 0.64f
-                            ),
-                        fontSize = 10.sp
-                    )
-                }
-
-                TextButton(
-                    onClick = onRefresh,
-                    enabled = !loading
-                ) {
-
-                    Text(
-                        text =
-                            if (loading) {
-                                "..."
-                            } else {
-                                "Refresh"
-                            },
-                        color = Color.White,
-                        fontSize = 11.sp,
-                        fontWeight =
-                            FontWeight.Bold
-                    )
-                }
-            }
-        }
-    }
-}
-
-
-@Composable
-private fun Overview(
-    summary: DashboardSummary
-) {
-
-    SectionTitle(
-        smallTitle = "OVERVIEW",
-        title = "Farm at a glance",
-        subtitle =
-            "Key records across your farm"
-    )
-
-    Spacer(
-        Modifier.height(12.dp)
-    )
-
-    Row(
-        modifier =
-            Modifier.fillMaxWidth(),
-        horizontalArrangement =
-            Arrangement.spacedBy(
-                10.dp
-            )
-    ) {
-
-        MetricCard(
-            modifier =
-                Modifier.weight(1f),
-            badge = "FR",
-            title = "Farmers",
-            value =
-                summary
-                    .farmers
-                    .total
-                    .toString(),
-            detail =
-                "${summary.farmers.last7Days} recent",
-            accent = BeefGreen,
-            softColor =
-                BeefLightGreen
-        )
-
-        MetricCard(
-            modifier =
-                Modifier.weight(1f),
-            badge = "CF",
-            title = "Calves",
-            value =
-                summary
-                    .calves
-                    .total
-                    .toString(),
-            detail =
-                "${summary.calves.last7Days} recent",
-            accent =
-                Color(0xFF667A6C),
-            softColor =
-                Color(0xFFEAF4ED)
-        )
-    }
-
-    Spacer(
-        Modifier.height(10.dp)
-    )
-
-    Row(
-        modifier =
-            Modifier.fillMaxWidth(),
-        horizontalArrangement =
-            Arrangement.spacedBy(
-                10.dp
-            )
-    ) {
-
-        MetricCard(
-            modifier =
-                Modifier.weight(1f),
-            badge = "TR",
-            title = "Treatments",
-            value =
-                summary
-                    .treatments
-                    .total
-                    .toString(),
-            detail =
-                "${summary.treatments.last7Days} recent",
-            accent = Blue,
-            softColor = SoftBlue
-        )
-
-        MetricCard(
-            modifier =
-                Modifier.weight(1f),
-            badge = "TM",
-            title = "Team",
-            value =
-                summary
-                    .team
-                    .activeWorkers
-                    .toString(),
-            detail =
-                if (
-                    summary.team
-                        .inactiveWorkers == 0L
-                ) {
-                    "All active"
-                } else {
-                    "${summary.team.inactiveWorkers} inactive"
-                },
-            accent = Purple,
-            softColor = SoftPurple
-        )
-    }
-}
-
-
-@Composable
-private fun MetricCard(
-    modifier: Modifier,
-    badge: String,
-    title: String,
-    value: String,
-    detail: String,
-    accent: Color,
-    softColor: Color
-) {
-
-    Card(
-        modifier = modifier,
-        shape =
-            RoundedCornerShape(
-                19.dp
-            ),
-        colors =
-            CardDefaults.cardColors(
-                containerColor =
-                    BeefCard
-            ),
-        elevation =
-            CardDefaults.cardElevation(
-                defaultElevation =
-                    2.dp
-            )
-    ) {
-
-        Column(
-            modifier =
-                Modifier.padding(
-                    14.dp
-                )
-        ) {
-
-            Row(
-                verticalAlignment =
-                    Alignment.CenterVertically
-            ) {
-
-                Surface(
-                    shape =
-                        RoundedCornerShape(
-                            10.dp
-                        ),
-                    color = softColor
-                ) {
-
-                    Box(
-                        modifier =
-                            Modifier.size(
-                                35.dp
-                            ),
-                        contentAlignment =
-                            Alignment.Center
+            Text(
+                text =
+                    if (
+                        loading
                     ) {
 
-                        Text(
-                            text = badge,
-                            color = accent,
-                            fontSize = 11.sp,
-                            fontWeight =
-                                FontWeight.Bold
-                        )
-                    }
-                }
+                        "Refreshing?"
 
-                Spacer(
-                    Modifier.width(8.dp)
-                )
+                    } else {
 
-                Text(
-                    text = title,
-                    color =
-                        BeefMuted,
-                    fontSize = 11.sp,
-                    maxLines = 1,
-                    overflow =
-                        TextOverflow.Ellipsis
-                )
-            }
-
-            Spacer(
-                Modifier.height(12.dp)
-            )
-
-            Text(
-                text = value,
-                color = BeefText,
-                fontSize = 27.sp,
-                fontWeight =
-                    FontWeight.Bold
-            )
-
-            Text(
-                text = detail,
-                color = BeefMuted,
-                fontSize = 9.sp
-            )
-        }
-    }
-}
-
-
-@Composable
-private fun ActivityPanel(
-    summary: DashboardSummary
-) {
-
-    SectionTitle(
-        smallTitle = "ACTIVITY",
-        title = "Operational snapshot",
-        subtitle =
-            "Records received by BeefTech"
-    )
-
-    Spacer(
-        Modifier.height(12.dp)
-    )
-
-    Card(
-        modifier =
-            Modifier.fillMaxWidth(),
-        shape =
-            RoundedCornerShape(
-                20.dp
-            ),
-        colors =
-            CardDefaults.cardColors(
-                containerColor =
-                    BeefCard
-            ),
-        elevation =
-            CardDefaults.cardElevation(
-                2.dp
-            )
-    ) {
-
-        Column(
-            modifier =
-                Modifier.padding(
-                    16.dp
-                )
-        ) {
-
-            ActivityLine(
-                label =
-                    "Farmer registrations",
-                value =
-                    summary.farmers.total,
-                recent =
-                    summary.farmers.last7Days
-            )
-
-            Line()
-
-            ActivityLine(
-                label =
-                    "Calf registrations",
-                value =
-                    summary.calves.total,
-                recent =
-                    summary.calves.last7Days
-            )
-
-            Line()
-
-            ActivityLine(
-                label = "Treatments",
-                value =
-                    summary.treatments.total,
-                recent =
-                    summary.treatments.last7Days
-            )
-
-            Line()
-
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            vertical = 11.dp
-                        ),
-                verticalAlignment =
-                    Alignment.CenterVertically
-            ) {
-
-                Column(
-                    modifier =
-                        Modifier.weight(1f)
-                ) {
-
-                    Text(
-                        text =
-                            "Treatment value",
-                        color = BeefText,
-                        fontWeight =
-                            FontWeight.SemiBold,
-                        fontSize = 12.sp
-                    )
-
-                    Text(
-                        text =
-                            "Recorded treatment cost",
-                        color = BeefMuted,
-                        fontSize = 10.sp
-                    )
-                }
-
-                Text(
-                    text =
-                        zar(
-                            summary
-                                .treatments
-                                .totalCost
-                        ),
-                    color = BeefGreen,
-                    fontWeight =
-                        FontWeight.Bold,
-                    fontSize = 15.sp
-                )
-            }
-        }
-    }
-}
-
-
-@Composable
-private fun ActivityLine(
-    label: String,
-    value: Long,
-    recent: Long
-) {
-
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(
-                    vertical = 11.dp
-                ),
-        verticalAlignment =
-            Alignment.CenterVertically
-    ) {
-
-        Column(
-            modifier =
-                Modifier.weight(1f)
-        ) {
-
-            Text(
-                text = label,
-                color = BeefText,
-                fontSize = 12.sp,
-                fontWeight =
-                    FontWeight.SemiBold
-            )
-
-            Text(
-                text =
-                    "$recent in the last 7 days",
-                color = BeefMuted,
-                fontSize = 10.sp
-            )
-        }
-
-        Surface(
-            shape =
-                RoundedCornerShape(
-                    11.dp
-                ),
-            color = BeefMint
-        ) {
-
-            Text(
-                text =
-                    value.toString(),
-                modifier =
-                    Modifier.padding(
-                        horizontal = 12.dp,
-                        vertical = 6.dp
-                    ),
-                color = BeefGreen,
-                fontWeight =
-                    FontWeight.Bold,
-                fontSize = 13.sp
-            )
-        }
-    }
-}
-
-
-@Composable
-private fun TeamPanel(
-    summary: DashboardSummary
-) {
-
-    SectionTitle(
-        smallTitle = "TEAM",
-        title = "Farm workforce",
-        subtitle =
-            "Current worker status"
-    )
-
-    Spacer(
-        Modifier.height(12.dp)
-    )
-
-    Card(
-        modifier =
-            Modifier.fillMaxWidth(),
-        shape =
-            RoundedCornerShape(
-                20.dp
-            ),
-        colors =
-            CardDefaults.cardColors(
-                containerColor =
-                    BeefDeepGreen
-            )
-    ) {
-
-        Column(
-            modifier =
-                Modifier.padding(
-                    17.dp
-                )
-        ) {
-
-            Text(
-                text =
-                    "People keeping the farm moving",
+                        "Refresh dashboard"
+                    },
                 color =
-                    Color.White.copy(
-                        alpha = 0.65f
-                    ),
-                fontSize = 10.sp
+                    Color.White
+            )
+        }
+    }
+}
+
+
+private data class DashboardMetric(
+    val title: String,
+    val headline: String,
+    val detail: String
+)
+
+
+@Composable
+private fun MetricGrid(
+    summary: DashboardSummary
+) {
+
+    val metrics =
+        buildList {
+
+            add(
+                DashboardMetric(
+                    title =
+                        "Farmers",
+                    headline =
+                        "${summary.farmers.total}",
+                    detail =
+                        "${summary.farmers.last7Days} recent"
+                )
             )
 
-            Spacer(
-                Modifier.height(13.dp)
+
+            add(
+                DashboardMetric(
+                    title =
+                        "Calf registrations",
+                    headline =
+                        "${summary.calves.total}",
+                    detail =
+                        "${summary.calves.last7Days} in 7 days"
+                )
             )
+
+
+            add(
+                DashboardMetric(
+                    title =
+                        "Treatments",
+                    headline =
+                        "${summary.treatments.total}",
+                    detail =
+                        "${summary.treatments.last7Days} in 7 days"
+                )
+            )
+
+
+            add(
+                DashboardMetric(
+                    title =
+                        "Team",
+                    headline =
+                        "${summary.team.activeWorkers}",
+                    detail =
+                        "${summary.team.inactiveWorkers} inactive"
+                )
+            )
+
+
+            summary.mortalities
+                ?.let {
+                        value ->
+
+                    add(
+                        DashboardMetric(
+                            title =
+                                "Mortalities",
+                            headline =
+                                "${value.total}",
+                            detail =
+                                "${value.last7Days} in 7 days"
+                        )
+                    )
+                }
+
+
+            summary.movements
+                ?.let {
+                        value ->
+
+                    add(
+                        DashboardMetric(
+                            title =
+                                "Movements",
+                            headline =
+                                "${value.total}",
+                            detail =
+                                "${value.last7Days} in 7 days"
+                        )
+                    )
+                }
+
+
+            summary.costs
+                ?.let {
+                        value ->
+
+                    add(
+                        DashboardMetric(
+                            title =
+                                "Other costs",
+                            headline =
+                                "${value.total}",
+                            detail =
+                                "R ${formatMoney(value.totalAmount)}"
+                        )
+                    )
+                }
+
+
+            summary.feedReadings
+                ?.let {
+                        value ->
+
+                    add(
+                        DashboardMetric(
+                            title =
+                                "Feed readings",
+                            headline =
+                                "${value.total}",
+                            detail =
+                                "${value.last7Days} in 7 days"
+                        )
+                    )
+                }
+        }
+
+
+    metrics
+        .chunked(
+            2
+        )
+        .forEach {
+                rowMetrics ->
 
             Row(
                 modifier =
@@ -895,102 +697,115 @@ private fun TeamPanel(
                     )
             ) {
 
-                TeamStat(
-                    modifier =
-                        Modifier.weight(1f),
-                    title =
-                        "Active workers",
-                    number =
-                        summary
-                            .team
-                            .activeWorkers,
-                    dot =
-                        Color(0xFFAEBBAF)
-                )
+                rowMetrics
+                    .forEach {
+                            metric ->
 
-                TeamStat(
-                    modifier =
-                        Modifier.weight(1f),
-                    title =
-                        "Inactive",
-                    number =
-                        summary
-                            .team
-                            .inactiveWorkers,
-                    dot =
-                        Color(0xFFF0BB57)
-                )
+                        MetricCard(
+                            metric =
+                                metric,
+                            modifier =
+                                Modifier.weight(
+                                    1f
+                                )
+                        )
+                    }
+
+
+                if (
+                    rowMetrics.size ==
+                    1
+                ) {
+
+                    Spacer(
+                        modifier =
+                            Modifier.weight(
+                                1f
+                            )
+                    )
+                }
             }
+
+
+            Spacer(
+                modifier =
+                    Modifier.height(
+                        10.dp
+                    )
+            )
         }
-    }
 }
 
 
 @Composable
-private fun TeamStat(
-    modifier: Modifier,
-    title: String,
-    number: Long,
-    dot: Color
+private fun MetricCard(
+    metric: DashboardMetric,
+    modifier: Modifier
 ) {
 
-    Surface(
-        modifier = modifier,
+    Card(
+        modifier =
+            modifier,
         shape =
             RoundedCornerShape(
-                15.dp
+                16.dp
             ),
-        color =
-            Color.White.copy(
-                alpha = 0.09f
-            )
+        colors =
+            CardDefaults
+                .cardColors(
+                    containerColor =
+                        DashboardCard
+                )
     ) {
 
         Column(
             modifier =
                 Modifier.padding(
-                    13.dp
+                    15.dp
+                ),
+            verticalArrangement =
+                Arrangement.spacedBy(
+                    4.dp
                 )
         ) {
-
-            Row(
-                verticalAlignment =
-                    Alignment.CenterVertically
-            ) {
-
-                Box(
-                    modifier =
-                        Modifier
-                            .size(7.dp)
-                            .clip(CircleShape)
-                            .background(dot)
-                )
-
-                Spacer(
-                    Modifier.width(6.dp)
-                )
-
-                Text(
-                    text = title,
-                    color =
-                        Color.White.copy(
-                            alpha = 0.70f
-                        ),
-                    fontSize = 10.sp
-                )
-            }
-
-            Spacer(
-                Modifier.height(7.dp)
-            )
 
             Text(
                 text =
-                    number.toString(),
-                color = Color.White,
-                fontSize = 26.sp,
+                    metric.title,
+                style =
+                    MaterialTheme
+                        .typography
+                        .labelMedium,
+                color =
+                    DashboardAccent
+            )
+
+
+            Text(
+                text =
+                    metric.headline,
+                style =
+                    MaterialTheme
+                        .typography
+                        .headlineSmall,
                 fontWeight =
-                    FontWeight.Bold
+                    FontWeight.Bold,
+                color =
+                    DashboardSage
+            )
+
+
+            Text(
+                text =
+                    metric.detail,
+                style =
+                    MaterialTheme
+                        .typography
+                        .bodySmall,
+                color =
+                    MaterialTheme
+                        .colorScheme
+                        .onSurfaceVariant
             )
         }
     }
@@ -998,237 +813,291 @@ private fun TeamStat(
 
 
 @Composable
-private fun AlertPanel(
+private fun CostPanel(
     summary: DashboardSummary
 ) {
 
-    SectionTitle(
-        smallTitle = "MONITORING",
-        title = "Alerts",
-        subtitle =
-            "Anything that needs attention"
-    )
-
-    Spacer(
-        Modifier.height(12.dp)
-    )
-
-    if (
-        summary.alerts.isEmpty()
-    ) {
-
-        Surface(
-            modifier =
-                Modifier.fillMaxWidth(),
-            shape =
-                RoundedCornerShape(
-                    18.dp
-                ),
-            color =
-                BeefLightGreen
-        ) {
-
-            Row(
-                modifier =
-                    Modifier.padding(
-                        15.dp
-                    ),
-                verticalAlignment =
-                    Alignment.CenterVertically
-            ) {
-
-                Surface(
-                    shape = CircleShape,
-                    color = BeefGreen
-                ) {
-
-                    Box(
-                        modifier =
-                            Modifier.size(
-                                36.dp
-                            ),
-                        contentAlignment =
-                            Alignment.Center
-                    ) {
-
-                        Text(
-                            text = "✓",
-                            color =
-                                Color.White,
-                            fontSize = 16.sp,
-                            fontWeight =
-                                FontWeight.Bold
-                        )
-                    }
-                }
-
-                Spacer(
-                    Modifier.width(11.dp)
-                )
-
-                Column {
-
-                    Text(
-                        text =
-                            "Everything looks good",
-                        color =
-                            BeefDarkGreen,
-                        fontSize = 12.sp,
-                        fontWeight =
-                            FontWeight.Bold
-                    )
-
-                    Text(
-                        text =
-                            "There are no management alerts right now.",
-                        color =
-                            BeefMuted,
-                        fontSize = 10.sp
-                    )
-                }
-            }
-        }
-
-    } else {
-
-        Column(
-            verticalArrangement =
-                Arrangement.spacedBy(
-                    9.dp
-                )
-        ) {
-
-            summary.alerts.forEach {
-                    alert ->
-
-                Surface(
-                    modifier =
-                        Modifier.fillMaxWidth(),
-                    shape =
-                        RoundedCornerShape(
-                            17.dp
-                        ),
-                    color =
-                        SoftAmber
-                ) {
-
-                    Row(
-                        modifier =
-                            Modifier.padding(
-                                14.dp
-                            ),
-                        verticalAlignment =
-                            Alignment.Top
-                    ) {
-
-                        Surface(
-                            shape =
-                                CircleShape,
-                            color = Amber
-                        ) {
-
-                            Box(
-                                modifier =
-                                    Modifier.size(
-                                        32.dp
-                                    ),
-                                contentAlignment =
-                                    Alignment.Center
-                            ) {
-
-                                Text(
-                                    text = "!",
-                                    color =
-                                        Color.White,
-                                    fontWeight =
-                                        FontWeight.Bold
-                                )
-                            }
-                        }
-
-                        Spacer(
-                            Modifier.width(
-                                10.dp
-                            )
-                        )
-
-                        Text(
-                            text =
-                                alert.message,
-                            modifier =
-                                Modifier.weight(
-                                    1f
-                                ),
-                            color =
-                                Color(
-                                    0xFF73520A
-                                ),
-                            fontSize = 11.sp,
-                            lineHeight = 15.sp
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-
-@Composable
-private fun SectionTitle(
-    smallTitle: String,
-    title: String,
-    subtitle: String
-) {
-
-    Column {
-
-        Text(
-            text = smallTitle,
-            color = BeefGreen,
-            fontSize = 9.sp,
-            letterSpacing = 1.2.sp,
-            fontWeight =
-                FontWeight.Bold
-        )
-
-        Spacer(
-            Modifier.height(2.dp)
-        )
-
-        Text(
-            text = title,
-            color = BeefText,
-            fontSize = 18.sp,
-            fontWeight =
-                FontWeight.Bold
-        )
-
-        Text(
-            text = subtitle,
-            color = BeefMuted,
-            fontSize = 10.sp
-        )
-    }
-}
-
-
-@Composable
-private fun StatusNotice(
-    title: String,
-    message: String,
-    background: Color,
-    foreground: Color
-) {
-
-    Surface(
+    Card(
         modifier =
             Modifier.fillMaxWidth(),
         shape =
             RoundedCornerShape(
                 16.dp
             ),
-        color = background
+        colors =
+            CardDefaults
+                .cardColors(
+                    containerColor =
+                        DashboardSoftGreen
+                )
+    ) {
+
+        Column(
+            modifier =
+                Modifier.padding(
+                    16.dp
+                ),
+            verticalArrangement =
+                Arrangement.spacedBy(
+                    8.dp
+                )
+        ) {
+
+            Text(
+                text =
+                    "COST OVERVIEW",
+                style =
+                    MaterialTheme
+                        .typography
+                        .labelSmall,
+                color =
+                    DashboardAccent
+            )
+
+
+            Text(
+                text =
+                    "Treatment value",
+                style =
+                    MaterialTheme
+                        .typography
+                        .titleMedium,
+                fontWeight =
+                    FontWeight.SemiBold
+            )
+
+
+            Text(
+                text =
+                    "R ${
+                        formatMoney(
+                            summary
+                                .treatments
+                                .totalCost
+                        )
+                    }",
+                style =
+                    MaterialTheme
+                        .typography
+                        .headlineSmall,
+                fontWeight =
+                    FontWeight.Bold,
+                color =
+                    DashboardSage
+            )
+
+
+            summary.costs
+                ?.let {
+                        costs ->
+
+                    Text(
+                        text =
+                            "Other recorded costs: R ${
+                                formatMoney(
+                                    costs.totalAmount
+                                )
+                            }",
+                        style =
+                            MaterialTheme
+                                .typography
+                                .bodySmall
+                    )
+                }
+        }
+    }
+}
+
+
+@Composable
+private fun TeamPanel(
+    summary: DashboardSummary
+) {
+
+    Card(
+        modifier =
+            Modifier.fillMaxWidth(),
+        shape =
+            RoundedCornerShape(
+                16.dp
+            ),
+        colors =
+            CardDefaults
+                .cardColors(
+                    containerColor =
+                        DashboardSage
+                )
+    ) {
+
+        Column(
+            modifier =
+                Modifier.padding(
+                    16.dp
+                ),
+            verticalArrangement =
+                Arrangement.spacedBy(
+                    6.dp
+                )
+        ) {
+
+            Text(
+                text =
+                    "TEAM STATUS",
+                style =
+                    MaterialTheme
+                        .typography
+                        .labelSmall,
+                color =
+                    Color.White
+                        .copy(
+                            alpha = 0.72f
+                        )
+            )
+
+
+            Text(
+                text =
+                    "${summary.team.activeWorkers} active workers",
+                style =
+                    MaterialTheme
+                        .typography
+                        .titleLarge,
+                color =
+                    Color.White,
+                fontWeight =
+                    FontWeight.SemiBold
+            )
+
+
+            Text(
+                text =
+                    "${summary.team.inactiveWorkers} deactivated",
+                color =
+                    Color.White
+                        .copy(
+                            alpha = 0.74f
+                        ),
+                style =
+                    MaterialTheme
+                        .typography
+                        .bodySmall
+            )
+        }
+    }
+}
+
+
+@Composable
+private fun AlertsPanel(
+    summary: DashboardSummary
+) {
+
+    Card(
+        modifier =
+            Modifier.fillMaxWidth(),
+        shape =
+            RoundedCornerShape(
+                16.dp
+            ),
+        colors =
+            CardDefaults
+                .cardColors(
+                    containerColor =
+                        if (
+                            summary.alerts
+                                .isEmpty()
+                        ) {
+
+                            DashboardSoftGreen
+
+                        } else {
+
+                            DashboardSoftAmber
+                        }
+                )
+    ) {
+
+        Column(
+            modifier =
+                Modifier.padding(
+                    16.dp
+                ),
+            verticalArrangement =
+                Arrangement.spacedBy(
+                    7.dp
+                )
+        ) {
+
+            Text(
+                text =
+                    "Alerts",
+                style =
+                    MaterialTheme
+                        .typography
+                        .titleMedium,
+                fontWeight =
+                    FontWeight.SemiBold
+            )
+
+
+            if (
+                summary.alerts
+                    .isEmpty()
+            ) {
+
+                Text(
+                    text =
+                        "No alerts.",
+                    style =
+                        MaterialTheme
+                            .typography
+                            .bodySmall
+                )
+
+            } else {
+
+                summary.alerts
+                    .forEach {
+                            alert ->
+
+                        Text(
+                            text =
+                                "? ${alert.message}",
+                            color =
+                                DashboardDanger,
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .bodySmall
+                        )
+                    }
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun StatusCard(
+    title: String,
+    message: String,
+    background: Color,
+    foreground: Color
+) {
+
+    Card(
+        modifier =
+            Modifier.fillMaxWidth(),
+        shape =
+            RoundedCornerShape(
+                14.dp
+            ),
+        colors =
+            CardDefaults
+                .cardColors(
+                    containerColor =
+                        background
+                )
     ) {
 
         Column(
@@ -1239,122 +1108,35 @@ private fun StatusNotice(
         ) {
 
             Text(
-                text = title,
-                color = foreground,
+                text =
+                    title,
                 fontWeight =
-                    FontWeight.Bold,
-                fontSize = 12.sp
+                    FontWeight.SemiBold,
+                color =
+                    foreground
             )
 
+
             Text(
-                text = message,
+                text =
+                    message,
+                style =
+                    MaterialTheme
+                        .typography
+                        .bodySmall,
                 color =
-                    foreground.copy(
-                        alpha = 0.78f
-                    ),
-                fontSize = 10.sp
+                    foreground
             )
         }
     }
 }
 
 
-@Composable
-private fun LoadingDashboard() {
-
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(
-                    vertical = 60.dp
-                ),
-        horizontalAlignment =
-            Alignment.CenterHorizontally
-    ) {
-
-        CircularProgressIndicator(
-            color = BeefGreen,
-            strokeWidth = 3.dp
-        )
-
-        Spacer(
-            Modifier.height(13.dp)
-        )
-
-        Text(
-            text =
-                "Loading farm dashboard...",
-            color = BeefMuted,
-            fontSize = 11.sp
-        )
-    }
-}
-
-
-@Composable
-private fun Line() {
-
-    Box(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(
-                    BeefLine
-                )
+fun formatMoney(
+    amount: Double
+): String =
+    String.format(
+        Locale.US,
+        "%,.2f",
+        amount
     )
-}
-
-
-@Composable
-private fun BeefTechFooter() {
-
-    Column(
-        modifier =
-            Modifier.fillMaxWidth(),
-        horizontalAlignment =
-            Alignment.CenterHorizontally
-    ) {
-
-        Text(
-            text = "BEEFTECH",
-            color = BeefDarkGreen,
-            fontSize = 10.sp,
-            letterSpacing = 1.5.sp,
-            fontWeight =
-                FontWeight.Bold
-        )
-
-        Text(
-            text =
-                "Data driven. Healthy herds. Stronger farms.",
-            color = BeefMuted,
-            fontSize = 8.sp
-        )
-    }
-}
-
-
-private fun zar(
-    value: Double
-): String {
-
-    return try {
-
-        NumberFormat
-            .getCurrencyInstance(
-                Locale(
-                    "en",
-                    "ZA"
-                )
-            )
-            .format(value)
-
-    } catch (_: Exception) {
-
-        "R %.2f".format(
-            value
-        )
-    }
-}

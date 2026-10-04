@@ -1,7 +1,11 @@
 package com.beeftech.farmtraceability.data
 
+import com.beeftech.database.BackendConfig
 import com.beeftech.database.entity.Treatment
 import com.beeftech.database.security.TokenProvider
+import io.ktor.http.HttpStatusCode
+import io.ktor.client.statement.bodyAsText
+import com.beeftech.database.security.reportUnauthorized
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
@@ -73,8 +77,7 @@ private data class TreatmentApiResponse<T>(
 
 class TreatmentApiClient(
     private val tokenProvider: TokenProvider,
-    private val baseUrl: String =
-        DEFAULT_BASE_URL
+    private val baseUrl: String = BackendConfig.baseUrl
 ) {
 
     /*
@@ -117,6 +120,11 @@ class TreatmentApiClient(
                 getReferenceDataRequest(
                     token = token
                 )
+
+            /* A 401 means sign in again; the session store decides what that does. Queued records are untouched. */
+            if (response.status == HttpStatusCode.Unauthorized) {
+                tokenProvider.reportUnauthorized(runCatching { response.bodyAsText() }.getOrNull())
+            }
 
             if (!response.status.isSuccess()) {
 
@@ -239,6 +247,11 @@ class TreatmentApiClient(
                     token = token
                 )
 
+            /* A 401 means sign in again; the session store decides what that does. Queued records are untouched. */
+            if (response.status == HttpStatusCode.Unauthorized) {
+                tokenProvider.reportUnauthorized(runCatching { response.bodyAsText() }.getOrNull())
+            }
+
             if (!response.status.isSuccess()) {
 
                 return Result.failure(
@@ -300,9 +313,4 @@ class TreatmentApiClient(
         }
     }
 
-    companion object {
-
-        const val DEFAULT_BASE_URL =
-            "https://beeftech-backend.onrender.com/"
-    }
 }

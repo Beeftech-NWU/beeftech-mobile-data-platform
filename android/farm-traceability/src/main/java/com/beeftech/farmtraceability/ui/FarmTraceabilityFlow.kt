@@ -18,6 +18,7 @@ import com.beeftech.database.entity.AnimalPurchaseEntity
 import com.beeftech.database.entity.FarmerEntity
 import com.beeftech.database.entity.Mortality
 import com.beeftech.database.entity.Treatment
+import com.beeftech.database.repository.SyncPolicyStore
 import com.beeftech.database.repository.SyncRepository
 import com.beeftech.farmtraceability.repository.AnimalRecordRepository
 import com.beeftech.farmtraceability.repository.AnimalRecordSummary
@@ -411,7 +412,10 @@ fun FarmTraceabilityFlow(
                 val syncFactory =
                     remember(syncRepository) {
                         SyncStatusViewModelFactory(
-                            syncRepository
+                            syncRepository,
+                            policyProvider = {
+                                SyncPolicyStore(database.referenceDataDao()).current()
+                            }
                         )
                     }
 

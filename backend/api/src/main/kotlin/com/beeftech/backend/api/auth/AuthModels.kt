@@ -7,7 +7,10 @@ import kotlinx.serialization.Serializable
 data class LoginRequest(
     val username: String,
     val pin: String,
-    @SerialName("device_id") val deviceId: String
+    @SerialName("device_id") val deviceId: String,
+    /* Sent by newer apps so the admin's device list can say which phone it is; absent from older ones. */
+    @SerialName("device_model") val deviceModel: String? = null,
+    @SerialName("app_version") val appVersion: String? = null
 )
 
 @Serializable

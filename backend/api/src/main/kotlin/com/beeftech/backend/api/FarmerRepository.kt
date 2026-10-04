@@ -135,7 +135,8 @@ class FarmerRepository {
                 .where {
                     scope.predicate(
                         FarmerTable.submittedByUserId,
-                        FarmerTable.siteId
+                        FarmerTable.siteId,
+                        FarmerTable.voidedAt
                     )
                 }
                 .map {
@@ -155,7 +156,8 @@ class FarmerRepository {
                     (FarmerTable.farmerId eq farmerId) and
                         scope.predicate(
                             FarmerTable.submittedByUserId,
-                            FarmerTable.siteId
+                            FarmerTable.siteId,
+                            FarmerTable.voidedAt
                         )
                 }
                 .singleOrNull()

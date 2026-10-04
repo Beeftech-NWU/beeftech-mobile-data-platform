@@ -6,6 +6,13 @@ import com.beeftech.backend.api.auth.JwtService
 import com.beeftech.backend.api.auth.UserRepository
 import com.beeftech.backend.api.auth.UserAdminService
 import com.beeftech.backend.api.auth.authRoutes
+import com.beeftech.backend.api.auth.DeviceAdminService
+import com.beeftech.backend.api.auth.DeviceRepository
+import com.beeftech.backend.api.auth.LoginSecurityRepository
+import com.beeftech.backend.api.auth.SiteRepository
+import com.beeftech.backend.api.auth.SiteService
+import com.beeftech.backend.api.auth.deviceAdminRoutes
+import com.beeftech.backend.api.auth.siteRoutes
 import com.beeftech.backend.api.auth.userAdminRoutes
 import com.beeftech.backend.api.feedcrib.FeedCribRepository
 import com.beeftech.backend.api.feedcrib.FeedCribService
@@ -20,6 +27,7 @@ import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
+import kotlinx.serialization.json.Json
 import kotlinx.coroutines.runBlocking
 
 fun main() {
@@ -60,7 +68,11 @@ fun Application.module() {
     )
 
     install(ContentNegotiation) {
-        json()
+        /*
+         * A newer app may send fields this server doesn't know yet (e.g. device_model at login);
+         * ignoring them keeps a mixed-version fleet working instead of failing the request.
+         */
+        json(Json { ignoreUnknownKeys = true })
     }
 
     val userRepository = UserRepository()
@@ -171,9 +183,59 @@ fun Application.module() {
             userAdminService
         )
 
+        siteRoutes(
+            jwtService,
+            SiteService(userRepository, SiteRepository())
+        )
+
+        syncPolicyRoutes(
+            jwtService,
+            SyncPolicyService(userRepository, SyncPolicyRepository())
+        )
+
+        syncSecurityRoutes(
+            jwtService,
+            SyncSecurityService(userRepository, SyncSecurityRepository())
+        )
+
+        referenceDataRoutes(
+            jwtService,
+            ReferenceDataService(userRepository, ReferenceDataRepository())
+        )
+
+        deviceAdminRoutes(
+            jwtService,
+            DeviceAdminService(userRepository, DeviceRepository(), LoginSecurityRepository())
+        )
+
+        mortalityRoutes(
+            jwtService,
+            MortalityService(MortalityRepository())
+        )
+
+        voidRoutes(
+            jwtService,
+            VoidService(UserRepository(), VoidRepository())
+        )
+
+        auditRoutes(
+            jwtService,
+            AuditService(UserRepository(), AuditRepository())
+        )
+
+        costRoutes(
+            jwtService,
+            CostService(CostRepository())
+        )
+
         dashboardRoutes(
             jwtService,
             DashboardService()
+        )
+
+        reportRoutes(
+            jwtService,
+            ReportService()
         )
 
         /*

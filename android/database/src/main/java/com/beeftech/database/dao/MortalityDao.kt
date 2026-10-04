@@ -34,7 +34,6 @@ interface MortalityDao {
         animalId: String
     ): List<Mortality>
 
-
     @Query(
         """
         SELECT *
@@ -47,4 +46,30 @@ interface MortalityDao {
         recordGuid: String
     ): Mortality?
 
+    /*
+     * Rows that still need to reach the server, including ones recorded
+     * before mortalities could sync at all.
+     */
+    @Query(
+        """
+        SELECT *
+        FROM mortalities
+        WHERE sync_status != 'SYNCED'
+        ORDER BY timestamp ASC
+        """
+    )
+    suspend fun getUnsynced(): List<Mortality>
+
+    @Query(
+        """
+        UPDATE mortalities
+        SET sync_status = 'SYNCED',
+            synced_at = :syncedAt
+        WHERE record_guid = :recordGuid
+        """
+    )
+    suspend fun markSynced(
+        recordGuid: String,
+        syncedAt: Long
+    ): Int
 }

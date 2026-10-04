@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.beeftech.management.data.DashboardSummary
 import com.beeftech.management.data.ManagementApiClient
 import com.beeftech.management.data.ManagementResult
+import com.beeftech.management.data.Site
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,22 +17,51 @@ import kotlinx.coroutines.launch
 data class DashboardUiState(
     /* Kept across failed refreshes, so a dropped connection doesn't blank the screen. */
     val summary: DashboardSummary? = null,
+    /* Admins only: the sites to switch between, and the one chosen (null = all sites). */
+    val sites: List<Site> = emptyList(),
+    val selectedSiteId: String? = null,
     val loading: Boolean = false,
     val needsConnection: Boolean = false,
     val error: String? = null
 )
 
+/*
+ * A manager always sees their own site, so only an admin gets the site switch
+ * ([canSwitchSite]); the server enforces the same rule.
+ */
 class DashboardViewModel(
-    private val apiClient: ManagementApiClient
+    private val apiClient: ManagementApiClient,
+    private val canSwitchSite: Boolean = false
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
-    fun refresh() {
+    private var loadJob: Job? = null
+
+    /* A failure leaves the old list; the summary itself reports connection problems. */
+    private fun loadSites() {
         viewModelScope.launch {
+            val result = apiClient.listSites()
+            if (result is ManagementResult.Success) {
+                _uiState.update { it.copy(sites = result.value) }
+            }
+        }
+    }
+
+    fun selectSite(siteId: String?) {
+        if (!canSwitchSite || siteId == _uiState.value.selectedSiteId) return
+        _uiState.update { it.copy(selectedSiteId = siteId) }
+        refresh()
+    }
+
+    fun refresh() {
+        if (canSwitchSite) loadSites()
+        /* A slower answer for a previously selected site must not overwrite the current one. */
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _uiState.update { it.copy(loading = true) }
-            val result = apiClient.dashboardSummary()
+            val result = apiClient.dashboardSummary(_uiState.value.selectedSiteId)
             _uiState.update { state ->
                 val done = state.copy(loading = false)
                 when (result) {
@@ -51,9 +82,10 @@ class DashboardViewModel(
 }
 
 class DashboardViewModelFactory(
-    private val apiClient: ManagementApiClient
+    private val apiClient: ManagementApiClient,
+    private val canSwitchSite: Boolean = false
 ) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
-    override fun <T : ViewModel> create(modelClass: Class<T>): T = DashboardViewModel(apiClient) as T
+    override fun <T : ViewModel> create(modelClass: Class<T>): T = DashboardViewModel(apiClient, canSwitchSite) as T
 }

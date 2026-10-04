@@ -94,4 +94,46 @@ class UsersSchemaMigrationTest {
 
         assertTrue(columns(database).isEmpty())
     }
+
+    @Test
+    fun `legacy users gain tokens_valid_after as NULL and a second run is a no-op`() {
+        val database = newDatabase()
+        transaction(database) {
+            exec("CREATE TABLE users (user_id VARCHAR(64) NOT NULL PRIMARY KEY, username VARCHAR(255) NOT NULL)")
+            exec("INSERT INTO users (user_id, username) VALUES ('u-1', 'jvdm')")
+        }
+
+        UsersSchemaMigration.run(database)
+        UsersSchemaMigration.run(database)
+
+        assertEquals(1, columns(database).count { it == "tokens_valid_after" })
+        val value = transaction(database) {
+            exec("SELECT tokens_valid_after FROM users WHERE user_id = 'u-1'") { rs ->
+                rs.next()
+                rs.getObject(1)
+            }
+        }
+        assertEquals(null, value)
+    }
+
+    @Test
+    fun `legacy users table gains sync_lock_cleared_at and keeps its rows`() {
+        val database = newDatabase()
+        transaction(database) {
+            exec("CREATE TABLE users (user_id VARCHAR(64) NOT NULL PRIMARY KEY, username VARCHAR(255) NOT NULL)")
+            exec("INSERT INTO users (user_id, username) VALUES ('u-1', 'jvdm')")
+        }
+
+        UsersSchemaMigration.run(database)
+        UsersSchemaMigration.run(database)
+
+        assertTrue("sync_lock_cleared_at" in columns(database))
+        val row = transaction(database) {
+            exec("SELECT username, sync_lock_cleared_at FROM users WHERE user_id = 'u-1'") { rs ->
+                rs.next()
+                rs.getString(1) to rs.getString(2)
+            }
+        }
+        assertEquals("jvdm" to null, row)
+    }
 }

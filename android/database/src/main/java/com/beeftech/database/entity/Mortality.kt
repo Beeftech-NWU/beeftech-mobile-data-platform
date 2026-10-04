@@ -49,5 +49,11 @@ data class Mortality(
     val timestamp: Long,
 
     @ColumnInfo(name = "record_guid")
-    val recordGuid: String = UUID.randomUUID().toString()
+    val recordGuid: String = UUID.randomUUID().toString(),
+
+    @ColumnInfo(name = "sync_status", defaultValue = "'PENDING'")
+    val syncStatus: String = "PENDING",
+
+    @ColumnInfo(name = "synced_at")
+    val syncedAt: Long? = null
 )

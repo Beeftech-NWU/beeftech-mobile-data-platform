@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 35,
-    "identityHash": "640bedee3c552a813768b0d0ab8a99ab",
+    "identityHash": "4af9b4fc0c64f533d2f9886d16a20daf",
     "entities": [
       {
         "tableName": "animals",
@@ -215,7 +215,7 @@
       },
       {
         "tableName": "animal_costs",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `animalId` TEXT NOT NULL, `costType` TEXT NOT NULL, `amount` REAL NOT NULL, `description` TEXT NOT NULL DEFAULT '', `gpsLat` REAL NOT NULL, `gpsLng` REAL NOT NULL, `timestamp` INTEGER NOT NULL, `source_entity` TEXT, `source_record_id` TEXT, `record_guid` TEXT NOT NULL, FOREIGN KEY(`costType`) REFERENCES `cost_types`(`code`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`animalId`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `animalId` TEXT NOT NULL, `costType` TEXT NOT NULL, `amount` REAL NOT NULL, `description` TEXT NOT NULL DEFAULT '', `gpsLat` REAL NOT NULL, `gpsLng` REAL NOT NULL, `timestamp` INTEGER NOT NULL, `source_entity` TEXT, `source_record_id` TEXT, `record_guid` TEXT NOT NULL, `sync_status` TEXT NOT NULL DEFAULT 'PENDING', `synced_at` INTEGER, FOREIGN KEY(`costType`) REFERENCES `cost_types`(`code`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`animalId`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -281,6 +281,18 @@
             "columnName": "record_guid",
             "affinity": "TEXT",
             "notNull": true
+          },
+          {
+            "fieldPath": "syncStatus",
+            "columnName": "sync_status",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'PENDING'"
+          },
+          {
+            "fieldPath": "syncedAt",
+            "columnName": "synced_at",
+            "affinity": "INTEGER"
           }
         ],
         "primaryKey": {
@@ -1236,48 +1248,6 @@
         ]
       },
       {
-        "tableName": "rations",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ration_id` TEXT NOT NULL, `name` TEXT NOT NULL, `active` INTEGER NOT NULL DEFAULT 1, PRIMARY KEY(`ration_id`))",
-        "fields": [
-          {
-            "fieldPath": "rationId",
-            "columnName": "ration_id",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "name",
-            "columnName": "name",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "active",
-            "columnName": "active",
-            "affinity": "INTEGER",
-            "notNull": true,
-            "defaultValue": "1"
-          }
-        ],
-        "primaryKey": {
-          "autoGenerate": false,
-          "columnNames": [
-            "ration_id"
-          ]
-        },
-        "indices": [
-          {
-            "name": "index_rations_name",
-            "unique": true,
-            "columnNames": [
-              "name"
-            ],
-            "orders": [],
-            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_rations_name` ON `${TABLE_NAME}` (`name`)"
-          }
-        ]
-      },
-      {
         "tableName": "roles",
         "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`role_id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `role_name` TEXT NOT NULL)",
         "fields": [
@@ -1662,7 +1632,7 @@
       },
       {
         "tableName": "mortalities",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `animalId` TEXT NOT NULL, `causeOfDeath` TEXT NOT NULL, `necropsy_code_id` TEXT, `responsibleWorker` TEXT NOT NULL DEFAULT '', `notes` TEXT, `timestamp` INTEGER NOT NULL, `record_guid` TEXT NOT NULL, FOREIGN KEY(`animalId`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`necropsy_code_id`) REFERENCES `necropsy_codes`(`necropsyCodeId`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `animalId` TEXT NOT NULL, `causeOfDeath` TEXT NOT NULL, `necropsy_code_id` TEXT, `responsibleWorker` TEXT NOT NULL DEFAULT '', `notes` TEXT, `timestamp` INTEGER NOT NULL, `record_guid` TEXT NOT NULL, `sync_status` TEXT NOT NULL DEFAULT 'PENDING', `synced_at` INTEGER, FOREIGN KEY(`animalId`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`necropsy_code_id`) REFERENCES `necropsy_codes`(`necropsyCodeId`) ON UPDATE NO ACTION ON DELETE SET NULL )",
         "fields": [
           {
             "fieldPath": "id",
@@ -1710,6 +1680,18 @@
             "columnName": "record_guid",
             "affinity": "TEXT",
             "notNull": true
+          },
+          {
+            "fieldPath": "syncStatus",
+            "columnName": "sync_status",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'PENDING'"
+          },
+          {
+            "fieldPath": "syncedAt",
+            "columnName": "synced_at",
+            "affinity": "INTEGER"
           }
         ],
         "primaryKey": {
@@ -2417,7 +2399,7 @@
       },
       {
         "tableName": "animal_purchases",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`purchase_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `purchase_price` REAL NOT NULL, `purchase_date` INTEGER NOT NULL, `seller_name` TEXT NOT NULL, `supplier_farmer_id` TEXT, `gln_number` TEXT, `purchase_batch_number` TEXT, `notes` TEXT, `record_guid` TEXT NOT NULL DEFAULT '', PRIMARY KEY(`purchase_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`purchase_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `purchase_price` REAL NOT NULL, `purchase_date` INTEGER NOT NULL, `seller_name` TEXT NOT NULL, `notes` TEXT, `record_guid` TEXT NOT NULL DEFAULT '', PRIMARY KEY(`purchase_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "purchaseId",
@@ -2448,21 +2430,6 @@
             "columnName": "seller_name",
             "affinity": "TEXT",
             "notNull": true
-          },
-          {
-            "fieldPath": "supplierFarmerId",
-            "columnName": "supplier_farmer_id",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "glnNumber",
-            "columnName": "gln_number",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "purchaseBatchNumber",
-            "columnName": "purchase_batch_number",
-            "affinity": "TEXT"
           },
           {
             "fieldPath": "notes",
@@ -2510,24 +2477,6 @@
             ],
             "orders": [],
             "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_animal_purchases_record_guid` ON `${TABLE_NAME}` (`record_guid`)"
-          },
-          {
-            "name": "index_animal_purchases_supplier_farmer_id",
-            "unique": false,
-            "columnNames": [
-              "supplier_farmer_id"
-            ],
-            "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_animal_purchases_supplier_farmer_id` ON `${TABLE_NAME}` (`supplier_farmer_id`)"
-          },
-          {
-            "name": "index_animal_purchases_purchase_batch_number",
-            "unique": false,
-            "columnNames": [
-              "purchase_batch_number"
-            ],
-            "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_animal_purchases_purchase_batch_number` ON `${TABLE_NAME}` (`purchase_batch_number`)"
           }
         ],
         "foreignKeys": [
@@ -3073,7 +3022,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '640bedee3c552a813768b0d0ab8a99ab')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '4af9b4fc0c64f533d2f9886d16a20daf')"
     ]
   }
 }

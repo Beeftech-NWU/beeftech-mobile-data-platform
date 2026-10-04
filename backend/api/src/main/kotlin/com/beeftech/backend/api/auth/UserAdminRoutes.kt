@@ -63,6 +63,15 @@ fun Route.userAdminRoutes(
         )
     }
 
+    post("/api/users/{id}/unlock-login") {
+        val principal = call.requireRole(jwtService, Role.ADMIN, Role.MANAGER) ?: return@post
+
+        call.respondResult(
+            userAdminService.unlockLogin(principal, call.parameters["id"].orEmpty()),
+            "Login unlocked"
+        )
+    }
+
     post("/api/users/{id}/unbind-device") {
         val principal = call.requireRole(jwtService, Role.ADMIN, Role.MANAGER) ?: return@post
 

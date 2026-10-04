@@ -2,7 +2,6 @@ package com.beeftech.demoapp
 
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -23,6 +22,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -41,12 +41,13 @@ import com.beeftech.calfregistration.ui.CalfRegistrationFlow
 import com.beeftech.calfregistration.viewmodel.CalfRegistrationViewModel
 import com.beeftech.calfregistration.viewmodel.CalfRegistrationViewModelFactory
 import com.beeftech.database.DatabaseProvider
-import com.beeftech.database.security.CurrentUserIdRegistry
 import com.beeftech.database.DatabaseResult
 import com.beeftech.database.repository.PendingSyncRepository
 import com.beeftech.database.repository.SyncRepository
 import com.beeftech.database.repository.SyncPolicyEnforcer
+import com.beeftech.database.repository.SyncPolicyStore
 import com.beeftech.authentication.data.AuthApiClient
+import com.beeftech.authentication.data.DeviceInfo
 import com.beeftech.authentication.data.AuthRepository
 import com.beeftech.authentication.data.EncryptedDeviceIdProvider
 import com.beeftech.authentication.data.EncryptedSessionStore
@@ -55,7 +56,10 @@ import com.beeftech.database.security.PinLockoutManager
 import com.beeftech.authentication.domain.Role
 import com.beeftech.database.security.TokenProviderRegistry
 import com.beeftech.management.data.ManagementApiClient
+import com.beeftech.management.ui.AdminTab
 import com.beeftech.management.ui.DashboardTab
+import com.beeftech.management.ui.ReportsTab
+import com.beeftech.management.ui.RecordsReviewTab
 import com.beeftech.management.ui.MyActivityScreen
 import com.beeftech.management.ui.TeamTab
 import com.beeftech.demoapp.ui.theme.BeeftechTheme
@@ -71,6 +75,10 @@ import com.beeftech.farmtraceability.viewmodel.CostSummaryViewModel
 import com.beeftech.farmtraceability.viewmodel.CostSummaryViewModelFactory
 import com.beeftech.farmtraceability.viewmodel.LocationFeedViewModel
 import com.beeftech.farmtraceability.viewmodel.LocationFeedViewModelFactory
+import com.beeftech.farmtraceability.data.CostApiClient
+import com.beeftech.farmtraceability.data.CostRepository
+import com.beeftech.farmtraceability.data.MortalityApiClient
+import com.beeftech.farmtraceability.data.MortalityRepository
 import com.beeftech.farmtraceability.viewmodel.MortalityViewModel
 import com.beeftech.farmtraceability.viewmodel.MortalityViewModelFactory
 import com.beeftech.farmtraceability.viewmodel.SupplierViewModel
@@ -131,7 +139,17 @@ class MainActivity : ComponentActivity() {
                     val authRepository =
                         AuthRepository(
                             apiClient =
-                                AuthApiClient(),
+                                AuthApiClient(
+                                    deviceInfo =
+                                        DeviceInfo(
+                                            appVersion =
+                                                runCatching {
+                                                    packageManager
+                                                        .getPackageInfo(packageName, 0)
+                                                        .versionName
+                                                }.getOrNull()
+                                        )
+                                ),
                             sessionStore =
                                 sessionStore,
                             userDao =
@@ -139,7 +157,9 @@ class MainActivity : ComponentActivity() {
                             lockoutManager =
                                 PinLockoutManager(applicationContext),
                             deviceIdProvider =
-                                EncryptedDeviceIdProvider(applicationContext)
+                                EncryptedDeviceIdProvider(applicationContext),
+                            pendingSyncDao =
+                                database.pendingSyncDao()
                         )
 
                     val loginViewModelFactory =
@@ -202,160 +222,6 @@ class MainActivity : ComponentActivity() {
                         )
 
                     /*
-                     * BEEFTECH_TEST22_LEGACY_QUEUE_REPAIR
-                     *
-                     * TEST22 was queued before the user-ID
-                     * reconciliation fix existed.
-                     *
-                     * The raw queue confirms that the only pending
-                     * operation still belongs to the previous
-                     * fmanager server identity.
-                     *
-                     * Move that legacy queue to the currently
-                     * authenticated identity and reset retryCount.
-                     */
-                    withContext(Dispatchers.IO) {
-
-                        val currentUserId =
-                            CurrentUserIdRegistry
-                                .currentUserId()
-
-                        if (
-                            !currentUserId.isNullOrBlank()
-                        ) {
-
-                            val moved =
-                                database
-                                    .pendingSyncDao()
-                                    .reassignUserOperations(
-                                        oldUserId =
-                                            "113e7515-2c61-4de2-93c8-99ff5a61b1b2",
-
-                                        newUserId =
-                                            currentUserId
-                                    )
-
-                            Log.i(
-                                "BeefTechQueueDebug",
-                                "TEST22_LEGACY_QUEUE_REPAIR " +
-                                    "moved=$moved, " +
-                                    "newUserId=$currentUserId"
-                            )
-                        }
-                    }
-
-
-                    /*
-                     * BEEFTECH_QUEUE_DIAGNOSTIC
-                     *
-                     * Temporary diagnostic only.
-                     * Does not modify any data.
-                     */
-                    withContext(Dispatchers.IO) {
-
-                        val activeUserId =
-                            CurrentUserIdRegistry
-                                .currentUserId()
-
-                        val rawPending =
-                            database
-                                .pendingSyncDao()
-                                .getAll()
-
-                        val test21Farmers =
-                            database
-                                .farmerDao()
-                                .getAllFarmers()
-                                .filter {
-                                    it.client_code
-                                        ?.trim()
-                                        ?.equals(
-                                            "TEST21",
-                                            ignoreCase = true
-                                        ) == true
-                                }
-
-                        Log.i(
-                            "BeefTechQueueDebug",
-                            "ACTIVE_USER_ID=$activeUserId"
-                        )
-
-                        Log.i(
-                            "BeefTechQueueDebug",
-                            "RAW_PENDING_COUNT=${rawPending.size}"
-                        )
-
-                        rawPending.forEach { pending ->
-
-                            Log.i(
-                                "BeefTechQueueDebug",
-                                "QUEUE id=${pending.id}, " +
-                                    "userId=${pending.userId}, " +
-                                    "type=${pending.entityType}, " +
-                                    "entityId=${pending.entityId}, " +
-                                    "retryCount=${pending.retryCount}"
-                            )
-                        }
-
-                        test21Farmers.forEach { farmer ->
-
-                            Log.i(
-                                "BeefTechQueueDebug",
-                                "TEST21 farmerId=${farmer.farmer_id}, " +
-                                    "status=${farmer.sync_status}"
-                            )
-                        }
-
-                        if (test21Farmers.isEmpty()) {
-
-                            Log.i(
-                                "BeefTechQueueDebug",
-                                "TEST21_NOT_FOUND"
-                            )
-                        }
-
-                        /*
-                         * BEEFTECH_TEST21_OWNER_REPAIR
-                         *
-                         * One-time development repair.
-                         *
-                         * TEST21 existed before the Render development
-                         * user ID changed. Reassign only this Farmer
-                         * Registration queue entry to the account which
-                         * is currently authenticated.
-                         */
-                        val test21 =
-                            test21Farmers
-                                .firstOrNull()
-
-                        if (
-                            activeUserId != null &&
-                            test21 != null
-                        ) {
-
-                            database
-                                .pendingSyncDao()
-                                .reassignEntityToUser(
-                                    entityType =
-                                        "FARMER_REGISTRATION",
-
-                                    entityId =
-                                        test21.farmer_id,
-
-                                    userId =
-                                        activeUserId
-                                )
-
-                            Log.i(
-                                "BeefTechQueueDebug",
-                                "REPAIRED_TEST21_QUEUE_OWNER " +
-                                    "farmerId=${test21.farmer_id}, " +
-                                    "newUserId=$activeUserId"
-                            )
-                        }
-                    }
-
-                    /*
                      * Animal Movement setup
                      */
                     val animalMovementDao =
@@ -394,7 +260,9 @@ class MainActivity : ComponentActivity() {
                             pendingSyncRepository =
                                 pendingSyncRepository,
                             apiClient =
-                                treatmentApiClient
+                                treatmentApiClient,
+                            referenceDataDao =
+                                database.referenceDataDao()
                         )
 
                     val treatmentViewModelFactory =
@@ -414,13 +282,23 @@ class MainActivity : ComponentActivity() {
                     /*
                      * Mortality setup
                      */
-                    val mortalityDao =
-                        database.mortalityDao()
+                    val mortalityRepository =
+                        MortalityRepository(
+                            mortalityDao =
+                                database.mortalityDao(),
+                            pendingSyncRepository =
+                                pendingSyncRepository,
+                            apiClient =
+                                MortalityApiClient(
+                                    tokenProvider =
+                                        sessionStore
+                                )
+                        )
 
                     val mortalityViewModelFactory =
                         MortalityViewModelFactory(
-                            mortalityDao =
-                                mortalityDao
+                            repository =
+                                mortalityRepository
                         )
 
                     val mortalityViewModel =
@@ -446,7 +324,19 @@ class MainActivity : ComponentActivity() {
                             animalCostDao =
                                 animalCostDao,
                             costTypeDao =
-                                database.costTypeDao()
+                                database.costTypeDao(),
+                            repository =
+                                CostRepository(
+                                    animalCostDao =
+                                        animalCostDao,
+                                    pendingSyncRepository =
+                                        pendingSyncRepository,
+                                    apiClient =
+                                        CostApiClient(
+                                            tokenProvider =
+                                                sessionStore
+                                        )
+                                )
                         )
 
                     val costSummaryViewModel =
@@ -531,7 +421,12 @@ class MainActivity : ComponentActivity() {
                                 database.pendingSyncDao(),
 
                             syncSecurityDao =
-                                database.syncSecurityDao()
+                                database.syncSecurityDao(),
+
+                            /* The server can move the warnings, never the wipe. */
+                            policyProvider = {
+                                SyncPolicyStore(database.referenceDataDao()).current()
+                            }
                         )
 
                     /*
@@ -591,6 +486,15 @@ class MainActivity : ComponentActivity() {
                             locationFeedViewModel
                                 .records
                                 .collectAsState()
+
+                            /*
+                             * Pull the server's reference data (disease and treatment-type
+                             * lists, cost types) whenever someone is signed in. Waits for a
+                             * connection and a server token, and never touches queued records.
+                             */
+                            LaunchedEffect(loggedInUser.userId) {
+                                DeviceCheckInWorker.enqueue(applicationContext)
+                            }
 
                             var selectedDemoTab by
                             remember {
@@ -816,6 +720,28 @@ class MainActivity : ComponentActivity() {
                                             apiClient =
                                                 managementApiClient,
                                             currentUserId =
+                                                loggedInUser.userId,
+                                            isAdmin =
+                                                loggedInUser.roleEnum == Role.ADMIN
+                                        )
+
+                                    } else if (currentTab == AppTab.REPORTS) {
+
+                                        ReportsTab(
+                                            apiClient =
+                                                managementApiClient,
+                                            currentUserId =
+                                                loggedInUser.userId,
+                                            isAdmin =
+                                                loggedInUser.roleEnum == Role.ADMIN
+                                        )
+
+                                    } else if (currentTab == AppTab.RECORDS) {
+
+                                        RecordsReviewTab(
+                                            apiClient =
+                                                managementApiClient,
+                                            currentUserId =
                                                 loggedInUser.userId
                                         )
 
@@ -828,6 +754,15 @@ class MainActivity : ComponentActivity() {
                                                 loggedInUser.userId,
                                             isAdmin =
                                                 loggedInUser.roleEnum == Role.ADMIN
+                                        )
+
+                                    } else if (currentTab == AppTab.ADMIN) {
+
+                                        AdminTab(
+                                            apiClient =
+                                                managementApiClient,
+                                            currentUserId =
+                                                loggedInUser.userId
                                         )
 
                                     } else if (currentTab == AppTab.CALF_REGISTRATION) {
@@ -1224,6 +1159,38 @@ class MainActivity : ComponentActivity() {
                                                             .retrySync(
                                                                 animalId = ""
                                                             ) {
+                                                                    _,
+                                                                    message ->
+
+                                                                Toast.makeText(
+                                                                    this@MainActivity,
+                                                                    message,
+                                                                    Toast.LENGTH_SHORT
+                                                                ).show()
+                                                            }
+                                                    }
+
+                                                    if (
+                                                        "MORTALITY" in pendingTypes
+                                                    ) {
+                                                        mortalityViewModel
+                                                            .retrySync {
+                                                                    _,
+                                                                    message ->
+
+                                                                Toast.makeText(
+                                                                    this@MainActivity,
+                                                                    message,
+                                                                    Toast.LENGTH_SHORT
+                                                                ).show()
+                                                            }
+                                                    }
+
+                                                    if (
+                                                        "ANIMAL_COST" in pendingTypes
+                                                    ) {
+                                                        costSummaryViewModel
+                                                            .retrySync {
                                                                     _,
                                                                     message ->
 

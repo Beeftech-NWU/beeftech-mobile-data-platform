@@ -1,7 +1,11 @@
 package com.beeftech.calfregistration.data
 
+import com.beeftech.database.BackendConfig
 import com.beeftech.database.dao.CalfRegistrationView
 import com.beeftech.database.security.TokenProvider
+import io.ktor.http.HttpStatusCode
+import io.ktor.client.statement.bodyAsText
+import com.beeftech.database.security.reportUnauthorized
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
@@ -22,7 +26,7 @@ import kotlinx.serialization.json.Json
  */
 class CalfRegistrationApiClient(
     private val tokenProvider: TokenProvider,
-    private val baseUrl: String = DEFAULT_BASE_URL,
+    private val baseUrl: String = BackendConfig.baseUrl,
     private val httpClient: HttpClient = HttpClient(OkHttp) {
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true })
@@ -43,6 +47,11 @@ class CalfRegistrationApiClient(
             val dtoRecords = records.map { CalfRegistrationMappers.toDto(it) }
 
             val response = postSync(dtoRecords, deviceId, token)
+
+            /* A 401 means sign in again; the session store decides what that does. Queued records are untouched. */
+            if (response.status == HttpStatusCode.Unauthorized) {
+                tokenProvider.reportUnauthorized(runCatching { response.bodyAsText() }.getOrNull())
+            }
 
             if (!response.status.isSuccess()) {
                 return Result.failure(
@@ -73,7 +82,4 @@ class CalfRegistrationApiClient(
         }
     }
 
-    companion object {
-        const val DEFAULT_BASE_URL = "https://beeftech-backend.onrender.com/"
-    }
 }

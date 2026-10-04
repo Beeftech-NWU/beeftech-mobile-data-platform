@@ -17,4 +17,6 @@ sealed class LoginResult {
     ) : LoginResult()
 
     data object WrongDevice : LoginResult()
+
+    data object DeviceRevoked : LoginResult()
 }

@@ -1,7 +1,11 @@
 package com.beeftech.farmtraceability.data
 
+import com.beeftech.database.BackendConfig
 import com.beeftech.database.entity.AnimalMovementEntity
 import com.beeftech.database.security.TokenProvider
+import io.ktor.http.HttpStatusCode
+import io.ktor.client.statement.bodyAsText
+import com.beeftech.database.security.reportUnauthorized
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
@@ -60,7 +64,7 @@ private data class ApiResponse<T>(
 
 class AnimalMovementApiClient(
     private val tokenProvider: TokenProvider,
-    private val baseUrl: String = DEFAULT_BASE_URL,
+    private val baseUrl: String = BackendConfig.baseUrl,
     private val httpClient: HttpClient = HttpClient(OkHttp) {
 
         install(ContentNegotiation) {
@@ -137,6 +141,11 @@ class AnimalMovementApiClient(
                     token = token
                 )
 
+            /* A 401 means sign in again; the session store decides what that does. Queued records are untouched. */
+            if (response.status == HttpStatusCode.Unauthorized) {
+                tokenProvider.reportUnauthorized(runCatching { response.bodyAsText() }.getOrNull())
+            }
+
             if (!response.status.isSuccess()) {
 
                 return Result.failure(
@@ -198,9 +207,4 @@ class AnimalMovementApiClient(
         }
     }
 
-    companion object {
-
-        const val DEFAULT_BASE_URL =
-            "https://beeftech-backend.onrender.com/"
-    }
 }

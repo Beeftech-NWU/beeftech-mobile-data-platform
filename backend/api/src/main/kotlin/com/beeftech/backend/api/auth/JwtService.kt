@@ -9,7 +9,12 @@ data class AuthPrincipal(
     val userId: String,
     val role: Int?,
     val deviceId: String?,
-    val siteId: String? = null
+    val siteId: String? = null,
+    /*
+     * When the token was issued, in epoch milliseconds (the standard iat is whole seconds, which
+     * would race a revoke in the same second). Null for tokens issued before revocation existed.
+     */
+    val issuedAtMs: Long? = null
 ) {
 
     val roleEnum: Role?
@@ -31,11 +36,15 @@ class JwtService {
         siteId: String? = null
     ): String {
 
+        val now = System.currentTimeMillis()
+
         val builder = JWT.create()
             .withSubject(username)
             .withIssuer("beeftech")
+            .withIssuedAt(Date(now))
+            .withClaim("iat_ms", now)
             .withExpiresAt(
-                Date(System.currentTimeMillis() + 24 * 60 * 60 * 1000)
+                Date(now + 24 * 60 * 60 * 1000)
             )
 
         if (userId != null) {
@@ -94,12 +103,16 @@ class JwtService {
             /* Tokens issued before site support have no site_id claim; asString() is null for those. */
             val siteId = decodedJwt.getClaim("site_id").asString()
 
+            /* Likewise null for tokens issued before iat_ms existed. */
+            val issuedAtMs = decodedJwt.getClaim("iat_ms").asLong()
+
             AuthPrincipal(
                 username = username,
                 userId = userId,
                 role = role,
                 deviceId = deviceId,
-                siteId = siteId
+                siteId = siteId,
+                issuedAtMs = issuedAtMs
             )
 
         } catch (e: Exception) {

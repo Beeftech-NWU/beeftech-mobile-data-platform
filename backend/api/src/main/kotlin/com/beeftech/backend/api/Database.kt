@@ -1,5 +1,9 @@
 ﻿package com.beeftech.backend.api
 
+import com.beeftech.backend.api.auth.DevicesTable
+import com.beeftech.backend.api.auth.LoginAttemptsTable
+import com.beeftech.backend.api.auth.LoginEventsTable
+import com.beeftech.backend.api.auth.SitesSchemaMigration
 import com.beeftech.backend.api.auth.SitesTable
 import com.beeftech.backend.api.auth.UsersSchemaMigration
 import com.beeftech.backend.api.feedcrib.FeedCribTable
@@ -38,7 +42,10 @@ object DatabaseFactory {
         CalfRegistrationSchemaMigration.run(database)
         FarmerSchemaMigration.run(database)
         UsersSchemaMigration.run(database)
+        SitesSchemaMigration.run(database)
         RecordScopeSchemaMigration.run(database)
+        RecordVoidSchemaMigration.run(database)
+        AuditLogSchemaMigration.run(database)
 
         transaction(database) {
 
@@ -53,7 +60,16 @@ object DatabaseFactory {
                 FarmerRoleTable,
                 UsersTable,
                 SitesTable,
-                FeedCribTable
+                FeedCribTable,
+                MortalityTable,
+                CostTable,
+                AuditLogTable,
+                DevicesTable,
+                LoginAttemptsTable,
+                LoginEventsTable,
+                CostTypeTable,
+                AppSettingsTable,
+                SyncSecurityEventsTable
             )
         }
 
@@ -61,7 +77,7 @@ object DatabaseFactory {
          * Seed treatment reference/master data
          * after the reference tables exist.
          */
-        TreatmentReferenceSeeder.seed()
+        ReferenceDataSeeder.seed()
 
         return database
     }

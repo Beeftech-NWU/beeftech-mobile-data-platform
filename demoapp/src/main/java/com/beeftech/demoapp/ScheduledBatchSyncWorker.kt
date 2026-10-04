@@ -14,6 +14,8 @@ import androidx.work.WorkerParameters
 import com.beeftech.calfregistration.worker.CalfRegistrationSyncWorker
 import com.beeftech.farmerregistration.worker.FarmerSyncWorker
 import com.beeftech.farmtraceability.worker.AnimalMovementSyncWorker
+import com.beeftech.farmtraceability.worker.CostSyncWorker
+import com.beeftech.farmtraceability.worker.MortalitySyncWorker
 import com.beeftech.farmtraceability.worker.TreatmentSyncWorker
 
 class ScheduledBatchSyncWorker(
@@ -73,6 +75,25 @@ class ScheduledBatchSyncWorker(
                     AnimalMovementSyncWorker
                 >()
             )
+
+            workManager.enqueueUniqueWork(
+                MORTALITY_SYNC_WORK_NAME,
+                ExistingWorkPolicy.KEEP,
+                connectedWorkRequest<
+                    MortalitySyncWorker
+                >()
+            )
+
+            workManager.enqueueUniqueWork(
+                COST_SYNC_WORK_NAME,
+                ExistingWorkPolicy.KEEP,
+                connectedWorkRequest<
+                    CostSyncWorker
+                >()
+            )
+
+            /* Not a sync: pulls reference data (and later the sync policy) from the server. */
+            DeviceCheckInWorker.enqueue(applicationContext)
 
             Log.i(
                 TAG,
@@ -137,5 +158,11 @@ class ScheduledBatchSyncWorker(
 
         private const val ANIMAL_MOVEMENT_SYNC_WORK_NAME =
             "animal-movement-scheduled-sync"
+
+        private const val MORTALITY_SYNC_WORK_NAME =
+            "mortality-scheduled-sync"
+
+        private const val COST_SYNC_WORK_NAME =
+            "cost-scheduled-sync"
     }
 }

@@ -4,10 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.beeftech.database.dao.AnimalCostDao
 import com.beeftech.database.dao.CostTypeDao
+import com.beeftech.farmtraceability.data.CostRepository
 
 class CostSummaryViewModelFactory(
     private val animalCostDao: AnimalCostDao,
-    private val costTypeDao: CostTypeDao
+    private val costTypeDao: CostTypeDao,
+    private val repository: CostRepository
 ) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
@@ -23,7 +25,8 @@ class CostSummaryViewModelFactory(
 
             return CostSummaryViewModel(
                 animalCostDao = animalCostDao,
-                costTypeDao = costTypeDao
+                costTypeDao = costTypeDao,
+                repository = repository
             ) as T
         }
 

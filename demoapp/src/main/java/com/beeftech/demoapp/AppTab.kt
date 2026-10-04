@@ -7,10 +7,13 @@ enum class AppTab(val label: String) {
     CALF_REGISTRATION("Calf Registration"),
     FEED_CRIB("Feed Crib"),
     DASHBOARD("Dashboard"),
-    TEAM("Team")
+    REPORTS("Reports"),
+    RECORDS("Records"),
+    TEAM("Team"),
+    ADMIN("Admin")
 }
 
-/* The Admin tab is added for ADMIN in Phase 4. */
+/* ADMIN is the manager's tabs plus Admin; Admin holds the screens only admins get. */
 fun tabsFor(role: Role?): List<AppTab> {
     val capture = listOf(
         AppTab.TRACEABILITY,
@@ -20,7 +23,8 @@ fun tabsFor(role: Role?): List<AppTab> {
 
     /* An unknown or missing role gets the least privilege. */
     return when (role) {
-        Role.ADMIN, Role.MANAGER -> capture + listOf(AppTab.DASHBOARD, AppTab.TEAM)
+        Role.ADMIN -> capture + listOf(AppTab.DASHBOARD, AppTab.REPORTS, AppTab.RECORDS, AppTab.TEAM, AppTab.ADMIN)
+        Role.MANAGER -> capture + listOf(AppTab.DASHBOARD, AppTab.REPORTS, AppTab.RECORDS, AppTab.TEAM)
         else -> capture
     }
 }

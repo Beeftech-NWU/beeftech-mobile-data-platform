@@ -1,6 +1,7 @@
 package com.beeftech.management.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,8 +10,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -19,6 +22,11 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -32,6 +40,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,6 +50,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.beeftech.management.data.ManagementApiClient
+import com.beeftech.management.data.Site
 import com.beeftech.management.data.TeamMember
 import com.beeftech.management.data.roleLabel
 import com.beeftech.management.viewmodel.TeamViewModel
@@ -81,20 +91,11 @@ private val TeamDanger =
         0xFF8A4F4F
     )
 
-private val TeamWarningBackground =
-    Color(
-        0xFFF3E9DD
-    )
-
 
 const val PIN_LENGTH =
     5
 
 
-/*
- * A PIN is exactly PIN_LENGTH digits,
- * matching login and the backend.
- */
 fun isValidPin(
     pin: String
 ): Boolean =
@@ -105,10 +106,24 @@ fun isValidPin(
         }
 
 
-/*
- * Keyed by the signed-in user so another user on the same
- * device never sees the previous user's Team state.
- */
+private enum class TeamSection(
+    val label: String
+) {
+
+    PEOPLE(
+        "People"
+    ),
+
+    DEVICES(
+        "Phones"
+    ),
+
+    ACTIVITY(
+        "Activity"
+    )
+}
+
+
 @Composable
 fun TeamTab(
     apiClient: ManagementApiClient,
@@ -122,6 +137,7 @@ fun TeamTab(
         viewModel(
             key =
                 "team-$currentUserId",
+
             factory =
                 TeamViewModelFactory(
                     apiClient
@@ -129,25 +145,138 @@ fun TeamTab(
         )
 
 
-    TeamScreen(
-        viewModel =
-            viewModel,
-        currentUserId =
-            currentUserId,
-        isAdmin =
-            isAdmin,
+    var section by
+        rememberSaveable {
+            mutableStateOf(
+                TeamSection.PEOPLE
+            )
+        }
+
+
+    Column(
         modifier =
             modifier
-    )
+                .fillMaxSize()
+                .background(
+                    TeamBackground
+                )
+    ) {
+
+        if (
+            !isAdmin
+        ) {
+
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Color.White
+                        )
+                        .horizontalScroll(
+                            rememberScrollState()
+                        )
+                        .padding(
+                            horizontal = 14.dp,
+                            vertical = 8.dp
+                        ),
+                horizontalArrangement =
+                    Arrangement.spacedBy(
+                        8.dp
+                    )
+            ) {
+
+                TeamSection.entries
+                    .forEach {
+                            option ->
+
+                        FilterChip(
+                            selected =
+                                section ==
+                                    option,
+
+                            onClick = {
+                                section =
+                                    option
+                            },
+
+                            label = {
+
+                                Text(
+                                    option.label
+                                )
+                            }
+                        )
+                    }
+            }
+        }
+
+
+        when {
+
+            isAdmin ||
+                section ==
+                TeamSection.PEOPLE -> {
+
+                TeamScreen(
+                    viewModel =
+                        viewModel,
+
+                    currentUserId =
+                        currentUserId,
+
+                    isAdmin =
+                        isAdmin,
+
+                    modifier =
+                        Modifier.weight(
+                            1f
+                        )
+                )
+            }
+
+
+            section ==
+                TeamSection.DEVICES -> {
+
+                DevicesTab(
+                    apiClient =
+                        apiClient,
+
+                    currentUserId =
+                        currentUserId,
+
+                    canManage =
+                        false,
+
+                    modifier =
+                        Modifier.weight(
+                            1f
+                        )
+                )
+            }
+
+
+            else -> {
+
+                AuditLogTab(
+                    apiClient =
+                        apiClient,
+
+                    currentUserId =
+                        currentUserId,
+
+                    modifier =
+                        Modifier.weight(
+                            1f
+                        )
+                )
+            }
+        }
+    }
 }
 
 
-/**
- * Online Team Management.
- *
- * Managers see workers on their site.
- * Admins can manage users across sites.
- */
 @Composable
 fun TeamScreen(
     viewModel: TeamViewModel,
@@ -175,6 +304,14 @@ fun TeamScreen(
     ) {
 
         viewModel.refresh()
+
+
+        if (
+            isAdmin
+        ) {
+
+            viewModel.loadSites()
+        }
     }
 
 
@@ -185,10 +322,19 @@ fun TeamScreen(
         CreateUserDialog(
             askForSite =
                 isAdmin,
+
+            sites =
+                state.sites
+                    .filter {
+                        it.active
+                    },
+
             onDismiss = {
+
                 showCreate =
                     false
             },
+
             onCreate = {
                     username,
                     pin,
@@ -209,18 +355,19 @@ fun TeamScreen(
     }
 
 
-    state
-        .issuedPin
+    state.issuedPin
         ?.let {
                 issued ->
 
             AlertDialog(
                 onDismissRequest =
                     viewModel::dismissIssuedPin,
+
                 shape =
                     RoundedCornerShape(
                         20.dp
                     ),
+
                 title = {
 
                     Text(
@@ -230,6 +377,7 @@ fun TeamScreen(
                             FontWeight.SemiBold
                     )
                 },
+
                 text = {
 
                     Column(
@@ -271,7 +419,7 @@ fun TeamScreen(
 
                         Text(
                             text =
-                                "Give this PIN to the worker now. For security, it will not be shown again.",
+                                "Give this PIN to the worker now. It will not be shown again.",
                             style =
                                 MaterialTheme
                                     .typography
@@ -279,6 +427,7 @@ fun TeamScreen(
                         )
                     }
                 },
+
                 confirmButton = {
 
                     Button(
@@ -310,9 +459,6 @@ fun TeamScreen(
                 )
     ) {
 
-        /*
-         * Header
-         */
         Column(
             modifier =
                 Modifier
@@ -350,14 +496,6 @@ fun TeamScreen(
             )
 
 
-            Spacer(
-                modifier =
-                    Modifier.height(
-                        4.dp
-                    )
-            )
-
-
             Text(
                 text =
                     if (
@@ -387,7 +525,7 @@ fun TeamScreen(
                         isAdmin
                     ) {
 
-                        "Manage users, access and linked devices"
+                        "Manage users, sites, access and linked devices"
 
                     } else {
 
@@ -411,18 +549,13 @@ fun TeamScreen(
                 Modifier
                     .fillMaxSize()
                     .padding(
-                        horizontal = 14.dp,
-                        vertical = 14.dp
+                        14.dp
                     )
         ) {
 
-            /*
-             * Actions
-             */
             Card(
                 modifier =
-                    Modifier
-                        .fillMaxWidth(),
+                    Modifier.fillMaxWidth(),
                 shape =
                     RoundedCornerShape(
                         16.dp
@@ -473,7 +606,8 @@ fun TeamScreen(
                                 text =
                                     "${state.members.size} ${
                                         if (
-                                            state.members.size == 1
+                                            state.members.size ==
+                                            1
                                         ) {
 
                                             "member"
@@ -486,11 +620,7 @@ fun TeamScreen(
                                 style =
                                     MaterialTheme
                                         .typography
-                                        .bodySmall,
-                                color =
-                                    MaterialTheme
-                                        .colorScheme
-                                        .onSurfaceVariant
+                                        .bodySmall
                             )
                         }
 
@@ -500,8 +630,12 @@ fun TeamScreen(
                         ) {
 
                             CircularProgressIndicator(
+                                modifier =
+                                    Modifier.size(
+                                        26.dp
+                                    ),
                                 color =
-                                    TeamAccent
+                                    TeamSage
                             )
                         }
                     }
@@ -541,6 +675,16 @@ fun TeamScreen(
                                     1f
                                 ),
                             onClick = {
+
+                                if (
+                                    isAdmin
+                                ) {
+
+                                    viewModel
+                                        .loadSites()
+                                }
+
+
                                 showCreate =
                                     true
                             },
@@ -584,9 +728,6 @@ fun TeamScreen(
             )
 
 
-            /*
-             * Connectivity / notices
-             */
             if (
                 state.needsConnection
             ) {
@@ -595,7 +736,9 @@ fun TeamScreen(
                     message =
                         "Team management needs a connection. Check your signal and tap Refresh.",
                     background =
-                        TeamWarningBackground,
+                        Color(
+                            0xFFF3E9DD
+                        ),
                     textColor =
                         TeamDanger
                 )
@@ -660,7 +803,8 @@ fun TeamScreen(
 
             if (
                 state.loading &&
-                state.members.isEmpty()
+                state.members
+                    .isEmpty()
             ) {
 
                 Card(
@@ -669,13 +813,7 @@ fun TeamScreen(
                     shape =
                         RoundedCornerShape(
                             16.dp
-                        ),
-                    colors =
-                        CardDefaults
-                            .cardColors(
-                                containerColor =
-                                    Color.White
-                            )
+                        )
                 ) {
 
                     Column(
@@ -686,11 +824,7 @@ fun TeamScreen(
                                     24.dp
                                 ),
                         horizontalAlignment =
-                            Alignment.CenterHorizontally,
-                        verticalArrangement =
-                            Arrangement.spacedBy(
-                                10.dp
-                            )
+                            Alignment.CenterHorizontally
                     ) {
 
                         CircularProgressIndicator(
@@ -699,21 +833,26 @@ fun TeamScreen(
                         )
 
 
+                        Spacer(
+                            modifier =
+                                Modifier.height(
+                                    10.dp
+                                )
+                        )
+
+
                         Text(
-                            text =
-                                "Loading team…",
-                            style =
-                                MaterialTheme
-                                    .typography
-                                    .bodyMedium
+                            "Loading team?"
                         )
                     }
                 }
 
             } else if (
-                state.members.isEmpty() &&
+                state.members
+                    .isEmpty() &&
                 !state.needsConnection &&
-                state.error == null
+                state.error ==
+                null
             ) {
 
                 Card(
@@ -722,13 +861,7 @@ fun TeamScreen(
                     shape =
                         RoundedCornerShape(
                             16.dp
-                        ),
-                    colors =
-                        CardDefaults
-                            .cardColors(
-                                containerColor =
-                                    Color.White
-                            )
+                        )
                 ) {
 
                     Column(
@@ -750,25 +883,13 @@ fun TeamScreen(
                         )
 
 
-                        Spacer(
-                            modifier =
-                                Modifier.height(
-                                    4.dp
-                                )
-                        )
-
-
                         Text(
                             text =
                                 "Use Add worker to create the first worker account for this site.",
                             style =
                                 MaterialTheme
                                     .typography
-                                    .bodySmall,
-                            color =
-                                MaterialTheme
-                                    .colorScheme
-                                    .onSurfaceVariant
+                                    .bodySmall
                         )
                     }
                 }
@@ -777,10 +898,9 @@ fun TeamScreen(
 
                 LazyColumn(
                     modifier =
-                        Modifier
-                            .weight(
-                                1f
-                            ),
+                        Modifier.weight(
+                            1f
+                        ),
                     verticalArrangement =
                         Arrangement.spacedBy(
                             10.dp
@@ -799,9 +919,19 @@ fun TeamScreen(
                         MemberCard(
                             member =
                                 member,
+
+                            siteName =
+                                state.sites
+                                    .firstOrNull {
+                                        it.siteId ==
+                                            member.siteId
+                                    }
+                                    ?.name,
+
                             isSelf =
                                 member.userId ==
                                     currentUserId,
+
                             onToggleActive = {
 
                                 viewModel
@@ -810,6 +940,7 @@ fun TeamScreen(
                                         !member.active
                                     )
                             },
+
                             onResetPin = {
 
                                 viewModel
@@ -817,6 +948,15 @@ fun TeamScreen(
                                         member
                                     )
                             },
+
+                            onUnlockLogin = {
+
+                                viewModel
+                                    .unlockLogin(
+                                        member
+                                    )
+                            },
+
                             onUnbind = {
 
                                 viewModel
@@ -874,9 +1014,11 @@ private fun MessageCard(
 @Composable
 private fun MemberCard(
     member: TeamMember,
+    siteName: String?,
     isSelf: Boolean,
     onToggleActive: () -> Unit,
     onResetPin: () -> Unit,
+    onUnlockLogin: () -> Unit,
     onUnbind: () -> Unit
 ) {
 
@@ -929,7 +1071,7 @@ private fun MemberCard(
                                     isSelf
                                 ) {
 
-                                    "  ·  You"
+                                    "  ?  You"
 
                                 } else {
 
@@ -944,14 +1086,6 @@ private fun MemberCard(
                     )
 
 
-                    Spacer(
-                        modifier =
-                            Modifier.height(
-                                3.dp
-                            )
-                    )
-
-
                     Text(
                         text =
                             buildString {
@@ -962,41 +1096,30 @@ private fun MemberCard(
                                     )
                                 )
 
-                                member
-                                    .siteId
-                                    ?.takeIf {
-                                        it.isNotBlank()
-                                    }
-                                    ?.let {
-                                        append(
-                                            "  ·  $it"
-                                        )
-                                    }
+
+                                val site =
+                                    siteName
+                                        ?: member.siteId
+
+
+                                if (
+                                    !site.isNullOrBlank()
+                                ) {
+
+                                    append(
+                                        "  ?  $site"
+                                    )
+                                }
                             },
                         style =
                             MaterialTheme
                                 .typography
-                                .bodySmall,
-                        color =
-                            MaterialTheme
-                                .colorScheme
-                                .onSurfaceVariant
+                                .bodySmall
                     )
                 }
 
 
                 StatusBadge(
-                    text =
-                        if (
-                            member.active
-                        ) {
-
-                            "Active"
-
-                        } else {
-
-                            "Inactive"
-                        },
                     active =
                         member.active
                 )
@@ -1048,10 +1171,6 @@ private fun MemberCard(
 
                                 "No phone linked"
                             },
-                        style =
-                            MaterialTheme
-                                .typography
-                                .bodyMedium,
                         fontWeight =
                             FontWeight.Medium
                     )
@@ -1106,20 +1225,17 @@ private fun MemberCard(
             }
 
 
-            /*
-             * Actions
-             */
-            if (
-                !isSelf
+            Row(
+                modifier =
+                    Modifier.fillMaxWidth(),
+                horizontalArrangement =
+                    Arrangement.spacedBy(
+                        8.dp
+                    )
             ) {
 
-                Row(
-                    modifier =
-                        Modifier.fillMaxWidth(),
-                    horizontalArrangement =
-                        Arrangement.spacedBy(
-                            8.dp
-                        )
+                if (
+                    !isSelf
                 ) {
 
                     OutlinedButton(
@@ -1148,32 +1264,14 @@ private fun MemberCard(
                             }
                         )
                     }
-
-
-                    OutlinedButton(
-                        modifier =
-                            Modifier.weight(
-                                1f
-                            ),
-                        onClick =
-                            onResetPin,
-                        shape =
-                            RoundedCornerShape(
-                                12.dp
-                            )
-                    ) {
-
-                        Text(
-                            "Reset PIN"
-                        )
-                    }
                 }
 
-            } else {
 
                 OutlinedButton(
                     modifier =
-                        Modifier.fillMaxWidth(),
+                        Modifier.weight(
+                            1f
+                        ),
                     onClick =
                         onResetPin,
                     shape =
@@ -1186,6 +1284,23 @@ private fun MemberCard(
                         "Reset PIN"
                     )
                 }
+            }
+
+
+            OutlinedButton(
+                modifier =
+                    Modifier.fillMaxWidth(),
+                onClick =
+                    onUnlockLogin,
+                shape =
+                    RoundedCornerShape(
+                        12.dp
+                    )
+            ) {
+
+                Text(
+                    "Unlock sign-in"
+                )
             }
 
 
@@ -1216,7 +1331,6 @@ private fun MemberCard(
 
 @Composable
 private fun StatusBadge(
-    text: String,
     active: Boolean
 ) {
 
@@ -1242,7 +1356,16 @@ private fun StatusBadge(
 
         Text(
             text =
-                text,
+                if (
+                    active
+                ) {
+
+                    "Active"
+
+                } else {
+
+                    "Inactive"
+                },
             modifier =
                 Modifier.padding(
                     horizontal = 10.dp,
@@ -1270,9 +1393,13 @@ private fun StatusBadge(
 }
 
 
+@OptIn(
+    ExperimentalMaterial3Api::class
+)
 @Composable
 private fun CreateUserDialog(
     askForSite: Boolean,
+    sites: List<Site>,
     onDismiss: () -> Unit,
     onCreate: (
         username: String,
@@ -1297,10 +1424,18 @@ private fun CreateUserDialog(
         }
 
 
-    var siteId by
+    var site by
+        remember {
+            mutableStateOf<Site?>(
+                null
+            )
+        }
+
+
+    var menuOpen by
         remember {
             mutableStateOf(
-                ""
+                false
             )
         }
 
@@ -1315,8 +1450,8 @@ private fun CreateUserDialog(
             ) &&
             (
                 !askForSite ||
-                    siteId
-                        .isNotBlank()
+                    site !=
+                    null
                 )
 
 
@@ -1329,55 +1464,21 @@ private fun CreateUserDialog(
             ),
         title = {
 
-            Column {
+            Text(
+                text =
+                    if (
+                        askForSite
+                    ) {
 
-                Text(
-                    text =
-                        if (
-                            askForSite
-                        ) {
+                        "Add user"
 
-                            "Add user"
+                    } else {
 
-                        } else {
-
-                            "Add worker"
-                        },
-                    fontWeight =
-                        FontWeight.SemiBold
-                )
-
-
-                Spacer(
-                    modifier =
-                        Modifier.height(
-                            3.dp
-                        )
-                )
-
-
-                Text(
-                    text =
-                        if (
-                            askForSite
-                        ) {
-
-                            "Create a user and assign a site."
-
-                        } else {
-
-                            "Create a worker account for your site."
-                        },
-                    style =
-                        MaterialTheme
-                            .typography
-                            .bodySmall,
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant
-                )
-            }
+                        "Add worker"
+                    },
+                fontWeight =
+                    FontWeight.SemiBold
+            )
         },
         text = {
 
@@ -1398,6 +1499,7 @@ private fun CreateUserDialog(
                             it
                     },
                     label = {
+
                         Text(
                             "Username"
                         )
@@ -1417,20 +1519,19 @@ private fun CreateUserDialog(
                     value =
                         pin,
                     onValueChange = {
+                            value ->
 
-                        if (
-                            it.length <=
-                            PIN_LENGTH
-                        ) {
-
-                            pin =
-                                it.filter {
+                        pin =
+                            value
+                                .filter {
                                         character ->
 
                                     character
                                         .isDigit()
                                 }
-                        }
+                                .take(
+                                    PIN_LENGTH
+                                )
                     },
                     label = {
 
@@ -1457,28 +1558,95 @@ private fun CreateUserDialog(
                     askForSite
                 ) {
 
-                    OutlinedTextField(
-                        modifier =
-                            Modifier.fillMaxWidth(),
-                        value =
-                            siteId,
-                        onValueChange = {
-                            siteId =
+                    ExposedDropdownMenuBox(
+                        expanded =
+                            menuOpen,
+                        onExpandedChange = {
+                            menuOpen =
                                 it
-                        },
-                        label = {
+                        }
+                    ) {
 
-                            Text(
-                                "Site ID"
-                            )
-                        },
-                        singleLine =
-                            true,
-                        shape =
-                            RoundedCornerShape(
-                                12.dp
-                            )
-                    )
+                        OutlinedTextField(
+                            value =
+                                site
+                                    ?.name
+                                    .orEmpty(),
+                            onValueChange = {},
+                            readOnly =
+                                true,
+                            label = {
+
+                                Text(
+                                    "Site"
+                                )
+                            },
+                            placeholder = {
+
+                                Text(
+                                    if (
+                                        sites.isEmpty()
+                                    ) {
+
+                                        "No active sites"
+
+                                    } else {
+
+                                        "Choose a site"
+                                    }
+                                )
+                            },
+                            trailingIcon = {
+
+                                ExposedDropdownMenuDefaults
+                                    .TrailingIcon(
+                                        expanded =
+                                            menuOpen
+                                    )
+                            },
+                            modifier =
+                                Modifier
+                                    .menuAnchor()
+                                    .fillMaxWidth(),
+                            shape =
+                                RoundedCornerShape(
+                                    12.dp
+                                )
+                        )
+
+
+                        ExposedDropdownMenu(
+                            expanded =
+                                menuOpen,
+                            onDismissRequest = {
+                                menuOpen =
+                                    false
+                            }
+                        ) {
+
+                            sites
+                                .forEach {
+                                        option ->
+
+                                    DropdownMenuItem(
+                                        text = {
+
+                                            Text(
+                                                option.name
+                                            )
+                                        },
+                                        onClick = {
+
+                                            site =
+                                                option
+
+                                            menuOpen =
+                                                false
+                                        }
+                                    )
+                                }
+                        }
+                    }
                 }
 
 
@@ -1488,11 +1656,7 @@ private fun CreateUserDialog(
                     style =
                         MaterialTheme
                             .typography
-                            .labelSmall,
-                    color =
-                        MaterialTheme
-                            .colorScheme
-                            .onSurfaceVariant
+                            .labelSmall
                 )
             }
         },
@@ -1509,11 +1673,17 @@ private fun CreateUserDialog(
 
                         pin,
 
-                        siteId
-                            .trim()
-                            .takeIf {
-                                askForSite
-                            }
+                        if (
+                            askForSite
+                        ) {
+
+                            site
+                                ?.siteId
+
+                        } else {
+
+                            null
+                        }
                     )
                 },
                 colors =
