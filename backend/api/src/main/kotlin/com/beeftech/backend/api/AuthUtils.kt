@@ -5,92 +5,212 @@ import com.beeftech.backend.api.auth.AuthPrincipal
 import com.beeftech.backend.api.auth.AuthStateRepository
 import com.beeftech.backend.api.auth.JwtService
 import com.beeftech.backend.api.auth.Role
+import com.beeftech.backend.api.auth.UserRepository
 import com.beeftech.backend.api.common.ApiResponse
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
 
-/* One instance is enough: it keeps no state of its own and reads the current database each call. */
-private val authState = AuthStateRepository()
+/*
+ * Stateless helpers backed by the live database.
+ */
+private val authState =
+    AuthStateRepository()
 
-/* Same checks as [requireAuthPrincipal]; kept for routes that only need the username. */
-suspend fun ApplicationCall.requireBearerToken(jwtService: JwtService): String? =
-    requireAuthPrincipal(jwtService)?.username
+private val liveUsers =
+    UserRepository()
+
 
 /*
- * Verifies the token, then checks it against the database: the user must exist and be active,
- * the token must not predate a deactivation, unbind or PIN reset, and the phone must not be
- * revoked. The returned principal carries the role and site the database has now, not the
- * ones in the token, so a role or site change applies without a new login.
+ * Same security checks as requireAuthPrincipal.
+ * Kept for routes that only need the username.
  */
-suspend fun ApplicationCall.requireAuthPrincipal(jwtService: JwtService): AuthPrincipal? {
+suspend fun ApplicationCall.requireBearerToken(
+    jwtService: JwtService
+): String? =
+    requireAuthPrincipal(
+        jwtService
+    )
+        ?.username
 
-    val authHeader = request.headers["Authorization"]
 
-    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+/*
+ * Security order:
+ *
+ * 1. Decode and validate the JWT.
+ * 2. Check current backend account/device security state.
+ * 3. Refresh mutable authorization fields from the live user record.
+ *
+ * This means:
+ *
+ * - deactivation applies immediately
+ * - PIN reset/revocation applies immediately
+ * - role changes apply immediately
+ * - site changes apply immediately
+ * - older tokens still receive the current user/site/device identity
+ */
+suspend fun ApplicationCall.requireAuthPrincipal(
+    jwtService: JwtService
+): AuthPrincipal? {
+
+    val authHeader =
+        request.headers[
+            "Authorization"
+        ]
+
+
+    if (
+        authHeader == null ||
+        !authHeader.startsWith(
+            "Bearer "
+        )
+    ) {
 
         respond(
             HttpStatusCode.Unauthorized,
             ApiResponse<String>(
-                success = false,
-                message = "Missing token"
+                success =
+                    false,
+                message =
+                    "Missing token"
             )
         )
 
         return null
     }
 
-    val token = authHeader.removePrefix("Bearer ")
 
-    val principal = jwtService.decode(token)
+    val token =
+        authHeader.removePrefix(
+            "Bearer "
+        )
 
-    if (principal == null) {
+
+    val principal =
+        jwtService.decode(
+            token
+        )
+
+
+    if (
+        principal == null
+    ) {
 
         respond(
             HttpStatusCode.Unauthorized,
             ApiResponse<String>(
-                success = false,
-                message = "Invalid token"
+                success =
+                    false,
+                message =
+                    "Invalid token"
             )
         )
 
         return null
     }
 
-    return when (val check = authState.check(principal)) {
-        is AuthCheck.Ok -> principal.copy(role = check.role, siteId = check.siteId)
+
+    return when (
+        val check =
+            authState.check(
+                principal
+            )
+    ) {
+
+        is AuthCheck.Ok -> {
+
+            val currentUser =
+                liveUsers
+                    .findByUsername(
+                        principal.username
+                    )
+
+
+            if (
+                currentUser == null
+            ) {
+
+                respond(
+                    HttpStatusCode.Unauthorized,
+                    ApiResponse<String>(
+                        success =
+                            false,
+                        message =
+                            "Authenticated user no longer exists"
+                    )
+                )
+
+                null
+
+            } else {
+
+                principal.copy(
+                    userId =
+                        currentUser.userId,
+
+                    role =
+                        check.role,
+
+                    siteId =
+                        check.siteId,
+
+                    deviceId =
+                        currentUser
+                            .deviceAssignedId
+                            ?: principal.deviceId
+                )
+            }
+        }
+
+
         is AuthCheck.Rejected -> {
+
             respond(
                 HttpStatusCode.Unauthorized,
                 ApiResponse<String>(
-                    success = false,
-                    message = check.message
+                    success =
+                        false,
+                    message =
+                        check.message
                 )
             )
+
             null
         }
     }
 }
+
 
 suspend fun ApplicationCall.requireRole(
     jwtService: JwtService,
     vararg roles: Role
 ): AuthPrincipal? {
 
-    val principal = requireAuthPrincipal(jwtService) ?: return null
+    val principal =
+        requireAuthPrincipal(
+            jwtService
+        )
+            ?: return null
 
-    if (principal.roleEnum !in roles) {
+
+    if (
+        principal.roleEnum !in
+        roles
+    ) {
 
         respond(
             HttpStatusCode.Forbidden,
             ApiResponse<String>(
-                success = false,
-                message = "Forbidden"
+                success =
+                    false,
+                message =
+                    "Forbidden"
             )
         )
 
         return null
     }
+
 
     return principal
 }

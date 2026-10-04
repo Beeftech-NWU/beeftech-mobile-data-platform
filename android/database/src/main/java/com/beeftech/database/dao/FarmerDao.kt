@@ -77,4 +77,51 @@ interface FarmerDao {
         farmerId: String,
         status: String
     )
+
+
+    /*
+     * Farmer business role 7 = Supplier.
+     *
+     * These records are the local/offline source for the
+     * Supplier screen dropdown.
+     */
+    @Query(
+        """
+        SELECT DISTINCT f.*
+        FROM farmers f
+        INNER JOIN farmer_roles fr
+            ON fr.farmer_id = f.farmer_id
+        WHERE fr.role_id = 7
+        ORDER BY
+            COALESCE(
+                f.organisation_name,
+                f.client_code,
+                f.farmer_id
+            )
+        """
+    )
+    suspend fun getSupplierFarmers():
+            List<FarmerEntity>
+
+    @Query(
+        """
+        SELECT DISTINCT f.*
+        FROM farmers f
+        INNER JOIN farmer_roles fr
+            ON fr.farmer_id = f.farmer_id
+        WHERE fr.role_id = 7
+          AND (
+              f.organisation_name =
+                  :displayName COLLATE NOCASE
+              OR
+              f.client_code =
+                  :displayName COLLATE NOCASE
+          )
+        LIMIT 1
+        """
+    )
+    suspend fun findSupplierFarmerByDisplayName(
+        displayName: String
+    ): FarmerEntity?
+
 }

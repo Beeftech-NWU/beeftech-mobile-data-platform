@@ -20,181 +20,731 @@ import org.jetbrains.exposed.sql.sum
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 
 sealed interface DashboardResult {
-    data class Ok(val summary: DashboardSummary) : DashboardResult
-    data class Forbidden(val message: String) : DashboardResult
-    data class BadRequest(val message: String) : DashboardResult
+
+    data class Ok(
+        val summary: DashboardSummary
+    ) : DashboardResult
+
+    data class Forbidden(
+        val message: String
+    ) : DashboardResult
+
+    data class BadRequest(
+        val message: String
+    ) : DashboardResult
 }
 
+
 class DashboardService(
-    private val now: () -> Long = System::currentTimeMillis,
-    private val userRepository: UserRepository = UserRepository(),
-    private val syncPolicyRepository: SyncPolicyRepository = SyncPolicyRepository()
+    private val now:
+        () -> Long =
+        System::currentTimeMillis,
+
+    private val userRepository:
+        UserRepository =
+        UserRepository(),
+
+    private val syncPolicyRepository:
+        SyncPolicyRepository =
+        SyncPolicyRepository()
 ) {
 
     /**
-     * A manager always gets their own site. An admin gets every site, or one site
-     * when [requestedSiteId] is given (an unknown id is a 400). Workers have no dashboard.
+     * Managers can only see their currently assigned site.
      *
-     * The caller's role and site come from the database, not the token, so a demoted,
-     * deactivated or moved manager sees the change straight away.
+     * Admins can view all sites or select one site.
+     *
+     * The current user record is read from the database rather
+     * than trusting mutable role/site claims from an old JWT.
      */
-    suspend fun summary(principal: AuthPrincipal, requestedSiteId: String?): DashboardResult {
-        val record = userRepository.findById(principal.userId)
-        val role = Role.fromId(record?.role)
-        if (record == null || !record.active) return DashboardResult.Forbidden("Forbidden")
+    suspend fun summary(
+        principal: AuthPrincipal,
+        requestedSiteId: String?
+    ): DashboardResult {
 
-        val scope: RecordScope = when (role) {
-            Role.ADMIN ->
-                if (requestedSiteId == null) {
-                    RecordScope.All
-                } else {
-                    if (userRepository.siteActive(requestedSiteId) == null) {
-                        return DashboardResult.BadRequest("Unknown site")
-                    }
-                    RecordScope.Site(requestedSiteId)
-                }
-            Role.MANAGER -> {
-                if (requestedSiteId != null && requestedSiteId != record.siteId) {
-                    return DashboardResult.Forbidden("Managers can only view their own site")
-                }
-                RecordScope.Site(record.siteId)
-            }
-            else -> return DashboardResult.Forbidden("Forbidden")
+        val record =
+            userRepository
+                .findById(
+                    principal.userId
+                )
+
+
+        if (
+            record == null ||
+            !record.active
+        ) {
+
+            return DashboardResult
+                .Forbidden(
+                    "Forbidden"
+                )
         }
 
-        val generatedAt = now()
-        val weekAgo = generatedAt - WEEK_MS
 
-        /* An admin can change how long without contact counts as stale (Admin > Sync policy). */
-        val staleHours = syncPolicyRepository.get().staleSyncAlertHours
-        val staleBefore = generatedAt - staleHours * HOUR_MS
-
-        return newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
-            val calfScope = scope.predicate(CalfRegistrationTable.submittedByUserId, CalfRegistrationTable.siteId, CalfRegistrationTable.voidedAt)
-            val treatmentScope = scope.predicate(TreatmentTable.submittedByUserId, TreatmentTable.siteId, TreatmentTable.voidedAt)
-            val farmerScope = scope.predicate(FarmerTable.submittedByUserId, FarmerTable.siteId, FarmerTable.voidedAt)
-
-            val calves = RecordCount(
-                total = CalfRegistrationTable.selectAll().where { calfScope }.count(),
-                last7Days = CalfRegistrationTable.selectAll()
-                    .where { calfScope and (CalfRegistrationTable.captureAt greaterEq weekAgo) }
-                    .count()
+        val role =
+            Role.fromId(
+                record.role
             )
 
-            val cost = TreatmentTable.cost.sum()
-            val treatments = TreatmentCount(
-                total = TreatmentTable.selectAll().where { treatmentScope }.count(),
-                last7Days = TreatmentTable.selectAll()
-                    .where { treatmentScope and (TreatmentTable.timestamp greaterEq weekAgo) }
-                    .count(),
-                totalCost = TreatmentTable.select(cost).where { treatmentScope }
-                    .singleOrNull()?.get(cost) ?: 0.0
-            )
 
-            /* Farmers carry no capture time, so "recent" is when they reached the server. */
-            val farmers = RecordCount(
-                total = FarmerTable.selectAll().where { farmerScope }.count(),
-                last7Days = FarmerTable.selectAll()
-                    .where { farmerScope and (FarmerTable.syncedAt greaterEq weekAgo) }
-                    .count()
-            )
+        val scope:
+                RecordScope =
+            when (
+                role
+            ) {
 
-            val mortalityScope = scope.predicate(MortalityTable.submittedByUserId, MortalityTable.siteId, MortalityTable.voidedAt)
-            val mortalities = RecordCount(
-                total = MortalityTable.selectAll().where { mortalityScope }.count(),
-                last7Days = MortalityTable.selectAll()
-                    .where { mortalityScope and (MortalityTable.timestamp greaterEq weekAgo) }
-                    .count()
-            )
+                Role.ADMIN -> {
 
-            val movementScope = scope.predicate(AnimalMovementTable.submittedByUserId, AnimalMovementTable.siteId, AnimalMovementTable.voidedAt)
-            val movements = RecordCount(
-                total = AnimalMovementTable.selectAll().where { movementScope }.count(),
-                last7Days = AnimalMovementTable.selectAll()
-                    .where { movementScope and (AnimalMovementTable.timestamp greaterEq weekAgo) }
-                    .count()
-            )
+                    if (
+                        requestedSiteId ==
+                        null
+                    ) {
 
-            /* Treatment-derived costs are already in the treatment cost above. */
-            val costScope = scope.predicate(CostTable.submittedByUserId, CostTable.siteId) and
-                (CostTable.sourceEntity.isNull() or (CostTable.sourceEntity neq "TREATMENT"))
-            val costAmount = CostTable.amount.sum()
-            val costs = CostCount(
-                total = CostTable.selectAll().where { costScope }.count(),
-                last7Days = CostTable.selectAll()
-                    .where { costScope and (CostTable.timestamp greaterEq weekAgo) }
-                    .count(),
-                totalAmount = CostTable.select(costAmount).where { costScope }
-                    .singleOrNull()?.get(costAmount) ?: 0.0
-            )
+                        RecordScope.All
 
-            val feedScope = scope.predicate(FeedCribTable.submittedByUserId, FeedCribTable.siteId)
-            val feedReadings = RecordCount(
-                total = FeedCribTable.selectAll().where { feedScope }.count(),
-                last7Days = FeedCribTable.selectAll()
-                    .where { feedScope and (FeedCribTable.timestamp greaterEq weekAgo) }
-                    .count()
-            )
+                    } else {
 
-            val workers = UsersTable.selectAll()
-                .where { workerFilter(scope) }
-                .map { it }
+                        if (
+                            userRepository
+                                .siteActive(
+                                    requestedSiteId
+                                ) ==
+                            null
+                        ) {
 
-            val team = TeamCount(
-                activeWorkers = workers.count { it[UsersTable.active] }.toLong(),
-                inactiveWorkers = workers.count { !it[UsersTable.active] }.toLong()
-            )
+                            return DashboardResult
+                                .BadRequest(
+                                    "Unknown site"
+                                )
+                        }
 
-            val alerts = workers
-                .filter { it[UsersTable.active] && it[UsersTable.deviceAssignedId] != null }
-                .filter { (it[UsersTable.deviceLastSync] ?: 0L) < staleBefore }
-                .sortedBy { it[UsersTable.username] }
-                .map {
-                    val last = it[UsersTable.deviceLastSync]
-                    DashboardAlert(
-                        type = "STALE_SYNC",
-                        message = if (last == null) "${it[UsersTable.username]} has never synced"
-                        else "${it[UsersTable.username]} hasn't synced in over $staleHours hours",
-                        username = it[UsersTable.username],
-                        lastSyncAt = last
+
+                        RecordScope.Site(
+                            requestedSiteId
+                        )
+                    }
+                }
+
+
+                Role.MANAGER -> {
+
+                    /*
+                     * A missing site is an account configuration
+                     * problem, not an empty farm.
+                     */
+                    val managerSiteId =
+                        record.siteId
+                            ?: return DashboardResult
+                                .Forbidden(
+                                    "Manager account is not assigned to a site"
+                                )
+
+
+                    if (
+                        requestedSiteId !=
+                        null &&
+                        requestedSiteId !=
+                        managerSiteId
+                    ) {
+
+                        return DashboardResult
+                            .Forbidden(
+                                "Managers can only view their own site"
+                            )
+                    }
+
+
+                    RecordScope.Site(
+                        managerSiteId
                     )
                 }
 
-            val summarySiteId = (scope as? RecordScope.Site)?.siteId
-            val siteName = summarySiteId?.let { id ->
-                SitesTable.selectAll().where { SitesTable.siteId eq id }.singleOrNull()?.get(SitesTable.name)
+
+                else ->
+
+                    return DashboardResult
+                        .Forbidden(
+                            "Forbidden"
+                        )
             }
+
+
+        val generatedAt =
+            now()
+
+        val weekAgo =
+            generatedAt -
+                WEEK_MS
+
+
+        val staleHours =
+            syncPolicyRepository
+                .get()
+                .staleSyncAlertHours
+
+
+        val staleBefore =
+            generatedAt -
+                staleHours *
+                HOUR_MS
+
+
+        return newSuspendedTransaction(
+            Dispatchers.IO,
+            db =
+                DatabaseFactory
+                    .getDatabase()
+        ) {
+
+            val calfScope =
+                scope.predicate(
+                    CalfRegistrationTable
+                        .submittedByUserId,
+
+                    CalfRegistrationTable
+                        .siteId,
+
+                    CalfRegistrationTable
+                        .voidedAt
+                )
+
+
+            val treatmentScope =
+                scope.predicate(
+                    TreatmentTable
+                        .submittedByUserId,
+
+                    TreatmentTable
+                        .siteId,
+
+                    TreatmentTable
+                        .voidedAt
+                )
+
+
+            val farmerScope =
+                scope.predicate(
+                    FarmerTable
+                        .submittedByUserId,
+
+                    FarmerTable
+                        .siteId,
+
+                    FarmerTable
+                        .voidedAt
+                )
+
+
+            val calves =
+                RecordCount(
+                    total =
+                        CalfRegistrationTable
+                            .selectAll()
+                            .where {
+                                calfScope
+                            }
+                            .count(),
+
+                    last7Days =
+                        CalfRegistrationTable
+                            .selectAll()
+                            .where {
+                                calfScope and
+                                    (
+                                        CalfRegistrationTable
+                                            .captureAt
+                                            greaterEq
+                                            weekAgo
+                                        )
+                            }
+                            .count()
+                )
+
+
+            val treatmentCost =
+                TreatmentTable
+                    .cost
+                    .sum()
+
+
+            val treatments =
+                TreatmentCount(
+                    total =
+                        TreatmentTable
+                            .selectAll()
+                            .where {
+                                treatmentScope
+                            }
+                            .count(),
+
+                    last7Days =
+                        TreatmentTable
+                            .selectAll()
+                            .where {
+                                treatmentScope and
+                                    (
+                                        TreatmentTable
+                                            .timestamp
+                                            greaterEq
+                                            weekAgo
+                                        )
+                            }
+                            .count(),
+
+                    totalCost =
+                        TreatmentTable
+                            .select(
+                                treatmentCost
+                            )
+                            .where {
+                                treatmentScope
+                            }
+                            .singleOrNull()
+                            ?.get(
+                                treatmentCost
+                            )
+                            ?: 0.0
+                )
+
+
+            val farmers =
+                RecordCount(
+                    total =
+                        FarmerTable
+                            .selectAll()
+                            .where {
+                                farmerScope
+                            }
+                            .count(),
+
+                    last7Days =
+                        FarmerTable
+                            .selectAll()
+                            .where {
+                                farmerScope and
+                                    (
+                                        FarmerTable
+                                            .syncedAt
+                                            greaterEq
+                                            weekAgo
+                                        )
+                            }
+                            .count()
+                )
+
+
+            val mortalityScope =
+                scope.predicate(
+                    MortalityTable
+                        .submittedByUserId,
+
+                    MortalityTable
+                        .siteId,
+
+                    MortalityTable
+                        .voidedAt
+                )
+
+
+            val mortalities =
+                RecordCount(
+                    total =
+                        MortalityTable
+                            .selectAll()
+                            .where {
+                                mortalityScope
+                            }
+                            .count(),
+
+                    last7Days =
+                        MortalityTable
+                            .selectAll()
+                            .where {
+                                mortalityScope and
+                                    (
+                                        MortalityTable
+                                            .timestamp
+                                            greaterEq
+                                            weekAgo
+                                        )
+                            }
+                            .count()
+                )
+
+
+            val movementScope =
+                scope.predicate(
+                    AnimalMovementTable
+                        .submittedByUserId,
+
+                    AnimalMovementTable
+                        .siteId,
+
+                    AnimalMovementTable
+                        .voidedAt
+                )
+
+
+            val movements =
+                RecordCount(
+                    total =
+                        AnimalMovementTable
+                            .selectAll()
+                            .where {
+                                movementScope
+                            }
+                            .count(),
+
+                    last7Days =
+                        AnimalMovementTable
+                            .selectAll()
+                            .where {
+                                movementScope and
+                                    (
+                                        AnimalMovementTable
+                                            .timestamp
+                                            greaterEq
+                                            weekAgo
+                                        )
+                            }
+                            .count()
+                )
+
+
+            /*
+             * Treatment-derived costs are already represented by
+             * treatments.totalCost, so exclude them from Other costs.
+             */
+            val costScope =
+                scope.predicate(
+                    CostTable
+                        .submittedByUserId,
+
+                    CostTable
+                        .siteId
+                ) and
+                    (
+                        CostTable
+                            .sourceEntity
+                            .isNull() or
+                            (
+                                CostTable
+                                    .sourceEntity
+                                    neq
+                                    "TREATMENT"
+                                )
+                        )
+
+
+            val costAmount =
+                CostTable
+                    .amount
+                    .sum()
+
+
+            val costs =
+                CostCount(
+                    total =
+                        CostTable
+                            .selectAll()
+                            .where {
+                                costScope
+                            }
+                            .count(),
+
+                    last7Days =
+                        CostTable
+                            .selectAll()
+                            .where {
+                                costScope and
+                                    (
+                                        CostTable
+                                            .timestamp
+                                            greaterEq
+                                            weekAgo
+                                        )
+                            }
+                            .count(),
+
+                    totalAmount =
+                        CostTable
+                            .select(
+                                costAmount
+                            )
+                            .where {
+                                costScope
+                            }
+                            .singleOrNull()
+                            ?.get(
+                                costAmount
+                            )
+                            ?: 0.0
+                )
+
+
+            val feedScope =
+                scope.predicate(
+                    FeedCribTable
+                        .submittedByUserId,
+
+                    FeedCribTable
+                        .siteId
+                )
+
+
+            val feedReadings =
+                RecordCount(
+                    total =
+                        FeedCribTable
+                            .selectAll()
+                            .where {
+                                feedScope
+                            }
+                            .count(),
+
+                    last7Days =
+                        FeedCribTable
+                            .selectAll()
+                            .where {
+                                feedScope and
+                                    (
+                                        FeedCribTable
+                                            .timestamp
+                                            greaterEq
+                                            weekAgo
+                                        )
+                            }
+                            .count()
+                )
+
+
+            val workers =
+                UsersTable
+                    .selectAll()
+                    .where {
+                        workerFilter(
+                            scope
+                        )
+                    }
+                    .map {
+                        it
+                    }
+
+
+            val team =
+                TeamCount(
+                    activeWorkers =
+                        workers
+                            .count {
+                                it[
+                                    UsersTable.active
+                                ]
+                            }
+                            .toLong(),
+
+                    inactiveWorkers =
+                        workers
+                            .count {
+                                !it[
+                                    UsersTable.active
+                                ]
+                            }
+                            .toLong()
+                )
+
+
+            val alerts =
+                workers
+                    .filter {
+                        it[
+                            UsersTable.active
+                        ] &&
+                            it[
+                                UsersTable
+                                    .deviceAssignedId
+                            ] !=
+                            null
+                    }
+                    .filter {
+                        (
+                            it[
+                                UsersTable
+                                    .deviceLastSync
+                            ]
+                                ?: 0L
+                            ) <
+                            staleBefore
+                    }
+                    .sortedBy {
+                        it[
+                            UsersTable.username
+                        ]
+                    }
+                    .map {
+
+                        val last =
+                            it[
+                                UsersTable
+                                    .deviceLastSync
+                            ]
+
+
+                        DashboardAlert(
+                            type =
+                                "STALE_SYNC",
+
+                            message =
+                                if (
+                                    last ==
+                                    null
+                                ) {
+
+                                    "${
+                                        it[
+                                            UsersTable.username
+                                        ]
+                                    } has never synced"
+
+                                } else {
+
+                                    "${
+                                        it[
+                                            UsersTable.username
+                                        ]
+                                    } hasn't synced in over $staleHours hours"
+                                },
+
+                            username =
+                                it[
+                                    UsersTable.username
+                                ],
+
+                            lastSyncAt =
+                                last
+                        )
+                    }
+
+
+            val summarySiteId =
+                (
+                    scope as?
+                        RecordScope.Site
+                    )
+                    ?.siteId
+
+
+            val siteName =
+                summarySiteId
+                    ?.let {
+                            id ->
+
+                        SitesTable
+                            .selectAll()
+                            .where {
+                                SitesTable.siteId eq
+                                    id
+                            }
+                            .singleOrNull()
+                            ?.get(
+                                SitesTable.name
+                            )
+                    }
+
 
             DashboardResult.Ok(
                 DashboardSummary(
-                    siteId = summarySiteId,
-                    siteName = siteName,
-                    generatedAt = generatedAt,
-                    calves = calves,
-                    treatments = treatments,
-                    farmers = farmers,
-                    mortalities = mortalities,
-                    movements = movements,
-                    costs = costs,
-                    feedReadings = feedReadings,
-                    team = team,
-                    alerts = alerts
+                    siteId =
+                        summarySiteId,
+
+                    siteName =
+                        siteName,
+
+                    generatedAt =
+                        generatedAt,
+
+                    calves =
+                        calves,
+
+                    treatments =
+                        treatments,
+
+                    farmers =
+                        farmers,
+
+                    mortalities =
+                        mortalities,
+
+                    movements =
+                        movements,
+
+                    costs =
+                        costs,
+
+                    feedReadings =
+                        feedReadings,
+
+                    team =
+                        team,
+
+                    alerts =
+                        alerts
                 )
             )
         }
     }
 
-    private fun workerFilter(scope: RecordScope): Op<Boolean> {
-        val isWorker = UsersTable.role eq Role.WORKER.id
-        return when (scope) {
+
+    private fun workerFilter(
+        scope: RecordScope
+    ): Op<Boolean> {
+
+        val isWorker =
+            UsersTable.role eq
+                Role.WORKER.id
+
+
+        return when (
+            scope
+        ) {
+
             is RecordScope.Site ->
-                if (scope.siteId == null) Op.FALSE else isWorker and (UsersTable.siteId eq scope.siteId)
-            else -> isWorker
+
+                if (
+                    scope.siteId ==
+                    null
+                ) {
+
+                    Op.FALSE
+
+                } else {
+
+                    isWorker and
+                        (
+                            UsersTable.siteId eq
+                                scope.siteId
+                            )
+                }
+
+
+            else ->
+
+                isWorker
         }
     }
 
+
     private companion object {
-        const val WEEK_MS = 7 * 24 * 60 * 60 * 1000L
-        const val HOUR_MS = 60 * 60 * 1000L
+
+        const val WEEK_MS =
+            7 *
+                24 *
+                60 *
+                60 *
+                1000L
+
+        const val HOUR_MS =
+            60 *
+                60 *
+                1000L
     }
 }

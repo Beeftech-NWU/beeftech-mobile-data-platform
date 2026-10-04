@@ -1,6 +1,7 @@
 package com.beeftech.calfregistration.worker
 
 import android.content.Context
+import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.beeftech.calfregistration.data.CalfCaptureContext
@@ -13,29 +14,48 @@ import com.beeftech.database.security.TokenProviderRegistry
 class CalfRegistrationSyncWorker(
     appContext: Context,
     workerParams: WorkerParameters
-) : CoroutineWorker(appContext, workerParams) {
+) : CoroutineWorker(
+    appContext,
+    workerParams
+) {
 
     override suspend fun doWork(): Result {
 
-        /*
-         * The BeefTech database is encrypted with SQLCipher.
-         *
-         * DatabaseProvider contains the database only after the user has
-         * successfully unlocked/initialised it through the application's
-         * secure database flow.
-         *
-         * The Worker must never attempt to store, retrieve, or bypass the
-         * user's database passcode.
-         */
         val database =
             DatabaseProvider.getDatabase()
-                ?: return Result.failure()
+
+        if (database == null) {
+
+            Log.w(
+                TAG,
+                "Database is not initialized. " +
+                    "Calf sync will retry."
+            )
+
+            return Result.retry()
+        }
 
         val tokenProvider =
             TokenProviderRegistry.get()
-                ?: return Result.retry()
+
+        if (tokenProvider == null) {
+
+            Log.w(
+                TAG,
+                "Authentication token provider is unavailable. " +
+                    "Calf sync will retry."
+            )
+
+            return Result.retry()
+        }
 
         return try {
+
+            Log.i(
+                TAG,
+                "Starting calf synchronization. " +
+                    "WorkManager attempt=$runAttemptCount"
+            )
 
             val pendingSyncRepository =
                 PendingSyncRepository(
@@ -46,63 +66,87 @@ class CalfRegistrationSyncWorker(
                 CalfRegistrationRepository(
                     calfRegistrationDao =
                         database.calfRegistrationDao(),
+
                     pendingSyncRepository =
                         pendingSyncRepository,
+
                     apiClient =
                         CalfRegistrationApiClient(
-                            tokenProvider = tokenProvider
+                            tokenProvider =
+                                tokenProvider
                         ),
-                    // The worker only syncs existing records; this context is
-                    // never used to create one, so an empty deviceId is safe.
+
+                    /*
+                     * Worker only synchronizes existing records.
+                     * It never creates a calf from this context.
+                     */
                     captureContextProvider = {
-                        CalfCaptureContext(deviceId = "")
+                        CalfCaptureContext(
+                            deviceId = ""
+                        )
                     }
                 )
 
-            /*
-             * Reuse the existing calf-registration synchronization logic.
-             *
-             * syncPending():
-             * - finds unsynced calf registrations
-             * - sends them to the backend
-             * - marks successful records as SYNCED
-             * - updates PendingSync bookkeeping
-             */
-            repository.syncPending()
-
-            val remainingCalfOperations =
-                pendingSyncRepository
-                    .getPendingOperations()
-                    .any { pendingOperation ->
-                        pendingOperation.entityType ==
-                                ENTITY_TYPE
-                    }
+            val outcome =
+                repository.syncPending()
 
             /*
-             * Remaining records normally mean the network/server sync
-             * did not complete successfully.
+             * BEEFTECH_CALF_WORKER_SOURCE_OF_TRUTH
              *
-             * WorkManager can retry later using its configured backoff.
+             * Do NOT use only pending_sync to decide whether
+             * synchronization succeeded.
+             *
+             * Query the actual calf-registration records.
              */
-            if (remainingCalfOperations) {
+            val remainingViews =
+                database
+                    .calfRegistrationDao()
+                    .getPendingRegistrationViews()
+
+            if (
+                remainingViews.isNotEmpty() ||
+                outcome
+                    .errorMessagesByTagNumber
+                    .isNotEmpty()
+            ) {
+
+                Log.w(
+                    TAG,
+                    "Calf synchronization incomplete. " +
+                        "${remainingViews.size} calf(s) remain pending; " +
+                        "${outcome.errorMessagesByTagNumber.size} " +
+                        "sync error(s). WorkManager will retry."
+                )
+
                 Result.retry()
+
             } else {
+
+                Log.i(
+                    TAG,
+                    "Calf synchronization completed successfully. " +
+                        "${outcome.syncedCount} calf(s) synchronized."
+                )
+
                 Result.success()
             }
 
-        } catch (_: Exception) {
+        } catch (exception: Exception) {
 
-            /*
-             * Keep the pending records intact.
-             * WorkManager can retry the operation later.
-             */
+            Log.e(
+                TAG,
+                "Calf synchronization worker failed. " +
+                    "Pending records remain safe and will retry.",
+                exception
+            )
+
             Result.retry()
         }
     }
 
     companion object {
 
-        private const val ENTITY_TYPE =
-            "CALF_REGISTRATION"
+        private const val TAG =
+            "CalfRegistrationSyncWorker"
     }
 }

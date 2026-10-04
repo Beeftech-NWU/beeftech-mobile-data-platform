@@ -256,6 +256,20 @@ fun SupplierScreen(
 
                         Spacer(modifier = Modifier.height(6.dp))
 
+                        if (!record.glnNumber.isNullOrBlank()) {
+                            Text(
+                                text = "GLN: ${record.glnNumber}",
+                                color = BeeftechMutedText
+                            )
+                        }
+
+                        if (!record.purchaseBatchNumber.isNullOrBlank()) {
+                            Text(
+                                text = "Batch: ${record.purchaseBatchNumber}",
+                                color = BeeftechMutedText
+                            )
+                        }
+
                         val notes = record.notes
                         if (!notes.isNullOrBlank()) {
                             Text(

@@ -24,6 +24,7 @@ import com.beeftech.database.entity.FarmerBusinessRole
 import com.beeftech.database.entity.FeedCribEntity
 import com.beeftech.database.entity.FeedCribReadingEntity
 import com.beeftech.database.entity.FeedCribReadingValueEntity
+import com.beeftech.database.entity.RationEntity
 import com.beeftech.database.entity.LocationEntity
 import com.beeftech.database.entity.Mortality
 import com.beeftech.database.entity.PenEntity
@@ -95,6 +96,7 @@ import com.beeftech.database.dao.FeedCribReadingDao
 import com.beeftech.database.dao.LocationDao
 import com.beeftech.database.dao.MortalityDao
 import com.beeftech.database.dao.PenDao
+import com.beeftech.database.dao.RationDao
 import com.beeftech.database.dao.PendingSyncDao
 import com.beeftech.database.dao.SyncSecurityDao
 import com.beeftech.database.dao.RoleDao
@@ -119,6 +121,7 @@ import com.beeftech.database.dao.UserDao
         FeedCribEntity::class,
         FeedCribReadingEntity::class,
         FeedCribReadingValueEntity::class,
+        RationEntity::class,
         Role::class,
         User::class,
         SyncBatchEntity::class,
@@ -181,6 +184,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
     abstract fun penDao(): PenDao
     abstract fun feedCribDao(): FeedCribDao
     abstract fun feedCribReadingDao(): FeedCribReadingDao
+    abstract fun rationDao(): RationDao
     abstract fun roleDao(): RoleDao
     abstract fun userDao(): UserDao
     abstract fun syncBatchDao(): SyncBatchDao
@@ -226,7 +230,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
     companion object {
 
         /** Current Room schema version. Bump here when adding a migration. */
-        const val VERSION = 37
+        const val VERSION = 38
 
         /**
          * Phase 3 Migration (Version 9 -> 10):
@@ -3456,6 +3460,238 @@ abstract class BeefTechDatabase : RoomDatabase() {
                 }
             }
 
+
+        /*
+         * Version 37 -> 38
+         *
+         * Consolidates the database work that was developed in parallel
+         * on sync-status-backend and main.
+         *
+         * Official main history already owns:
+         *
+         * 33 -> 34 mortality sync columns
+         * 34 -> 35 cost sync columns
+         * 35 -> 36 server reference/config tables
+         * 36 -> 37 sync-security uploaded_at
+         *
+         * Our branch had independently used versions 34/35 for Supplier
+         * purchase linkage and the offline ration catalog.
+         *
+         * This migration therefore:
+         *
+         * 1. Adds Supplier purchase linkage.
+         * 2. Adds the offline ration catalog.
+         * 3. Defensively repairs mortality/cost sync columns when opening
+         *    a database that had already reached our old branch v35.
+         *
+         * Every operation is idempotent.
+         */
+        val MIGRATION_37_38 =
+            object : Migration(37, 38) {
+
+                private fun hasColumn(
+                    db: SupportSQLiteDatabase,
+                    table: String,
+                    column: String
+                ): Boolean {
+
+                    db.query(
+                        "PRAGMA table_info(`$table`)"
+                    ).use { cursor ->
+
+                        val nameIndex =
+                            cursor.getColumnIndex(
+                                "name"
+                            )
+
+                        while (
+                            cursor.moveToNext()
+                        ) {
+
+                            if (
+                                cursor.getString(
+                                    nameIndex
+                                ) == column
+                            ) {
+
+                                return true
+                            }
+                        }
+                    }
+
+                    return false
+                }
+
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+
+                    /*
+                     * Repair the two official-main migrations for a
+                     * device that had already reached the divergent
+                     * sync-status-backend v35 schema.
+                     */
+                    if (
+                        !hasColumn(
+                            db,
+                            "mortalities",
+                            "sync_status"
+                        )
+                    ) {
+
+                        db.execSQL(
+                            "ALTER TABLE `mortalities` " +
+                                "ADD COLUMN `sync_status` TEXT NOT NULL DEFAULT 'PENDING'"
+                        )
+                    }
+
+
+                    if (
+                        !hasColumn(
+                            db,
+                            "mortalities",
+                            "synced_at"
+                        )
+                    ) {
+
+                        db.execSQL(
+                            "ALTER TABLE `mortalities` " +
+                                "ADD COLUMN `synced_at` INTEGER"
+                        )
+                    }
+
+
+                    if (
+                        !hasColumn(
+                            db,
+                            "animal_costs",
+                            "sync_status"
+                        )
+                    ) {
+
+                        db.execSQL(
+                            "ALTER TABLE `animal_costs` " +
+                                "ADD COLUMN `sync_status` TEXT NOT NULL DEFAULT 'PENDING'"
+                        )
+                    }
+
+
+                    if (
+                        !hasColumn(
+                            db,
+                            "animal_costs",
+                            "synced_at"
+                        )
+                    ) {
+
+                        db.execSQL(
+                            "ALTER TABLE `animal_costs` " +
+                                "ADD COLUMN `synced_at` INTEGER"
+                        )
+                    }
+
+
+                    /*
+                     * Supplier / Animal Purchase linkage.
+                     */
+                    if (
+                        !hasColumn(
+                            db,
+                            "animal_purchases",
+                            "supplier_farmer_id"
+                        )
+                    ) {
+
+                        db.execSQL(
+                            "ALTER TABLE `animal_purchases` " +
+                                "ADD COLUMN `supplier_farmer_id` TEXT"
+                        )
+                    }
+
+
+                    if (
+                        !hasColumn(
+                            db,
+                            "animal_purchases",
+                            "gln_number"
+                        )
+                    ) {
+
+                        db.execSQL(
+                            "ALTER TABLE `animal_purchases` " +
+                                "ADD COLUMN `gln_number` TEXT"
+                        )
+                    }
+
+
+                    if (
+                        !hasColumn(
+                            db,
+                            "animal_purchases",
+                            "purchase_batch_number"
+                        )
+                    ) {
+
+                        db.execSQL(
+                            "ALTER TABLE `animal_purchases` " +
+                                "ADD COLUMN `purchase_batch_number` TEXT"
+                        )
+                    }
+
+
+                    db.execSQL(
+                        """
+                        CREATE INDEX IF NOT EXISTS
+                        `index_animal_purchases_supplier_farmer_id`
+                        ON `animal_purchases`
+                        (`supplier_farmer_id`)
+                        """.trimIndent()
+                    )
+
+
+                    db.execSQL(
+                        """
+                        CREATE INDEX IF NOT EXISTS
+                        `index_animal_purchases_purchase_batch_number`
+                        ON `animal_purchases`
+                        (`purchase_batch_number`)
+                        """.trimIndent()
+                    )
+
+
+                    /*
+                     * Offline ration catalog.
+                     */
+                    db.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS `rations`
+                        (
+                            `ration_id` TEXT NOT NULL,
+                            `name` TEXT NOT NULL,
+                            `active` INTEGER NOT NULL DEFAULT 1,
+                            PRIMARY KEY(`ration_id`)
+                        )
+                        """.trimIndent()
+                    )
+
+
+                    db.execSQL(
+                        """
+                        CREATE UNIQUE INDEX IF NOT EXISTS
+                        `index_rations_name`
+                        ON `rations` (`name`)
+                        """.trimIndent()
+                    )
+
+
+                    RationSeed.execute(
+                        db
+                    )
+                }
+            }
+
+
         val SEED_CALLBACK = object : Callback() {
             private fun createLookupTriggers(db: SupportSQLiteDatabase) {
                 db.execSQL(
@@ -3519,6 +3755,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
             }
 
             override fun onCreate(db: SupportSQLiteDatabase) {
+                RationSeed.execute(db)
                 CostTypeSeed.execute(db)
                 RoleSeed.execute(db)
                 FarmerBusinessRoleSeed.execute(db)
@@ -3533,6 +3770,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
             }
 
             override fun onOpen(db: SupportSQLiteDatabase) {
+                RationSeed.execute(db)
                 CostTypeSeed.execute(db)
                 RoleSeed.execute(db)
                 FarmerBusinessRoleSeed.execute(db)

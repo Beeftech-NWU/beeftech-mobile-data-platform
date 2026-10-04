@@ -1,25 +1,37 @@
 package com.beeftech.management.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -32,6 +44,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -42,21 +56,74 @@ import com.beeftech.management.data.roleLabel
 import com.beeftech.management.viewmodel.TeamViewModel
 import com.beeftech.management.viewmodel.TeamViewModelFactory
 
-const val PIN_LENGTH = 5
+private val TeamSage =
+    Color(
+        0xFF4F6256
+    )
 
-/* A pin is exactly PIN_LENGTH digits, matching the login screen and the backend. */
-fun isValidPin(pin: String): Boolean = pin.length == PIN_LENGTH && pin.all { it in '0'..'9' }
+private val TeamAccent =
+    Color(
+        0xFF667A6C
+    )
 
-private enum class TeamSection(val label: String) {
-    PEOPLE("People"),
-    DEVICES("Phones"),
-    ACTIVITY("Activity")
+private val TeamBackground =
+    Color(
+        0xFFFAF9F2
+    )
+
+private val TeamCard =
+    Color(
+        0xFFF4F3E8
+    )
+
+private val TeamSoftGreen =
+    Color(
+        0xFFE3E8E2
+    )
+
+private val TeamSuccess =
+    Color(
+        0xFF3F6A50
+    )
+
+private val TeamDanger =
+    Color(
+        0xFF8A4F4F
+    )
+
+
+const val PIN_LENGTH =
+    5
+
+
+fun isValidPin(
+    pin: String
+): Boolean =
+    pin.length ==
+        PIN_LENGTH &&
+        pin.all {
+            it in '0'..'9'
+        }
+
+
+private enum class TeamSection(
+    val label: String
+) {
+
+    PEOPLE(
+        "People"
+    ),
+
+    DEVICES(
+        "Phones"
+    ),
+
+    ACTIVITY(
+        "Activity"
+    )
 }
 
-/*
- * Keyed by user, so a different user logging in on the same device never sees the previous list.
- * A manager also gets their site's phones and audit log here, read-only; an admin has those in the Admin tab.
- */
+
 @Composable
 fun TeamTab(
     apiClient: ManagementApiClient,
@@ -64,56 +131,152 @@ fun TeamTab(
     isAdmin: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val viewModel: TeamViewModel = viewModel(
-        key = "team-$currentUserId",
-        factory = TeamViewModelFactory(apiClient)
-    )
-    var section by rememberSaveable { mutableStateOf(TeamSection.PEOPLE) }
 
-    Column(modifier = modifier.fillMaxSize()) {
-        if (!isAdmin) {
+    val viewModel:
+            TeamViewModel =
+        viewModel(
+            key =
+                "team-$currentUserId",
+
+            factory =
+                TeamViewModelFactory(
+                    apiClient
+                )
+        )
+
+
+    var section by
+        rememberSaveable {
+            mutableStateOf(
+                TeamSection.PEOPLE
+            )
+        }
+
+
+    Column(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(
+                    TeamBackground
+                )
+    ) {
+
+        if (
+            !isAdmin
+        ) {
+
             Row(
-                modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                TeamSection.entries.forEach {
-                    FilterChip(
-                        selected = section == it,
-                        onClick = { section = it },
-                        label = { Text(it.label) }
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Color.White
+                        )
+                        .horizontalScroll(
+                            rememberScrollState()
+                        )
+                        .padding(
+                            horizontal = 14.dp,
+                            vertical = 8.dp
+                        ),
+                horizontalArrangement =
+                    Arrangement.spacedBy(
+                        8.dp
                     )
-                }
+            ) {
+
+                TeamSection.entries
+                    .forEach {
+                            option ->
+
+                        FilterChip(
+                            selected =
+                                section ==
+                                    option,
+
+                            onClick = {
+                                section =
+                                    option
+                            },
+
+                            label = {
+
+                                Text(
+                                    option.label
+                                )
+                            }
+                        )
+                    }
             }
         }
 
-        if (isAdmin || section == TeamSection.PEOPLE) {
-            TeamScreen(
-                viewModel = viewModel,
-                currentUserId = currentUserId,
-                isAdmin = isAdmin,
-                modifier = Modifier.weight(1f)
-            )
-        } else if (section == TeamSection.DEVICES) {
-            DevicesTab(
-                apiClient = apiClient,
-                currentUserId = currentUserId,
-                canManage = false,
-                modifier = Modifier.weight(1f)
-            )
-        } else {
-            AuditLogTab(
-                apiClient = apiClient,
-                currentUserId = currentUserId,
-                modifier = Modifier.weight(1f)
-            )
+
+        when {
+
+            isAdmin ||
+                section ==
+                TeamSection.PEOPLE -> {
+
+                TeamScreen(
+                    viewModel =
+                        viewModel,
+
+                    currentUserId =
+                        currentUserId,
+
+                    isAdmin =
+                        isAdmin,
+
+                    modifier =
+                        Modifier.weight(
+                            1f
+                        )
+                )
+            }
+
+
+            section ==
+                TeamSection.DEVICES -> {
+
+                DevicesTab(
+                    apiClient =
+                        apiClient,
+
+                    currentUserId =
+                        currentUserId,
+
+                    canManage =
+                        false,
+
+                    modifier =
+                        Modifier.weight(
+                            1f
+                        )
+                )
+            }
+
+
+            else -> {
+
+                AuditLogTab(
+                    apiClient =
+                        apiClient,
+
+                    currentUserId =
+                        currentUserId,
+
+                    modifier =
+                        Modifier.weight(
+                            1f
+                        )
+                )
+            }
         }
     }
 }
 
-/**
- * Online-only team management. A manager sees the workers on their site;
- * an admin sees everyone, and also has to name a site when creating a user.
- */
+
 @Composable
 fun TeamScreen(
     viewModel: TeamViewModel,
@@ -121,95 +284,732 @@ fun TeamScreen(
     isAdmin: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val state by viewModel.uiState.collectAsState()
-    var showCreate by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
+    val state by
+        viewModel
+            .uiState
+            .collectAsState()
+
+
+    var showCreate by
+        remember {
+            mutableStateOf(
+                false
+            )
+        }
+
+
+    LaunchedEffect(
+        Unit
+    ) {
+
         viewModel.refresh()
-        if (isAdmin) viewModel.loadSites()
+
+
+        if (
+            isAdmin
+        ) {
+
+            viewModel.loadSites()
+        }
     }
 
-    if (showCreate) {
+
+    if (
+        showCreate
+    ) {
+
         CreateUserDialog(
-            askForSite = isAdmin,
-            sites = state.sites.filter { it.active },
-            onDismiss = { showCreate = false },
-            onCreate = { username, pin, siteId ->
-                viewModel.createWorker(username, pin, siteId) { showCreate = false }
+            askForSite =
+                isAdmin,
+
+            sites =
+                state.sites
+                    .filter {
+                        it.active
+                    },
+
+            onDismiss = {
+
+                showCreate =
+                    false
+            },
+
+            onCreate = {
+                    username,
+                    pin,
+                    siteId ->
+
+                viewModel
+                    .createWorker(
+                        username,
+                        pin,
+                        siteId
+                    ) {
+
+                        showCreate =
+                            false
+                    }
             }
         )
     }
 
-    state.issuedPin?.let { issued ->
-        AlertDialog(
-            onDismissRequest = viewModel::dismissIssuedPin,
-            title = { Text("New PIN for ${issued.username}") },
-            text = {
-                Column {
-                    Text(issued.pin, style = MaterialTheme.typography.headlineMedium)
-                    Text("Give this to the worker now. It won't be shown again.")
+
+    state.issuedPin
+        ?.let {
+                issued ->
+
+            AlertDialog(
+                onDismissRequest =
+                    viewModel::dismissIssuedPin,
+
+                shape =
+                    RoundedCornerShape(
+                        20.dp
+                    ),
+
+                title = {
+
+                    Text(
+                        text =
+                            "New PIN for ${issued.username}",
+                        fontWeight =
+                            FontWeight.SemiBold
+                    )
+                },
+
+                text = {
+
+                    Column(
+                        verticalArrangement =
+                            Arrangement.spacedBy(
+                                12.dp
+                            )
+                    ) {
+
+                        Surface(
+                            modifier =
+                                Modifier.fillMaxWidth(),
+                            color =
+                                TeamSoftGreen,
+                            shape =
+                                RoundedCornerShape(
+                                    14.dp
+                                )
+                        ) {
+
+                            Text(
+                                text =
+                                    issued.pin,
+                                modifier =
+                                    Modifier.padding(
+                                        18.dp
+                                    ),
+                                style =
+                                    MaterialTheme
+                                        .typography
+                                        .headlineMedium,
+                                fontWeight =
+                                    FontWeight.Bold,
+                                color =
+                                    TeamSage
+                            )
+                        }
+
+
+                        Text(
+                            text =
+                                "Give this PIN to the worker now. It will not be shown again.",
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .bodyMedium
+                        )
+                    }
+                },
+
+                confirmButton = {
+
+                    Button(
+                        onClick =
+                            viewModel::dismissIssuedPin,
+                        colors =
+                            ButtonDefaults
+                                .buttonColors(
+                                    containerColor =
+                                        TeamSage
+                                )
+                    ) {
+
+                        Text(
+                            "Done"
+                        )
+                    }
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = viewModel::dismissIssuedPin) { Text("Done") }
-            }
-        )
-    }
+            )
+        }
+
 
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(
+                    TeamBackground
+                )
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .background(
+                        TeamSage
+                    )
+                    .padding(
+                        horizontal = 18.dp,
+                        vertical = 18.dp
+                    )
         ) {
-            Text("Team", style = MaterialTheme.typography.titleLarge)
-            Row {
-                TextButton(onClick = viewModel::refresh) { Text("Refresh") }
-                Button(
-                    onClick = {
-                        /* A fresh list, so a site added a moment ago is in the picker. */
-                        if (isAdmin) viewModel.loadSites()
-                        showCreate = true
+
+            Text(
+                text =
+                    if (
+                        isAdmin
+                    ) {
+
+                        "USER MANAGEMENT"
+
+                    } else {
+
+                        "TEAM MANAGEMENT"
                     },
-                    enabled = !state.needsConnection
+                style =
+                    MaterialTheme
+                        .typography
+                        .labelSmall,
+                color =
+                    Color.White
+                        .copy(
+                            alpha = 0.72f
+                        )
+            )
+
+
+            Text(
+                text =
+                    if (
+                        isAdmin
+                    ) {
+
+                        "Users"
+
+                    } else {
+
+                        "Team"
+                    },
+                color =
+                    Color.White,
+                style =
+                    MaterialTheme
+                        .typography
+                        .headlineSmall,
+                fontWeight =
+                    FontWeight.SemiBold
+            )
+
+
+            Text(
+                text =
+                    if (
+                        isAdmin
+                    ) {
+
+                        "Manage users, sites, access and linked devices"
+
+                    } else {
+
+                        "Manage workers assigned to your site"
+                    },
+                color =
+                    Color.White
+                        .copy(
+                            alpha = 0.82f
+                        ),
+                style =
+                    MaterialTheme
+                        .typography
+                        .bodySmall
+            )
+        }
+
+
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(
+                        14.dp
+                    )
+        ) {
+
+            Card(
+                modifier =
+                    Modifier.fillMaxWidth(),
+                shape =
+                    RoundedCornerShape(
+                        16.dp
+                    ),
+                colors =
+                    CardDefaults
+                        .cardColors(
+                            containerColor =
+                                TeamCard
+                        )
+            ) {
+
+                Column(
+                    modifier =
+                        Modifier.padding(
+                            14.dp
+                        ),
+                    verticalArrangement =
+                        Arrangement.spacedBy(
+                            12.dp
+                        )
                 ) {
-                    Text(if (isAdmin) "Add user" else "Add worker")
+
+                    Row(
+                        modifier =
+                            Modifier.fillMaxWidth(),
+                        horizontalArrangement =
+                            Arrangement.SpaceBetween,
+                        verticalAlignment =
+                            Alignment.CenterVertically
+                    ) {
+
+                        Column {
+
+                            Text(
+                                text =
+                                    "Team members",
+                                style =
+                                    MaterialTheme
+                                        .typography
+                                        .titleMedium,
+                                fontWeight =
+                                    FontWeight.SemiBold
+                            )
+
+
+                            Text(
+                                text =
+                                    "${state.members.size} ${
+                                        if (
+                                            state.members.size ==
+                                            1
+                                        ) {
+
+                                            "member"
+
+                                        } else {
+
+                                            "members"
+                                        }
+                                    }",
+                                style =
+                                    MaterialTheme
+                                        .typography
+                                        .bodySmall
+                            )
+                        }
+
+
+                        if (
+                            state.loading
+                        ) {
+
+                            CircularProgressIndicator(
+                                modifier =
+                                    Modifier.size(
+                                        26.dp
+                                    ),
+                                color =
+                                    TeamSage
+                            )
+                        }
+                    }
+
+
+                    Row(
+                        modifier =
+                            Modifier.fillMaxWidth(),
+                        horizontalArrangement =
+                            Arrangement.spacedBy(
+                                10.dp
+                            )
+                    ) {
+
+                        OutlinedButton(
+                            modifier =
+                                Modifier.weight(
+                                    1f
+                                ),
+                            onClick =
+                                viewModel::refresh,
+                            shape =
+                                RoundedCornerShape(
+                                    12.dp
+                                )
+                        ) {
+
+                            Text(
+                                "Refresh"
+                            )
+                        }
+
+
+                        Button(
+                            modifier =
+                                Modifier.weight(
+                                    1f
+                                ),
+                            onClick = {
+
+                                if (
+                                    isAdmin
+                                ) {
+
+                                    viewModel
+                                        .loadSites()
+                                }
+
+
+                                showCreate =
+                                    true
+                            },
+                            enabled =
+                                !state.needsConnection,
+                            shape =
+                                RoundedCornerShape(
+                                    12.dp
+                                ),
+                            colors =
+                                ButtonDefaults
+                                    .buttonColors(
+                                        containerColor =
+                                            TeamSage
+                                    )
+                        ) {
+
+                            Text(
+                                if (
+                                    isAdmin
+                                ) {
+
+                                    "Add user"
+
+                                } else {
+
+                                    "Add worker"
+                                }
+                            )
+                        }
+                    }
                 }
             }
-        }
 
-        if (state.needsConnection) {
-            NeedsConnectionNotice("Team management")
-        }
-        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        state.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
 
-        if (state.loading && state.members.isEmpty()) {
-            CircularProgressIndicator()
-        } else if (state.members.isEmpty() && !state.needsConnection && state.error == null) {
-            Text("No team members yet.")
-        }
+            Spacer(
+                modifier =
+                    Modifier.height(
+                        12.dp
+                    )
+            )
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(state.members, key = { it.userId }) { member ->
-                MemberCard(
-                    member = member,
-                    siteName = state.sites.firstOrNull { it.siteId == member.siteId }?.name,
-                    isSelf = member.userId == currentUserId,
-                    onToggleActive = { viewModel.setActive(member, !member.active) },
-                    onResetPin = { viewModel.resetPin(member) },
-                    onUnlockLogin = { viewModel.unlockLogin(member) },
-                    onUnbind = { viewModel.unbindDevice(member) }
+
+            if (
+                state.needsConnection
+            ) {
+
+                MessageCard(
+                    message =
+                        "Team management needs a connection. Check your signal and tap Refresh.",
+                    background =
+                        Color(
+                            0xFFF3E9DD
+                        ),
+                    textColor =
+                        TeamDanger
                 )
+
+
+                Spacer(
+                    modifier =
+                        Modifier.height(
+                            10.dp
+                        )
+                )
+            }
+
+
+            state.error
+                ?.let {
+                        error ->
+
+                    MessageCard(
+                        message =
+                            error,
+                        background =
+                            Color(
+                                0xFFF4E3E1
+                            ),
+                        textColor =
+                            TeamDanger
+                    )
+
+
+                    Spacer(
+                        modifier =
+                            Modifier.height(
+                                10.dp
+                            )
+                    )
+                }
+
+
+            state.notice
+                ?.let {
+                        notice ->
+
+                    MessageCard(
+                        message =
+                            notice,
+                        background =
+                            TeamSoftGreen,
+                        textColor =
+                            TeamSuccess
+                    )
+
+
+                    Spacer(
+                        modifier =
+                            Modifier.height(
+                                10.dp
+                            )
+                    )
+                }
+
+
+            if (
+                state.loading &&
+                state.members
+                    .isEmpty()
+            ) {
+
+                Card(
+                    modifier =
+                        Modifier.fillMaxWidth(),
+                    shape =
+                        RoundedCornerShape(
+                            16.dp
+                        )
+                ) {
+
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    24.dp
+                                ),
+                        horizontalAlignment =
+                            Alignment.CenterHorizontally
+                    ) {
+
+                        CircularProgressIndicator(
+                            color =
+                                TeamSage
+                        )
+
+
+                        Spacer(
+                            modifier =
+                                Modifier.height(
+                                    10.dp
+                                )
+                        )
+
+
+                        Text(
+                            "Loading team?"
+                        )
+                    }
+                }
+
+            } else if (
+                state.members
+                    .isEmpty() &&
+                !state.needsConnection &&
+                state.error ==
+                null
+            ) {
+
+                Card(
+                    modifier =
+                        Modifier.fillMaxWidth(),
+                    shape =
+                        RoundedCornerShape(
+                            16.dp
+                        )
+                ) {
+
+                    Column(
+                        modifier =
+                            Modifier.padding(
+                                20.dp
+                            )
+                    ) {
+
+                        Text(
+                            text =
+                                "No team members yet",
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .titleMedium,
+                            fontWeight =
+                                FontWeight.SemiBold
+                        )
+
+
+                        Text(
+                            text =
+                                "Use Add worker to create the first worker account for this site.",
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .bodySmall
+                        )
+                    }
+                }
+
+            } else {
+
+                LazyColumn(
+                    modifier =
+                        Modifier.weight(
+                            1f
+                        ),
+                    verticalArrangement =
+                        Arrangement.spacedBy(
+                            10.dp
+                        )
+                ) {
+
+                    items(
+                        items =
+                            state.members,
+                        key = {
+                            it.userId
+                        }
+                    ) {
+                            member ->
+
+                        MemberCard(
+                            member =
+                                member,
+
+                            siteName =
+                                state.sites
+                                    .firstOrNull {
+                                        it.siteId ==
+                                            member.siteId
+                                    }
+                                    ?.name,
+
+                            isSelf =
+                                member.userId ==
+                                    currentUserId,
+
+                            onToggleActive = {
+
+                                viewModel
+                                    .setActive(
+                                        member,
+                                        !member.active
+                                    )
+                            },
+
+                            onResetPin = {
+
+                                viewModel
+                                    .resetPin(
+                                        member
+                                    )
+                            },
+
+                            onUnlockLogin = {
+
+                                viewModel
+                                    .unlockLogin(
+                                        member
+                                    )
+                            },
+
+                            onUnbind = {
+
+                                viewModel
+                                    .unbindDevice(
+                                        member
+                                    )
+                            }
+                        )
+                    }
+                }
             }
         }
     }
 }
+
+
+@Composable
+private fun MessageCard(
+    message: String,
+    background: Color,
+    textColor: Color
+) {
+
+    Surface(
+        modifier =
+            Modifier.fillMaxWidth(),
+        color =
+            background,
+        shape =
+            RoundedCornerShape(
+                14.dp
+            )
+    ) {
+
+        Text(
+            text =
+                message,
+            modifier =
+                Modifier.padding(
+                    14.dp
+                ),
+            color =
+                textColor,
+            style =
+                MaterialTheme
+                    .typography
+                    .bodySmall,
+            fontWeight =
+                FontWeight.Medium
+        )
+    }
+}
+
 
 @Composable
 private fun MemberCard(
@@ -221,108 +1021,695 @@ private fun MemberCard(
     onUnlockLogin: () -> Unit,
     onUnbind: () -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                member.username + if (isSelf) " (you)" else "",
-                style = MaterialTheme.typography.titleMedium
+
+    Card(
+        modifier =
+            Modifier.fillMaxWidth(),
+        shape =
+            RoundedCornerShape(
+                16.dp
+            ),
+        colors =
+            CardDefaults
+                .cardColors(
+                    containerColor =
+                        Color.White
+                )
+    ) {
+
+        Column(
+            modifier =
+                Modifier.padding(
+                    16.dp
+                ),
+            verticalArrangement =
+                Arrangement.spacedBy(
+                    12.dp
+                )
+        ) {
+
+            Row(
+                modifier =
+                    Modifier.fillMaxWidth(),
+                horizontalArrangement =
+                    Arrangement.SpaceBetween,
+                verticalAlignment =
+                    Alignment.CenterVertically
+            ) {
+
+                Column(
+                    modifier =
+                        Modifier.weight(
+                            1f
+                        )
+                ) {
+
+                    Text(
+                        text =
+                            member.username +
+                                if (
+                                    isSelf
+                                ) {
+
+                                    "  ?  You"
+
+                                } else {
+
+                                    ""
+                                },
+                        style =
+                            MaterialTheme
+                                .typography
+                                .titleMedium,
+                        fontWeight =
+                            FontWeight.SemiBold
+                    )
+
+
+                    Text(
+                        text =
+                            buildString {
+
+                                append(
+                                    roleLabel(
+                                        member.role
+                                    )
+                                )
+
+
+                                val site =
+                                    siteName
+                                        ?: member.siteId
+
+
+                                if (
+                                    !site.isNullOrBlank()
+                                ) {
+
+                                    append(
+                                        "  ?  $site"
+                                    )
+                                }
+                            },
+                        style =
+                            MaterialTheme
+                                .typography
+                                .bodySmall
+                    )
+                }
+
+
+                StatusBadge(
+                    active =
+                        member.active
+                )
+            }
+
+
+            HorizontalDivider(
+                color =
+                    TeamSage
+                        .copy(
+                            alpha = 0.10f
+                        )
             )
-            Text(
-                buildString {
-                    append(roleLabel(member.role))
-                    (siteName ?: member.siteId)?.let { append(" · $it") }
-                    append(if (member.active) " · Active" else " · Deactivated")
-                    append(if (member.deviceAssignedId != null) " · Phone linked" else " · No phone linked")
-                },
-                style = MaterialTheme.typography.bodySmall
-            )
-            Row {
-                if (!isSelf) {
-                    TextButton(onClick = onToggleActive) {
-                        Text(if (member.active) "Deactivate" else "Reactivate")
+
+
+            Row(
+                modifier =
+                    Modifier.fillMaxWidth(),
+                horizontalArrangement =
+                    Arrangement.SpaceBetween,
+                verticalAlignment =
+                    Alignment.CenterVertically
+            ) {
+
+                Column {
+
+                    Text(
+                        text =
+                            "DEVICE",
+                        style =
+                            MaterialTheme
+                                .typography
+                                .labelSmall,
+                        color =
+                            TeamAccent
+                    )
+
+
+                    Text(
+                        text =
+                            if (
+                                member.deviceAssignedId !=
+                                null
+                            ) {
+
+                                "Phone linked"
+
+                            } else {
+
+                                "No phone linked"
+                            },
+                        fontWeight =
+                            FontWeight.Medium
+                    )
+                }
+
+
+                Surface(
+                    color =
+                        if (
+                            member.deviceAssignedId !=
+                            null
+                        ) {
+
+                            TeamSoftGreen
+
+                        } else {
+
+                            TeamCard
+                        },
+                    shape =
+                        RoundedCornerShape(
+                            50.dp
+                        )
+                ) {
+
+                    Text(
+                        text =
+                            if (
+                                member.deviceAssignedId !=
+                                null
+                            ) {
+
+                                "Linked"
+
+                            } else {
+
+                                "Not linked"
+                            },
+                        modifier =
+                            Modifier.padding(
+                                horizontal = 10.dp,
+                                vertical = 6.dp
+                            ),
+                        style =
+                            MaterialTheme
+                                .typography
+                                .labelSmall,
+                        color =
+                            TeamSage
+                    )
+                }
+            }
+
+
+            Row(
+                modifier =
+                    Modifier.fillMaxWidth(),
+                horizontalArrangement =
+                    Arrangement.spacedBy(
+                        8.dp
+                    )
+            ) {
+
+                if (
+                    !isSelf
+                ) {
+
+                    OutlinedButton(
+                        modifier =
+                            Modifier.weight(
+                                1f
+                            ),
+                        onClick =
+                            onToggleActive,
+                        shape =
+                            RoundedCornerShape(
+                                12.dp
+                            )
+                    ) {
+
+                        Text(
+                            if (
+                                member.active
+                            ) {
+
+                                "Deactivate"
+
+                            } else {
+
+                                "Reactivate"
+                            }
+                        )
                     }
                 }
-                TextButton(onClick = onResetPin) { Text("Reset PIN") }
-                TextButton(onClick = onUnlockLogin) { Text("Unlock sign-in") }
-                if (member.deviceAssignedId != null) {
-                    TextButton(onClick = onUnbind) { Text("Unlink phone") }
+
+
+                OutlinedButton(
+                    modifier =
+                        Modifier.weight(
+                            1f
+                        ),
+                    onClick =
+                        onResetPin,
+                    shape =
+                        RoundedCornerShape(
+                            12.dp
+                        )
+                ) {
+
+                    Text(
+                        "Reset PIN"
+                    )
+                }
+            }
+
+
+            OutlinedButton(
+                modifier =
+                    Modifier.fillMaxWidth(),
+                onClick =
+                    onUnlockLogin,
+                shape =
+                    RoundedCornerShape(
+                        12.dp
+                    )
+            ) {
+
+                Text(
+                    "Unlock sign-in"
+                )
+            }
+
+
+            if (
+                member.deviceAssignedId !=
+                null
+            ) {
+
+                TextButton(
+                    modifier =
+                        Modifier.fillMaxWidth(),
+                    onClick =
+                        onUnbind
+                ) {
+
+                    Text(
+                        text =
+                            "Unlink phone",
+                        color =
+                            TeamDanger
+                    )
                 }
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+
+@Composable
+private fun StatusBadge(
+    active: Boolean
+) {
+
+    Surface(
+        color =
+            if (
+                active
+            ) {
+
+                TeamSoftGreen
+
+            } else {
+
+                Color(
+                    0xFFF0E3E2
+                )
+            },
+        shape =
+            RoundedCornerShape(
+                50.dp
+            )
+    ) {
+
+        Text(
+            text =
+                if (
+                    active
+                ) {
+
+                    "Active"
+
+                } else {
+
+                    "Inactive"
+                },
+            modifier =
+                Modifier.padding(
+                    horizontal = 10.dp,
+                    vertical = 6.dp
+                ),
+            color =
+                if (
+                    active
+                ) {
+
+                    TeamSuccess
+
+                } else {
+
+                    TeamDanger
+                },
+            style =
+                MaterialTheme
+                    .typography
+                    .labelSmall,
+            fontWeight =
+                FontWeight.SemiBold
+        )
+    }
+}
+
+
+@OptIn(
+    ExperimentalMaterial3Api::class
+)
 @Composable
 private fun CreateUserDialog(
     askForSite: Boolean,
     sites: List<Site>,
     onDismiss: () -> Unit,
-    onCreate: (username: String, pin: String, siteId: String?) -> Unit
+    onCreate: (
+        username: String,
+        pin: String,
+        siteId: String?
+    ) -> Unit
 ) {
-    var username by remember { mutableStateOf("") }
-    var pin by remember { mutableStateOf("") }
-    var site by remember { mutableStateOf<Site?>(null) }
-    var menuOpen by remember { mutableStateOf(false) }
 
-    val valid = username.trim().length >= 3 &&
-        isValidPin(pin) &&
-        (!askForSite || site != null)
+    var username by
+        remember {
+            mutableStateOf(
+                ""
+            )
+        }
+
+
+    var pin by
+        remember {
+            mutableStateOf(
+                ""
+            )
+        }
+
+
+    var site by
+        remember {
+            mutableStateOf<Site?>(
+                null
+            )
+        }
+
+
+    var menuOpen by
+        remember {
+            mutableStateOf(
+                false
+            )
+        }
+
+
+    val valid =
+        username
+            .trim()
+            .length >=
+            3 &&
+            isValidPin(
+                pin
+            ) &&
+            (
+                !askForSite ||
+                    site !=
+                    null
+                )
+
 
     AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (askForSite) "Add user" else "Add worker") },
+        onDismissRequest =
+            onDismiss,
+        shape =
+            RoundedCornerShape(
+                20.dp
+            ),
+        title = {
+
+            Text(
+                text =
+                    if (
+                        askForSite
+                    ) {
+
+                        "Add user"
+
+                    } else {
+
+                        "Add worker"
+                    },
+                fontWeight =
+                    FontWeight.SemiBold
+            )
+        },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+
+            Column(
+                verticalArrangement =
+                    Arrangement.spacedBy(
+                        12.dp
+                    )
+            ) {
+
                 OutlinedTextField(
-                    value = username,
-                    onValueChange = { username = it },
-                    label = { Text("Username") },
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = pin,
-                    onValueChange = { if (it.length <= PIN_LENGTH) pin = it },
-                    label = { Text("$PIN_LENGTH-digit PIN") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword)
-                )
-                if (askForSite) {
-                    ExposedDropdownMenuBox(expanded = menuOpen, onExpandedChange = { menuOpen = it }) {
-                        OutlinedTextField(
-                            value = site?.name.orEmpty(),
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Site") },
-                            placeholder = { Text(if (sites.isEmpty()) "No active sites" else "Choose a site") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuOpen) },
-                            modifier = Modifier.menuAnchor()
+                    modifier =
+                        Modifier.fillMaxWidth(),
+                    value =
+                        username,
+                    onValueChange = {
+                        username =
+                            it
+                    },
+                    label = {
+
+                        Text(
+                            "Username"
                         )
-                        ExposedDropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                            sites.forEach { option ->
-                                DropdownMenuItem(
-                                    text = { Text(option.name) },
-                                    onClick = {
-                                        site = option
-                                        menuOpen = false
+                    },
+                    singleLine =
+                        true,
+                    shape =
+                        RoundedCornerShape(
+                            12.dp
+                        )
+                )
+
+
+                OutlinedTextField(
+                    modifier =
+                        Modifier.fillMaxWidth(),
+                    value =
+                        pin,
+                    onValueChange = {
+                            value ->
+
+                        pin =
+                            value
+                                .filter {
+                                        character ->
+
+                                    character
+                                        .isDigit()
+                                }
+                                .take(
+                                    PIN_LENGTH
+                                )
+                    },
+                    label = {
+
+                        Text(
+                            "$PIN_LENGTH-digit PIN"
+                        )
+                    },
+                    singleLine =
+                        true,
+                    keyboardOptions =
+                        KeyboardOptions(
+                            keyboardType =
+                                KeyboardType
+                                    .NumberPassword
+                        ),
+                    shape =
+                        RoundedCornerShape(
+                            12.dp
+                        )
+                )
+
+
+                if (
+                    askForSite
+                ) {
+
+                    ExposedDropdownMenuBox(
+                        expanded =
+                            menuOpen,
+                        onExpandedChange = {
+                            menuOpen =
+                                it
+                        }
+                    ) {
+
+                        OutlinedTextField(
+                            value =
+                                site
+                                    ?.name
+                                    .orEmpty(),
+                            onValueChange = {},
+                            readOnly =
+                                true,
+                            label = {
+
+                                Text(
+                                    "Site"
+                                )
+                            },
+                            placeholder = {
+
+                                Text(
+                                    if (
+                                        sites.isEmpty()
+                                    ) {
+
+                                        "No active sites"
+
+                                    } else {
+
+                                        "Choose a site"
                                     }
                                 )
+                            },
+                            trailingIcon = {
+
+                                ExposedDropdownMenuDefaults
+                                    .TrailingIcon(
+                                        expanded =
+                                            menuOpen
+                                    )
+                            },
+                            modifier =
+                                Modifier
+                                    .menuAnchor()
+                                    .fillMaxWidth(),
+                            shape =
+                                RoundedCornerShape(
+                                    12.dp
+                                )
+                        )
+
+
+                        ExposedDropdownMenu(
+                            expanded =
+                                menuOpen,
+                            onDismissRequest = {
+                                menuOpen =
+                                    false
                             }
+                        ) {
+
+                            sites
+                                .forEach {
+                                        option ->
+
+                                    DropdownMenuItem(
+                                        text = {
+
+                                            Text(
+                                                option.name
+                                            )
+                                        },
+                                        onClick = {
+
+                                            site =
+                                                option
+
+                                            menuOpen =
+                                                false
+                                        }
+                                    )
+                                }
                         }
                     }
                 }
+
+
+                Text(
+                    text =
+                        "The PIN must contain exactly $PIN_LENGTH digits.",
+                    style =
+                        MaterialTheme
+                            .typography
+                            .labelSmall
+                )
             }
         },
         confirmButton = {
-            TextButton(
-                onClick = { onCreate(username, pin, site?.siteId.takeIf { askForSite }) },
-                enabled = valid
+
+            Button(
+                enabled =
+                    valid,
+                onClick = {
+
+                    onCreate(
+                        username
+                            .trim(),
+
+                        pin,
+
+                        if (
+                            askForSite
+                        ) {
+
+                            site
+                                ?.siteId
+
+                        } else {
+
+                            null
+                        }
+                    )
+                },
+                colors =
+                    ButtonDefaults
+                        .buttonColors(
+                            containerColor =
+                                TeamSage
+                        )
             ) {
-                Text("Create")
+
+                Text(
+                    "Create"
+                )
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+
+            TextButton(
+                onClick =
+                    onDismiss
+            ) {
+
+                Text(
+                    "Cancel"
+                )
+            }
         }
     )
 }

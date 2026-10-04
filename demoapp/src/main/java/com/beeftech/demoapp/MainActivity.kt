@@ -690,33 +690,30 @@ class MainActivity : ComponentActivity() {
 
                                     if (showMyActivity) {
 
-                                        Column {
+                                        MyActivityScreen(
+                                            username =
+                                                loggedInUser.username,
 
-                                            TextButton(
-                                                onClick = {
-                                                    showMyActivity =
-                                                        false
-                                                }
-                                            ) {
-                                                Text(
-                                                    text = "Back"
-                                                )
-                                            }
+                                            role =
+                                                loggedInUser.role,
 
-                                            MyActivityScreen(
-                                                username =
-                                                    loggedInUser.username,
-                                                role =
-                                                    loggedInUser.role,
-                                                siteId =
-                                                    loggedInUser.siteId,
-                                                pendingCount =
-                                                    pendingCount,
-                                                oldestPendingAt =
-                                                    oldestPendingAt
-                                            )
-                                        }
+                                            siteId =
+                                                loggedInUser.siteId,
 
+                                            pendingCount =
+                                                pendingCount,
+
+                                            oldestPendingAt =
+                                                oldestPendingAt,
+
+                                            onBack = {
+                                                showMyActivity =
+                                                    false
+                                            },
+
+                                            modifier =
+                                                Modifier.fillMaxSize()
+                                        )
                                     } else if (currentTab == AppTab.DASHBOARD) {
 
                                         DashboardTab(
@@ -805,7 +802,8 @@ class MainActivity : ComponentActivity() {
                                             onSaveMovement = {
                                                     animalId,
                                                     movementInformation,
-                                                    responsibleWorker ->
+                                                    responsibleWorker,
+                                                    onCompleted ->
 
                                                 movementViewModel
                                                     .saveMovement(
@@ -816,7 +814,7 @@ class MainActivity : ComponentActivity() {
                                                         responsibleWorker =
                                                             responsibleWorker,
                                                         onResult = {
-                                                                _,
+                                                                success,
                                                                 message ->
 
                                                             Toast.makeText(
@@ -824,6 +822,11 @@ class MainActivity : ComponentActivity() {
                                                                 message,
                                                                 Toast.LENGTH_SHORT
                                                             ).show()
+
+                                                            onCompleted(
+                                                                success,
+                                                                message
+                                                            )
                                                         }
                                                     )
                                             },
@@ -852,7 +855,8 @@ class MainActivity : ComponentActivity() {
                                                     treatment,
                                                     batchNumber,
                                                     volumeUsed,
-                                                    cost ->
+                                                    cost,
+                                                    onCompleted ->
 
                                                 treatmentViewModel
                                                     .saveTreatment(
@@ -869,7 +873,7 @@ class MainActivity : ComponentActivity() {
                                                         costText =
                                                             cost,
                                                         onResult = {
-                                                                _,
+                                                                success,
                                                                 message ->
 
                                                             Toast.makeText(
@@ -877,6 +881,11 @@ class MainActivity : ComponentActivity() {
                                                                 message,
                                                                 Toast.LENGTH_SHORT
                                                             ).show()
+
+                                                            onCompleted(
+                                                                success,
+                                                                message
+                                                            )
                                                         }
                                                     )
                                             },
@@ -896,7 +905,8 @@ class MainActivity : ComponentActivity() {
                                             onSaveMortality = {
                                                     animalId,
                                                     mortalityReason,
-                                                    responsibleWorker ->
+                                                    responsibleWorker,
+                                                    onCompleted ->
 
                                                 mortalityViewModel
                                                     .saveMortality(
@@ -907,7 +917,7 @@ class MainActivity : ComponentActivity() {
                                                         responsibleWorker =
                                                             responsibleWorker,
                                                         onResult = {
-                                                                _,
+                                                                success,
                                                                 message ->
 
                                                             Toast.makeText(
@@ -915,6 +925,11 @@ class MainActivity : ComponentActivity() {
                                                                 message,
                                                                 Toast.LENGTH_SHORT
                                                             ).show()
+
+                                                            onCompleted(
+                                                                success,
+                                                                message
+                                                            )
                                                         }
                                                     )
                                             },
@@ -969,7 +984,8 @@ class MainActivity : ComponentActivity() {
                                                     supplierName,
                                                     glnNumber,
                                                     purchaseDate,
-                                                    purchaseBatchNumber ->
+                                                    purchaseBatchNumber,
+                                                    onCompleted ->
 
                                                 supplierViewModel
                                                     .saveSupplier(
@@ -984,7 +1000,7 @@ class MainActivity : ComponentActivity() {
                                                         purchaseBatchNumber =
                                                             purchaseBatchNumber,
                                                         onResult = {
-                                                                _,
+                                                                success,
                                                                 message ->
 
                                                             Toast.makeText(
@@ -992,6 +1008,11 @@ class MainActivity : ComponentActivity() {
                                                                 message,
                                                                 Toast.LENGTH_SHORT
                                                             ).show()
+
+                                                            onCompleted(
+                                                                success,
+                                                                message
+                                                            )
                                                         }
                                                     )
                                             },
@@ -1014,7 +1035,8 @@ class MainActivity : ComponentActivity() {
                                                     daysInDestination,
                                                     rationName,
                                                     rationDays,
-                                                    rationCost ->
+                                                    rationCost,
+                                                    onCompleted ->
 
                                                 locationFeedViewModel
                                                     .saveRecord(
@@ -1031,7 +1053,7 @@ class MainActivity : ComponentActivity() {
                                                         rationCostText =
                                                             rationCost,
                                                         onResult = {
-                                                                _,
+                                                                success,
                                                                 message ->
 
                                                             Toast.makeText(
@@ -1039,6 +1061,11 @@ class MainActivity : ComponentActivity() {
                                                                 message,
                                                                 Toast.LENGTH_SHORT
                                                             ).show()
+
+                                                            onCompleted(
+                                                                success,
+                                                                message
+                                                            )
                                                         }
                                                     )
                                             },

@@ -163,6 +163,9 @@ fun Application.module() {
 
     routing {
 
+        /* Offline-first Farm Traceability outbox. */
+        traceabilityEventRoutes(jwtService)
+
         get("/health") {
             call.respondText("OK")
         }

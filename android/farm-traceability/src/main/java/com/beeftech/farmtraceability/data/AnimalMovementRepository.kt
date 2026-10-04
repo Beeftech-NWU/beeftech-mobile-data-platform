@@ -188,11 +188,16 @@ class AnimalMovementRepository(
 
                             if (syncResult.status == SYNC_STATUS_SYNCED) {
 
+                                animalMovementDao.markSynced(
+                                    syncResult.recordguid,
+                                    syncResult.serverSyncedAt
+                                        ?: System.currentTimeMillis()
+                                )
+
                                 /*
                                  * queued came from the user-scoped
                                  * snapshot captured before the network
-                                 * request. Delete exactly those rows
-                                 * instead of resolving ownership again.
+                                 * request.
                                  */
                                 queued.forEach {
                                         pendingOperation ->
