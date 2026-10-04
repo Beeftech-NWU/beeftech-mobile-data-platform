@@ -54,7 +54,8 @@ object DatabaseFactory {
                 UsersTable,
                 SitesTable,
                 FeedCribTable,
-                MortalityTable
+                MortalityTable,
+                CostTable
             )
         }
 
