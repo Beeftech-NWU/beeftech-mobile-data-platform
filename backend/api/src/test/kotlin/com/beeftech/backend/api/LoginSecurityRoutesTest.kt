@@ -155,6 +155,30 @@ class LoginSecurityRoutesTest {
     }
 
     @Test
+    fun `a guessed name that isn't a user is locked without a user id`() = testApplication {
+        startAdminApp()
+        val client = createClient { }
+        val admin = client.adminLogin("admin", "10001")
+
+        client.fail("ghost", 5)
+
+        val locked = client.adminRows("/api/login-security/lockouts", admin).single()
+        assertEquals("ghost", locked.str("username"))
+        assertNull(locked.str("userId"))
+    }
+
+    @Test
+    fun `an unknown field in the login body is ignored so newer apps work against this server`() = testApplication {
+        startAdminApp()
+        val client = createClient { }
+
+        assertEquals(
+            HttpStatusCode.OK,
+            client.adminLoginRaw("jvdm", "30003", extra = ""","some_future_field":"x"""").status
+        )
+    }
+
+    @Test
     fun `login events filter, page newest first, and are admin only`() = testApplication {
         startAdminApp()
         val client = createClient { }
@@ -193,6 +217,7 @@ class LoginSecurityRoutesTest {
 
         val locked = client.adminRows("/api/login-security/lockouts", admin).single()
         assertEquals("jvdm", locked.str("username"))
+        assertEquals(workerId, locked.str("userId"))
         assertEquals("5", locked.str("failedAttempts"))
         assertTrue(locked.str("lockedUntil")!!.toLong() > System.currentTimeMillis())
         assertEquals(HttpStatusCode.Forbidden, client.adminSend("GET", "/api/login-security/lockouts", manager).status)

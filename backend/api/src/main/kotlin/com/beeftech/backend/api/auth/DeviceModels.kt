@@ -43,6 +43,8 @@ data class LoginEventDto(
 @Serializable
 data class LockoutDto(
     val username: String,
+    /* Null when the locked name isn't a real user (someone guessing). */
+    val userId: String? = null,
     val failedAttempts: Int,
     val lockedUntil: Long
 )

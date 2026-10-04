@@ -47,6 +47,7 @@ import com.beeftech.database.repository.PendingSyncRepository
 import com.beeftech.database.repository.SyncRepository
 import com.beeftech.database.repository.SyncPolicyEnforcer
 import com.beeftech.authentication.data.AuthApiClient
+import com.beeftech.authentication.data.DeviceInfo
 import com.beeftech.authentication.data.AuthRepository
 import com.beeftech.authentication.data.EncryptedDeviceIdProvider
 import com.beeftech.authentication.data.EncryptedSessionStore
@@ -137,7 +138,17 @@ class MainActivity : ComponentActivity() {
                     val authRepository =
                         AuthRepository(
                             apiClient =
-                                AuthApiClient(),
+                                AuthApiClient(
+                                    deviceInfo =
+                                        DeviceInfo(
+                                            appVersion =
+                                                runCatching {
+                                                    packageManager
+                                                        .getPackageInfo(packageName, 0)
+                                                        .versionName
+                                                }.getOrNull()
+                                        )
+                                ),
                             sessionStore =
                                 sessionStore,
                             userDao =

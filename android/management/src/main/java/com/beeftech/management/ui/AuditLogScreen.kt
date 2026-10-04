@@ -160,7 +160,12 @@ private fun AuditEntryCard(entry: AuditLogEntry) {
 }
 
 private fun auditTarget(entry: AuditLogEntry): String =
-    if (entry.entityType == "USER") "User ${entry.entityId}" else "${entry.entityType} ${entry.entityId}"
+    when (entry.entityType) {
+        "USER" -> "User ${entry.entityId}"
+        "SITE" -> "Site ${entry.entityId}"
+        "DEVICE" -> "Phone ${entry.entityId}"
+        else -> "${entry.entityType} ${entry.entityId}"
+    }
 
 /*
  * The details are a flat JSON object of strings, e.g. {"role":"3->2"}. Showing it as

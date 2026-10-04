@@ -58,7 +58,9 @@ const val PIN_LENGTH = 5
 fun LoginScreen(
     viewModel: LoginViewModel,
     onLoginSuccess: (LoggedInUser) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /* Shown above the form, e.g. when the server ended the previous session. */
+    notice: String? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -94,6 +96,16 @@ fun LoginScreen(
                 fontWeight = FontWeight.Bold,
                 color = LoginPrimary
             )
+
+            if (notice != null) {
+                Text(
+                    text = notice,
+                    fontSize = 14.sp,
+                    color = LoginPrimary,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+            }
 
             Text(
                 text = "Enter your username and PIN",

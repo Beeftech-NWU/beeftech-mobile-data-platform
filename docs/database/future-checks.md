@@ -224,5 +224,22 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     transaction per request; the `last_seen` / `device_last_sync` writes are throttled to every 15 minutes.
     Tokens issued before `iat_ms` existed stay valid until they expire, unless that user has a cut-off set.
 60. **Role and site now come from the database on every route, not only the services.** A role or site change
-    takes effect on the next request without a new login. The Android half of 4c (401 handling, device and
-    login-security screens) is not built yet.
+    takes effect on the next request without a new login.
+61. **A 401 only ever drops the session, never data (Phase 4c, Android).** Every sync client and the management
+    client report a 401 to the token provider. A plain rejected token removes the server token, so workers wait
+    (null token, `Result.retry()`) until the next online login. A body saying "Session revoked" or "Device
+    revoked" also ends the local session and returns to the login screen with a notice. Nothing touches Room, so
+    queued records stay `PENDING`. This is covered by unit tests only; it has not been run against a revoked
+    phone on a device.
+62. **A revoked account's cached PIN stops working offline until it signs in online again.** The session store
+    remembers the revoked user id (it survives a logout); `AuthRepository` then refuses the offline login and nulls
+    the cached PIN hash. An online login clears the flag and stores the new hash. A phone that was never online
+    when the server revoked it is not affected until its next sync attempt.
+63. **A blocked phone shows "This phone has been blocked" at login and gets no offline fallback.** The 403 is
+    mapped to its own outcome, so it can't be mistaken for a network problem. The worker's queued data stays on
+    the phone, and the Day-7 wipe still applies if it isn't unblocked.
+64. **The app sends the phone model and app version at login, and the server now ignores unknown JSON fields.**
+    Fields are omitted when unknown, and the server ignores fields it doesn't know, so a mixed-version fleet can
+    still sign in. The app version comes from the package's `versionName` (currently `1.0` for every build).
+65. **Devices, Login security and the manager's Phones view have not been run on a device.** They are covered by
+    view model and client tests only.

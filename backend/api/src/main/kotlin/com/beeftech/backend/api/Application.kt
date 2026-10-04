@@ -27,6 +27,7 @@ import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
+import kotlinx.serialization.json.Json
 import kotlinx.coroutines.runBlocking
 
 fun main() {
@@ -67,7 +68,11 @@ fun Application.module() {
     )
 
     install(ContentNegotiation) {
-        json()
+        /*
+         * A newer app may send fields this server doesn't know yet (e.g. device_model at login);
+         * ignoring them keeps a mixed-version fleet working instead of failing the request.
+         */
+        json(Json { ignoreUnknownKeys = true })
     }
 
     val userRepository = UserRepository()

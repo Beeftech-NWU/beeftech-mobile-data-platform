@@ -149,6 +149,69 @@ data class UpdateSiteBody(
 )
 
 @Serializable
+data class Device(
+    val deviceId: String,
+    val model: String? = null,
+    val appVersion: String? = null,
+    /* ACTIVE or REVOKED. */
+    val status: String = "ACTIVE",
+    val firstSeenAt: Long = 0,
+    val lastSeenAt: Long = 0,
+    val lastUserId: String? = null,
+    val lastUsername: String? = null,
+    val siteId: String? = null,
+    val revokedAt: Long? = null,
+    val revokedByUserId: String? = null,
+    val revokeReason: String? = null,
+    /* Users whose assigned phone this is. */
+    val boundUsernames: List<String> = emptyList()
+) {
+    val isRevoked: Boolean get() = status == "REVOKED"
+}
+
+/* Used to block (revoke) and to unblock (reinstate) a phone; the reason is required for both. */
+@Serializable
+data class DeviceReasonBody(
+    val reason: String
+)
+
+@Serializable
+data class LoginEvent(
+    val id: Long,
+    val createdAt: Long,
+    /* Whatever was typed, including names that don't exist. */
+    val usernameAttempted: String = "",
+    val userId: String? = null,
+    val deviceId: String = "",
+    val outcome: String,
+    val siteId: String? = null,
+    val appVersion: String? = null
+)
+
+@Serializable
+data class Lockout(
+    val username: String,
+    /* Null when the locked name isn't a real user (someone guessing). */
+    val userId: String? = null,
+    val failedAttempts: Int = 0,
+    val lockedUntil: Long = 0
+)
+
+/* Login outcomes the events can be filtered by: the backend's value to a label. */
+val LOGIN_OUTCOMES = listOf(
+    "SUCCESS" to "Signed in",
+    "BAD_CREDENTIALS" to "Wrong PIN",
+    "UNKNOWN_USER" to "Unknown user",
+    "LOCKED" to "Locked out",
+    "INACTIVE" to "Deactivated",
+    "WRONG_DEVICE" to "Wrong phone",
+    "DEVICE_REVOKED" to "Blocked phone"
+)
+
+fun loginOutcomeLabel(outcome: String): String =
+    LOGIN_OUTCOMES.firstOrNull { it.first == outcome }?.second ?: outcome
+
+@Serializable
 data class AuditLogEntry(
     val id: Long,
     val action: String,
@@ -170,7 +233,12 @@ val AUDIT_ACTIONS = listOf(
     "USER_CREATE" to "User created",
     "USER_UPDATE" to "User changed",
     "USER_RESET_PIN" to "PIN reset",
-    "USER_UNBIND_DEVICE" to "Phone unbound"
+    "USER_UNBIND_DEVICE" to "Phone unbound",
+    "LOGIN_UNLOCK" to "Login unlocked",
+    "SITE_CREATE" to "Site created",
+    "SITE_UPDATE" to "Site changed",
+    "DEVICE_REVOKE" to "Phone blocked",
+    "DEVICE_REINSTATE" to "Phone unblocked"
 )
 
 fun auditActionLabel(action: String): String =

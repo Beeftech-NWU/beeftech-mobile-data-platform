@@ -17,6 +17,10 @@ sealed class LoginOutcome {
     data object BadCredentials : LoginOutcome()
     data class Locked(val untilMillis: Long) : LoginOutcome()
     data object WrongDevice : LoginOutcome()
+    data object DeviceRevoked : LoginOutcome()
+
+    /* The server ended this account's access; sign in online to use the app again. */
+    data object AccessRevoked : LoginOutcome()
     data object NeedsFirstOnlineLogin : LoginOutcome()
     data class Unavailable(val message: String) : LoginOutcome()
 }
@@ -170,13 +174,25 @@ class AuthRepository(
                 LoginOutcome.WrongDevice
             }
 
+            is LoginApiResult.DeviceRevoked -> {
+                LoginOutcome.DeviceRevoked
+            }
+
             is LoginApiResult.Error -> {
                 LoginOutcome.Unavailable(result.message)
             }
 
             is LoginApiResult.NoNetwork -> {
                 val cachedUser = userDao.getUserByUsername(username)
-                if (cachedUser == null || cachedUser.pinHash.isNullOrBlank()) {
+                if (cachedUser != null && sessionStore.revokedUserId() == cachedUser.userId) {
+                    /*
+                     * The server ended this account's access while we were online. The cached PIN
+                     * must not grant local access any more; it is dropped here and the user signs
+                     * in online again. Queued records are untouched.
+                     */
+                    userDao.updatePinHash(cachedUser.userId, null)
+                    LoginOutcome.AccessRevoked
+                } else if (cachedUser == null || cachedUser.pinHash.isNullOrBlank()) {
                     LoginOutcome.NeedsFirstOnlineLogin
                 } else {
                     val passwordMatches = try {

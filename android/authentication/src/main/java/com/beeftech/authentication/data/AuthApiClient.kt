@@ -29,11 +29,23 @@ data class LockedData(
     val remainingSeconds: Long = 0
 )
 
+/* What the admin's device list shows for this phone. */
+data class DeviceInfo(
+    val model: String? = defaultModel(),
+    val appVersion: String? = null
+) {
+    companion object {
+        private fun defaultModel(): String? =
+            runCatching { android.os.Build.MODEL }.getOrNull()?.takeIf { it.isNotBlank() && it != "null" }
+    }
+}
+
 sealed class LoginApiResult {
     data class Success(val response: LoginResponseDto) : LoginApiResult()
     data object Unauthorized : LoginApiResult()
     data class Locked(val remainingSeconds: Long) : LoginApiResult()
     data object WrongDevice : LoginApiResult()
+    data object DeviceRevoked : LoginApiResult()
     data class NoNetwork(val cause: Throwable? = null) : LoginApiResult()
     data class Error(val message: String) : LoginApiResult()
 }
@@ -44,7 +56,8 @@ class AuthApiClient(
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true })
         }
-    }
+    },
+    private val deviceInfo: DeviceInfo = DeviceInfo()
 ) {
 
     suspend fun login(username: String, pin: String, deviceId: String): LoginApiResult {
@@ -55,7 +68,9 @@ class AuthApiClient(
                     LoginRequestDto(
                         username = username,
                         pin = pin,
-                        deviceId = deviceId
+                        deviceId = deviceId,
+                        deviceModel = deviceInfo.model,
+                        appVersion = deviceInfo.appVersion
                     )
                 )
             }
@@ -74,6 +89,8 @@ class AuthApiClient(
                 }
                 HttpStatusCode.Unauthorized -> LoginApiResult.Unauthorized
                 HttpStatusCode.Conflict -> LoginApiResult.WrongDevice
+                /* The server refuses a revoked phone with 403 and does not allow an offline fallback. */
+                HttpStatusCode.Forbidden -> LoginApiResult.DeviceRevoked
                 HttpStatusCode.Locked -> {
                     val envelope = Json { ignoreUnknownKeys = true }.decodeFromString<AuthApiResponse<LockedData>>(bodyText)
                     val remainingSeconds = envelope.data?.remainingSeconds ?: 300L

@@ -7,7 +7,10 @@ import kotlinx.serialization.Serializable
 data class LoginRequestDto(
     val username: String,
     val pin: String,
-    @SerialName("device_id") val deviceId: String
+    @SerialName("device_id") val deviceId: String,
+    /* Left out when null, so an older server never sees fields it doesn't know. */
+    @SerialName("device_model") val deviceModel: String? = null,
+    @SerialName("app_version") val appVersion: String? = null
 )
 
 @Serializable

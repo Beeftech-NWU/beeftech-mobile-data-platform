@@ -1,6 +1,7 @@
 package com.beeftech.management.data
 
 import com.beeftech.database.security.TokenProvider
+import com.beeftech.database.security.reportUnauthorized
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -124,6 +125,67 @@ class ManagementApiClient(
             }
         }
 
+    /* An admin gets every phone; a manager only their own site's. [status] is ACTIVE or REVOKED. */
+    suspend fun devices(status: String? = null): ManagementResult<List<Device>> =
+        call(
+            decode = { JSON.decodeFromString<Envelope<List<Device>>>(it).data.orEmpty() }
+        ) { token ->
+            httpClient.get("${baseUrl}api/devices") {
+                bearerAuth(token)
+                if (status != null) parameter("status", status)
+            }
+        }
+
+    /* Admin only. A blocked phone can't sign in or sync until it is reinstated. */
+    suspend fun revokeDevice(deviceId: String, reason: String): ManagementResult<Device> =
+        call(decode = { decodeDevice(it) }) { token ->
+            httpClient.post("${baseUrl}api/devices/$deviceId/revoke") {
+                bearerAuth(token)
+                contentType(ContentType.Application.Json)
+                setBody(DeviceReasonBody(reason))
+            }
+        }
+
+    suspend fun reinstateDevice(deviceId: String, reason: String): ManagementResult<Device> =
+        call(decode = { decodeDevice(it) }) { token ->
+            httpClient.post("${baseUrl}api/devices/$deviceId/reinstate") {
+                bearerAuth(token)
+                contentType(ContentType.Application.Json)
+                setBody(DeviceReasonBody(reason))
+            }
+        }
+
+    /* Admin only. Newest first; pass the id of the last event you have as [before] for the next page. */
+    suspend fun loginEvents(
+        outcome: String? = null,
+        before: Long? = null,
+        limit: Int = AUDIT_PAGE_SIZE
+    ): ManagementResult<List<LoginEvent>> =
+        call(
+            decode = { JSON.decodeFromString<Envelope<List<LoginEvent>>>(it).data.orEmpty() }
+        ) { token ->
+            httpClient.get("${baseUrl}api/login-events") {
+                bearerAuth(token)
+                if (outcome != null) parameter("outcome", outcome)
+                if (before != null) parameter("before", before)
+                parameter("limit", limit)
+            }
+        }
+
+    /* Admin only: who is locked out of signing in right now. */
+    suspend fun lockouts(): ManagementResult<List<Lockout>> =
+        call(
+            decode = { JSON.decodeFromString<Envelope<List<Lockout>>>(it).data.orEmpty() }
+        ) { token ->
+            httpClient.get("${baseUrl}api/login-security/lockouts") { bearerAuth(token) }
+        }
+
+    /* Lifts a sign-in lockout without changing the PIN. Admin, or a manager for workers on their site. */
+    suspend fun unlockLogin(userId: String): ManagementResult<TeamMember> =
+        call(decode = { decodeMember(it) }) { token ->
+            httpClient.post("${baseUrl}api/users/$userId/unlock-login") { bearerAuth(token) }
+        }
+
     /* An admin gets every site; a manager gets only their own. */
     suspend fun listSites(): ManagementResult<List<Site>> =
         call(
@@ -173,6 +235,10 @@ class ManagementApiClient(
             }
         }
 
+    private fun decodeDevice(body: String): Device =
+        JSON.decodeFromString<Envelope<Device>>(body).data
+            ?: error("Missing device in response")
+
     private fun decodeSite(body: String): Site =
         JSON.decodeFromString<Envelope<Site>>(body).data
             ?: error("Missing site in response")
@@ -194,7 +260,10 @@ class ManagementApiClient(
             when (response.status) {
                 HttpStatusCode.OK, HttpStatusCode.Created ->
                     ManagementResult.Success(decode(body))
-                HttpStatusCode.Unauthorized -> ManagementResult.Unauthorized
+                HttpStatusCode.Unauthorized -> {
+                    tokenProvider.reportUnauthorized(body)
+                    ManagementResult.Unauthorized
+                }
                 HttpStatusCode.Forbidden -> ManagementResult.Forbidden(messageOf(body, "Forbidden"))
                 HttpStatusCode.NotFound -> ManagementResult.NotFound
                 HttpStatusCode.BadRequest, HttpStatusCode.Conflict ->

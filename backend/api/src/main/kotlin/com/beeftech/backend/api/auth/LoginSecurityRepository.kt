@@ -66,12 +66,14 @@ class LoginSecurityRepository {
     /* Usernames that are locked out right now, longest-locked first. */
     suspend fun lockouts(now: Long): List<LockoutDto> =
         newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
+            val userIds = UsersTable.selectAll().associate { it[UsersTable.username] to it[UsersTable.userId] }
             LoginAttemptsTable.selectAll()
                 .where { LoginAttemptsTable.lockedUntil greater now }
                 .orderBy(LoginAttemptsTable.lockedUntil, SortOrder.DESC)
                 .map {
                     LockoutDto(
                         username = it[LoginAttemptsTable.username],
+                        userId = userIds[it[LoginAttemptsTable.username]],
                         failedAttempts = it[LoginAttemptsTable.failedAttempts],
                         lockedUntil = it[LoginAttemptsTable.lockedUntil]!!
                     )

@@ -18,9 +18,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.beeftech.management.data.ManagementApiClient
 
-/* One entry per admin screen. Later Phase 4 PRs add Devices, Reference data and so on. */
+/* One entry per admin screen. Later Phase 4 PRs add Reference data, Sync policy and so on. */
 enum class AdminSection(val label: String) {
     SITES("Sites"),
+    DEVICES("Phones"),
+    LOGIN_SECURITY("Login security"),
     AUDIT_LOG("Audit log")
 }
 
@@ -51,6 +53,17 @@ fun AdminTab(
 
         when (section) {
             AdminSection.SITES -> SitesTab(
+                apiClient = apiClient,
+                currentUserId = currentUserId,
+                modifier = Modifier.weight(1f)
+            )
+            AdminSection.DEVICES -> DevicesTab(
+                apiClient = apiClient,
+                currentUserId = currentUserId,
+                canManage = true,
+                modifier = Modifier.weight(1f)
+            )
+            AdminSection.LOGIN_SECURITY -> LoginSecurityTab(
                 apiClient = apiClient,
                 currentUserId = currentUserId,
                 modifier = Modifier.weight(1f)

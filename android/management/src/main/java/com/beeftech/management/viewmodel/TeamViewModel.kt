@@ -112,6 +112,14 @@ class TeamViewModel(
         }
     }
 
+    /* For a worker locked out after five wrong PINs; the PIN itself is unchanged. */
+    fun unlockLogin(member: TeamMember) {
+        viewModelScope.launch {
+            val result = apiClient.unlockLogin(member.userId)
+            applyMemberResult(result, "${member.username} can sign in again")
+        }
+    }
+
     fun resetPin(member: TeamMember) {
         viewModelScope.launch {
             val result = apiClient.resetPin(member.userId)

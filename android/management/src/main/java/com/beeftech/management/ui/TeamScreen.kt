@@ -49,12 +49,13 @@ fun isValidPin(pin: String): Boolean = pin.length == PIN_LENGTH && pin.all { it 
 
 private enum class TeamSection(val label: String) {
     PEOPLE("People"),
+    DEVICES("Phones"),
     ACTIVITY("Activity")
 }
 
 /*
  * Keyed by user, so a different user logging in on the same device never sees the previous list.
- * A manager also gets their site's audit log here, read-only; an admin has it in the Admin tab.
+ * A manager also gets their site's phones and audit log here, read-only; an admin has those in the Admin tab.
  */
 @Composable
 fun TeamTab(
@@ -90,6 +91,13 @@ fun TeamTab(
                 viewModel = viewModel,
                 currentUserId = currentUserId,
                 isAdmin = isAdmin,
+                modifier = Modifier.weight(1f)
+            )
+        } else if (section == TeamSection.DEVICES) {
+            DevicesTab(
+                apiClient = apiClient,
+                currentUserId = currentUserId,
+                canManage = false,
                 modifier = Modifier.weight(1f)
             )
         } else {
@@ -195,6 +203,7 @@ fun TeamScreen(
                     isSelf = member.userId == currentUserId,
                     onToggleActive = { viewModel.setActive(member, !member.active) },
                     onResetPin = { viewModel.resetPin(member) },
+                    onUnlockLogin = { viewModel.unlockLogin(member) },
                     onUnbind = { viewModel.unbindDevice(member) }
                 )
             }
@@ -209,6 +218,7 @@ private fun MemberCard(
     isSelf: Boolean,
     onToggleActive: () -> Unit,
     onResetPin: () -> Unit,
+    onUnlockLogin: () -> Unit,
     onUnbind: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -233,6 +243,7 @@ private fun MemberCard(
                     }
                 }
                 TextButton(onClick = onResetPin) { Text("Reset PIN") }
+                TextButton(onClick = onUnlockLogin) { Text("Unlock sign-in") }
                 if (member.deviceAssignedId != null) {
                     TextButton(onClick = onUnbind) { Text("Unlink phone") }
                 }
