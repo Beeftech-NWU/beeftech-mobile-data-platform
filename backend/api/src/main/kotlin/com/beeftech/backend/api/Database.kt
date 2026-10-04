@@ -53,7 +53,8 @@ object DatabaseFactory {
                 FarmerRoleTable,
                 UsersTable,
                 SitesTable,
-                FeedCribTable
+                FeedCribTable,
+                MortalityTable
             )
         }
 

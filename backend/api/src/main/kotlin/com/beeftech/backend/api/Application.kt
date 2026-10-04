@@ -168,6 +168,11 @@ fun Application.module() {
             userAdminService
         )
 
+        mortalityRoutes(
+            jwtService,
+            MortalityService(MortalityRepository())
+        )
+
         dashboardRoutes(
             jwtService,
             DashboardService()
