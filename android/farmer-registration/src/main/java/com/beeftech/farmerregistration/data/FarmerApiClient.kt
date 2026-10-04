@@ -1,5 +1,6 @@
 package com.beeftech.farmerregistration.data
 
+import com.beeftech.database.BackendConfig
 import android.content.Context
 import android.provider.Settings
 import com.beeftech.database.entity.FarmerAddressEntity
@@ -96,7 +97,7 @@ class FarmerApiClient(
             json(Json { ignoreUnknownKeys = true })
         }
     },
-    private val baseUrl: String = "https://beeftech-backend.onrender.com",
+    private val baseUrl: String = BackendConfig.baseUrl.trimEnd('/'),
     private val deviceIdProvider: () -> String = {
         Settings.Secure.getString(
             context.contentResolver,

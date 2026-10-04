@@ -1,5 +1,6 @@
 package com.beeftech.farmtraceability.data
 
+import com.beeftech.database.BackendConfig
 import com.beeftech.database.entity.Treatment
 import com.beeftech.database.security.TokenProvider
 import io.ktor.http.HttpStatusCode
@@ -76,8 +77,7 @@ private data class TreatmentApiResponse<T>(
 
 class TreatmentApiClient(
     private val tokenProvider: TokenProvider,
-    private val baseUrl: String =
-        DEFAULT_BASE_URL
+    private val baseUrl: String = BackendConfig.baseUrl
 ) {
 
     /*
@@ -313,9 +313,4 @@ class TreatmentApiClient(
         }
     }
 
-    companion object {
-
-        const val DEFAULT_BASE_URL =
-            "https://beeftech-backend.onrender.com/"
-    }
 }

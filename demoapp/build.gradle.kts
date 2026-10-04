@@ -19,7 +19,20 @@ android {
     }
 
     buildTypes {
+        /*
+         * Debug builds talk to a local backend (10.0.2.2 is the host machine from the emulator).
+         * Override with -Pbeeftech.baseUrl=http://<lan-ip>:8081/ for a physical device, or point
+         * it at the hosted server to test against that. Release always uses the hosted backend.
+         */
+        debug {
+            buildConfigField(
+                "String",
+                "BACKEND_BASE_URL",
+                "\"${providers.gradleProperty("beeftech.baseUrl").getOrElse("http://10.0.2.2:8081/")}\""
+            )
+        }
         release {
+            buildConfigField("String", "BACKEND_BASE_URL", "\"https://beeftech-backend.onrender.com/\"")
             isMinifyEnabled = false
 
             proguardFiles(
@@ -39,6 +52,7 @@ android {
     }
 
     buildFeatures {
+        buildConfig = true
         compose = true
     }
 

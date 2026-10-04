@@ -2,6 +2,7 @@ package com.beeftech.demoapp
 
 import android.app.Application
 import com.beeftech.authentication.data.EncryptedSessionStore
+import com.beeftech.database.BackendConfig
 import com.beeftech.database.security.CurrentUserIdRegistry
 import com.beeftech.database.security.TokenProviderRegistry
 
@@ -18,6 +19,11 @@ class BeefTechApplication :
 
         super.onCreate()
 
+        /*
+         * Must run before any API client is built, including by
+         * WorkManager workers that start without MainActivity.
+         */
+        BackendConfig.configure(BuildConfig.BACKEND_BASE_URL)
 
         /*
          * Authentication context is registered at process startup,

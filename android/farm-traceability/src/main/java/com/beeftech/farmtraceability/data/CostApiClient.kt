@@ -1,5 +1,6 @@
 package com.beeftech.farmtraceability.data
 
+import com.beeftech.database.BackendConfig
 import com.beeftech.database.entity.AnimalCost
 import com.beeftech.database.security.TokenProvider
 import io.ktor.http.HttpStatusCode
@@ -63,7 +64,7 @@ private data class CostApiResponse<T>(
 
 class CostApiClient(
     private val tokenProvider: TokenProvider,
-    private val baseUrl: String = DEFAULT_BASE_URL,
+    private val baseUrl: String = BackendConfig.baseUrl,
     private val httpClient: HttpClient = HttpClient(OkHttp) {
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true })
@@ -138,9 +139,4 @@ class CostApiClient(
         recordguid = recordGuid
     )
 
-    companion object {
-
-        const val DEFAULT_BASE_URL =
-            "https://beeftech-backend.onrender.com/"
-    }
 }
