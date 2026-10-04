@@ -149,7 +149,7 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     is saved, so they upload on the next cost sync (scheduled, or Retry Sync).
 38. **Costs recorded before v35 belong to whoever syncs first, and their Day-7 clock starts when queued.**
     Same behaviour as #35 and #36, for `animal_costs`.
-39. **PR #78 left problems on `main`.** (a) `MainActivity` runs hard-coded dev repair and diagnostic blocks
+39. **RESOLVED (`feature/pr78-cleanup`): (a)–(c) fixed; (d) was fixed in PR #79.** The hard-coded repair and diagnostic blocks are removed from `MainActivity`, `AuthRepository` now gets `pendingSyncDao` (with tests for changed, unchanged and first-login IDs), and the unused `worker/FarmerSyncScheduler` and `FarmerMappers.kt` are deleted. Queues stuck on the old `113e7515-…` ID now move at the next online login of the same username. Original note: **PR #78 left problems on `main`.** (a) `MainActivity` runs hard-coded dev repair and diagnostic blocks
     on every launch (`BEEFTECH_TEST22_LEGACY_QUEUE_REPAIR`, `BEEFTECH_QUEUE_DIAGNOSTIC`,
     `BEEFTECH_TEST21_OWNER_REPAIR`) that reassign queued rows to the signed-in user, breaking the
     `pending_sync.user_id` ownership boundary. (b) `AuthRepository`'s identity reconciliation takes an
