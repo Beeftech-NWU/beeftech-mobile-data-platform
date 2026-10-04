@@ -230,6 +230,11 @@ fun Application.module() {
             DashboardService()
         )
 
+        reportRoutes(
+            jwtService,
+            ReportService()
+        )
+
         /*
          * Calf Registration routes
          */
