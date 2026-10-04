@@ -1,5 +1,9 @@
 package com.beeftech.backend.api.auth
 
+import com.beeftech.backend.api.AuditActions
+import com.beeftech.backend.api.AuditEntry
+import com.beeftech.backend.api.auditDetails
+import kotlinx.serialization.json.JsonObject
 import java.security.SecureRandom
 import java.util.UUID
 
@@ -19,7 +23,8 @@ sealed interface UserAdminResult<out T> {
  * keeping it for the rest of their 24 h token.
  */
 class UserAdminService(
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val loginSecurity: LoginSecurityRepository = LoginSecurityRepository()
 ) {
 
     suspend fun list(principal: AuthPrincipal, siteId: String?): UserAdminResult<List<UserSummary>> {
@@ -65,7 +70,7 @@ class UserAdminService(
             siteId = ownSite
         }
 
-        checkSite(role, siteId)?.let { return it }
+        checkSite(role, siteId, requireActive = true)?.let { return it }
 
         if (userRepository.findByUsername(username) != null) {
             return UserAdminResult.Conflict("Username already taken")
@@ -77,7 +82,11 @@ class UserAdminService(
             username = username,
             pinHash = PinHasher.hash(request.pin),
             role = role.id,
-            siteId = siteId
+            siteId = siteId,
+            audit = auditEntry(
+                actor, AuditActions.USER_CREATE, userId, siteId,
+                auditDetails("username" to username, "role" to role.id.toString(), "siteId" to (siteId ?: "none"))
+            )
         )
 
         return UserAdminResult.Ok(userRepository.findById(userId)!!.toSummary())
@@ -106,14 +115,29 @@ class UserAdminService(
         val siteId = request.siteId ?: target.siteId
 
         if (request.role != null || request.siteId != null) {
-            checkSite(role, siteId)?.let { return it }
+            /* Only a newly assigned site has to be active, so a role change at an inactive site still works. */
+            checkSite(role, siteId, requireActive = request.siteId != null && request.siteId != target.siteId)
+                ?.let { return it }
+        }
+
+        val newRole = role?.id ?: target.role
+        val newActive = request.active ?: target.active
+        val changes = buildList {
+            if (newRole != target.role) add("role" to "${target.role}->$newRole")
+            if (siteId != target.siteId) add("siteId" to "${target.siteId ?: "none"}->${siteId ?: "none"}")
+            if (newActive != target.active) add("active" to "${target.active}->$newActive")
         }
 
         userRepository.updateAccount(
             userId = target.userId,
-            role = role?.id ?: target.role,
+            role = newRole,
             siteId = siteId,
-            active = request.active ?: target.active
+            active = newActive,
+            invalidateTokens = target.active && !newActive,
+            /* A call that changes nothing leaves no audit row. */
+            audit = changes.takeIf { it.isNotEmpty() }?.let {
+                auditEntry(actor, AuditActions.USER_UPDATE, target.userId, siteId, auditDetails(*it.toTypedArray()))
+            }
         )
 
         return UserAdminResult.Ok(userRepository.findById(target.userId)!!.toSummary())
@@ -132,7 +156,12 @@ class UserAdminService(
         }
 
         val pin = requestedPin ?: generatePin()
-        userRepository.updatePinHash(target.userId, PinHasher.hash(pin))
+        /* No details: the new PIN must never reach the log. */
+        userRepository.updatePinHash(
+            target.userId,
+            PinHasher.hash(pin),
+            auditEntry(actor, AuditActions.USER_RESET_PIN, target.userId, target.siteId)
+        )
 
         return UserAdminResult.Ok(ResetPinResponse(pin))
     }
@@ -141,7 +170,26 @@ class UserAdminService(
         val actor = resolveActor(principal) ?: return forbidden()
         val target = findManageable(actor, targetId) ?: return UserAdminResult.NotFound
 
-        userRepository.clearDevice(target.userId)
+        userRepository.clearDevice(
+            target.userId,
+            auditEntry(
+                actor, AuditActions.USER_UNBIND_DEVICE, target.userId, target.siteId,
+                auditDetails("device" to "${target.deviceAssignedId ?: "none"}->none")
+            )
+        )
+
+        return UserAdminResult.Ok(userRepository.findById(target.userId)!!.toSummary())
+    }
+
+    /* Lifts a login lockout (5 wrong PINs) without changing the PIN. Same scope as reset-pin. */
+    suspend fun unlockLogin(principal: AuthPrincipal, targetId: String): UserAdminResult<UserSummary> {
+        val actor = resolveActor(principal) ?: return forbidden()
+        val target = findManageable(actor, targetId) ?: return UserAdminResult.NotFound
+
+        loginSecurity.clear(
+            target.username,
+            auditEntry(actor, AuditActions.LOGIN_UNLOCK, target.userId, target.siteId)
+        )
 
         return UserAdminResult.Ok(userRepository.findById(target.userId)!!.toSummary())
     }
@@ -150,7 +198,7 @@ class UserAdminService(
         val record = userRepository.findById(principal.userId) ?: return null
         val role = Role.fromId(record.role) ?: return null
         if (!record.active || role == Role.WORKER) return null
-        return ActorRecord(record.userId, role, record.siteId)
+        return ActorRecord(record.userId, record.username, role, record.siteId)
     }
 
     /* Out-of-scope targets look like missing ones, as with scoped record reads. */
@@ -163,15 +211,34 @@ class UserAdminService(
         return target.takeIf { inScope }
     }
 
-    private suspend fun checkSite(role: Role?, siteId: String?): UserAdminResult<Nothing>? {
-        if (siteId != null && !userRepository.siteExists(siteId)) {
-            return UserAdminResult.Invalid("Unknown site")
+    private suspend fun checkSite(role: Role?, siteId: String?, requireActive: Boolean): UserAdminResult<Nothing>? {
+        if (siteId != null) {
+            val active = userRepository.siteActive(siteId) ?: return UserAdminResult.Invalid("Unknown site")
+            if (requireActive && !active) return UserAdminResult.Invalid("That site is inactive")
         }
         if (role != Role.ADMIN && siteId == null) {
             return UserAdminResult.Invalid("Managers and workers need a site")
         }
         return null
     }
+
+    /* The audit row's site is the affected user's, so a manager can read it for their own site. */
+    private fun auditEntry(
+        actor: ActorRecord,
+        action: String,
+        targetUserId: String,
+        siteId: String?,
+        details: JsonObject? = null
+    ) = AuditEntry(
+        action = action,
+        entityType = AuditActions.ENTITY_USER,
+        entityId = targetUserId,
+        actorUserId = actor.userId,
+        actorUsername = actor.username,
+        actorRole = actor.roleEnum.id,
+        siteId = siteId,
+        details = details
+    )
 
     private fun forbidden() = UserAdminResult.Forbidden("Forbidden")
 
@@ -190,7 +257,7 @@ class UserAdminService(
         deviceLastSync = deviceLastSync
     )
 
-    private class ActorRecord(val userId: String, val roleEnum: Role, val siteId: String?)
+    private class ActorRecord(val userId: String, val username: String, val roleEnum: Role, val siteId: String?)
 
     private companion object {
         const val PIN_LENGTH = 5

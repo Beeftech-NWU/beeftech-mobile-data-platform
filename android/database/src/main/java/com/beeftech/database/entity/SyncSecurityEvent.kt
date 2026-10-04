@@ -42,5 +42,9 @@ data class SyncSecurityEvent(
     @ColumnInfo(name = "oldest_pending_created_at")
     val oldestPendingCreatedAt: Long? = null,
 
-    val details: String? = null
+    val details: String? = null,
+
+    /* When the server acknowledged this event. Null until it has been uploaded (and for events from before v37). */
+    @ColumnInfo(name = "uploaded_at")
+    val uploadedAt: Long? = null
 )

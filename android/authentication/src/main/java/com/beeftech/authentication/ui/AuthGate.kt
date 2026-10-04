@@ -1,6 +1,7 @@
 package com.beeftech.authentication.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -18,7 +19,17 @@ fun AuthGate(
     content: @Composable (user: LoggedInUser, onLogout: () -> Unit) -> Unit
 ) {
     var currentUser by remember { mutableStateOf(sessionStore.currentUser()) }
+    var notice by remember { mutableStateOf<String?>(null) }
     val viewModel: LoginViewModel = viewModel(factory = viewModelFactory)
+
+    /* The server ended the session (deactivated, PIN reset, unbound or revoked phone): back to login. */
+    LaunchedEffect(sessionStore) {
+        sessionStore.sessionEvents.collect {
+            viewModel.logout()
+            currentUser = null
+            notice = "Your session has ended. Sign in again."
+        }
+    }
 
     val user = currentUser
     if (user != null && !sessionStore.isExpired()) {
@@ -29,7 +40,9 @@ fun AuthGate(
     } else {
         LoginScreen(
             viewModel = viewModel,
+            notice = notice,
             onLoginSuccess = { loggedInUser ->
+                notice = null
                 currentUser = loggedInUser
             }
         )

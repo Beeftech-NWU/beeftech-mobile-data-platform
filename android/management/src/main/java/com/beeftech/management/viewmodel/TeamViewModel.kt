@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.beeftech.management.data.CreateUserBody
 import com.beeftech.management.data.ManagementApiClient
 import com.beeftech.management.data.ManagementResult
+import com.beeftech.management.data.Site
 import com.beeftech.management.data.TeamMember
 import com.beeftech.management.data.UpdateUserBody
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +22,8 @@ data class IssuedPin(
 
 data class TeamUiState(
     val members: List<TeamMember> = emptyList(),
+    /* Loaded for admins only, so the Add user dialog can offer a site picker. */
+    val sites: List<Site> = emptyList(),
     val loading: Boolean = false,
     /* True when the last call failed for lack of connection, so the screen can say so. */
     val needsConnection: Boolean = false,
@@ -52,6 +55,16 @@ class TeamViewModel(
                         )
                     else -> failed(state.copy(loading = false), result, LIST_NOT_FOUND)
                 }
+            }
+        }
+    }
+
+    /* A failure here leaves the old list; the dialog just offers what it has. */
+    fun loadSites() {
+        viewModelScope.launch {
+            val result = apiClient.listSites()
+            if (result is ManagementResult.Success) {
+                _uiState.update { it.copy(sites = result.value) }
             }
         }
     }
@@ -96,6 +109,14 @@ class TeamViewModel(
         viewModelScope.launch {
             val result = apiClient.unbindDevice(member.userId)
             applyMemberResult(result, "${member.username} can now sign in from a new phone")
+        }
+    }
+
+    /* For a worker locked out after five wrong PINs; the PIN itself is unchanged. */
+    fun unlockLogin(member: TeamMember) {
+        viewModelScope.launch {
+            val result = apiClient.unlockLogin(member.userId)
+            applyMemberResult(result, "${member.username} can sign in again")
         }
     }
 

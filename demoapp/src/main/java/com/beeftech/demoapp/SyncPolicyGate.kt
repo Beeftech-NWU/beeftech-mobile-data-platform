@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.beeftech.authentication.data.SessionStore
@@ -59,6 +60,16 @@ fun PolicyAwareAuthGate(
     ) {
             loggedInUser,
             onLogout ->
+
+        /*
+         * Outside the gate on purpose: a locked account never reaches the content, yet the
+         * check-in is what reports the lock and hears that an administrator cleared it.
+         */
+        val context = LocalContext.current
+
+        LaunchedEffect(loggedInUser.userId) {
+            DeviceCheckInWorker.enqueue(context.applicationContext)
+        }
 
         SyncPolicyGate(
             user =
@@ -208,9 +219,19 @@ private fun SyncPolicyGate(
 
         is SyncPolicyGateState.Locked -> {
 
+            val context = LocalContext.current
+
             Day7AccountLockedScreen(
                 username =
                     user.username,
+
+                onCheckAgain = {
+
+                    /* Ask the server whether an administrator has cleared the lock, then look again. */
+                    DeviceCheckInWorker.enqueue(context.applicationContext)
+
+                    retryKey++
+                },
 
                 onLogout =
                     onLogout
@@ -277,6 +298,7 @@ private fun PolicyCheckingScreen() {
 @Composable
 private fun Day7AccountLockedScreen(
     username: String,
+    onCheckAgain: () -> Unit,
     onLogout: () -> Unit
 ) {
 
@@ -393,6 +415,29 @@ private fun Day7AccountLockedScreen(
 
 
             Button(
+                onClick =
+                    onCheckAgain,
+
+                modifier =
+                    Modifier.fillMaxWidth()
+            ) {
+
+                Text(
+                    text =
+                        "Check again"
+                )
+            }
+
+
+            Spacer(
+                modifier =
+                    Modifier.height(
+                        8.dp
+                    )
+            )
+
+
+            OutlinedButton(
                 onClick =
                     onLogout,
 

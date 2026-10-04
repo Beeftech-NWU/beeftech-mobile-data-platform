@@ -1,6 +1,7 @@
 package com.beeftech.management.data
 
 import com.beeftech.database.security.TokenProvider
+import com.beeftech.database.security.reportUnauthorized
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -9,6 +10,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.patch
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
@@ -124,6 +126,236 @@ class ManagementApiClient(
             }
         }
 
+    /* Any signed-in user may read it; phones pull it to set their warning days. */
+    suspend fun syncPolicy(): ManagementResult<SyncPolicyDto> =
+        call(decode = { decodeSyncPolicy(it) }) { token ->
+            httpClient.get("${baseUrl}api/sync-policy") { bearerAuth(token) }
+        }
+
+    /* Admin only. The server checks the rules; a bad set is a 400 with its message. */
+    suspend fun saveSyncPolicy(warningDays: List<Int>, staleSyncAlertHours: Int): ManagementResult<SyncPolicyDto> =
+        call(decode = { decodeSyncPolicy(it) }) { token ->
+            httpClient.put("${baseUrl}api/sync-policy") {
+                bearerAuth(token)
+                contentType(ContentType.Application.Json)
+                setBody(SaveSyncPolicyBody(warningDays, staleSyncAlertHours))
+            }
+        }
+
+    /* Sends the signed-in user's own events. At most 200 per call; the server skips ones it already has. */
+    suspend fun uploadSecurityEvents(events: List<SecurityEventUpload>): ManagementResult<SecurityUploadResult> =
+        call(
+            decode = {
+                JSON.decodeFromString<Envelope<SecurityUploadResult>>(it).data
+                    ?: error("Missing upload result in response")
+            }
+        ) { token ->
+            httpClient.post("${baseUrl}api/sync-security-events") {
+                bearerAuth(token)
+                contentType(ContentType.Application.Json)
+                setBody(SecurityEventsBody(events))
+            }
+        }
+
+    /* Admin only, newest first. Page with [before] = the id of the last event you have. */
+    suspend fun securityEvents(
+        eventType: String? = null,
+        before: Long? = null,
+        limit: Int = AUDIT_PAGE_SIZE
+    ): ManagementResult<List<SecurityEventRow>> =
+        call(
+            decode = { JSON.decodeFromString<Envelope<List<SecurityEventRow>>>(it).data.orEmpty() }
+        ) { token ->
+            httpClient.get("${baseUrl}api/sync-security-events") {
+                bearerAuth(token)
+                if (eventType != null) parameter("eventType", eventType)
+                if (before != null) parameter("before", before)
+                parameter("limit", limit)
+            }
+        }
+
+    /* Admin only: accounts locked on their phone by the 7-day rule and not yet cleared. */
+    suspend fun lockedAccounts(): ManagementResult<List<LockedAccount>> =
+        call(
+            decode = { JSON.decodeFromString<Envelope<List<LockedAccount>>>(it).data.orEmpty() }
+        ) { token ->
+            httpClient.get("${baseUrl}api/sync-security-events/locked") { bearerAuth(token) }
+        }
+
+    /* Admin only. The user's phone lifts its lock the next time it checks in. Wiped data doesn't come back. */
+    suspend fun clearSyncLock(userId: String): ManagementResult<LockCleared> =
+        call(
+            decode = {
+                JSON.decodeFromString<Envelope<LockCleared>>(it).data
+                    ?: error("Missing result in response")
+            }
+        ) { token ->
+            httpClient.post("${baseUrl}api/users/$userId/clear-sync-lock") { bearerAuth(token) }
+        }
+
+    /*
+     * Everything the server publishes. Pass the version you already have as [ifVersion] and an
+     * unchanged answer comes back without the lists. Any signed-in user may read it.
+     */
+    suspend fun referenceData(ifVersion: Long? = null): ManagementResult<ReferenceSnapshotDto> =
+        call(
+            decode = {
+                JSON.decodeFromString<Envelope<ReferenceSnapshotDto>>(it).data
+                    ?: error("Missing reference data in response")
+            }
+        ) { token ->
+            httpClient.get("${baseUrl}api/reference-data") {
+                bearerAuth(token)
+                if (ifVersion != null) parameter("ifVersion", ifVersion)
+            }
+        }
+
+    /* Admin only. [kind] is a slug from REFERENCE_KINDS. A duplicate is a 409. */
+    suspend fun createReferenceValue(kind: String, body: CreateReferenceBody): ManagementResult<ReferenceChange> =
+        call(decode = { decodeReferenceChange(it) }) { token ->
+            httpClient.post("${baseUrl}api/reference-data/$kind") {
+                bearerAuth(token)
+                contentType(ContentType.Application.Json)
+                setBody(body)
+            }
+        }
+
+    /* Admin only. Turning a value off only hides it from pickers; nothing is deleted. */
+    suspend fun setReferenceActive(kind: String, id: String, active: Boolean): ManagementResult<ReferenceChange> =
+        call(decode = { decodeReferenceChange(it) }) { token ->
+            httpClient.patch("${baseUrl}api/reference-data/$kind/$id") {
+                bearerAuth(token)
+                contentType(ContentType.Application.Json)
+                setBody(SetReferenceActiveBody(active))
+            }
+        }
+
+    /* An admin gets every phone; a manager only their own site's. [status] is ACTIVE or REVOKED. */
+    suspend fun devices(status: String? = null): ManagementResult<List<Device>> =
+        call(
+            decode = { JSON.decodeFromString<Envelope<List<Device>>>(it).data.orEmpty() }
+        ) { token ->
+            httpClient.get("${baseUrl}api/devices") {
+                bearerAuth(token)
+                if (status != null) parameter("status", status)
+            }
+        }
+
+    /* Admin only. A blocked phone can't sign in or sync until it is reinstated. */
+    suspend fun revokeDevice(deviceId: String, reason: String): ManagementResult<Device> =
+        call(decode = { decodeDevice(it) }) { token ->
+            httpClient.post("${baseUrl}api/devices/$deviceId/revoke") {
+                bearerAuth(token)
+                contentType(ContentType.Application.Json)
+                setBody(DeviceReasonBody(reason))
+            }
+        }
+
+    suspend fun reinstateDevice(deviceId: String, reason: String): ManagementResult<Device> =
+        call(decode = { decodeDevice(it) }) { token ->
+            httpClient.post("${baseUrl}api/devices/$deviceId/reinstate") {
+                bearerAuth(token)
+                contentType(ContentType.Application.Json)
+                setBody(DeviceReasonBody(reason))
+            }
+        }
+
+    /* Admin only. Newest first; pass the id of the last event you have as [before] for the next page. */
+    suspend fun loginEvents(
+        outcome: String? = null,
+        before: Long? = null,
+        limit: Int = AUDIT_PAGE_SIZE
+    ): ManagementResult<List<LoginEvent>> =
+        call(
+            decode = { JSON.decodeFromString<Envelope<List<LoginEvent>>>(it).data.orEmpty() }
+        ) { token ->
+            httpClient.get("${baseUrl}api/login-events") {
+                bearerAuth(token)
+                if (outcome != null) parameter("outcome", outcome)
+                if (before != null) parameter("before", before)
+                parameter("limit", limit)
+            }
+        }
+
+    /* Admin only: who is locked out of signing in right now. */
+    suspend fun lockouts(): ManagementResult<List<Lockout>> =
+        call(
+            decode = { JSON.decodeFromString<Envelope<List<Lockout>>>(it).data.orEmpty() }
+        ) { token ->
+            httpClient.get("${baseUrl}api/login-security/lockouts") { bearerAuth(token) }
+        }
+
+    /* Lifts a sign-in lockout without changing the PIN. Admin, or a manager for workers on their site. */
+    suspend fun unlockLogin(userId: String): ManagementResult<TeamMember> =
+        call(decode = { decodeMember(it) }) { token ->
+            httpClient.post("${baseUrl}api/users/$userId/unlock-login") { bearerAuth(token) }
+        }
+
+    /* An admin gets every site; a manager gets only their own. */
+    suspend fun listSites(): ManagementResult<List<Site>> =
+        call(
+            decode = { JSON.decodeFromString<Envelope<List<Site>>>(it).data.orEmpty() }
+        ) { token ->
+            httpClient.get("${baseUrl}api/sites") { bearerAuth(token) }
+        }
+
+    suspend fun createSite(name: String): ManagementResult<Site> =
+        call(decode = { decodeSite(it) }) { token ->
+            httpClient.post("${baseUrl}api/sites") {
+                bearerAuth(token)
+                contentType(ContentType.Application.Json)
+                setBody(CreateSiteBody(name))
+            }
+        }
+
+    /* Leave a field null to keep it. Deactivating a site that still has active users is a 409. */
+    suspend fun updateSite(siteId: String, name: String? = null, active: Boolean? = null): ManagementResult<Site> =
+        call(decode = { decodeSite(it) }) { token ->
+            httpClient.patch("${baseUrl}api/sites/$siteId") {
+                bearerAuth(token)
+                contentType(ContentType.Application.Json)
+                setBody(UpdateSiteBody(name, active))
+            }
+        }
+
+    /*
+     * Newest first. Pass the id of the last entry you have as [before] to get the next page.
+     * [from] is a time in epoch milliseconds.
+     */
+    suspend fun auditLog(
+        action: String? = null,
+        from: Long? = null,
+        before: Long? = null,
+        limit: Int = AUDIT_PAGE_SIZE
+    ): ManagementResult<List<AuditLogEntry>> =
+        call(
+            decode = { JSON.decodeFromString<Envelope<List<AuditLogEntry>>>(it).data.orEmpty() }
+        ) { token ->
+            httpClient.get("${baseUrl}api/audit-log") {
+                bearerAuth(token)
+                if (action != null) parameter("action", action)
+                if (from != null) parameter("from", from)
+                if (before != null) parameter("before", before)
+                parameter("limit", limit)
+            }
+        }
+
+    private fun decodeSyncPolicy(body: String): SyncPolicyDto =
+        JSON.decodeFromString<Envelope<SyncPolicyDto>>(body).data
+            ?: error("Missing sync policy in response")
+
+    private fun decodeReferenceChange(body: String): ReferenceChange =
+        JSON.decodeFromString<Envelope<ReferenceChange>>(body).data
+            ?: error("Missing reference value in response")
+
+    private fun decodeDevice(body: String): Device =
+        JSON.decodeFromString<Envelope<Device>>(body).data
+            ?: error("Missing device in response")
+
+    private fun decodeSite(body: String): Site =
+        JSON.decodeFromString<Envelope<Site>>(body).data
+            ?: error("Missing site in response")
+
     private fun decodeMember(body: String): TeamMember =
         JSON.decodeFromString<Envelope<TeamMember>>(body).data
             ?: error("Missing user in response")
@@ -141,7 +373,10 @@ class ManagementApiClient(
             when (response.status) {
                 HttpStatusCode.OK, HttpStatusCode.Created ->
                     ManagementResult.Success(decode(body))
-                HttpStatusCode.Unauthorized -> ManagementResult.Unauthorized
+                HttpStatusCode.Unauthorized -> {
+                    tokenProvider.reportUnauthorized(body)
+                    ManagementResult.Unauthorized
+                }
                 HttpStatusCode.Forbidden -> ManagementResult.Forbidden(messageOf(body, "Forbidden"))
                 HttpStatusCode.NotFound -> ManagementResult.NotFound
                 HttpStatusCode.BadRequest, HttpStatusCode.Conflict ->
@@ -167,6 +402,8 @@ class ManagementApiClient(
         }
 
     companion object {
+        const val AUDIT_PAGE_SIZE = 50
+
         const val DEFAULT_BASE_URL = "https://beeftech-backend.onrender.com/"
 
         private val JSON = Json {

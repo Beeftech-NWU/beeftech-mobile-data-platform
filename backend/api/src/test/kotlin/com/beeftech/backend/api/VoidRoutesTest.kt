@@ -320,8 +320,8 @@ class VoidRoutesTest {
         }
         assertEquals(HttpStatusCode.OK, deactivated.status)
 
-        /* Their token is still valid, but the service re-reads the account. */
-        assertEquals(HttpStatusCode.Forbidden, client.void(manager, "mortalities", "g-1").status)
+        /* Deactivating ended their session, so the token no longer gets as far as the service. */
+        assertEquals(HttpStatusCode.Unauthorized, client.void(manager, "mortalities", "g-1").status)
         assertEquals(listOf("g-1"), client.guids("/api/mortalities", worker))
     }
 

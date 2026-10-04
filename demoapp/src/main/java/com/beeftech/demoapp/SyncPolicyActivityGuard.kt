@@ -6,6 +6,7 @@ import android.content.Intent
 import android.os.Bundle
 import com.beeftech.database.DatabaseProvider
 import com.beeftech.database.repository.SyncPolicyEnforcer
+import com.beeftech.database.repository.SyncPolicyStore
 import com.beeftech.database.security.CurrentUserIdRegistry
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -164,7 +165,12 @@ class SyncPolicyActivityGuard :
 
                         syncSecurityDao =
                             database
-                                .syncSecurityDao()
+                                .syncSecurityDao(),
+
+                        /* The server can move the warnings, never the wipe. */
+                        policyProvider = {
+                            SyncPolicyStore(database.referenceDataDao()).current()
+                        }
                     )
                         .evaluate(
                             userId =

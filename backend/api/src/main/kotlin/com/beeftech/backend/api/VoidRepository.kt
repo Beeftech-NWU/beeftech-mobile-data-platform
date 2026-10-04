@@ -128,17 +128,19 @@ class VoidRepository {
                 it[target.voidReason] = reason
             }
 
-            AuditLogTable.insert {
-                it[action] = "VOID"
-                it[entityType] = target.entityType
-                it[entityId] = id
-                it[AuditLogTable.reason] = reason
-                it[AuditLogTable.actorUserId] = actorUserId
-                it[AuditLogTable.actorUsername] = actorUsername
-                it[AuditLogTable.actorRole] = actorRole
-                it[siteId] = recordSite
-                it[createdAt] = now
-            }
+            insertAuditRow(
+                AuditEntry(
+                    action = AuditActions.VOID,
+                    entityType = target.entityType,
+                    entityId = id,
+                    reason = reason,
+                    actorUserId = actorUserId,
+                    actorUsername = actorUsername,
+                    actorRole = actorRole,
+                    siteId = recordSite
+                ),
+                now
+            )
 
             VoidOutcome.Voided(now)
         }
@@ -178,35 +180,6 @@ class VoidRepository {
                         voidedAt = it[target.voidedAt],
                         voidedByUserId = it[target.voidedByUserId],
                         voidReason = it[target.voidReason]
-                    )
-                }
-        }
-
-    /* Newest first. A manager only gets entries about their own site. */
-    suspend fun auditLog(siteScope: SiteScope, limit: Int): List<AuditLogEntryDto> =
-        newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
-            AuditLogTable
-                .selectAll()
-                .apply {
-                    if (siteScope is SiteScope.Only) {
-                        where { AuditLogTable.siteId eq siteScope.siteId }
-                    }
-                }
-                .orderBy(AuditLogTable.createdAt, SortOrder.DESC)
-                .orderBy(AuditLogTable.id, SortOrder.DESC)
-                .limit(limit)
-                .map {
-                    AuditLogEntryDto(
-                        id = it[AuditLogTable.id],
-                        action = it[AuditLogTable.action],
-                        entityType = it[AuditLogTable.entityType],
-                        entityId = it[AuditLogTable.entityId],
-                        reason = it[AuditLogTable.reason],
-                        actorUserId = it[AuditLogTable.actorUserId],
-                        actorUsername = it[AuditLogTable.actorUsername],
-                        actorRole = it[AuditLogTable.actorRole],
-                        siteId = it[AuditLogTable.siteId],
-                        createdAt = it[AuditLogTable.createdAt]
                     )
                 }
         }

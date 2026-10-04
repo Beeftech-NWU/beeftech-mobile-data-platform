@@ -43,6 +43,12 @@ class LoginViewModel(
                     LoginUiState.Error("Too many attempts. Try again in $minutes minutes.")
                 }
                 is LoginOutcome.WrongDevice -> LoginUiState.Error("This phone is registered to another worker")
+                is LoginOutcome.DeviceRevoked -> LoginUiState.Error(
+                    "This phone has been blocked. Contact your administrator."
+                )
+                is LoginOutcome.AccessRevoked -> LoginUiState.Error(
+                    "Your access was ended. Connect to the internet and sign in again."
+                )
                 is LoginOutcome.NeedsFirstOnlineLogin -> LoginUiState.Error("Connect once to set up this account")
                 is LoginOutcome.Unavailable -> LoginUiState.Error(
                     outcome.message.ifBlank { "Cannot reach the server. Try again." }

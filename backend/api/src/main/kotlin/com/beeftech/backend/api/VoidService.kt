@@ -13,7 +13,7 @@ sealed interface VoidResult<out T> {
 }
 
 /**
- * Voiding and the audit log for admins (any site) and managers (their own site).
+ * Voiding and reviewing records for admins (any site) and managers (their own site).
  *
  * As in UserAdminService, the caller's role, site and active flag come from the
  * database rather than the token, so a deactivated or demoted manager loses
@@ -84,18 +84,6 @@ class VoidService(
             .associateWith { userRepository.findById(it)?.username }
 
         return VoidResult.Ok(records.map { it.copy(submittedByUsername = usernames[it.submittedByUserId]) })
-    }
-
-    suspend fun auditLog(principal: AuthPrincipal, limit: Int?): VoidResult<List<AuditLogEntryDto>> {
-
-        val actor = resolveActor(principal) ?: return VoidResult.Forbidden("Forbidden")
-
-        /* A manager without a site sees no entries, as with scoped record reads. */
-        val siteScope = siteScope(actor) ?: return VoidResult.Ok(emptyList())
-
-        return VoidResult.Ok(
-            repository.auditLog(siteScope, (limit ?: DEFAULT_LIMIT).coerceIn(1, MAX_LIMIT))
-        )
     }
 
     private class Actor(val userId: String, val username: String, val role: Role, val siteId: String?)

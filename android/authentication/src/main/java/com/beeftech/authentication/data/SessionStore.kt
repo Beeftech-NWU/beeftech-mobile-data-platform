@@ -7,8 +7,32 @@ import androidx.security.crypto.MasterKey
 import com.beeftech.authentication.domain.LoggedInUser
 import com.beeftech.database.security.CurrentUserIdRegistry
 import com.beeftech.database.security.TokenProvider
+import com.beeftech.database.security.UnauthorizedReason
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.emptyFlow
+
+/* Something that happened to the session that the screen should react to. */
+enum class SessionEvent {
+    /* The server ended this session on purpose (deactivated, PIN reset, unbound, revoked phone). */
+    REVOKED
+}
 
 interface SessionStore : TokenProvider {
+
+    /*
+     * Emits when the server ends the session, so the app can go back to the login screen.
+     * The default never emits, so fakes don't need to implement it.
+     */
+    val sessionEvents: Flow<SessionEvent> get() = emptyFlow()
+
+    /*
+     * The user whose server access was revoked and who hasn't signed in online since.
+     * Offline login must not trust that user's cached PIN. Null if there is none.
+     */
+    fun revokedUserId(): String? = null
+
 
     /*
      * Save a real ONLINE session returned by Render.
@@ -137,6 +161,61 @@ class EncryptedSessionStore(
 
         private const val KEY_SITE_ID =
             "site_id"
+
+        /*
+         * Set when the server revokes a session, so the user's cached PIN stops working offline
+         * until they sign in online again. It survives clear() on purpose.
+         */
+        private const val KEY_REVOKED_USER_ID =
+            "revoked_user_id"
+    }
+
+    private val _sessionEvents =
+        MutableSharedFlow<SessionEvent>(extraBufferCapacity = 1)
+
+    override val sessionEvents: Flow<SessionEvent> =
+        _sessionEvents.asSharedFlow()
+
+    override fun revokedUserId(): String? =
+        prefs?.getString(KEY_REVOKED_USER_ID, null)
+
+    /*
+     * The server answered 401.
+     *
+     * A rejected token only drops the server token: the local session stays, so the worker can
+     * keep capturing, and the sync workers wait (their token is now null) until the next online
+     * login. A revocation ends the session as well.
+     *
+     * Neither touches Room, so records waiting to sync stay exactly as they were.
+     */
+    override suspend fun onUnauthorized(reason: UnauthorizedReason) {
+
+        when (reason) {
+
+            UnauthorizedReason.TOKEN_REJECTED -> {
+                prefs
+                    ?.edit()
+                    ?.remove(KEY_TOKEN)
+                    ?.remove(KEY_SERVER_TOKEN_EXPIRES_AT)
+                    ?.apply()
+            }
+
+            UnauthorizedReason.SESSION_REVOKED -> {
+                val userId =
+                    prefs?.getString(KEY_USER_ID, null)
+
+                clear()
+
+                if (userId != null) {
+                    prefs
+                        ?.edit()
+                        ?.putString(KEY_REVOKED_USER_ID, userId)
+                        ?.apply()
+                }
+
+                _sessionEvents.tryEmit(SessionEvent.REVOKED)
+            }
+        }
     }
 
 
@@ -184,6 +263,11 @@ class EncryptedSessionStore(
                 user.siteId
             )
             ?.apply()
+
+        /* Signing in online proves the server accepts this user again. */
+        if (prefs?.getString(KEY_REVOKED_USER_ID, null) == user.userId) {
+            prefs?.edit()?.remove(KEY_REVOKED_USER_ID)?.apply()
+        }
 
         CurrentUserIdRegistry
             .setCurrentUserId(
@@ -385,10 +469,21 @@ class EncryptedSessionStore(
 
     override fun clear() {
 
+        /* A logout must not forget that the server revoked this user. */
+        val revokedUserId =
+            prefs?.getString(KEY_REVOKED_USER_ID, null)
+
         prefs
             ?.edit()
             ?.clear()
             ?.apply()
+
+        if (revokedUserId != null) {
+            prefs
+                ?.edit()
+                ?.putString(KEY_REVOKED_USER_ID, revokedUserId)
+                ?.apply()
+        }
 
         CurrentUserIdRegistry
             .setCurrentUserId(

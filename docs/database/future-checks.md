@@ -96,21 +96,21 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
 22. **Routes left unscoped on purpose.** `GET /api/treatments/reference-data` is shared
     reference data. `POST /api/calf-registrations/{tagNumber}/media` and
     `GET /api/calf-registrations/{tagNumber}/certificate` are reached by tag and do not
-    check the caller's scope. Revisit these when the records review lands (Phase 3).
+    check the caller's scope. Revisit these when the records review lands (Phase 3). **Update (Phase 4c):** these routes now go through the same database token check as every other route (a deactivated user or revoked phone is rejected), but they are still not scoped by site.
 23. **RESOLVED (Phase 3, sync gaps, PR #75): `GET /api/animal-movements` and `/{animalId}` are scoped.** Original note: **Animal movements have no `GET` list.** Movements are stamped with the submitter
     and site on sync, but nothing reads them back yet, so there is nothing to scope.
-24. **Tokens issued before the deploy have no `site_id` claim.** They stay valid for up
+24. **RESOLVED (Phase 4c, `feature/admin-revocation-devices`): tokens are checked against the database on every request.** Original note: **Tokens issued before the deploy have no `site_id` claim.** They stay valid for up
     to 24 h. A manager on such a token sees no site-scoped records until they log in
     again.
-25. **Deactivated users keep working tokens on non-admin routes.** `users.active` is checked at
+25. **RESOLVED (Phase 4c, `feature/admin-revocation-devices`): deactivating a user, unbinding their phone or resetting their PIN ends their tokens at once.** Original note: **Deactivated users keep working tokens on non-admin routes.** `users.active` is checked at
     login and on every `/api/users` call (the caller is re-read from the DB), but the sync and
     record routes only validate the JWT. A deactivated worker can still sync for up to 24 h
     from a token issued before deactivation. Fix with a short token lifetime or an `active`
     check in `requireAuthPrincipal` (Phase 4's revoke list is the natural home).
-26. **A PIN reset does not clear the login lockout.** `AuthService.loginAttempts` is an
+26. **RESOLVED (Phase 4c, `feature/admin-revocation-devices`): a PIN reset (and `POST /api/users/{id}/unlock-login`) clears the login lockout, which is now stored in the database.** Original note: **A PIN reset does not clear the login lockout.** `AuthService.loginAttempts` is an
     in-memory map, so a worker locked out for 5 minutes stays locked after a manager resets
     their PIN.
-27. **Admins type a site ID by hand in the Team tab.** There is no sites endpoint until Phase 4, so
+27. **RESOLVED (Phase 4b, `feature/admin-sites`): the Add user dialog has a site picker.** Sites come from `GET /api/sites` (active sites only), and the server still rejects unknown ones. Original note: **Admins type a site ID by hand in the Team tab.** There is no sites endpoint until Phase 4, so
     the "Add user" dialog takes a free-text site ID and the backend rejects unknown ones
     ("Unknown site"). Replace it with a site picker when Sites CRUD lands.
 28. **RESOLVED (Phase 3, dashboard summary, PR #74): the Dashboard tab now loads `GET /api/dashboard/summary`.** Original note: **Dashboard tab is a placeholder.** It shows static text until Phase 3 adds
@@ -123,8 +123,8 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     when the record reached the server, not when it was captured.
 31. **Dashboard stale-sync alerts use `users.device_last_sync`, which login sets.** It moves on login,
     not on every sync, so a worker who stays logged in and syncs can still look stale. Stamp it from
-    the sync routes if the alert proves noisy.
-32. **The dashboard has no site switch for admins in the app.** The endpoint takes `siteId`, but the
+    the sync routes if the alert proves noisy. **Update (Phase 4c):** any authenticated request now refreshes it (at most every 15 minutes), so it means "last contact", not "last sync" or "last login".
+32. **RESOLVED (Phase 4b, `feature/admin-sites`): admins get an "All sites" / per-site switch on the Dashboard.** An unknown `siteId` is now a 400. Original note: **The dashboard has no site switch for admins in the app.** The endpoint takes `siteId`, but the
     app always asks for all sites. Add the switch with Sites CRUD in Phase 4.
 33. **Feed Crib `POST` is not idempotent.** `FeedCribRequest` has no record GUID, so a retried request
     inserts a duplicate reading. The app does not post Feed Crib at all yet (`:android:feed-crib` is
@@ -175,3 +175,150 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
 45. **The records review screen has not been run on a device.** It is covered by view model tests and the
     backend tests only. Check the Records tab, the Void dialog and the voided state on an emulator against a
     local backend (patch both `DEFAULT_BASE_URL`s, see the handoff notes).
+
+## Found during the Admin tab, Phase 4a (audit log)
+
+46. **Admin actions before 4a are not in the audit log.** User create, update, PIN reset and unbind now
+    write `audit_log` rows (actions `USER_CREATE`, `USER_UPDATE`, `USER_RESET_PIN`, `USER_UNBIND_DEVICE`),
+    but anything done before the deploy has no row. Only voids were logged before.
+47. **Audit log details are plain strings.** `audit_log.details` holds a flat JSON object of strings such as
+    `{"role":"3->2"}`. The app shows it as text and does not parse it. A PIN or hash is never written to it;
+    `AuditLogRoutesTest` checks this.
+48. **The audit log grows forever and has no search.** `GET /api/audit-log` filters by action, entity,
+    actor, site and time, and pages by `before=<id>`, but there is no free-text search and nothing is pruned.
+    The Android screen filters only by action and time range (24 hours, 7 days, 30 days, all).
+49. **The audit log screens have not been run on a device.** The Admin tab, the manager's Team "Activity"
+    section and the audit log screen are covered by view model, backend and tab tests only. Check them on an
+    emulator against a local backend (patch both `DEFAULT_BASE_URL`s, see the handoff notes).
+
+## Found during the Admin tab, Phase 4b (sites)
+
+50. **Deactivated sites still accept syncs.** A site's `active` flag only stops new users being assigned
+    to it (and a site with active users can't be deactivated). Workers already on it keep signing in and
+    syncing, and their records are stamped with its id as before. There is no delete: users and records
+    point at a site by id.
+51. **Site ids are server-generated (`site-<8 hex>`), and a site's name is not a key.** Rename is safe; an
+    id can't be changed. The dev seed site `dev-site-1` keeps its hand-written id.
+52. **Managers see only their own site in `GET /api/sites`.** The Team tab's picker is for admins, so
+    managers don't load sites and still see a raw site id on member cards.
+53. **The Dashboard now reads the caller's role and site from the database, not the token.** A manager who
+    is moved, demoted or deactivated sees it on the next request (4c extends this to every route). Records
+    and the site picker have not been run on a device.
+
+## Found during the Admin tab, Phase 4c (revocation, devices, login security)
+
+54. **The device id is client-supplied and can be spoofed.** `devices` and the revoke check use the `device_id`
+    the app sends at login (and puts in the token). A malicious client can claim another id. Revoking a phone
+    stops the honest app on it; it is not hardware attestation.
+55. **`devices` and `login_events` grow forever.** Nothing is pruned. A busy deployment will want a retention
+    window. `login_events.username_attempted` holds whatever was typed, including names that don't exist,
+    so treat it as personal data (admin-only).
+56. **Old apps send no device model or app version.** The device list shows them blank until the worker updates.
+    A login request with `device_model` / `app_version` reaches an old server as unknown keys: deploy the server first.
+57. **A revoked phone that isn't reinstated hits the Day-7 wipe.** Revoking blocks sign-in and sync; the unsynced
+    data on it can only upload after an admin reinstates the phone. Revoke only when the phone is lost, and
+    reinstate promptly if the data matters.
+58. **The login lockout counter now starts again after a lock runs out.** Before, one wrong PIN after the
+    lock expired locked the user again at once (the count was never reset). Users now get a fresh five attempts.
+59. **Every authenticated request now reads the user and phone from the database.** One small SQLite
+    transaction per request; the `last_seen` / `device_last_sync` writes are throttled to every 15 minutes.
+    Tokens issued before `iat_ms` existed stay valid until they expire, unless that user has a cut-off set.
+60. **Role and site now come from the database on every route, not only the services.** A role or site change
+    takes effect on the next request without a new login.
+61. **A 401 only ever drops the session, never data (Phase 4c, Android).** Every sync client and the management
+    client report a 401 to the token provider. A plain rejected token removes the server token, so workers wait
+    (null token, `Result.retry()`) until the next online login. A body saying "Session revoked" or "Device
+    revoked" also ends the local session and returns to the login screen with a notice. Nothing touches Room, so
+    queued records stay `PENDING`. This is covered by unit tests only; it has not been run against a revoked
+    phone on a device.
+62. **A revoked account's cached PIN stops working offline until it signs in online again.** The session store
+    remembers the revoked user id (it survives a logout); `AuthRepository` then refuses the offline login and nulls
+    the cached PIN hash. An online login clears the flag and stores the new hash. A phone that was never online
+    when the server revoked it is not affected until its next sync attempt.
+63. **A blocked phone shows "This phone has been blocked" at login and gets no offline fallback.** The 403 is
+    mapped to its own outcome, so it can't be mistaken for a network problem. The worker's queued data stays on
+    the phone, and the Day-7 wipe still applies if it isn't unblocked.
+64. **The app sends the phone model and app version at login, and the server now ignores unknown JSON fields.**
+    Fields are omitted when unknown, and the server ignores fields it doesn't know, so a mixed-version fleet can
+    still sign in. The app version comes from the package's `versionName` (currently `1.0` for every build).
+65. **Devices, Login security and the manager's Phones view have not been run on a device.** They are covered by
+    view model and client tests only.
+
+## Found during the Admin tab, Phase 4d (reference data)
+
+66. **The reference-data cache never prunes.** `reference_items` (and the local `diseases` / `cost_types`
+    rows the cache adds) only grow: a value the server turns off is kept with `active = 0`, and a value the
+    server stops listing is left alone. This is deliberate (records point at values by name or code), so a
+    typo added by an admin and then switched off stays on every phone.
+67. **Old apps still offer switched-off values, and the server still accepts them.** Treatment and cost
+    columns on the server are free text, and the older `GET /api/treatments/reference-data` (names only,
+    active only) is unchanged. A phone that hasn't updated keeps its old lists until it does.
+68. **The cost-type seed is duplicated.** `ReferenceDataSeeder` (backend) copies `CostTypeSeed.TYPES`
+    (Android). A cost type added to one must be added to the other, or the server's list and a fresh install's
+    local list disagree until the first pull. Existing devices keep their local seeds either way.
+69. **No screen offers a cost-type picker yet, so cost-type admin has no visible effect on phones.** Costs
+    are derived from treatments (the `TREATMENT` type, which can't be switched off); `CostSummaryViewModel.saveCost`
+    validates against `CostTypeDao.getActive()` but nothing in the UI calls it. A cost entry screen should
+    read that list, so a switched-off type disappears and a new one appears.
+70. **The Treatment screen reads the cache once per screen load.** A pull that finishes while the screen is
+    open shows on the next load, not live. There is no "Refresh lists" button; the check-in worker runs when
+    someone signs in and with the twice-daily batch sync.
+71. **A failed live request with an empty cache is still an error.** Before the first pull, the Treatment
+    screen asks the server directly, as before. There is no fallback to the local `diseases` table (it has no
+    treatment types), so a brand-new phone with no signal still can't fill those two pickers.
+72. **Reference data admin is online-only and admin-only.** Managers and workers read the lists through the
+    phone cache. The Reference data screen, the check-in worker and the Treatment cache have not been run on a
+    device; the Room migration and cache queries have (`Migration35To36Test`, `ReferenceDataDaoTest`, and the
+    whole `:android:database` instrumented suite, 112 tests, on the emulator).
+
+## Found during the Admin tab, Phase 4e (sync policy)
+
+73. **The wipe day is fixed at 7 in the app, by design.** An admin can move only the three warning days (each
+    from 1 to 6, strictly increasing) and the dashboard's stale-sync alert (12 to 336 hours). `GET /api/sync-policy`
+    reports `wipeDay: 7` for information; the app never reads it. `SyncWarningPolicy.WIPE_DAY` is a constant, the
+    enforcer decides the wipe from it before it reads any policy, and a policy that can't be read falls back to 2, 4, 6.
+    Instrumented tests prove no policy wipes before day 7 or later than day 7.
+74. **Old apps ignore the configured warning days.** They keep 2, 4 and 6 until they are updated. The Sync policy
+    screen says so. The server-side stale-sync alert applies to everyone at once, because the dashboard is
+    computed on the server.
+75. **A phone follows a new policy only after it next checks in.** The check-in runs when someone signs in and
+    with the twice-daily batch job, and needs a connection and a server token. A phone that has been offline
+    keeps its stored warning days (or 2, 4, 6 if it has never pulled). It never affects the wipe.
+76. **Warning events record the days in force at the time.** `sync_security_events` rows for earlier days stay as
+    they were when an admin later changes the policy. Events are still not uploaded to the server (4f). Resolved by 4f: see 79.
+77. **The stale-sync hours are measured from `users.device_last_sync`,** which is "last contact" since 4c (any
+    authenticated request, refreshed at most every 15 minutes), so a worker who is signed in and only browsing
+    counts as in contact.
+78. **The Sync policy screen and the pull have not been run on a device.** The wipe-safety rules have: the whole
+    `:android:database` instrumented suite ran on the emulator, including 7 new enforcer tests (custom days,
+    wipe at day 7 with every warning moved early or late, nothing wiped before day 7 under any policy, an
+    unreadable policy falling back to the default).
+
+## Found during the Admin tab, Phase 4f (security events and locked accounts)
+
+79. **Events from before 4f upload after the next online sign-in.** `sync_security_events.uploaded_at` (Room v37)
+    starts NULL for every existing row, so a phone sends its whole backlog once. Only the signed-in user's events
+    go (the server turns away events that name another user), so a second user's events wait for their own
+    sign-in.
+80. **The Day-7 lock can be cleared remotely only on app versions with 4f.** Older apps never read
+    `syncLockClearedAt` and stay locked. An admin clearing the lock for such a phone has no effect until the
+    app is updated; it still needs the old recovery path.
+81. **A locked phone hears about the clearance only after an online sign-in and a check-in.** After a wipe the 24 h
+    token has expired, so the check-in runs right after the next online login (outside the Day-7 gate, so a
+    locked account still triggers it). The locked screen has a "Check again" button, but it only helps once the
+    check-in has finished; nothing polls.
+82. **Clearing a lock does not bring wiped data back,** and does not sign the user out. It sets
+    `users.sync_lock_cleared_at`. The phone lifts its lock only if that is later than when it locked, so an old
+    clearance can't undo a newer lock. The "Locked accounts" list uses the same rule on the server.
+83. **The locked-accounts list is built from reported events,** not from the phones. A phone that locked while
+    offline is not listed until it uploads, and an account the phone has already unlocked still shows until the
+    admin clears it (the phone does not report an unlock).
+84. **`sync_security_events` on the server grows forever** and is never pruned. Duplicates are ignored by
+    (`device_id`, `event_key`); a device id that changes (it is client-supplied and spoofable, see 4c) uploads the
+    same events again under the new id.
+85. **Only admins read security events and locked accounts;** managers are left out on purpose, as with login
+    events. The site on each event comes from the user's current site, so moving a user later does not rewrite
+    old rows.
+86. **The Sync security screen, the upload and the remote unlock have not been run on a device.** Covered by
+    backend route tests, view-model and sync unit tests, and on the emulator by `Migration36To37Test` and
+    `SyncSecurityUploadDaoTest` (the whole `:android:database` instrumented suite, 125 tests, passed).

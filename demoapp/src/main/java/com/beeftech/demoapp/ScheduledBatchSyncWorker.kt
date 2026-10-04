@@ -92,6 +92,9 @@ class ScheduledBatchSyncWorker(
                 >()
             )
 
+            /* Not a sync: pulls reference data (and later the sync policy) from the server. */
+            DeviceCheckInWorker.enqueue(applicationContext)
+
             Log.i(
                 TAG,
                 "Scheduled BeefTech batch sync dispatched."

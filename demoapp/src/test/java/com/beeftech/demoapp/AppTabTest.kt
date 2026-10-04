@@ -2,6 +2,7 @@ package com.beeftech.demoapp
 
 import com.beeftech.authentication.domain.Role
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class AppTabTest {
@@ -16,11 +17,19 @@ class AppTabTest {
     }
 
     @Test
-    fun `managers and admins get Dashboard, Records and Team after the capture tabs`() {
-        val expected = captureTabs + listOf(AppTab.DASHBOARD, AppTab.RECORDS, AppTab.TEAM)
+    fun `managers get Dashboard, Records and Team after the capture tabs`() {
+        assertEquals(
+            captureTabs + listOf(AppTab.DASHBOARD, AppTab.RECORDS, AppTab.TEAM),
+            tabsFor(Role.MANAGER)
+        )
+    }
 
-        assertEquals(expected, tabsFor(Role.MANAGER))
-        assertEquals(expected, tabsFor(Role.ADMIN))
+    @Test
+    fun `admins get everything a manager has plus Admin, and nobody else gets Admin`() {
+        assertEquals(tabsFor(Role.MANAGER) + AppTab.ADMIN, tabsFor(Role.ADMIN))
+        assertFalse(AppTab.ADMIN in tabsFor(Role.MANAGER))
+        assertFalse(AppTab.ADMIN in tabsFor(Role.WORKER))
+        assertFalse(AppTab.ADMIN in tabsFor(null))
     }
 
     @Test
@@ -33,5 +42,6 @@ class AppTabTest {
             listOf("Dashboard", "Records", "Team"),
             tabsFor(Role.MANAGER).drop(3).map { it.label }
         )
+        assertEquals("Admin", tabsFor(Role.ADMIN).last().label)
     }
 }

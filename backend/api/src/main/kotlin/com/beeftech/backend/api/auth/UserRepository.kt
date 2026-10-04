@@ -1,12 +1,16 @@
 package com.beeftech.backend.api.auth
 
+import com.beeftech.backend.api.AuditEntry
 import com.beeftech.backend.api.DatabaseFactory
+import com.beeftech.backend.api.insertAuditRow
 import kotlinx.coroutines.Dispatchers
 import org.jetbrains.exposed.sql.Op
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.sql.update
@@ -20,7 +24,9 @@ data class UserRecord(
     val deviceLastSync: Long?,
     val failedSyncAttempts: Int,
     val siteId: String? = null,
-    val active: Boolean = true
+    val active: Boolean = true,
+    val tokensValidAfter: Long? = null,
+    val syncLockClearedAt: Long? = null
 )
 
 class UserRepository {
@@ -57,9 +63,11 @@ class UserRepository {
         role: Int?,
         deviceAssignedId: String? = null,
         siteId: String? = null,
-        active: Boolean = true
+        active: Boolean = true,
+        audit: AuditEntry? = null
     ) {
         newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
+            audit?.let { insertAuditRow(it) }
             UsersTable.insert {
                 it[UsersTable.userId] = userId
                 it[UsersTable.username] = username
@@ -97,29 +105,55 @@ class UserRepository {
         userId: String,
         role: Int?,
         siteId: String?,
-        active: Boolean
+        active: Boolean,
+        audit: AuditEntry? = null,
+        /* True when deactivating: tokens issued so far stop working at once. */
+        invalidateTokens: Boolean = false
     ) {
         newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
+            audit?.let { insertAuditRow(it) }
             UsersTable.update({ UsersTable.userId eq userId }) {
                 it[UsersTable.role] = role
                 it[UsersTable.siteId] = siteId
                 it[UsersTable.active] = active
+                if (invalidateTokens) it[tokensValidAfter] = System.currentTimeMillis()
             }
         }
     }
 
-    suspend fun updatePinHash(userId: String, pinHash: String) {
+    suspend fun updatePinHash(userId: String, pinHash: String, audit: AuditEntry? = null) {
         newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
+            audit?.let { insertAuditRow(it) }
+            val username = UsersTable.select(UsersTable.username)
+                .where { UsersTable.userId eq userId }
+                .singleOrNull()?.get(UsersTable.username)
             UsersTable.update({ UsersTable.userId eq userId }) {
                 it[UsersTable.pinHash] = pinHash
+                /* A new PIN ends every session signed in with the old one. */
+                it[tokensValidAfter] = System.currentTimeMillis()
+            }
+            /* A reset also lifts a login lockout (future-checks #26). */
+            if (username != null) LoginAttemptsTable.deleteWhere { LoginAttemptsTable.username eq username }
+        }
+    }
+
+    suspend fun clearDevice(userId: String, audit: AuditEntry? = null) {
+        newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
+            audit?.let { insertAuditRow(it) }
+            UsersTable.update({ UsersTable.userId eq userId }) {
+                it[deviceAssignedId] = null
+                /* The old phone is logged out straight away. */
+                it[tokensValidAfter] = System.currentTimeMillis()
             }
         }
     }
 
-    suspend fun clearDevice(userId: String) {
+    /* Does not touch tokens: the user stays signed in, only the phone's lock is lifted. */
+    suspend fun clearSyncLock(userId: String, clearedAt: Long, audit: AuditEntry? = null) {
         newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
+            audit?.let { insertAuditRow(it, clearedAt) }
             UsersTable.update({ UsersTable.userId eq userId }) {
-                it[deviceAssignedId] = null
+                it[syncLockClearedAt] = clearedAt
             }
         }
     }
@@ -127,6 +161,16 @@ class UserRepository {
     suspend fun siteExists(siteId: String): Boolean {
         return newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
             SitesTable.selectAll().where { SitesTable.siteId eq siteId }.any()
+        }
+    }
+
+    /* Null when the site doesn't exist, otherwise its active flag. */
+    suspend fun siteActive(siteId: String): Boolean? {
+        return newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
+            SitesTable.selectAll()
+                .where { SitesTable.siteId eq siteId }
+                .singleOrNull()
+                ?.get(SitesTable.active)
         }
     }
 
@@ -148,7 +192,9 @@ class UserRepository {
             deviceLastSync = this[UsersTable.deviceLastSync],
             failedSyncAttempts = this[UsersTable.failedSyncAttempts],
             siteId = this[UsersTable.siteId],
-            active = this[UsersTable.active]
+            active = this[UsersTable.active],
+            tokensValidAfter = this[UsersTable.tokensValidAfter],
+            syncLockClearedAt = this[UsersTable.syncLockClearedAt]
         )
     }
 }

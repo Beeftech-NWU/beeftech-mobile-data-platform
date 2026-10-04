@@ -23,6 +23,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -46,7 +47,9 @@ import com.beeftech.database.DatabaseResult
 import com.beeftech.database.repository.PendingSyncRepository
 import com.beeftech.database.repository.SyncRepository
 import com.beeftech.database.repository.SyncPolicyEnforcer
+import com.beeftech.database.repository.SyncPolicyStore
 import com.beeftech.authentication.data.AuthApiClient
+import com.beeftech.authentication.data.DeviceInfo
 import com.beeftech.authentication.data.AuthRepository
 import com.beeftech.authentication.data.EncryptedDeviceIdProvider
 import com.beeftech.authentication.data.EncryptedSessionStore
@@ -55,6 +58,7 @@ import com.beeftech.database.security.PinLockoutManager
 import com.beeftech.authentication.domain.Role
 import com.beeftech.database.security.TokenProviderRegistry
 import com.beeftech.management.data.ManagementApiClient
+import com.beeftech.management.ui.AdminTab
 import com.beeftech.management.ui.DashboardTab
 import com.beeftech.management.ui.RecordsReviewTab
 import com.beeftech.management.ui.MyActivityScreen
@@ -136,7 +140,17 @@ class MainActivity : ComponentActivity() {
                     val authRepository =
                         AuthRepository(
                             apiClient =
-                                AuthApiClient(),
+                                AuthApiClient(
+                                    deviceInfo =
+                                        DeviceInfo(
+                                            appVersion =
+                                                runCatching {
+                                                    packageManager
+                                                        .getPackageInfo(packageName, 0)
+                                                        .versionName
+                                                }.getOrNull()
+                                        )
+                                ),
                             sessionStore =
                                 sessionStore,
                             userDao =
@@ -399,7 +413,9 @@ class MainActivity : ComponentActivity() {
                             pendingSyncRepository =
                                 pendingSyncRepository,
                             apiClient =
-                                treatmentApiClient
+                                treatmentApiClient,
+                            referenceDataDao =
+                                database.referenceDataDao()
                         )
 
                     val treatmentViewModelFactory =
@@ -558,7 +574,12 @@ class MainActivity : ComponentActivity() {
                                 database.pendingSyncDao(),
 
                             syncSecurityDao =
-                                database.syncSecurityDao()
+                                database.syncSecurityDao(),
+
+                            /* The server can move the warnings, never the wipe. */
+                            policyProvider = {
+                                SyncPolicyStore(database.referenceDataDao()).current()
+                            }
                         )
 
                     /*
@@ -618,6 +639,15 @@ class MainActivity : ComponentActivity() {
                             locationFeedViewModel
                                 .records
                                 .collectAsState()
+
+                            /*
+                             * Pull the server's reference data (disease and treatment-type
+                             * lists, cost types) whenever someone is signed in. Waits for a
+                             * connection and a server token, and never touches queued records.
+                             */
+                            LaunchedEffect(loggedInUser.userId) {
+                                DeviceCheckInWorker.enqueue(applicationContext)
+                            }
 
                             var selectedDemoTab by
                             remember {
@@ -846,7 +876,9 @@ class MainActivity : ComponentActivity() {
                                             apiClient =
                                                 managementApiClient,
                                             currentUserId =
-                                                loggedInUser.userId
+                                                loggedInUser.userId,
+                                            isAdmin =
+                                                loggedInUser.roleEnum == Role.ADMIN
                                         )
 
                                     } else if (currentTab == AppTab.RECORDS) {
@@ -867,6 +899,15 @@ class MainActivity : ComponentActivity() {
                                                 loggedInUser.userId,
                                             isAdmin =
                                                 loggedInUser.roleEnum == Role.ADMIN
+                                        )
+
+                                    } else if (currentTab == AppTab.ADMIN) {
+
+                                        AdminTab(
+                                            apiClient =
+                                                managementApiClient,
+                                            currentUserId =
+                                                loggedInUser.userId
                                         )
 
                                     } else if (currentTab == AppTab.CALF_REGISTRATION) {

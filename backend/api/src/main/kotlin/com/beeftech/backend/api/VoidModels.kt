@@ -40,5 +40,7 @@ data class AuditLogEntryDto(
     val actorUsername: String,
     val actorRole: Int,
     val siteId: String? = null,
-    val createdAt: Long
+    val createdAt: Long,
+    /* A JSON object of what changed; null for older rows and for a void. */
+    val details: String? = null
 )
