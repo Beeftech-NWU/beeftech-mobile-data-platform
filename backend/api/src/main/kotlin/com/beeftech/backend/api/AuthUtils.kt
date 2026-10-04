@@ -2,6 +2,7 @@ package com.beeftech.backend.api
 
 import com.beeftech.backend.api.auth.AuthPrincipal
 import com.beeftech.backend.api.auth.JwtService
+import com.beeftech.backend.api.auth.UserRepository
 import com.beeftech.backend.api.auth.Role
 import com.beeftech.backend.api.common.ApiResponse
 import io.ktor.http.HttpStatusCode
@@ -79,7 +80,49 @@ suspend fun ApplicationCall.requireAuthPrincipal(jwtService: JwtService): AuthPr
         return null
     }
 
-    return principal
+    /*
+     * BEEFTECH_LIVE_AUTH_PRINCIPAL
+     *
+     * A JWT proves who authenticated, but mutable authorization
+     * fields such as role and site assignment must come from the
+     * current backend user record.
+     *
+     * This also repairs compatibility with JWTs issued before
+     * site_id support was introduced.
+     */
+    val currentUser =
+        UserRepository()
+            .findByUsername(
+                principal.username
+            )
+
+    if (currentUser == null) {
+
+        respond(
+            HttpStatusCode.Unauthorized,
+            ApiResponse<String>(
+                success = false,
+                message = "Authenticated user no longer exists"
+            )
+        )
+
+        return null
+    }
+
+    return principal.copy(
+        userId =
+            currentUser.userId,
+
+        role =
+            currentUser.role,
+
+        siteId =
+            currentUser.siteId,
+
+        deviceId =
+            currentUser.deviceAssignedId
+                ?: principal.deviceId
+    )
 }
 
 suspend fun ApplicationCall.requireRole(

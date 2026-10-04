@@ -30,10 +30,34 @@ class DashboardService(
             Role.ADMIN ->
                 if (requestedSiteId == null) RecordScope.All else RecordScope.Site(requestedSiteId)
             Role.MANAGER -> {
-                if (requestedSiteId != null && requestedSiteId != principal.siteId) {
-                    return DashboardResult.Forbidden("Managers can only view their own site")
+
+                /*
+                 * BEEFTECH_MANAGER_SITE_REQUIRED
+                 *
+                 * AuthUtils refreshes siteId from the current
+                 * database user record before this point.
+                 *
+                 * Therefore a null value here is a real account
+                 * configuration problem, not an empty farm.
+                 */
+                val managerSiteId =
+                    principal.siteId
+                        ?: return DashboardResult.Forbidden(
+                            "Manager account is not assigned to a site"
+                        )
+
+                if (
+                    requestedSiteId != null &&
+                    requestedSiteId != managerSiteId
+                ) {
+                    return DashboardResult.Forbidden(
+                        "Managers can only view their own site"
+                    )
                 }
-                RecordScope.Site(principal.siteId)
+
+                RecordScope.Site(
+                    managerSiteId
+                )
             }
             else -> return DashboardResult.Forbidden("Forbidden")
         }
