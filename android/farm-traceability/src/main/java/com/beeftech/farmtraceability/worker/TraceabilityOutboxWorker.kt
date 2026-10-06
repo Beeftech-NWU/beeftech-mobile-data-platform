@@ -6,6 +6,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.beeftech.database.BeefTechDatabase
 import com.beeftech.database.DatabaseProvider
+import com.beeftech.database.dao.SyncSecurityDao
 import com.beeftech.database.entity.PendingSync
 import com.beeftech.database.repository.PendingSyncRepository
 import com.beeftech.database.security.TokenProviderRegistry
@@ -483,16 +484,16 @@ class TraceabilityOutboxWorker(
             "TraceabilityOutbox"
 
         const val ENTITY_ANIMAL_PURCHASE =
-            "ANIMAL_PURCHASE"
+            SyncSecurityDao.ENTITY_ANIMAL_PURCHASE
 
         const val ENTITY_LOCATION_FEED =
-            "LOCATION_FEED"
+            SyncSecurityDao.ENTITY_LOCATION_FEED
 
         const val ENTITY_MORTALITY =
-            "MORTALITY"
+            SyncSecurityDao.ENTITY_MORTALITY
 
         const val ENTITY_ANIMAL_COST =
-            "ANIMAL_COST"
+            SyncSecurityDao.ENTITY_ANIMAL_COST
 
         val SUPPORTED_ENTITY_TYPES =
             setOf(

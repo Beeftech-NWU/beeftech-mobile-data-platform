@@ -164,6 +164,28 @@ abstract class SyncSecurityDao {
 
 
     // ========================================================
+    // Supplier purchase
+    //
+    // animal_purchases has no sync_status, so the pending_sync
+    // row is the only "not yet uploaded" marker. A purchase
+    // that was edited after it synced is queued again under
+    // the same record_guid, so it is wiped too. The server
+    // keeps the synced copy. This is the same rule the other
+    // types follow for changes that were never uploaded.
+    // ========================================================
+
+    @Query(
+        """
+        DELETE FROM animal_purchases
+        WHERE record_guid = :recordGuid
+        """
+    )
+    protected abstract suspend fun deleteQueuedPurchase(
+        recordGuid: String
+    ): Int
+
+
+    // ========================================================
     // Treatment
     //
     // A Treatment can create a derived animal_costs row.
@@ -372,6 +394,25 @@ abstract class SyncSecurityDao {
                     )
                 }
 
+                /*
+                 * Location & Feed records are stored as animal
+                 * movements. Their optional feed cost is queued
+                 * on its own as ENTITY_ANIMAL_COST.
+                 */
+                ENTITY_LOCATION_FEED -> {
+
+                    deleteUnsyncedMovement(
+                        pending.entityId
+                    )
+                }
+
+                ENTITY_ANIMAL_PURCHASE -> {
+
+                    deleteQueuedPurchase(
+                        pending.entityId
+                    )
+                }
+
                 ENTITY_MORTALITY -> {
 
                     deleteUnsyncedMortality(
@@ -535,6 +576,29 @@ abstract class SyncSecurityDao {
 
         const val ENTITY_FARMER_REGISTRATION =
             "FARMER_REGISTRATION"
+
+        const val ENTITY_ANIMAL_PURCHASE =
+            "ANIMAL_PURCHASE"
+
+        const val ENTITY_LOCATION_FEED =
+            "LOCATION_FEED"
+
+        /*
+         * Every type enforceDay7 can wipe. Keep this in step
+         * with the `when` above: a type missing there makes
+         * the whole wipe throw and roll back.
+         */
+        val WIPEABLE_ENTITY_TYPES =
+            setOf(
+                ENTITY_CALF_REGISTRATION,
+                ENTITY_ANIMAL_MOVEMENT,
+                ENTITY_TREATMENT,
+                ENTITY_MORTALITY,
+                ENTITY_ANIMAL_COST,
+                ENTITY_FARMER_REGISTRATION,
+                ENTITY_ANIMAL_PURCHASE,
+                ENTITY_LOCATION_FEED
+            )
 
         const val EVENT_WARNING =
             "SYNC_WARNING"
