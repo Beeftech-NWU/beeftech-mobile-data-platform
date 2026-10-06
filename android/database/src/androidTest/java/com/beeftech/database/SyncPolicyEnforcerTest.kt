@@ -11,6 +11,7 @@ import com.beeftech.database.entity.CalfRegistrationEntity
 import com.beeftech.database.entity.AnimalMovementEntity
 import com.beeftech.database.entity.Mortality
 import com.beeftech.database.entity.AnimalCost
+import com.beeftech.database.entity.AnimalPurchaseEntity
 import com.beeftech.database.entity.CostType
 import com.beeftech.database.entity.AnimalMediaEntity
 import com.beeftech.database.entity.AnimalIdentifierEntity
@@ -981,6 +982,347 @@ class SyncPolicyEnforcerTest {
                     )
             )
         }
+
+
+    // ========================================================
+    // DAY 7 - SUPPLIER PURCHASE AND LOCATION & FEED
+    // (queued by the traceability outbox)
+    // ========================================================
+
+    @Test
+    fun day7_wipesQueuedPurchaseButPreservesAnimal() =
+        runBlocking {
+
+            val animalId =
+                "DAY7-PURCHASE-ANIMAL"
+
+            val recordGuid =
+                "DAY7-PURCHASE-GUID"
+
+            insertPurchaseWithParent(
+                animalId = animalId,
+                recordGuid = recordGuid
+            )
+
+            insertDay7Queue(
+                entityType =
+                    SyncSecurityDao
+                        .ENTITY_ANIMAL_PURCHASE,
+                entityId =
+                    recordGuid
+            )
+
+            val result =
+                enforcer.evaluate(
+                    userId =
+                        USER_ID,
+                    now =
+                        NOW
+                )
+
+            assertTrue(
+                result.accountLocked
+            )
+
+            assertNull(
+                database
+                    .animalPurchaseDao()
+                    .findByRecordGuid(
+                        recordGuid
+                    )
+            )
+
+            assertNotNull(
+                database
+                    .animalDao()
+                    .getById(
+                        animalId
+                    )
+            )
+
+            assertEquals(
+                0,
+                database
+                    .pendingSyncDao()
+                    .getPendingCount()
+            )
+        }
+
+
+    @Test
+    fun day7_wipesUnsyncedLocationFeedAndItsFeedCost() =
+        runBlocking {
+
+            val animalId =
+                "DAY7-FEED-ANIMAL"
+
+            val movementGuid =
+                "DAY7-FEED-GUID"
+
+            val costGuid =
+                "DAY7-FEED-COST-GUID"
+
+            insertLocationFeedWithCost(
+                animalId = animalId,
+                movementGuid = movementGuid,
+                costGuid = costGuid
+            )
+
+            insertDay7Queue(
+                entityType =
+                    SyncSecurityDao
+                        .ENTITY_LOCATION_FEED,
+                entityId =
+                    movementGuid
+            )
+
+            insertDay7Queue(
+                entityType =
+                    SyncSecurityDao
+                        .ENTITY_ANIMAL_COST,
+                entityId =
+                    costGuid
+            )
+
+            val result =
+                enforcer.evaluate(
+                    userId =
+                        USER_ID,
+                    now =
+                        NOW
+                )
+
+            assertTrue(
+                result.accountLocked
+            )
+
+            assertNull(
+                database
+                    .animalMovementDao()
+                    .findByRecordGuid(
+                        movementGuid
+                    )
+            )
+
+            assertNull(
+                database
+                    .animalCostDao()
+                    .findByRecordGuid(
+                        costGuid
+                    )
+            )
+
+            assertNotNull(
+                database
+                    .animalDao()
+                    .getById(
+                        animalId
+                    )
+            )
+
+            assertEquals(
+                0,
+                database
+                    .pendingSyncDao()
+                    .getPendingCount()
+            )
+        }
+
+
+    /*
+     * Regression: before PR #95 was handled, one queued purchase
+     * or location/feed row made the whole wipe throw and roll
+     * back, so the account never locked.
+     */
+    @Test
+    fun day7_completesWithEveryOutboxTypeQueued() =
+        runBlocking {
+
+            insertPurchaseWithParent(
+                animalId = "DAY7-ALL-PURCHASE-ANIMAL",
+                recordGuid = "DAY7-ALL-PURCHASE-GUID"
+            )
+
+            insertLocationFeedWithCost(
+                animalId = "DAY7-ALL-FEED-ANIMAL",
+                movementGuid = "DAY7-ALL-FEED-GUID",
+                costGuid = "DAY7-ALL-FEED-COST-GUID"
+            )
+
+            insertDay7Queue(
+                entityType =
+                    SyncSecurityDao
+                        .ENTITY_ANIMAL_PURCHASE,
+                entityId =
+                    "DAY7-ALL-PURCHASE-GUID"
+            )
+
+            insertDay7Queue(
+                entityType =
+                    SyncSecurityDao
+                        .ENTITY_LOCATION_FEED,
+                entityId =
+                    "DAY7-ALL-FEED-GUID"
+            )
+
+            insertDay7Queue(
+                entityType =
+                    SyncSecurityDao
+                        .ENTITY_ANIMAL_COST,
+                entityId =
+                    "DAY7-ALL-FEED-COST-GUID"
+            )
+
+            val result =
+                enforcer.evaluate(
+                    userId =
+                        USER_ID,
+                    now =
+                        NOW
+                )
+
+            assertTrue(
+                result.accountLocked
+            )
+
+            assertTrue(
+                database
+                    .syncSecurityDao()
+                    .isLocked(
+                        USER_ID
+                    )
+            )
+
+            assertEquals(
+                0,
+                database
+                    .pendingSyncDao()
+                    .getPendingCount()
+            )
+        }
+
+
+    private suspend fun insertPurchaseWithParent(
+        animalId: String,
+        recordGuid: String
+    ) {
+
+        database
+            .animalDao()
+            .insert(
+                testAnimal(
+                    animalId =
+                        animalId,
+                    syncStatus =
+                        "SYNCED"
+                )
+            )
+
+        database
+            .animalPurchaseDao()
+            .insertPurchase(
+                AnimalPurchaseEntity(
+                    animalId =
+                        animalId,
+                    purchasePrice =
+                        0.0,
+                    purchaseDate =
+                        NOW,
+                    sellerName =
+                        "DAY7 Supplier",
+                    recordGuid =
+                        recordGuid
+                )
+            )
+    }
+
+
+    private suspend fun insertLocationFeedWithCost(
+        animalId: String,
+        movementGuid: String,
+        costGuid: String
+    ) {
+
+        database
+            .animalDao()
+            .insert(
+                testAnimal(
+                    animalId =
+                        animalId,
+                    syncStatus =
+                        "SYNCED"
+                )
+            )
+
+        database
+            .animalMovementDao()
+            .insert(
+                AnimalMovementEntity(
+                    movementId =
+                        "$movementGuid-ID",
+                    animalId =
+                        animalId,
+                    destinationFarmId =
+                        "DAY7-FARM",
+                    destinationPenId =
+                        "",
+                    movementDate =
+                        NOW,
+                    feedLocationType =
+                        "DAY7-RATION",
+                    recordGuid =
+                        movementGuid,
+                    deviceId =
+                        "DAY7-DEVICE",
+                    capturedAt =
+                        NOW,
+                    syncStatus =
+                        "PENDING",
+                    syncedAt =
+                        null
+                )
+            )
+
+        database
+            .costTypeDao()
+            .insertAll(
+                listOf(
+                    CostType(
+                        code = "FEED",
+                        displayName = "Feed",
+                        sortOrder = 1
+                    )
+                )
+            )
+
+        database
+            .animalCostDao()
+            .insert(
+                AnimalCost(
+                    animalId =
+                        animalId,
+                    costType =
+                        "FEED",
+                    amount =
+                        50.0,
+                    gpsLat =
+                        0.0,
+                    gpsLng =
+                        0.0,
+                    timestamp =
+                        NOW,
+                    sourceEntity =
+                        SyncSecurityDao
+                            .ENTITY_LOCATION_FEED,
+                    sourceRecordId =
+                        movementGuid,
+                    recordGuid =
+                        costGuid,
+                    syncStatus =
+                        "PENDING"
+                )
+            )
+    }
 
 
     // ========================================================
