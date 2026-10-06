@@ -5,8 +5,10 @@ be checked when it can be prioritised. They were collected while planning R6
 (ownership, place and movements) and are deliberately **out of scope** for R6. R6 is
 complete without them.
 
-When you pick one up, turn it into a work package in `Instructions.md` with acceptance
-criteria. Then mark it here with the PR that resolves it. Don't delete entries.
+Don't delete entries, and never reuse or change a number. When an entry is resolved or no
+longer applies, move it to the Archive at the end as a one-liner with its number and the PR
+or reason. Entries that describe intended behaviour rather than a task are under "By design".
+Last revised 2026-10-06 against `main` @ `78550dc`.
 
 ## Already tracked elsewhere
 
@@ -14,13 +16,15 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
    different single test each run (`TreatmentRoutesTest`, `CalfRegistrationRoutesTest`).
    The likely cause is state shared between tests. Until it's fixed, any PR's unit-test
    job can go red at random.
-   **Resolved** on branch `feature/backend-flaky-tests` (2026-10-02). Cause: repositories opened
-   Exposed transactions without naming a database. Exposed caches the default database per
-   thread, so a reused `Dispatchers.IO` thread could still point at an earlier test's temp
-   database. Every transaction now passes `DatabaseFactory.getDatabase()` explicitly.
+   **Update (2026-10-06):** PR #69 (`feature/backend-flaky-tests`) fixed one cause:
+   repositories opened Exposed transactions without naming a database, and Exposed caches the
+   default database per thread, so a reused `Dispatchers.IO` thread could still point at an
+   earlier test's temp database. Every transaction now passes `DatabaseFactory.getDatabase()`.
+   The suite was still reported flaky on 2026-10-04, so this stays open.
 2. **Make both CI jobs required checks (N4 follow-up).** The jobs are "Unit tests" and
    "Database migration tests (emulator)". R4 (PR #54) merged with the emulator job red,
-   because neither job is required on `main`.
+   because neither job is required on `main`. Still true on 2026-10-06: `main` has no
+   branch protection.
 3. **Backend `animals` table and FKs (R5.4).** Add the table, then FKs from the backend's
    animal-reference columns (`calf_registrations.animal_uuid`, `treatments.animal_id`,
    `animal_movements.animal_id`, …). Once R6 lands, the backend half of R5.3 (movement
@@ -47,8 +51,11 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
    package.
 9. **Merge spelling variants of suppliers and rations.** R6 deduplicates on the
    normalised name only, so near-duplicates stay separate.
-10. **Purchase price field.** After R6 the app stores NULL instead of an invented `0.0`,
-    but the supplier screen still has no price input.
+10. **Purchase price is an invented `0.0`.** The supplier screen has no price input.
+    `AnimalPurchaseEntity.purchasePrice` is a non-null `Double`, and since PR #95
+    `SupplierViewModel` creates purchases with `purchasePrice = 0.0`, which the traceability
+    outbox uploads. That is the invented value the rules forbid. Make the column nullable
+    (a Room migration) and store NULL, or add a price input.
 11. **Ration cost into `animal_costs`** (the `FEED` cost type). This is deliberately left
     out until the cost's currency and basis are defined (per head, per day, or total).
 12. **Backend `vatNumber` → `taxNumber`.** Once R6 lands, the app's column is
@@ -70,7 +77,10 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     to 0,0: the invented value the rules forbid. Either capture real GPS or make the
     columns nullable.
 17. **DAO access sweep.** Check the feature modules for view models that call DAOs
-    directly instead of going through a repository in `:android:database`.
+    directly instead of going through a repository in `:android:database`. Known cases
+    (PR #95): `SupplierViewModel` and `LocationFeedViewModel` build a
+    `PendingSyncRepository(database.pendingSyncDao())` inline and queue sync rows
+    themselves.
 
 ## Ongoing
 
@@ -79,15 +89,8 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     maintainer once field deployment starts. From then on, no merged migration may be
     edited.
 
-## Found during role and site foundation (Manager & Admin, Phase 1)
+## Found during role and site foundation and Phase 3 (Manager & Admin)
 
-19. **RESOLVED (Phase 2, PR #73): the stub route was removed.** Original note: **`POST /api/auth/register` is a stub.** `AuthService.register` returns `true` and
-    creates nothing. It is not a privilege-escalation risk today, but lock it down
-    (admin-only with `requireRole`) or remove it in Phase 2, when user management lands.
-20. **RESOLVED (Phase 3, sync gaps, PR #75): Feed Crib is stored in `feed_crib_readings`.** Original note: **Feed Crib is not persisted on the backend.** `FeedCribService` keeps readings in
-    memory, so they are lost on restart. The submitter and site are stamped on the
-    in-memory record and `GET /api/feed-crib` is scoped by them, but the data needs a
-    table before the Dashboard can rely on it.
 21. **Records from before the deploy have `site_id = NULL`.** `submitted_by_user_id` and
     `site_id` are not backfilled on `calf_registrations`, `animal_movements`,
     `treatments` and `farmers`. A manager's site filter never matches them, and workers
@@ -97,35 +100,11 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     reference data. `POST /api/calf-registrations/{tagNumber}/media` and
     `GET /api/calf-registrations/{tagNumber}/certificate` are reached by tag and do not
     check the caller's scope. Revisit these when the records review lands (Phase 3). **Update (Phase 4c):** these routes now go through the same database token check as every other route (a deactivated user or revoked phone is rejected), but they are still not scoped by site.
-23. **RESOLVED (Phase 3, sync gaps, PR #75): `GET /api/animal-movements` and `/{animalId}` are scoped.** Original note: **Animal movements have no `GET` list.** Movements are stamped with the submitter
-    and site on sync, but nothing reads them back yet, so there is nothing to scope.
-24. **RESOLVED (Phase 4c, `feature/admin-revocation-devices`): tokens are checked against the database on every request.** Original note: **Tokens issued before the deploy have no `site_id` claim.** They stay valid for up
-    to 24 h. A manager on such a token sees no site-scoped records until they log in
-    again.
-25. **RESOLVED (Phase 4c, `feature/admin-revocation-devices`): deactivating a user, unbinding their phone or resetting their PIN ends their tokens at once.** Original note: **Deactivated users keep working tokens on non-admin routes.** `users.active` is checked at
-    login and on every `/api/users` call (the caller is re-read from the DB), but the sync and
-    record routes only validate the JWT. A deactivated worker can still sync for up to 24 h
-    from a token issued before deactivation. Fix with a short token lifetime or an `active`
-    check in `requireAuthPrincipal` (Phase 4's revoke list is the natural home).
-26. **RESOLVED (Phase 4c, `feature/admin-revocation-devices`): a PIN reset (and `POST /api/users/{id}/unlock-login`) clears the login lockout, which is now stored in the database.** Original note: **A PIN reset does not clear the login lockout.** `AuthService.loginAttempts` is an
-    in-memory map, so a worker locked out for 5 minutes stays locked after a manager resets
-    their PIN.
-27. **RESOLVED (Phase 4b, `feature/admin-sites`): the Add user dialog has a site picker.** Sites come from `GET /api/sites` (active sites only), and the server still rejects unknown ones. Original note: **Admins type a site ID by hand in the Team tab.** There is no sites endpoint until Phase 4, so
-    the "Add user" dialog takes a free-text site ID and the backend rejects unknown ones
-    ("Unknown site"). Replace it with a site picker when Sites CRUD lands.
-28. **RESOLVED (Phase 3, dashboard summary, PR #74): the Dashboard tab now loads `GET /api/dashboard/summary`.** Original note: **Dashboard tab is a placeholder.** It shows static text until Phase 3 adds
-    `GET /api/dashboard/summary`.
-29. **RESOLVED (Phase 3, dashboard additions, `feature/dashboard-more`): the summary now includes mortalities, movements, costs and feed readings.** Original note: **The dashboard covers only what the backend stores.** It counts calves, treatments, farmers,
-    workers and stale syncs. Mortalities, costs, movements and feed are missing because the backend
-    has no sync path or table for them (movements have no `GET`, Feed Crib is in memory). Add each
-    to the summary once its sync path exists.
 30. **Farmer "recent" uses `synced_at`.** Farmers carry no capture time, so "last 7 days" means
     when the record reached the server, not when it was captured.
 31. **Dashboard stale-sync alerts use `users.device_last_sync`, which login sets.** It moves on login,
     not on every sync, so a worker who stays logged in and syncs can still look stale. Stamp it from
     the sync routes if the alert proves noisy. **Update (Phase 4c):** any authenticated request now refreshes it (at most every 15 minutes), so it means "last contact", not "last sync" or "last login".
-32. **RESOLVED (Phase 4b, `feature/admin-sites`): admins get an "All sites" / per-site switch on the Dashboard.** An unknown `siteId` is now a 400. Original note: **The dashboard has no site switch for admins in the app.** The endpoint takes `siteId`, but the
-    app always asks for all sites. Add the switch with Sites CRUD in Phase 4.
 33. **Feed Crib `POST` is not idempotent.** `FeedCribRequest` has no record GUID, so a retried request
     inserts a duplicate reading. The app does not post Feed Crib at all yet (`:android:feed-crib` is
     UI only, in memory), so nothing is duplicated today. Add a `recordguid` and an upsert when the
@@ -134,11 +113,6 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     list, and a Save button that only shows a toast), so there is nothing on the device to sync. Leave Feed Crib
     sync until the Feed Crib team has implemented the feature properly; then do the GUID, upsert, Room table,
     worker and Day-7 wipe entry together.
-34. **RESOLVED (cost sync, PR #79): costs now sync.** Backend
-    `animal_costs` table and `POST /api/costs/sync`, scoped `GET /api/costs` and `/{animalId}`; Android
-    `CostApiClient`, `CostRepository`, `CostSyncWorker`, Room v35 (`animal_costs.sync_status`, `synced_at`,
-    `MIGRATION_34_35`), and `ANIMAL_COST` in the Day-7 wipe. Original note: **Costs still have no sync path;
-    mortalities now do (PR #77).**
 35. **Legacy mortalities belong to whoever syncs first.** Mortalities recorded before v34 were never
     queued (the queue is user-scoped and they have no owner). `MortalityRepository.syncPending` queues
     them for the signed-in user, so on a shared device the first user to sync owns them on the server.
@@ -153,15 +127,6 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     is saved, so they upload on the next cost sync (scheduled, or Retry Sync).
 38. **Costs recorded before v35 belong to whoever syncs first, and their Day-7 clock starts when queued.**
     Same behaviour as #35 and #36, for `animal_costs`.
-39. **RESOLVED (`feature/pr78-cleanup`): (a)–(c) fixed; (d) was fixed in PR #79.** The hard-coded repair and diagnostic blocks are removed from `MainActivity`, `AuthRepository` now gets `pendingSyncDao` (with tests for changed, unchanged and first-login IDs), and the unused `worker/FarmerSyncScheduler` and `FarmerMappers.kt` are deleted. Queues stuck on the old `113e7515-…` ID now move at the next online login of the same username. Original note: **PR #78 left problems on `main`.** (a) `MainActivity` runs hard-coded dev repair and diagnostic blocks
-    on every launch (`BEEFTECH_TEST22_LEGACY_QUEUE_REPAIR`, `BEEFTECH_QUEUE_DIAGNOSTIC`,
-    `BEEFTECH_TEST21_OWNER_REPAIR`) that reassign queued rows to the signed-in user, breaking the
-    `pending_sync.user_id` ownership boundary. (b) `AuthRepository`'s identity reconciliation takes an
-    optional `pendingSyncDao` that `MainActivity` never passes, so it never runs, and it is untested.
-    (c) There are two `FarmerSyncScheduler` objects and `FarmerMappers.kt` is unused. (d) The new
-    `PendingSyncDao` methods broke the `PendingSyncDao` fakes in `:android:farm-traceability` and
-    `:android:calf-registration` unit tests, so those modules did not compile their tests on `main`; fixed in
-    the cost sync PR.
 40. **A voided record stays on the device and the device is not told.** Void is server-side only
     (corrections are void-only, so there is no server-to-device pull path yet). The worker's phone keeps
     showing the record as synced, and a retried sync still reports `SYNCED` without bringing the record back.
@@ -182,7 +147,7 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     filter. The screen asks for the default 100. Add paging and a worker filter when a site has more.
 45. **The records review screen has not been run on a device.** It is covered by view model tests and the
     backend tests only. Check the Records tab, the Void dialog and the voided state on an emulator against a
-    local backend (patch both `DEFAULT_BASE_URL`s, see the handoff notes).
+    local backend (a debug build points at it through `BackendConfig` since PR #94).
 
 ## Found during the Admin tab, Phase 4a (audit log)
 
@@ -195,9 +160,10 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
 48. **The audit log grows forever and has no search.** `GET /api/audit-log` filters by action, entity,
     actor, site and time, and pages by `before=<id>`, but there is no free-text search and nothing is pruned.
     The Android screen filters only by action and time range (24 hours, 7 days, 30 days, all).
-49. **The audit log screens have not been run on a device.** The Admin tab, the manager's Team "Activity"
-    section and the audit log screen are covered by view model, backend and tab tests only. Check them on an
-    emulator against a local backend (patch both `DEFAULT_BASE_URL`s, see the handoff notes).
+49. **The manager's Team "Activity" section has not been run on a device.** The admin's Audit log screen passed
+    the device pass (see 87). The manager's read-only view is covered by view model, backend and tab tests only.
+    Check it on an emulator against a local backend (a debug build points at it through `BackendConfig` since
+    PR #94).
 
 ## Found during the Admin tab, Phase 4b (sites)
 
@@ -205,13 +171,8 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     to it (and a site with active users can't be deactivated). Workers already on it keep signing in and
     syncing, and their records are stamped with its id as before. There is no delete: users and records
     point at a site by id.
-51. **Site ids are server-generated (`site-<8 hex>`), and a site's name is not a key.** Rename is safe; an
-    id can't be changed. The dev seed site `dev-site-1` keeps its hand-written id.
 52. **Managers see only their own site in `GET /api/sites`.** The Team tab's picker is for admins, so
     managers don't load sites and still see a raw site id on member cards.
-53. **The Dashboard now reads the caller's role and site from the database, not the token.** A manager who
-    is moved, demoted or deactivated sees it on the next request (4c extends this to every route). Records
-    and the site picker have not been run on a device.
 
 ## Found during the Admin tab, Phase 4c (revocation, devices, login security)
 
@@ -226,13 +187,6 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
 57. **A revoked phone that isn't reinstated hits the Day-7 wipe.** Revoking blocks sign-in and sync; the unsynced
     data on it can only upload after an admin reinstates the phone. Revoke only when the phone is lost, and
     reinstate promptly if the data matters.
-58. **The login lockout counter now starts again after a lock runs out.** Before, one wrong PIN after the
-    lock expired locked the user again at once (the count was never reset). Users now get a fresh five attempts.
-59. **Every authenticated request now reads the user and phone from the database.** One small SQLite
-    transaction per request; the `last_seen` / `device_last_sync` writes are throttled to every 15 minutes.
-    Tokens issued before `iat_ms` existed stay valid until they expire, unless that user has a cut-off set.
-60. **Role and site now come from the database on every route, not only the services.** A role or site change
-    takes effect on the next request without a new login.
 61. **A 401 only ever drops the session, never data (Phase 4c, Android).** Every sync client and the management
     client report a 401 to the token provider. A plain rejected token removes the server token, so workers wait
     (null token, `Result.retry()`) until the next online login. A body saying "Session revoked" or "Device
@@ -249,8 +203,9 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
 64. **The app sends the phone model and app version at login, and the server now ignores unknown JSON fields.**
     Fields are omitted when unknown, and the server ignores fields it doesn't know, so a mixed-version fleet can
     still sign in. The app version comes from the package's `versionName` (currently `1.0` for every build).
-65. **Devices, Login security and the manager's Phones view have not been run on a device.** They are covered by
-    view model and client tests only.
+65. **The manager's Phones view, and Team's unlock and PIN reset, have not been run on a device.** The admin's
+    Phones and Login security screens passed the device pass (see 87). The rest is covered by view model and
+    client tests only.
 
 ## Found during the Admin tab, Phase 4d (reference data)
 
@@ -274,33 +229,18 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
 71. **A failed live request with an empty cache is still an error.** Before the first pull, the Treatment
     screen asks the server directly, as before. There is no fallback to the local `diseases` table (it has no
     treatment types), so a brand-new phone with no signal still can't fill those two pickers.
-72. **Reference data admin is online-only and admin-only.** Managers and workers read the lists through the
-    phone cache. The Reference data screen, the check-in worker and the Treatment cache have not been run on a
-    device; the Room migration and cache queries have (`Migration35To36Test`, `ReferenceDataDaoTest`, and the
-    whole `:android:database` instrumented suite, 112 tests, on the emulator).
 
 ## Found during the Admin tab, Phase 4e (sync policy)
 
-73. **The wipe day is fixed at 7 in the app, by design.** An admin can move only the three warning days (each
-    from 1 to 6, strictly increasing) and the dashboard's stale-sync alert (12 to 336 hours). `GET /api/sync-policy`
-    reports `wipeDay: 7` for information; the app never reads it. `SyncWarningPolicy.WIPE_DAY` is a constant, the
-    enforcer decides the wipe from it before it reads any policy, and a policy that can't be read falls back to 2, 4, 6.
-    Instrumented tests prove no policy wipes before day 7 or later than day 7.
 74. **Old apps ignore the configured warning days.** They keep 2, 4 and 6 until they are updated. The Sync policy
     screen says so. The server-side stale-sync alert applies to everyone at once, because the dashboard is
     computed on the server.
 75. **A phone follows a new policy only after it next checks in.** The check-in runs when someone signs in and
     with the twice-daily batch job, and needs a connection and a server token. A phone that has been offline
     keeps its stored warning days (or 2, 4, 6 if it has never pulled). It never affects the wipe.
-76. **Warning events record the days in force at the time.** `sync_security_events` rows for earlier days stay as
-    they were when an admin later changes the policy. Events are still not uploaded to the server (4f). Resolved by 4f: see 79.
 77. **The stale-sync hours are measured from `users.device_last_sync`,** which is "last contact" since 4c (any
     authenticated request, refreshed at most every 15 minutes), so a worker who is signed in and only browsing
     counts as in contact.
-78. **The Sync policy screen and the pull have not been run on a device.** The wipe-safety rules have: the whole
-    `:android:database` instrumented suite ran on the emulator, including 7 new enforcer tests (custom days,
-    wipe at day 7 with every warning moved early or late, nothing wiped before day 7 under any policy, an
-    unreadable policy falling back to the default).
 
 ## Found during the Admin tab, Phase 4f (security events and locked accounts)
 
@@ -315,21 +255,12 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     token has expired, so the check-in runs right after the next online login (outside the Day-7 gate, so a
     locked account still triggers it). The locked screen has a "Check again" button, but it only helps once the
     check-in has finished; nothing polls.
-82. **Clearing a lock does not bring wiped data back,** and does not sign the user out. It sets
-    `users.sync_lock_cleared_at`. The phone lifts its lock only if that is later than when it locked, so an old
-    clearance can't undo a newer lock. The "Locked accounts" list uses the same rule on the server.
 83. **The locked-accounts list is built from reported events,** not from the phones. A phone that locked while
     offline is not listed until it uploads, and an account the phone has already unlocked still shows until the
     admin clears it (the phone does not report an unlock).
 84. **`sync_security_events` on the server grows forever** and is never pruned. Duplicates are ignored by
     (`device_id`, `event_key`); a device id that changes (it is client-supplied and spoofable, see 4c) uploads the
     same events again under the new id.
-85. **Only admins read security events and locked accounts;** managers are left out on purpose, as with login
-    events. The site on each event comes from the user's current site, so moving a user later does not rewrite
-    old rows.
-86. **The Sync security screen, the upload and the remote unlock have not been run on a device.** Covered by
-    backend route tests, view-model and sync unit tests, and on the emulator by `Migration36To37Test` and
-    `SyncSecurityUploadDaoTest` (the whole `:android:database` instrumented suite, 125 tests, passed).
 
 ## Found during Phase 5 (reports and export)
 
@@ -352,4 +283,77 @@ criteria. Then mark it here with the PR that resolves it. Don't delete entries.
     device: the manager's view (the emulator was bound to `admin`; covered by `ReportRoutesTest`), a site switch
     in the UI, the other three reports, and opening the shared file in a viewer.
 
-92. **RESOLVED (fix/day7-wipe-traceability-types): the Day-7 wipe now handles `ANIMAL_PURCHASE` and `LOCATION_FEED`.** Original note: after PR #95 the traceability outbox queued these two `pending_sync` types, but `SyncSecurityDao.enforceDay7` threw on them and rolled the whole wipe back, so a user holding one past day 7 never locked. `LOCATION_FEED` deletes the unsynced `animal_movements` row. `ANIMAL_PURCHASE` deletes the `animal_purchases` row by `record_guid`. **Caveat:** `animal_purchases` has no `sync_status`, so the queue row is the only marker, and a purchase that was edited after it synced loses its local copy (the server keeps it). Adding `sync_status` (a Room migration) would make this exact. `OutboxWipeCoverageTest` now fails the build if the outbox gains a type the wipe can't handle.
+## Found after PR #95 (traceability outbox, Room v38)
+
+93. **Mortalities and costs have two uploaders.** `MortalitySyncWorker` / `CostSyncWorker` (run by
+    `ScheduledBatchSyncWorker`) upload `MORTALITY` and `ANIMAL_COST` queue rows to `/api/mortalities/sync` and
+    `/api/costs/sync`. `TraceabilityOutboxWorker` uploads the same rows to `/api/traceability-events/sync`. When
+    the outbox gets there first, it deletes the queue row but leaves the record `PENDING`, so
+    `queueUnqueuedMortalities()` / `queueUnqueuedCosts()` queue it again and the dedicated worker uploads it a
+    second time. No data is lost and nothing is duplicated within a table (both routes upsert by GUID), but every
+    such record is uploaded twice, reaches the dashboard one batch run late, and leaves a copy in
+    `TraceabilityEventTable` that nothing reads (voids don't touch it). "My activity" counts briefly drop while
+    the record has no queue row. Suggested fix: remove both types from
+    `TraceabilityOutboxWorker.SUPPORTED_ENTITY_TYPES`.
+94. **There is no `Migration37To38Test`.** `MIGRATION_37_38` (PR #95) is PRAGMA-guarded and registered with
+    `guarded(...)`, and `38.json` is committed, but nothing tests that a v37 database with mortalities, costs and
+    purchases survives it, or that a second run is a no-op. The emulator CI job passes because nothing exercises
+    37 → 38.
+95. **`animal_purchases` has no `sync_status`.** The queue row is the only marker of an unsynced purchase, so the
+    Day-7 wipe (#92) deletes a purchase that was edited after it synced (the server keeps it). A `sync_status`
+    column (Room v39) would make the wipe exact.
+
+## By design (no action, kept for reference)
+
+51. **Site ids are server-generated (`site-<8 hex>`), and a site's name is not a key.** Rename is safe; an
+    id can't be changed. The dev seed site `dev-site-1` keeps its hand-written id.
+53. **The Dashboard reads the caller's role and site from the database, not the token.** A manager who is moved,
+    demoted or deactivated sees it on the next request (4c extends this to every route).
+58. **The login lockout counter starts again after a lock runs out.** Users get a fresh five attempts.
+59. **Every authenticated request reads the user and phone from the database.** One small SQLite transaction per
+    request; the `last_seen` / `device_last_sync` writes are throttled to every 15 minutes. Tokens issued before
+    `iat_ms` existed stay valid until they expire, unless that user has a cut-off set.
+60. **Role and site come from the database on every route.** A role or site change takes effect on the next
+    request without a new login.
+72. **Reference data admin is online-only and admin-only.** Managers and workers read the lists through the phone
+    cache. The Reference data screen passed the device pass (see 87).
+73. **The wipe day is fixed at 7 in the app.** An admin can move only the three warning days (each from 1 to 6,
+    strictly increasing) and the dashboard's stale-sync alert (12 to 336 hours). `GET /api/sync-policy` reports
+    `wipeDay: 7` for information; the app never reads it. `SyncWarningPolicy.WIPE_DAY` is a constant, the enforcer
+    decides the wipe from it before it reads any policy, and a policy that can't be read falls back to 2, 4, 6.
+    Instrumented tests prove no policy wipes before day 7 or later than day 7.
+82. **Clearing a lock does not bring wiped data back,** and does not sign the user out. It sets
+    `users.sync_lock_cleared_at`. The phone lifts its lock only if that is later than when it locked, so an old
+    clearance can't undo a newer lock. The "Locked accounts" list uses the same rule on the server.
+85. **Only admins read security events and locked accounts;** managers are left out on purpose, as with login
+    events. The site on each event comes from the user's current site, so moving a user later does not rewrite
+    old rows.
+
+## Archive (resolved or obsolete)
+
+19. `POST /api/auth/register` was a stub. Resolved by PR #73 (route removed).
+20. Feed Crib was not persisted on the backend. Resolved by PR #75 (`feed_crib_readings`).
+23. Animal movements had no `GET` list. Resolved by PR #75 (scoped `GET /api/animal-movements` and `/{animalId}`).
+24. Tokens issued before the deploy had no `site_id` claim. Resolved by Phase 4c (PR #90): tokens are checked against the database on every request.
+25. Deactivated users kept working tokens on non-admin routes. Resolved by Phase 4c (PR #90): deactivate, unbind and PIN reset end tokens at once.
+26. A PIN reset did not clear the login lockout. Resolved by Phase 4c (PR #90): the lockout is stored in the database and cleared by a PIN reset or `unlock-login`.
+27. Admins typed a site id by hand in the Team tab. Resolved by Phase 4b (PR #90): site picker.
+28. The Dashboard tab was a placeholder. Resolved by PR #74.
+29. The dashboard covered only what the backend stored. Resolved by PR #82 (mortalities, movements, costs and feed added).
+32. The dashboard had no site switch for admins. Resolved by Phase 4b (PR #90).
+34. Costs had no sync path. Resolved by PR #79.
+39. PR #78 left dev repair code, unwired reconciliation, a duplicate scheduler and broken fakes on `main`. Resolved by PR #83 (a–c) and PR #79 (d).
+76. Warning events were not uploaded to the server. Resolved by Phase 4f (PR #90); see 79.
+78. The Sync policy screen and the pull had not been run on a device. Resolved by the device pass (see 87).
+86. The Sync security screen, the upload and the remote unlock had not been run on a device. Resolved by the device pass (see 87).
+87. **Record of the Admin-tab device pass, 2026-10-04** (emulator `Medium_Phone`, API 24, local backend with dev
+    users, PR #90). Restored on 2026-10-06 from commit `a54f832`, which only existed on the closed
+    `feature/admin-tab` branch. Passed: every Admin screen loaded real data (Sites, Phones, Login security,
+    Reference data, Sync policy, Sync security, Audit log); the v36 → v37 upgrade over a live install; the Day-7
+    flow (lock, event upload, server listing the account as locked, admin clear, phone unlocked and still
+    unlocked after a restart); and the admin writes (site add, the active-users guard, sync policy, disease add
+    and switch-off, block and unblock a phone, each with audit rows). Not covered: revoking the emulator's own
+    phone (see 61), the cost-type picker (see 69), the manager's read-only views and Team's unlock and PIN reset
+    (see 49, 65), and the Day-7 timing itself (the record was aged by a temporary code change; covered by the
+    instrumented enforcer tests).
+92. The Day-7 wipe threw on `ANIMAL_PURCHASE` and `LOCATION_FEED` queue rows. Resolved by PR #96 (`OutboxWipeCoverageTest` guards new outbox types; the remaining caveat is 95).
