@@ -55,6 +55,7 @@ class FakeSyncSecurityDao : SyncSecurityDao() {
     override suspend fun deleteUnsyncedMovement(recordGuid: String) = unused()
     override suspend fun deleteUnsyncedMortality(recordGuid: String) = unused()
     override suspend fun deleteUnsyncedCost(recordGuid: String) = unused()
+    override suspend fun deleteQueuedPurchase(recordGuid: String) = unused()
     override suspend fun unsyncedTreatmentExists(recordGuid: String) = unused()
     override suspend fun deleteTreatmentDerivedCost(recordGuid: String) = unused()
     override suspend fun deleteUnsyncedTreatment(recordGuid: String) = unused()
