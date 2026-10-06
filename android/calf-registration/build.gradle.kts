@@ -26,6 +26,13 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    testOptions {
+        unitTests {
+            // CalfRegistrationRepository logs through android.util.Log, which throws in JVM tests.
+            isReturnDefaultValues = true
+        }
+    }
 }
 
 dependencies {
