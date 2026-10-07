@@ -18,12 +18,15 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    val debugKeystore = file("${rootDir}/debug.keystore")
     signingConfigs {
-        create("debugConfig") {
-            storeFile = file("${rootDir}/debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
+        if (debugKeystore.exists()) {
+            create("debugConfig") {
+                storeFile = debugKeystore
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
         }
     }
 
@@ -34,7 +37,9 @@ android {
          * it at the hosted server to test against that. Release always uses the hosted backend.
          */
         debug {
-            signingConfig = signingConfigs.getByName("debugConfig")
+            if (debugKeystore.exists()) {
+                signingConfig = signingConfigs.getByName("debugConfig")
+            }
             buildConfigField(
                 "String",
                 "BACKEND_BASE_URL",
