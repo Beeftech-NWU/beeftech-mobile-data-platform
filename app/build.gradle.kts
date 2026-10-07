@@ -9,7 +9,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.aistudio.beeftech.vbtqxm"
+        applicationId = "com.beeftech.demoapp"
         minSdk = 24
         targetSdk = 35
         versionCode = 1
