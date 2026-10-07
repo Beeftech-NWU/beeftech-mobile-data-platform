@@ -173,6 +173,15 @@ class PendingSyncRepository(
     fun observeOldestPendingAt(userId: String): Flow<Long?> =
         pendingSyncDao.observeOldestPendingCreatedAtForUser(userId)
 
+    fun observeFailedCount(
+        userId: String,
+        retryLimit: Int = DEFAULT_MAX_RETRIES
+    ): Flow<Int> =
+        pendingSyncDao.observeRetryLimitCountForUser(
+            userId = userId,
+            retryLimit = retryLimit
+        )
+
     suspend fun getPendingCount():
             Int {
 

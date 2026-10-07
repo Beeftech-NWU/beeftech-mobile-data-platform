@@ -668,7 +668,7 @@ fun TraceabilityPrimaryButton(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .height(52.dp),
+            .height(56.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = BeeftechPrimaryDeep,
             contentColor = BeeftechWhite
@@ -701,7 +701,7 @@ fun TraceabilitySecondaryButton(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .height(50.dp),
+            .height(56.dp),
         shape = RoundedCornerShape(11.dp),
         colors = ButtonDefaults.outlinedButtonColors(
             contentColor = BeeftechPrimaryDeep

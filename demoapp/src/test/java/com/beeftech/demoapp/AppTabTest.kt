@@ -3,45 +3,53 @@ package com.beeftech.demoapp
 import com.beeftech.authentication.domain.Role
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AppTabTest {
 
-    private val captureTabs =
-        listOf(AppTab.TRACEABILITY, AppTab.CALF_REGISTRATION, AppTab.FEED_CRIB)
+    private val bottomTabs =
+        listOf(
+            AppTab.HOME,
+            AppTab.CALF_REGISTRATION,
+            AppTab.TRACEABILITY,
+            AppTab.FEED_CRIB,
+            AppTab.MORE
+        )
 
     @Test
-    fun `workers and unknown roles get only the three capture tabs`() {
-        assertEquals(captureTabs, tabsFor(Role.WORKER))
-        assertEquals(captureTabs, tabsFor(null))
+    fun `every role gets the same five primary destinations`() {
+        assertEquals(bottomTabs, tabsFor(Role.WORKER))
+        assertEquals(bottomTabs, tabsFor(Role.MANAGER))
+        assertEquals(bottomTabs, tabsFor(Role.ADMIN))
+        assertEquals(bottomTabs, tabsFor(null))
     }
 
     @Test
-    fun `managers get Dashboard, Reports, Records and Team after the capture tabs`() {
+    fun `worker management tools stay under More and remain hidden`() {
+        assertTrue(moreTabsFor(Role.WORKER).isEmpty())
+        assertTrue(moreTabsFor(null).isEmpty())
+    }
+
+    @Test
+    fun `manager gets management destinations under More`() {
         assertEquals(
-            captureTabs + listOf(AppTab.DASHBOARD, AppTab.REPORTS, AppTab.RECORDS, AppTab.TEAM),
-            tabsFor(Role.MANAGER)
+            listOf(AppTab.DASHBOARD, AppTab.REPORTS, AppTab.RECORDS, AppTab.TEAM),
+            moreTabsFor(Role.MANAGER)
         )
     }
 
     @Test
-    fun `admins get everything a manager has plus Admin, and nobody else gets Admin`() {
-        assertEquals(tabsFor(Role.MANAGER) + AppTab.ADMIN, tabsFor(Role.ADMIN))
-        assertFalse(AppTab.ADMIN in tabsFor(Role.MANAGER))
-        assertFalse(AppTab.ADMIN in tabsFor(Role.WORKER))
-        assertFalse(AppTab.ADMIN in tabsFor(null))
+    fun `admin gets manager destinations plus Admin`() {
+        assertEquals(moreTabsFor(Role.MANAGER) + AppTab.ADMIN, moreTabsFor(Role.ADMIN))
+        assertFalse(AppTab.ADMIN in moreTabsFor(Role.MANAGER))
     }
 
     @Test
-    fun `labels match what the tab row showed before`() {
+    fun `bottom labels stay short enough for five item navigation`() {
         assertEquals(
-            listOf("Farm Traceability", "Calf Registration", "Feed Crib"),
+            listOf("Home", "Calves", "Traceability", "Feed", "More"),
             tabsFor(Role.WORKER).map { it.label }
         )
-        assertEquals(
-            listOf("Dashboard", "Reports", "Records", "Team"),
-            tabsFor(Role.MANAGER).drop(3).map { it.label }
-        )
-        assertEquals("Admin", tabsFor(Role.ADMIN).last().label)
     }
 }

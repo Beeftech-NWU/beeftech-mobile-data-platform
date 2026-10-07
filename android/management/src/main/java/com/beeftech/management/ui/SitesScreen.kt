@@ -108,7 +108,7 @@ fun SitesScreen(
         if (state.loading && state.sites.isEmpty()) {
             CircularProgressIndicator()
         } else if (state.sites.isEmpty() && !state.needsConnection && state.error == null) {
-            Text("No sites yet.")
+            Text("No sites yet. Create a site before assigning managers and workers.")
         }
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {

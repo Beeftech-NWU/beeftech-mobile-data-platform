@@ -217,7 +217,7 @@ fun CribDetailScreen(
             }
         } else {
             Text(
-                "No readings yet",
+                "No readings yet. New feed readings will appear here.",
                 color = FeedCribColors.MutedText,
                 fontSize = 11.sp,
                 modifier = Modifier.padding(vertical = 8.dp)

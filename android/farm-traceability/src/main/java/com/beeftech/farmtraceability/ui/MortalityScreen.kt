@@ -163,7 +163,7 @@ fun MortalityScreen(
             if (mortalityRecords.isEmpty()) {
                 TraceabilityCard {
                     Text(
-                        text = "No mortality records found.",
+                        text = "No mortality records. Mortality events recorded for this animal will appear here.",
                         color = BeeftechMutedText
                     )
                 }

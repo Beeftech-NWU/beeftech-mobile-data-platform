@@ -3,6 +3,7 @@ package com.beeftech.management.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,6 +17,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.PhoneAndroid
+import androidx.compose.material3.Icon
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -49,6 +54,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import java.text.DateFormat
+import java.util.Date
 import com.beeftech.management.data.ManagementApiClient
 import com.beeftech.management.data.Site
 import com.beeftech.management.data.TeamMember
@@ -842,7 +849,7 @@ fun TeamScreen(
 
 
                         Text(
-                            "Loading team?"
+                            "Loading team..."
                         )
                     }
                 }
@@ -973,6 +980,12 @@ fun TeamScreen(
 }
 
 
+private fun formatMemberSync(timestamp: Long): String =
+    DateFormat
+        .getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
+        .format(Date(timestamp))
+
+
 @Composable
 private fun MessageCard(
     message: String,
@@ -1049,80 +1062,53 @@ private fun MemberCard(
         ) {
 
             Row(
-                modifier =
-                    Modifier.fillMaxWidth(),
-                horizontalArrangement =
-                    Arrangement.SpaceBetween,
-                verticalAlignment =
-                    Alignment.CenterVertically
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
 
-                Column(
-                    modifier =
-                        Modifier.weight(
-                            1f
-                        )
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFFE7F0FA)
                 ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Person,
+                        contentDescription = null,
+                        tint = Color(0xFF2F6FAE),
+                        modifier = Modifier.padding(10.dp).size(25.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.size(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
 
                     Text(
                         text =
                             member.username +
-                                if (
-                                    isSelf
-                                ) {
-
-                                    "  ?  You"
-
-                                } else {
-
-                                    ""
-                                },
-                        style =
-                            MaterialTheme
-                                .typography
-                                .titleMedium,
-                        fontWeight =
-                            FontWeight.SemiBold
+                                if (isSelf) "  ·  You" else "",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
                     )
 
+                    Text(
+                        text = buildString {
+                            append(roleLabel(member.role))
+                            val site = siteName ?: member.siteId
+                            if (!site.isNullOrBlank()) append("  ·  $site")
+                        },
+                        style = MaterialTheme.typography.bodySmall
+                    )
 
                     Text(
-                        text =
-                            buildString {
-
-                                append(
-                                    roleLabel(
-                                        member.role
-                                    )
-                                )
-
-
-                                val site =
-                                    siteName
-                                        ?: member.siteId
-
-
-                                if (
-                                    !site.isNullOrBlank()
-                                ) {
-
-                                    append(
-                                        "  ?  $site"
-                                    )
-                                }
-                            },
-                        style =
-                            MaterialTheme
-                                .typography
-                                .bodySmall
+                        text = member.deviceLastSync
+                            ?.let { "Last sync: ${formatMemberSync(it)}" }
+                            ?: "Last sync: not available",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TeamAccent
                     )
                 }
 
-
-                StatusBadge(
-                    active =
-                        member.active
-                )
+                StatusBadge(active = member.active)
             }
 
 
@@ -1144,35 +1130,19 @@ private fun MemberCard(
                     Alignment.CenterVertically
             ) {
 
-                Column {
-
-                    Text(
-                        text =
-                            "DEVICE",
-                        style =
-                            MaterialTheme
-                                .typography
-                                .labelSmall,
-                        color =
-                            TeamAccent
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.PhoneAndroid,
+                        contentDescription = null,
+                        tint = if (member.deviceAssignedId != null) TeamSuccess else TeamAccent,
+                        modifier = Modifier.size(18.dp)
                     )
-
-
                     Text(
-                        text =
-                            if (
-                                member.deviceAssignedId !=
-                                null
-                            ) {
-
-                                "Phone linked"
-
-                            } else {
-
-                                "No phone linked"
-                            },
-                        fontWeight =
-                            FontWeight.Medium
+                        text = if (member.deviceAssignedId != null) "Phone linked" else "No phone linked",
+                        fontWeight = FontWeight.Medium
                     )
                 }
 

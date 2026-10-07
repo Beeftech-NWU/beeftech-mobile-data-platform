@@ -98,7 +98,7 @@ fun CalvesRegisteredScreen(
             if (filteredCalves.isEmpty()) {
                 CalfCard {
                     Text(
-                        text = if (registeredCalves.isEmpty()) "No calves registered yet"
+                        text = if (registeredCalves.isEmpty()) "No calves registered yet. Tap Register new calf to capture the first animal."
                         else "No calves found matching '$searchQuery'",
                         fontSize = 13.sp,
                         color = BeeftechMutedText,

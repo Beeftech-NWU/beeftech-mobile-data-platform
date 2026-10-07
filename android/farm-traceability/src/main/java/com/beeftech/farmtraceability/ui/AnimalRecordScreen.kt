@@ -1,7 +1,10 @@
 package com.beeftech.farmtraceability.ui
 
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,27 +18,31 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.automirrored.outlined.Assignment
-import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Female
 import androidx.compose.material.icons.outlined.LocalShipping
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Medication
 import androidx.compose.material.icons.outlined.MonitorWeight
 import androidx.compose.material.icons.outlined.Payments
-import androidx.compose.material.icons.outlined.Pets
 import androidx.compose.material.icons.outlined.Route
-import androidx.compose.material.icons.outlined.Tag
+import androidx.compose.material.icons.outlined.Spa
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -46,10 +53,21 @@ fun AnimalRecordScreen(
     tagNumber: String = "",
     breed: String = "",
     gender: String = "",
+    photoPath: String = "",
+    birthDate: String = "",
+    age: String = "",
+    currentLocation: String = "",
+    supplierName: String = "",
+    status: String = "At Site",
     entryMass: String = "",
     lastMass: String = "",
     daysAtFacility: String = "",
     averageDailyGain: String = "",
+    movementCount: Int = 0,
+    feedCount: Int = 0,
+    treatmentCount: Int = 0,
+    mortalityCount: Int = 0,
+    costCount: Int = 0,
     onBackClick: () -> Unit = {},
     onSupplierClick: () -> Unit = {},
     onLocationFeedClick: () -> Unit = {},
@@ -64,12 +82,11 @@ fun AnimalRecordScreen(
             .background(BeeftechBackground)
             .verticalScroll(rememberScrollState())
     ) {
-
         TraceabilityHeader(
-            eyebrow = "FARM TRACEABILITY",
+            eyebrow = "BEEFTECH",
             title = "Animal Record",
-            subtitle = "View animal and linked traceability information",
-            icon = Icons.Outlined.Description,
+            subtitle = "Profile and linked traceability records",
+            icon = Icons.Outlined.Route,
             showBackButton = true,
             onBackClick = onBackClick
         )
@@ -77,182 +94,292 @@ fun AnimalRecordScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(18.dp)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-
-            // ---------------------------------------------------------
-            // ANIMAL IDENTITY
-            // ---------------------------------------------------------
-
-            TraceabilitySectionTitle(
-                title = "Animal Identity"
+            AnimalRecordProfileCard(
+                tagNumber = tagNumber,
+                breed = breed,
+                gender = gender,
+                photoPath = photoPath,
+                age = age,
+                lastMass = lastMass,
+                status = status
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            TraceabilityCard {
-
-                TraceabilityInfoRow(
-                    icon = Icons.Outlined.Tag,
-                    title = "Tag Reference",
-                    subtitle = tagNumber.ifBlank {
-                        "No animal selected"
-                    }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                AnimalInfoTile(
+                    icon = Icons.Outlined.CalendarMonth,
+                    label = "Birth Date",
+                    value = birthDate.ifBlank { "Unavailable" },
+                    modifier = Modifier.weight(1f)
                 )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                TraceabilityInfoRow(
-                    icon = Icons.Outlined.Pets,
-                    title = "Breed",
-                    subtitle = breed.ifBlank {
-                        "Breed information unavailable"
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                TraceabilityInfoRow(
-                    icon = Icons.Outlined.Female,
-                    title = "Gender",
-                    subtitle = gender.ifBlank {
-                        "Gender information unavailable"
-                    }
-                )
-            }
-
-            // ---------------------------------------------------------
-            // ANIMAL PERFORMANCE
-            // ---------------------------------------------------------
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            TraceabilitySectionTitle(
-                title = "Animal Performance"
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            TraceabilityCard {
-
-                TraceabilityInfoRow(
-                    icon = Icons.Outlined.MonitorWeight,
-                    title = "Entry Mass",
-                    subtitle = entryMass.ifBlank {
-                        "Entry mass unavailable"
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                TraceabilityInfoRow(
-                    icon = Icons.Outlined.MonitorWeight,
-                    title = "Last Mass",
-                    subtitle = lastMass.ifBlank {
-                        "Last mass unavailable"
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                TraceabilityInfoRow(
+                AnimalInfoTile(
                     icon = Icons.Outlined.Timer,
-                    title = "Days at Facility",
-                    subtitle = daysAtFacility.ifBlank {
-                        "Facility duration unavailable"
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                TraceabilityInfoRow(
-                    icon = Icons.AutoMirrored.Outlined.TrendingUp,
-                    title = "Average Daily Gain (ADG)",
-                    subtitle = averageDailyGain.ifBlank {
-                        "ADG information unavailable"
-                    }
+                    label = "Age",
+                    value = age.ifBlank { "Unavailable" },
+                    modifier = Modifier.weight(1f)
                 )
             }
 
-            // ---------------------------------------------------------
-            // LINKED TRACEABILITY RECORDS
-            // ---------------------------------------------------------
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                AnimalInfoTile(
+                    icon = Icons.Outlined.LocationOn,
+                    label = "Current Location",
+                    value = currentLocation.ifBlank { "Main site" },
+                    modifier = Modifier.weight(1f)
+                )
+                AnimalInfoTile(
+                    icon = Icons.Outlined.MonitorWeight,
+                    label = "Current Mass",
+                    value = lastMass.ifBlank { entryMass.ifBlank { "Unavailable" } },
+                    modifier = Modifier.weight(1f)
+                )
+            }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                AnimalInfoTile(
+                    icon = Icons.Outlined.LocalShipping,
+                    label = "Supplier",
+                    value = supplierName.ifBlank { "Not recorded" },
+                    modifier = Modifier.weight(1f),
+                    onClick = onSupplierClick
+                )
+                AnimalInfoTile(
+                    icon = Icons.Outlined.Female,
+                    label = "Sex / Breed",
+                    value = listOf(breed, gender).filter { it.isNotBlank() }.joinToString(" · ").ifBlank { "Unavailable" },
+                    modifier = Modifier.weight(1f)
+                )
+            }
 
-            TraceabilitySectionTitle(
-                title = "Traceability Record"
-            )
+            if (entryMass.isNotBlank() || daysAtFacility.isNotBlank() || averageDailyGain.isNotBlank()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = BeeftechSoftAccent)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        PerformanceValue("Entry", entryMass.ifBlank { "—" })
+                        PerformanceValue("Days", daysAtFacility.ifBlank { "—" })
+                        PerformanceValue("ADG", averageDailyGain.ifBlank { "—" })
+                    }
+                }
+            }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(2.dp))
+            TraceabilitySectionTitle("Linked Records")
 
-            AnimalRecordNavigationCard(
-                title = "Supplier",
-                subtitle = "View origin and purchase information",
-                icon = Icons.Outlined.LocalShipping,
-                onClick = onSupplierClick
-            )
-
-            RecordSpacer()
-
-            AnimalRecordNavigationCard(
-                title = "Location & Feed",
-                subtitle = "View destination and ration information",
-                icon = Icons.Outlined.LocationOn,
-                onClick = onLocationFeedClick
-            )
-
-            RecordSpacer()
-
-            AnimalRecordNavigationCard(
-                title = "Treatments",
-                subtitle = "View disease and treatment records",
-                icon = Icons.Outlined.Medication,
-                onClick = onTreatmentsClick
-            )
-
-            RecordSpacer()
-
-            AnimalRecordNavigationCard(
-                title = "Animal Movement",
-                subtitle = "View and capture movement records",
+            RecordLinkCard(
+                title = "Movement History",
+                subtitle = "$movementCount movement${if (movementCount == 1) "" else "s"}",
                 icon = Icons.Outlined.Route,
+                accent = Color(0xFF1B8C55),
                 onClick = onAnimalMovementClick
             )
 
-            RecordSpacer()
-
-            AnimalRecordNavigationCard(
-                title = "Cost Summary",
-                subtitle = "View direct and indirect animal costs",
-                icon = Icons.Outlined.Payments,
-                onClick = onCostSummaryClick
+            RecordLinkCard(
+                title = "Feed Records",
+                subtitle = "$feedCount feed reading${if (feedCount == 1) "" else "s"}",
+                icon = Icons.Outlined.Spa,
+                accent = Color(0xFF16915E),
+                onClick = onLocationFeedClick
             )
 
-            RecordSpacer()
+            RecordLinkCard(
+                title = "Treatments",
+                subtitle = "$treatmentCount treatment${if (treatmentCount == 1) "" else "s"}",
+                icon = Icons.Outlined.Medication,
+                accent = Color(0xFF2668A9),
+                onClick = onTreatmentsClick
+            )
 
-            AnimalRecordNavigationCard(
-                title = "Mortality Records",
-                subtitle = "View and capture mortality records",
+            RecordLinkCard(
+                title = "Mortalities",
+                subtitle = if (mortalityCount == 0) "No mortality records" else "$mortalityCount mortality record${if (mortalityCount == 1) "" else "s"}",
                 icon = Icons.AutoMirrored.Outlined.Assignment,
+                accent = Color(0xFFD94B4B),
                 onClick = onMortalityClick
             )
 
-            Spacer(modifier = Modifier.height(30.dp))
+            RecordLinkCard(
+                title = "Costs",
+                subtitle = "$costCount cost record${if (costCount == 1) "" else "s"}",
+                icon = Icons.Outlined.Payments,
+                accent = Color(0xFF1B7A52),
+                onClick = onCostSummaryClick
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
         }
     }
 }
 
 @Composable
-private fun RecordSpacer() {
-    Spacer(modifier = Modifier.height(11.dp))
+private fun AnimalRecordProfileCard(
+    tagNumber: String,
+    breed: String,
+    gender: String,
+    photoPath: String,
+    age: String,
+    lastMass: String,
+    status: String
+) {
+    val bitmap = remember(photoPath) {
+        photoPath.takeIf { it.isNotBlank() }
+            ?.let { runCatching { BitmapFactory.decodeFile(it) }.getOrNull() }
+            ?.asImageBitmap()
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = BeeftechSurface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(84.dp)
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(BeeftechSoftAccent),
+                contentAlignment = Alignment.Center
+            ) {
+                if (bitmap != null) {
+                    Image(
+                        bitmap = bitmap,
+                        contentDescription = "Animal photo",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Text("🐄", fontSize = 46.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.size(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = tagNumber.ifBlank { "No animal selected" },
+                        fontSize = 21.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = BeeftechText,
+                        modifier = Modifier.weight(1f)
+                    )
+                    AnimalRecordStatus(status)
+                }
+                Spacer(modifier = Modifier.height(5.dp))
+                Text(
+                    text = listOf(breed, gender).filter { it.isNotBlank() }.joinToString(" · ").ifBlank { "Breed unavailable" },
+                    fontSize = 12.sp,
+                    color = BeeftechMutedText
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = listOf(age, lastMass).filter { it.isNotBlank() }.joinToString("  ·  "),
+                    fontSize = 12.sp,
+                    color = BeeftechMutedText
+                )
+            }
+        }
+    }
 }
 
 @Composable
-private fun AnimalRecordNavigationCard(
+private fun AnimalRecordStatus(status: String) {
+    val deceased = status.equals("Deceased", true)
+    val sold = status.equals("Sold", true)
+    val moved = status.equals("Moved", true)
+    val background = when {
+        deceased -> Color(0xFFFFE1DF)
+        sold -> Color(0xFFFFEDD4)
+        moved -> Color(0xFFDCEEFF)
+        else -> Color(0xFFDDF4E4)
+    }
+    val foreground = when {
+        deceased -> Color(0xFFB13E3A)
+        sold -> Color(0xFF9A6517)
+        moved -> Color(0xFF2C6CA3)
+        else -> Color(0xFF2D774C)
+    }
+    Surface(shape = RoundedCornerShape(50.dp), color = background) {
+        Text(
+            text = status.ifBlank { "At Site" },
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            color = foreground
+        )
+    }
+}
+
+@Composable
+private fun AnimalInfoTile(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null
+) {
+    Card(
+        modifier = modifier.then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = BeeftechSurface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(modifier = Modifier.padding(13.dp)) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = BeeftechPrimaryDark,
+                modifier = Modifier.size(21.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(label, fontSize = 10.sp, color = BeeftechMutedText)
+            Text(
+                value,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = BeeftechText,
+                maxLines = 2
+            )
+        }
+    }
+}
+
+@Composable
+private fun PerformanceValue(label: String, value: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(label, fontSize = 10.sp, color = BeeftechMutedText)
+        Text(value, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = BeeftechPrimaryDeep)
+    }
+}
+
+@Composable
+private fun RecordLinkCard(
     title: String,
     subtitle: String,
     icon: ImageVector,
+    accent: Color,
     onClick: () -> Unit
 ) {
     Card(
@@ -260,67 +387,30 @@ private fun AnimalRecordNavigationCard(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = BeeftechSurface
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 1.dp
-        )
+        colors = CardDefaults.cardColors(containerColor = BeeftechSurface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
-
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-
-            Box(
-                modifier = Modifier
-                    .size(46.dp)
-                    .background(
-                        color = BeeftechSoftAccent,
-                        shape = RoundedCornerShape(11.dp)
-                    ),
-                contentAlignment = Alignment.Center
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = accent.copy(alpha = 0.12f)
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = BeeftechPrimaryDark,
-                    modifier = Modifier.size(22.dp)
+                    tint = accent,
+                    modifier = Modifier.padding(10.dp).size(22.dp)
                 )
             }
-
-            Spacer(modifier = Modifier.size(13.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-
-                Text(
-                    text = title,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = BeeftechText
-                )
-
-                Spacer(modifier = Modifier.height(3.dp))
-
-                Text(
-                    text = subtitle,
-                    fontSize = 11.sp,
-                    lineHeight = 15.sp,
-                    color = BeeftechMutedText
-                )
+            Spacer(modifier = Modifier.size(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = BeeftechText)
+                Text(subtitle, fontSize = 11.sp, color = BeeftechMutedText)
             }
-
-            Text(
-                text = "›",
-                fontSize = 26.sp,
-                fontWeight = FontWeight.Medium,
-                color = BeeftechPrimaryDark
-            )
+            Text("›", fontSize = 26.sp, color = BeeftechPrimaryDark)
         }
     }
 }
@@ -328,5 +418,16 @@ private fun AnimalRecordNavigationCard(
 @Preview(showBackground = true)
 @Composable
 private fun AnimalRecordScreenPreview() {
-    AnimalRecordScreen()
+    AnimalRecordScreen(
+        tagNumber = "ZA100123",
+        breed = "Angus",
+        gender = "Heifer",
+        birthDate = "15 Mar 2024",
+        age = "12 months",
+        currentLocation = "Main Camp",
+        movementCount = 3,
+        feedCount = 12,
+        treatmentCount = 5,
+        costCount = 3
+    )
 }

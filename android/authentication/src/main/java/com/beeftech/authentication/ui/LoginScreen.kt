@@ -1,27 +1,39 @@
-﻿package com.beeftech.authentication.ui
+package com.beeftech.authentication.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -31,14 +43,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -46,11 +56,15 @@ import com.beeftech.authentication.domain.LoggedInUser
 import com.beeftech.authentication.viewmodel.LoginUiState
 import com.beeftech.authentication.viewmodel.LoginViewModel
 
-val LoginBackground = Color(0xFFF4F3E8)
-val LoginSurface = Color(0xFFFAF9F2)
-val LoginPrimary = Color(0xFF4F6256)
-val LoginText = Color(0xFF2F3632)
-val LoginError = Color(0xFFB00020)
+val LoginBackground = Color(0xFFFAF9F2)
+val LoginSurface = Color(0xFFFFFFFF)
+val LoginPrimary = Color(0xFF3E5D4D)
+val LoginPrimaryStrong = Color(0xFF294436)
+val LoginSoft = Color(0xFFE6F1EA)
+val LoginText = Color(0xFF1F2823)
+val LoginMuted = Color(0xFF6D756F)
+val LoginBorder = Color(0xFFD9DDD8)
+val LoginError = Color(0xFFB23A35)
 
 const val PIN_LENGTH = 5
 
@@ -59,245 +73,261 @@ fun LoginScreen(
     viewModel: LoginViewModel,
     onLoginSuccess: (LoggedInUser) -> Unit,
     modifier: Modifier = Modifier,
-    /* Shown above the form, e.g. when the server ended the previous session. */
     notice: String? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
-
     var username by remember { mutableStateOf("") }
     var pin by remember { mutableStateOf("") }
-
-    val usernameFocusRequester = remember { FocusRequester() }
+    var showForgotPin by remember { mutableStateOf(false) }
     val keyboardController = LocalSoftwareKeyboardController.current
-
     val isBusy = uiState is LoginUiState.Busy
 
-    LaunchedEffect(uiState) {
-        val state = uiState
-        if (state is LoginUiState.Done) {
-            onLoginSuccess(state.user)
+    fun submit() {
+        if (!isBusy && username.isNotBlank() && pin.length == PIN_LENGTH) {
+            keyboardController?.hide()
+            viewModel.login(username.trim(), pin)
         }
     }
 
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        color = LoginBackground
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = "BeefTech Mobile",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = LoginPrimary
-            )
+    LaunchedEffect(uiState) {
+        val state = uiState
+        if (state is LoginUiState.Done) onLoginSuccess(state.user)
+    }
 
-            if (notice != null) {
+    if (showForgotPin) {
+        AlertDialog(
+            onDismissRequest = { showForgotPin = false },
+            title = { Text("Forgot your PIN?") },
+            text = {
                 Text(
-                    text = notice,
-                    fontSize = 14.sp,
-                    color = LoginPrimary,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(bottom = 12.dp)
+                    "Ask your BeefTech administrator or manager to reset your 5-digit PIN. " +
+                        "Your locally saved farm records will stay on this device."
                 )
+            },
+            confirmButton = {
+                TextButton(onClick = { showForgotPin = false }) { Text("OK") }
             }
+        )
+    }
 
-            Text(
-                text = "Enter your username and PIN",
-                fontSize = 14.sp,
-                color = LoginText,
-                modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)
-            )
-
-            OutlinedTextField(
-                value = username,
-                onValueChange = {
-                    username = it
-                    viewModel.clearError()
-                },
-                label = { Text("Username") },
-                singleLine = true,
-                enabled = !isBusy,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Text,
-                    imeAction = ImeAction.Done
-                ),
-                keyboardActions = KeyboardActions(
-                    onDone = {
-                        keyboardController?.hide()
-                    }
-                ),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = LoginPrimary,
-                    unfocusedBorderColor = LoginText,
-                    focusedLabelColor = LoginPrimary,
-                    unfocusedLabelColor = LoginText
-                ),
+    Surface(modifier = modifier.fillMaxSize(), color = LoginBackground) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .focusRequester(usernameFocusRequester)
+                    .height(220.dp)
+                    .background(LoginPrimary)
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Row(
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp)
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 22.dp, vertical = 34.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                for (i in 0 until PIN_LENGTH) {
-                    val isEntered = i < pin.length
-
-                    Box(
-                        modifier = Modifier
-                            .padding(horizontal = 8.dp)
-                            .size(20.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (isEntered) LoginPrimary
-                                else Color.Transparent
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .widthIn(max = 420.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = LoginSurface),
+                    border = BorderStroke(1.dp, LoginBorder),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = LoginSoft,
+                            border = BorderStroke(1.dp, LoginBorder)
+                        ) {
+                            Text(
+                                text = "🐄",
+                                fontSize = 46.sp,
+                                modifier = Modifier.padding(14.dp)
                             )
-                            .border(2.dp, LoginPrimary, CircleShape)
-                    )
-                }
-            }
+                        }
 
-            val errorMessage =
-                (uiState as? LoginUiState.Error)?.message
+                        Spacer(modifier = Modifier.height(12.dp))
 
-            if (errorMessage != null) {
-                Text(
-                    text = errorMessage,
-                    color = LoginError,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-            } else {
-                Spacer(modifier = Modifier.height(36.dp))
-            }
+                        Text(
+                            text = "BEEFTECH",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 2.sp,
+                            color = LoginPrimaryStrong
+                        )
 
-            if (isBusy) {
-                CircularProgressIndicator(
-                    color = LoginPrimary,
-                    modifier = Modifier.padding(16.dp)
-                )
-            } else {
-                PinKeypad(
-                    onDigitClick = { digit ->
-                        if (pin.length < PIN_LENGTH) {
-                            val newPin = pin + digit
-                            pin = newPin
-                            viewModel.clearError()
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                            if (
-                                newPin.length == PIN_LENGTH &&
-                                username.isNotBlank()
+                        Text(
+                            text = "Sign in to your account",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = LoginText
+                        )
+
+                        Text(
+                            text = "Secure access to your farm records",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = LoginMuted,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
+                        )
+
+                        notice?.let {
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 14.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                color = LoginSoft
                             ) {
-                                keyboardController?.hide()
-                                viewModel.login(username, newPin)
-                                pin = ""
+                                Text(
+                                    text = it,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = LoginPrimaryStrong,
+                                    modifier = Modifier.padding(12.dp)
+                                )
                             }
                         }
-                    },
-                    onBackspaceClick = {
-                        if (pin.isNotEmpty()) {
-                            pin = pin.dropLast(1)
-                            viewModel.clearError()
+
+                        OutlinedTextField(
+                            value = username,
+                            onValueChange = {
+                                username = it
+                                viewModel.clearError()
+                            },
+                            label = { Text("Username") },
+                            placeholder = { Text("Enter username") },
+                            leadingIcon = {
+                                Icon(Icons.Outlined.Person, contentDescription = null)
+                            },
+                            singleLine = true,
+                            enabled = !isBusy,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Text,
+                                imeAction = ImeAction.Next
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = LoginPrimary,
+                                unfocusedBorderColor = LoginBorder,
+                                focusedLabelColor = LoginPrimary
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        OutlinedTextField(
+                            value = pin,
+                            onValueChange = { value ->
+                                pin = value.filter(Char::isDigit).take(PIN_LENGTH)
+                                viewModel.clearError()
+                            },
+                            label = { Text("PIN") },
+                            placeholder = { Text("5-digit PIN") },
+                            leadingIcon = {
+                                Icon(Icons.Outlined.Lock, contentDescription = null)
+                            },
+                            singleLine = true,
+                            enabled = !isBusy,
+                            visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.NumberPassword,
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(onDone = { submit() }),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = LoginPrimary,
+                                unfocusedBorderColor = LoginBorder,
+                                focusedLabelColor = LoginPrimary
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        val errorMessage = (uiState as? LoginUiState.Error)?.message
+                        if (errorMessage != null) {
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 12.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFFFFE8E6)
+                            ) {
+                                Text(
+                                    text = errorMessage,
+                                    color = LoginError,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.padding(12.dp)
+                                )
+                            }
                         }
-                    },
-                    onClearClick = {
-                        pin = ""
-                        viewModel.clearError()
-                    },
-                    enabled = !isBusy
-                )
+
+                        Spacer(modifier = Modifier.height(18.dp))
+
+                        Button(
+                            onClick = { submit() },
+                            enabled = !isBusy && username.isNotBlank() && pin.length == PIN_LENGTH,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = LoginPrimary,
+                                contentColor = Color.White
+                            )
+                        ) {
+                            if (isBusy) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.size(10.dp))
+                                Text("Signing in…")
+                            } else {
+                                Text("Sign In", fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        TextButton(onClick = { showForgotPin = true }) {
+                            Text("Forgot PIN?", color = LoginPrimaryStrong)
+                        }
+
+                        Text(
+                            text = "Offline work is saved securely and syncs automatically when internet returns.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = LoginMuted,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                }
             }
         }
     }
 }
 
+/* Kept for API compatibility with any previews/tests that still call it. */
 @Composable
 fun PinKeypad(
     onDigitClick: (String) -> Unit,
     onBackspaceClick: () -> Unit,
     onClearClick: () -> Unit,
     enabled: Boolean
-) {
-    val keys = listOf(
-        listOf("1", "2", "3"),
-        listOf("4", "5", "6"),
-        listOf("7", "8", "9"),
-        listOf("CLR", "0", "⌫")
-    )
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        for (row in keys) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                for (key in row) {
-                    KeypadButton(
-                        text = key,
-                        enabled = enabled,
-                        onClick = {
-                            when (key) {
-                                "CLR" -> onClearClick()
-                                "⌫" -> onBackspaceClick()
-                                else -> onDigitClick(key)
-                            }
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
+) = Unit
 
 @Composable
 fun KeypadButton(
     text: String,
     enabled: Boolean,
     onClick: () -> Unit
-) {
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .size(width = 80.dp, height = 56.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(
-                if (enabled) LoginSurface
-                else Color.LightGray
-            )
-            .border(
-                1.dp,
-                LoginPrimary,
-                RoundedCornerShape(12.dp)
-            )
-            .clickable(
-                enabled = enabled,
-                onClick = onClick
-            )
-    ) {
-        Text(
-            text = text,
-            fontSize =
-                if (text.length == 1) 22.sp
-                else 16.sp,
-            fontWeight = FontWeight.Bold,
-            color = LoginPrimary
-        )
-    }
-}
+) = Unit
