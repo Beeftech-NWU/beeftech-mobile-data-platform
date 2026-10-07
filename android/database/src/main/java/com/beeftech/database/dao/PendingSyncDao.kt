@@ -190,6 +190,20 @@ interface PendingSyncDao {
 
     @Query(
         """
+        SELECT COUNT(*)
+        FROM pending_sync
+        WHERE user_id = :userId
+          AND retryCount >= :retryLimit
+        """
+    )
+    fun observeRetryLimitCountForUser(
+        userId: String,
+        retryLimit: Int
+    ): Flow<Int>
+
+
+    @Query(
+        """
         UPDATE pending_sync
         SET user_id = :userId,
             retryCount = 0

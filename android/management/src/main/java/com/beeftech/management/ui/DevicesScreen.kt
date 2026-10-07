@@ -128,7 +128,7 @@ fun DevicesScreen(
         if (state.loading && state.devices.isEmpty()) {
             CircularProgressIndicator()
         } else if (state.devices.isEmpty() && !state.needsConnection && state.error == null) {
-            Text("No phones yet.")
+            Text("No phones linked yet. Linked worker devices will appear here.")
         }
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {

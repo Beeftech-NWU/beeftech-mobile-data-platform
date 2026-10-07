@@ -225,7 +225,7 @@ fun TreatmentsScreen(
             if (treatmentRecords.isEmpty()) {
                 TraceabilityCard {
                     Text(
-                        text = "No treatment records found.",
+                        text = "No treatment records yet. Saved treatments for this animal will appear here.",
                         color = BeeftechMutedText
                     )
                 }

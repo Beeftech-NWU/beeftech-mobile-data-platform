@@ -241,7 +241,7 @@ fun SupplierScreen(
             if (supplierRecords.isEmpty()) {
                 TraceabilityCard {
                     Text(
-                        text = "No supplier records found.",
+                        text = "No supplier details yet. Supplier and purchase information will appear here after it is saved.",
                         color = BeeftechMutedText
                     )
                 }

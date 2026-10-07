@@ -1,22 +1,47 @@
 package com.beeftech.management.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Assessment
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Medication
+import androidx.compose.material.icons.outlined.Pets
+import androidx.compose.material.icons.outlined.Route
+import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -25,7 +50,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.beeftech.management.data.ManagementApiClient
@@ -37,12 +65,16 @@ import com.beeftech.management.viewmodel.REPORT_RANGES
 import com.beeftech.management.viewmodel.ReportsViewModel
 import com.beeftech.management.viewmodel.ReportsViewModelFactory
 
-/* Keyed by user, so a different user logging in on the same device never sees the previous report. */
+private val ReportsSage = Color(0xFF3E5D4D)
+private val ReportsBackground = Color(0xFFFAF9F2)
+private val ReportsMuted = Color(0xFF6D756F)
+
 @Composable
 fun ReportsTab(
     apiClient: ManagementApiClient,
     currentUserId: String,
     isAdmin: Boolean = false,
+    onOpenMovementRecords: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val viewModel: ReportsViewModel = viewModel(
@@ -50,12 +82,17 @@ fun ReportsTab(
         factory = ReportsViewModelFactory(apiClient, canSwitchSite = isAdmin)
     )
 
-    ReportsScreen(viewModel = viewModel, modifier = modifier)
+    ReportsScreen(
+        viewModel = viewModel,
+        onOpenMovementRecords = onOpenMovementRecords,
+        modifier = modifier
+    )
 }
 
 @Composable
 fun ReportsScreen(
     viewModel: ReportsViewModel,
+    onOpenMovementRecords: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -63,7 +100,6 @@ fun ReportsScreen(
 
     LaunchedEffect(Unit) { viewModel.refresh() }
 
-    /* Hand the exported file to the share sheet exactly once. */
     LaunchedEffect(state.exported) {
         state.exported?.let {
             context.startActivity(ReportShare.shareIntent(context, it))
@@ -75,91 +111,195 @@ fun ReportsScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .background(ReportsBackground)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(ReportsSage)
+                .padding(horizontal = 18.dp, vertical = 18.dp)
         ) {
             Text(
-                state.report?.siteName?.let { "Reports · $it" } ?: "Reports",
-                style = MaterialTheme.typography.titleLarge
+                text = "BEEFTECH",
+                color = Color.White.copy(alpha = 0.72f),
+                style = MaterialTheme.typography.labelSmall
             )
-            TextButton(onClick = viewModel::refresh) { Text("Refresh") }
+            Text(
+                text = "Reports",
+                color = Color.White,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = state.report?.siteName ?: "Farm reports in one place",
+                color = Color.White.copy(alpha = 0.82f),
+                style = MaterialTheme.typography.bodySmall
+            )
         }
 
-        ChipRow {
-            ReportKind.entries.forEach {
-                FilterChip(
-                    selected = state.kind == it,
-                    onClick = { viewModel.selectKind(it) },
-                    label = { Text(it.label) }
-                )
-            }
-        }
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            ReportMenuCard(
+                title = "Farm Summary",
+                subtitle = "Animal, treatment and cost reports",
+                icon = Icons.Outlined.Assessment,
+                accent = Color(0xFF1E805A),
+                onClick = { viewModel.selectKind(ReportKind.COST_PER_ANIMAL) }
+            )
+            ReportMenuCard(
+                title = "Animal History",
+                subtitle = "Detailed animal reports",
+                icon = Icons.Outlined.Pets,
+                accent = Color(0xFFE58E2A),
+                onClick = { viewModel.selectKind(ReportKind.CALF_REGISTRATIONS) }
+            )
+            ReportMenuCard(
+                title = "Movement Report",
+                subtitle = "Movements by date range",
+                icon = Icons.Outlined.Route,
+                accent = Color(0xFF2B6F68),
+                onClick = onOpenMovementRecords
+            )
+            ReportMenuCard(
+                title = "Treatment Report",
+                subtitle = "Treatments and costs",
+                icon = Icons.Outlined.Medication,
+                accent = Color(0xFF2E6DA4),
+                onClick = { viewModel.selectKind(ReportKind.TREATMENT_COST) }
+            )
+            ReportMenuCard(
+                title = "Mortality Report",
+                subtitle = "Mortality records and reasons",
+                icon = Icons.Outlined.Warning,
+                accent = Color(0xFFE35B62),
+                onClick = { viewModel.selectKind(ReportKind.MORTALITY) }
+            )
 
-        ChipRow {
-            REPORT_RANGES.forEach {
-                FilterChip(
-                    selected = state.rangeDays == it,
-                    onClick = { viewModel.selectRange(it) },
-                    label = { Text("Last $it days") }
-                )
-            }
-        }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "REPORT OPTIONS",
+                style = MaterialTheme.typography.labelSmall,
+                color = ReportsSage
+            )
 
-        if (state.kind == ReportKind.CALF_REGISTRATIONS) {
             ChipRow {
-                REPORT_BUCKETS.forEach {
+                ReportKind.entries.forEach {
                     FilterChip(
-                        selected = state.bucket == it,
-                        onClick = { viewModel.selectBucket(it) },
-                        label = { Text("By $it") }
+                        selected = state.kind == it,
+                        onClick = { viewModel.selectKind(it) },
+                        label = { Text(it.label) }
                     )
                 }
             }
-        }
 
-        if (state.sites.isNotEmpty()) {
             ChipRow {
-                FilterChip(
-                    selected = state.selectedSiteId == null,
-                    onClick = { viewModel.selectSite(null) },
-                    label = { Text("All sites") }
-                )
-                state.sites.forEach { site ->
+                REPORT_RANGES.forEach {
                     FilterChip(
-                        selected = state.selectedSiteId == site.siteId,
-                        onClick = { viewModel.selectSite(site.siteId) },
-                        label = { Text(site.name) }
+                        selected = state.rangeDays == it,
+                        onClick = { viewModel.selectRange(it) },
+                        label = { Text("Last $it days") }
                     )
                 }
             }
-        }
 
-        if (state.needsConnection) {
-            NeedsConnectionNotice("Reports")
-        }
-        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-
-        val report = state.report
-        if (report != null) {
-            ReportBody(report)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = { viewModel.export(ReportFormat.CSV) },
-                    enabled = !state.exporting
-                ) { Text("Share CSV") }
-                OutlinedButton(
-                    onClick = { viewModel.export(ReportFormat.PDF) },
-                    enabled = !state.exporting
-                ) { Text("Share PDF") }
+            if (state.kind == ReportKind.CALF_REGISTRATIONS) {
+                ChipRow {
+                    REPORT_BUCKETS.forEach {
+                        FilterChip(
+                            selected = state.bucket == it,
+                            onClick = { viewModel.selectBucket(it) },
+                            label = { Text("By $it") }
+                        )
+                    }
+                }
             }
-            if (state.exporting) CircularProgressIndicator()
-        } else if (state.loading) {
-            CircularProgressIndicator()
+
+            if (state.sites.isNotEmpty()) {
+                ChipRow {
+                    FilterChip(
+                        selected = state.selectedSiteId == null,
+                        onClick = { viewModel.selectSite(null) },
+                        label = { Text("All sites") }
+                    )
+                    state.sites.forEach { site ->
+                        FilterChip(
+                            selected = state.selectedSiteId == site.siteId,
+                            onClick = { viewModel.selectSite(site.siteId) },
+                            label = { Text(site.name) }
+                        )
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(onClick = viewModel::refresh) { Text("Refresh") }
+            }
+
+            if (state.needsConnection) NeedsConnectionNotice("Reports")
+            state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+
+            val report = state.report
+            if (report != null) {
+                ReportBody(report)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = { viewModel.export(ReportFormat.CSV) },
+                        enabled = !state.exporting
+                    ) { Text("Share CSV") }
+                    OutlinedButton(
+                        onClick = { viewModel.export(ReportFormat.PDF) },
+                        enabled = !state.exporting
+                    ) { Text("Share PDF") }
+                }
+                if (state.exporting) CircularProgressIndicator()
+            } else if (state.loading) {
+                CircularProgressIndicator()
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReportMenuCard(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    accent: Color,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = accent.copy(alpha = 0.12f)
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = accent,
+                    modifier = Modifier.padding(10.dp).size(22.dp)
+                )
+            }
+            Spacer(modifier = Modifier.size(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, fontWeight = FontWeight.Bold)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = ReportsMuted)
+            }
+            Text("›", style = MaterialTheme.typography.headlineSmall, color = ReportsSage)
         }
     }
 }
@@ -176,8 +316,12 @@ private fun ChipRow(content: @Composable () -> Unit) {
 
 @Composable
 private fun ReportBody(report: ReportData) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(12.dp)) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
             Text(report.title, style = MaterialTheme.typography.labelLarge)
             report.summary.forEach {
                 Row(
@@ -192,7 +336,7 @@ private fun ReportBody(report: ReportData) {
     }
 
     if (report.rows.isEmpty()) {
-        Text("No records in this period.")
+        Text("No records in this period. Try another date range or capture new farm activity.")
     } else {
         Column(
             modifier = Modifier.horizontalScroll(rememberScrollState()),

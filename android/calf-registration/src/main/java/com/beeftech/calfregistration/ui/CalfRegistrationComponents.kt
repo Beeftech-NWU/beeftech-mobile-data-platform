@@ -248,7 +248,7 @@ fun CalfPrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Mo
     Button(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.fillMaxWidth().height(52.dp),
+        modifier = modifier.fillMaxWidth().height(56.dp),
         colors = ButtonDefaults.buttonColors(containerColor = BeeftechPrimaryDeep, contentColor = BeeftechWhite),
         shape = RoundedCornerShape(11.dp)
     ) {
@@ -262,7 +262,7 @@ fun CalfPrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Mo
 fun CalfSecondaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     OutlinedButton(
         onClick = onClick,
-        modifier = modifier.fillMaxWidth().height(50.dp),
+        modifier = modifier.fillMaxWidth().height(56.dp),
         shape = RoundedCornerShape(11.dp),
         colors = ButtonDefaults.outlinedButtonColors(contentColor = BeeftechPrimaryDeep)
     ) {

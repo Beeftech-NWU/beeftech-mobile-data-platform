@@ -2,36 +2,28 @@ package com.beeftech.demoapp
 
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.PrimaryScrollableTabRow
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Tab
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.beeftech.calfregistration.data.CalfCaptureContext
@@ -506,6 +498,11 @@ class MainActivity : ComponentActivity() {
                                     tabsFor(loggedInUser.roleEnum)
                                 }
 
+                            var selectedMoreTab by
+                            remember {
+                                mutableStateOf<AppTab?>(null)
+                            }
+
                             var showMyActivity by
                             remember {
                                 mutableStateOf(false)
@@ -517,11 +514,41 @@ class MainActivity : ComponentActivity() {
                                     .observePendingCount(loggedInUser.userId)
                             }.collectAsState(initial = 0)
 
+                            val failedSyncCount by
+                            remember(loggedInUser.userId) {
+                                pendingSyncRepository
+                                    .observeFailedCount(loggedInUser.userId)
+                            }.collectAsState(initial = 0)
+
                             val oldestPendingAt by
                             remember(loggedInUser.userId) {
                                 pendingSyncRepository
                                     .observeOldestPendingAt(loggedInUser.userId)
                             }.collectAsState(initial = null)
+
+                            val isOnline by rememberIsOnline()
+
+                            val syncState =
+                                appSyncUiState(
+                                    isOnline = isOnline,
+                                    pendingCount = pendingCount,
+                                    failedCount = failedSyncCount
+                                )
+
+                            val snackbarHostState = remember { SnackbarHostState() }
+                            val uiScope = rememberCoroutineScope()
+
+                            fun showUiMessage(message: String) {
+                                uiScope.launch {
+                                    snackbarHostState.showSnackbar(message)
+                                }
+                            }
+
+                            val currentTab =
+                                tabs[selectedDemoTab.coerceIn(tabs.indices)]
+
+                            val activeTab =
+                                selectedMoreTab ?: currentTab
 
                             var showLogoutDialog by
                             remember {
@@ -577,104 +604,48 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
+                            BackHandler(
+                                enabled = showMyActivity || selectedMoreTab != null
+                            ) {
+                                if (showMyActivity) {
+                                    showMyActivity = false
+                                } else {
+                                    selectedMoreTab = null
+                                }
+                            }
+
                             Scaffold(
                                 modifier =
                                     Modifier.fillMaxSize(),
 
                                 topBar = {
+                                    BeefAppHeader(
+                                        title =
+                                            when {
+                                                showMyActivity -> "My activity"
+                                                selectedMoreTab != null -> selectedMoreTab!!.label
+                                                else -> currentTab.label
+                                            },
+                                        username = loggedInUser.username,
+                                        siteId = loggedInUser.siteId,
+                                        syncState = syncState
+                                    )
+                                },
 
-                                    Column(
-                                        modifier =
-                                            Modifier.statusBarsPadding()
-                                    ) {
-
-                                        Row(
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(
-                                                        horizontal = 16.dp,
-                                                        vertical = 4.dp
-                                                    ),
-                                            horizontalArrangement =
-                                                Arrangement.SpaceBetween,
-                                            verticalAlignment =
-                                                Alignment.CenterVertically
-                                        ) {
-
-                                            Text(
-                                                text = "Signed in as ${loggedInUser.username}"
-                                            )
-
-                                            Row {
-                                                TextButton(
-                                                    onClick = {
-                                                        showMyActivity =
-                                                            !showMyActivity
-                                                    }
-                                                ) {
-                                                    Text(
-                                                        text = "My activity"
-                                                    )
-                                                }
-
-                                                TextButton(
-                                                    onClick = {
-                                                        showLogoutDialog =
-                                                            true
-                                                    }
-                                                ) {
-                                                    Text(
-                                                        text = "Log out"
-                                                    )
-                                                }
-                                            }
+                                bottomBar = {
+                                    BeefBottomNavigation(
+                                        tabs = tabs,
+                                        selectedIndex = selectedDemoTab,
+                                        onSelect = { index ->
+                                            selectedDemoTab = index
+                                            selectedMoreTab = null
+                                            showMyActivity = false
                                         }
+                                    )
+                                },
 
-                                        val tabContent: @Composable () -> Unit = {
-
-                                            tabs.forEachIndexed { index, tab ->
-
-                                                Tab(
-                                                    selected =
-                                                        selectedDemoTab == index,
-                                                    onClick = {
-                                                        selectedDemoTab = index
-                                                    },
-                                                    text = {
-                                                        Text(
-                                                            tab.label
-                                                        )
-                                                    }
-                                                )
-                                            }
-                                        }
-
-                                        /*
-                                         * Workers keep the evenly spread three tabs. With five, the
-                                         * labels no longer fit, so managers and admins scroll.
-                                         */
-                                        if (tabs.size > 3) {
-
-                                            PrimaryScrollableTabRow(
-                                                selectedTabIndex =
-                                                    selectedDemoTab,
-                                                edgePadding =
-                                                    0.dp
-                                            ) {
-                                                tabContent()
-                                            }
-
-                                        } else {
-
-                                            PrimaryTabRow(
-                                                selectedTabIndex =
-                                                    selectedDemoTab
-                                            ) {
-                                                tabContent()
-                                            }
-                                        }
-                                    }
+                                snackbarHost = {
+                                    SnackbarHost(snackbarHostState)
                                 }
                             ) { innerPadding ->
 
@@ -684,9 +655,6 @@ class MainActivity : ComponentActivity() {
                                             .fillMaxSize()
                                             .padding(innerPadding)
                                 ) {
-
-                                    val currentTab =
-                                        tabs[selectedDemoTab.coerceIn(tabs.indices)]
 
                                     if (showMyActivity) {
 
@@ -714,7 +682,56 @@ class MainActivity : ComponentActivity() {
                                             modifier =
                                                 Modifier.fillMaxSize()
                                         )
-                                    } else if (currentTab == AppTab.DASHBOARD) {
+                                    } else if (activeTab == AppTab.HOME) {
+
+                                        BeefHomeScreen(
+                                            username = loggedInUser.username,
+                                            siteId = loggedInUser.siteId,
+                                            role = loggedInUser.roleEnum,
+                                            pendingCount = pendingCount,
+                                            syncState = syncState,
+                                            onRegisterCalf = {
+                                                selectedDemoTab = tabs.indexOf(AppTab.CALF_REGISTRATION)
+                                            },
+                                            onTraceability = {
+                                                selectedDemoTab = tabs.indexOf(AppTab.TRACEABILITY)
+                                            },
+                                            onFeed = {
+                                                selectedDemoTab = tabs.indexOf(AppTab.FEED_CRIB)
+                                            },
+                                            onDashboard = {
+                                                selectedDemoTab = tabs.indexOf(AppTab.MORE)
+                                                selectedMoreTab = AppTab.DASHBOARD
+                                            },
+                                            onReports = {
+                                                selectedDemoTab = tabs.indexOf(AppTab.MORE)
+                                                selectedMoreTab = AppTab.REPORTS
+                                            },
+                                            onMyActivity = {
+                                                selectedDemoTab = tabs.indexOf(AppTab.MORE)
+                                                selectedMoreTab = null
+                                                showMyActivity = true
+                                            }
+                                        )
+
+                                    } else if (activeTab == AppTab.MORE) {
+
+                                        BeefMoreScreen(
+                                            role = loggedInUser.roleEnum,
+                                            onOpen = { destination ->
+                                                selectedMoreTab = destination
+                                                showMyActivity = false
+                                            },
+                                            onMyActivity = {
+                                                selectedMoreTab = null
+                                                showMyActivity = true
+                                            },
+                                            onLogout = {
+                                                showLogoutDialog = true
+                                            }
+                                        )
+
+                                    } else if (activeTab == AppTab.DASHBOARD) {
 
                                         DashboardTab(
                                             apiClient =
@@ -725,7 +742,7 @@ class MainActivity : ComponentActivity() {
                                                 loggedInUser.roleEnum == Role.ADMIN
                                         )
 
-                                    } else if (currentTab == AppTab.REPORTS) {
+                                    } else if (activeTab == AppTab.REPORTS) {
 
                                         ReportsTab(
                                             apiClient =
@@ -736,7 +753,7 @@ class MainActivity : ComponentActivity() {
                                                 loggedInUser.roleEnum == Role.ADMIN
                                         )
 
-                                    } else if (currentTab == AppTab.RECORDS) {
+                                    } else if (activeTab == AppTab.RECORDS) {
 
                                         RecordsReviewTab(
                                             apiClient =
@@ -745,7 +762,7 @@ class MainActivity : ComponentActivity() {
                                                 loggedInUser.userId
                                         )
 
-                                    } else if (currentTab == AppTab.TEAM) {
+                                    } else if (activeTab == AppTab.TEAM) {
 
                                         TeamTab(
                                             apiClient =
@@ -756,7 +773,7 @@ class MainActivity : ComponentActivity() {
                                                 loggedInUser.roleEnum == Role.ADMIN
                                         )
 
-                                    } else if (currentTab == AppTab.ADMIN) {
+                                    } else if (activeTab == AppTab.ADMIN) {
 
                                         AdminTab(
                                             apiClient =
@@ -765,14 +782,14 @@ class MainActivity : ComponentActivity() {
                                                 loggedInUser.userId
                                         )
 
-                                    } else if (currentTab == AppTab.CALF_REGISTRATION) {
+                                    } else if (activeTab == AppTab.CALF_REGISTRATION) {
 
                                         CalfRegistrationFlow(
                                             viewModel =
                                                 calfRegistrationViewModel
                                         )
 
-                                    } else if (currentTab == AppTab.TRACEABILITY) {
+                                    } else if (activeTab == AppTab.TRACEABILITY) {
 
                                         FarmTraceabilityFlow(
 
@@ -816,12 +833,7 @@ class MainActivity : ComponentActivity() {
                                                         onResult = {
                                                                 success,
                                                                 message ->
-
-                                                            Toast.makeText(
-                                                                this@MainActivity,
-                                                                message,
-                                                                Toast.LENGTH_SHORT
-                                                            ).show()
+                                                            showUiMessage(message)
 
                                                             onCompleted(
                                                                 success,
@@ -875,12 +887,7 @@ class MainActivity : ComponentActivity() {
                                                         onResult = {
                                                                 success,
                                                                 message ->
-
-                                                            Toast.makeText(
-                                                                this@MainActivity,
-                                                                message,
-                                                                Toast.LENGTH_SHORT
-                                                            ).show()
+                                                            showUiMessage(message)
 
                                                             onCompleted(
                                                                 success,
@@ -919,12 +926,7 @@ class MainActivity : ComponentActivity() {
                                                         onResult = {
                                                                 success,
                                                                 message ->
-
-                                                            Toast.makeText(
-                                                                this@MainActivity,
-                                                                message,
-                                                                Toast.LENGTH_SHORT
-                                                            ).show()
+                                                            showUiMessage(message)
 
                                                             onCompleted(
                                                                 success,
@@ -1002,12 +1004,7 @@ class MainActivity : ComponentActivity() {
                                                         onResult = {
                                                                 success,
                                                                 message ->
-
-                                                            Toast.makeText(
-                                                                this@MainActivity,
-                                                                message,
-                                                                Toast.LENGTH_SHORT
-                                                            ).show()
+                                                            showUiMessage(message)
 
                                                             onCompleted(
                                                                 success,
@@ -1055,12 +1052,7 @@ class MainActivity : ComponentActivity() {
                                                         onResult = {
                                                                 success,
                                                                 message ->
-
-                                                            Toast.makeText(
-                                                                this@MainActivity,
-                                                                message,
-                                                                Toast.LENGTH_SHORT
-                                                            ).show()
+                                                            showUiMessage(message)
 
                                                             onCompleted(
                                                                 success,
@@ -1081,11 +1073,9 @@ class MainActivity : ComponentActivity() {
                                                         }
 
                                                     if (pendingOperations.isEmpty()) {
-                                                        Toast.makeText(
-                                                            this@MainActivity,
-                                                            "There are no pending records to sync.",
-                                                            Toast.LENGTH_SHORT
-                                                        ).show()
+                                                        showUiMessage(
+                                                            "There are no pending records to sync."
+                                                        )
                                                         return@launch
                                                     }
 
@@ -1143,12 +1133,7 @@ class MainActivity : ComponentActivity() {
                                                                             .recordSuccessfulSync()
                                                                     }
                                                                 }
-
-                                                                Toast.makeText(
-                                                                    this@MainActivity,
-                                                                    message,
-                                                                    Toast.LENGTH_SHORT
-                                                                ).show()
+                                                            showUiMessage(message)
                                                             }
                                                     }
 
@@ -1161,12 +1146,7 @@ class MainActivity : ComponentActivity() {
                                                             ) {
                                                                     _,
                                                                     message ->
-
-                                                                Toast.makeText(
-                                                                    this@MainActivity,
-                                                                    message,
-                                                                    Toast.LENGTH_SHORT
-                                                                ).show()
+                                                            showUiMessage(message)
                                                             }
                                                     }
 
@@ -1177,12 +1157,7 @@ class MainActivity : ComponentActivity() {
                                                             .retrySync {
                                                                     _,
                                                                     message ->
-
-                                                                Toast.makeText(
-                                                                    this@MainActivity,
-                                                                    message,
-                                                                    Toast.LENGTH_SHORT
-                                                                ).show()
+                                                            showUiMessage(message)
                                                             }
                                                     }
 
@@ -1193,23 +1168,14 @@ class MainActivity : ComponentActivity() {
                                                             .retrySync {
                                                                     _,
                                                                     message ->
-
-                                                                Toast.makeText(
-                                                                    this@MainActivity,
-                                                                    message,
-                                                                    Toast.LENGTH_SHORT
-                                                                ).show()
+                                                            showUiMessage(message)
                                                             }
                                                     }
 
                                                     if (
                                                         "FARMER_REGISTRATION" in pendingTypes
                                                     ) {
-                                                        Toast.makeText(
-                                                            this@MainActivity,
-                                                            "Farmer registration sync queued.",
-                                                            Toast.LENGTH_SHORT
-                                                        ).show()
+                                                        showUiMessage("Farmer registration sync queued.")
                                                     }
                                                 }
                                             }
@@ -1219,7 +1185,9 @@ class MainActivity : ComponentActivity() {
 
                                         FeedCribFlow(
                                             onBackToHome = {
-                                                selectedDemoTab = 0
+                                                selectedDemoTab = tabs.indexOf(AppTab.HOME)
+                                                selectedMoreTab = null
+                                                showMyActivity = false
                                             }
                                         )
                                     }

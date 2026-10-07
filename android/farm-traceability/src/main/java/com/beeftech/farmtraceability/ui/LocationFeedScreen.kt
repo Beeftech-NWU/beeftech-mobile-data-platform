@@ -252,7 +252,7 @@ fun LocationFeedScreen(
                 TraceabilityCard {
                     Text(
                         text =
-                            "No location and feed records found.",
+                            "No location and feed records yet. Saved pen and ration information will appear here.",
                         color =
                             BeeftechMutedText
                     )

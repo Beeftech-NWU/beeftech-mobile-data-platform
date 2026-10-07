@@ -107,6 +107,16 @@ class FakePendingSyncDao : PendingSyncDao {
         return flowOf(items.filter { it.userId == userId }.minOfOrNull { it.createdAt })
     }
 
+    override fun observeRetryLimitCountForUser(
+        userId: String,
+        retryLimit: Int
+    ): Flow<Int> =
+        flowOf(
+            items.count {
+                it.userId == userId &&
+                    it.retryCount >= retryLimit
+            }
+        )
     override suspend fun resetRetryCount(id: Long) {
         val index = items.indexOfFirst { it.id == id }
         if (index >= 0) {
