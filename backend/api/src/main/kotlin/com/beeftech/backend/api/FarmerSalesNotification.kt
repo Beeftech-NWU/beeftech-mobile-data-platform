@@ -1,5 +1,6 @@
 package com.beeftech.backend.api
 
+import com.beeftech.backend.api.common.FileNaming
 import jakarta.activation.DataHandler
 import jakarta.mail.Authenticator
 import jakarta.mail.Message
@@ -35,6 +36,8 @@ data class FarmerSalesNotificationPayload(
     val addresses: List<FarmerAddressDto> = emptyList(),
     val roles: List<FarmerRoleDto> = emptyList(),
     val deviceId: String,
+    /* The submitter's site farm code; names the attachment. Null for a user with no site. */
+    val farmCode: String? = null,
     val submittedByUserId: String,
     val submittedByUsername: String,
     val submittedByRole: Int? = null,
@@ -481,11 +484,7 @@ class SmtpFarmerSalesNotificationService(
                             )
 
                         fileName =
-                            "farmer-registration-" +
-                                safeFileName(
-                                    payload.farmerId
-                                ) +
-                                ".json"
+                            attachmentFileName(payload)
                     }
 
                 val multipart =
@@ -587,4 +586,24 @@ fun createFarmerSalesNotificationServiceFromEnvironment():
             config
         )
     }
+}
+
+/**
+ * [FarmCode]-FARMER_REG-[YYYYMMDD]-[HHMMSS]-[DeviceID].json, using the submitter's site code, the
+ * device that took the record and the time the server received it (UTC). Falls back to the older
+ * farmer-registration-<id>.json when there is no farm code.
+ */
+internal fun attachmentFileName(payload: FarmerSalesNotificationPayload): String {
+    val named = runCatching {
+        FileNaming.build(
+            farmCode = payload.farmCode.orEmpty(),
+            project = FileNaming.ProjectCode.FARMER_REG,
+            instant = java.time.Instant.ofEpochMilli(payload.serverSyncedAt),
+            deviceId = payload.deviceId,
+            extension = "json",
+            zone = java.time.ZoneOffset.UTC
+        )
+    }.getOrNull()
+
+    return named ?: "farmer-registration-${payload.farmerId.replace(Regex("[^A-Za-z0-9._-]"), "_")}.json"
 }

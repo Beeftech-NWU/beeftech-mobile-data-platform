@@ -7,7 +7,7 @@ class FarmerService(
     private val salesNotificationService: FarmerSalesNotificationService
 ) {
 
-    fun syncRecords(
+    suspend fun syncRecords(
         request: FarmerSyncRequest,
         principal: AuthPrincipal
     ): FarmerSyncResponse {
@@ -84,6 +84,9 @@ class FarmerService(
 
                                     deviceId =
                                         request.deviceId,
+
+                                    farmCode =
+                                        principal.siteId?.let { farmCodeOfSite(it) },
 
                                     submittedByUserId =
                                         principal.userId,

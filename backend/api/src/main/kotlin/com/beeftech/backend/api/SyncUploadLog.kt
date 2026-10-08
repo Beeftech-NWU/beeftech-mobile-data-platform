@@ -56,7 +56,7 @@ object SyncUploadLog {
             return "Batch name is for ${parts.project}, not ${project.name}."
         }
 
-        val siteFarmCode = principal.siteId?.let { farmCodeOf(it) }
+        val siteFarmCode = principal.siteId?.let { farmCodeOfSite(it) }
         if (siteFarmCode != null && parts.farmCode != siteFarmCode) {
             return "Batch name farm code ${parts.farmCode} does not match this site's farm code."
         }
@@ -114,14 +114,6 @@ object SyncUploadLog {
         }
     }
 
-    private suspend fun farmCodeOf(siteId: String): String? =
-        newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
-            SitesTable.selectAll()
-                .where { SitesTable.siteId eq siteId }
-                .singleOrNull()
-                ?.get(SitesTable.farmCode)
-        }
-
     /* The same cleaning the generator applies to a device id. */
     private fun cleanDeviceId(deviceId: String) = deviceId.replace(Regex("[^A-Za-z0-9_]"), "_").trim('_')
 }
@@ -136,3 +128,12 @@ suspend fun ApplicationCall.acceptBatch(principal: AuthPrincipal, project: Proje
     )
     return false
 }
+
+/** The site's current farm code, or null when the site is unknown or has none yet. */
+suspend fun farmCodeOfSite(siteId: String): String? =
+    newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
+        SitesTable.selectAll()
+            .where { SitesTable.siteId eq siteId }
+            .singleOrNull()
+            ?.get(SitesTable.farmCode)
+    }
