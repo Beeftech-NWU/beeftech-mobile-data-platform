@@ -8,6 +8,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.*
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -258,6 +260,68 @@ fun CalfDetailsStepScreen(
                 selectedValue = formData.conformity.ifEmpty { "Normal / Good" },
                 onClick = { activeLookupField = "CONFORMITY" }
             )
+            // Birth details remain in the same CalfRegistrationData record as the other steps.
+            Spacer(modifier = Modifier.height(6.dp))
+            CalfSectionTitle("Birth Details")
+            CalfCard {
+                CalfDatePickerField(
+                    label = "Birth date",
+                    value = formData.birthDate,
+                    onValueChange = { chosenDate ->
+                        onFormDataChange(formData.copy(birthDate = chosenDate))
+                    },
+                    infoText = "Select the calf's actual birth date using the calendar."
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                CalfTextField(
+                    label = "Birth mass (kg)",
+                    value = formData.birthWeightKg,
+                    onValueChange = { raw ->
+                        val cleaned = raw.replace(',', '.')
+                            .filter { it.isDigit() || it == '.' }
+                        val firstDot = cleaned.indexOf('.')
+                        val normalized = if (firstDot < 0) cleaned else
+                            cleaned.substring(0, firstDot + 1) +
+                                cleaned.substring(firstDot + 1).replace(".", "")
+                        onFormDataChange(formData.copy(birthWeightKg = normalized))
+                    },
+                    placeholder = "e.g. 35.0",
+                    infoText = "Enter the measured birth mass. If not weighed, use a quick estimate below, and correct it later when measured.",
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "QUICK ESTIMATE - ONLY WHEN NOT WEIGHED",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = BeeftechPrimaryDark,
+                        modifier = Modifier.weight(1f)
+                    )
+                    CalfBirthHelpIcon(
+                        title = "Quick Estimate",
+                        message = "Only use an estimated birth mass when no measurement is available. The selected value fills in Birth Mass; replace it with a real measurement when available."
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf("30" to "Small", "35" to "Typical", "40" to "Large").forEach { (mass, name) ->
+                        OutlinedButton(
+                            onClick = { onFormDataChange(formData.copy(birthWeightKg = mass)) },
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 5.dp, vertical = 9.dp)
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("$mass kg", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(name, fontSize = 9.sp)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

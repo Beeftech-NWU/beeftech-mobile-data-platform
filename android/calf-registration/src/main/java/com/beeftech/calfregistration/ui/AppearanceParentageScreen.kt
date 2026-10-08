@@ -143,7 +143,7 @@ fun AppearanceParentageScreen(
                             )
                         )
                     },
-                    supportingText = "Tap the calendar to select the calf's actual birth date."
+                    infoText = "Tap the calendar to select the calf's actual birth date."
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -192,7 +192,7 @@ fun AppearanceParentageScreen(
                         )
                     },
                     placeholder = "e.g. 35.0",
-                    supportingText = "Enter the measured mass when available. If the calf was not weighed, choose an estimate below.",
+                    infoText = "Enter the measured mass when available. If the calf was not weighed, choose an estimate below.",
                     keyboardOptions =
                         KeyboardOptions(
                             keyboardType =
@@ -202,13 +202,20 @@ fun AppearanceParentageScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Text(
-                    text = "QUICK ESTIMATE — USE ONLY WHEN NOT WEIGHED",
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.5.sp,
-                    color = BeeftechPrimaryDark
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "QUICK ESTIMATE — USE ONLY WHEN NOT WEIGHED",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp,
+                        color = BeeftechPrimaryDark,
+                        modifier = Modifier.weight(1f)
+                    )
+                    CalfBirthHelpIcon(
+                        title = "Quick Estimate",
+                        message = "Use an estimated birth mass only when the calf has not been weighed. Select 30, 35 or 40 kg to fill in the birth mass field. Replace the estimate with a measured mass when one is available."
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -257,14 +264,6 @@ fun AppearanceParentageScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "Estimated mass is a fallback only. Replace it with a measured weight when possible.",
-                    fontSize = 11.sp,
-                    lineHeight = 15.sp,
-                    color = BeeftechMutedText
-                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))

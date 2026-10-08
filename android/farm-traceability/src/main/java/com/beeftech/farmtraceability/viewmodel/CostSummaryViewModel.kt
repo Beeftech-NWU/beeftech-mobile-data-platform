@@ -99,6 +99,7 @@ class CostSummaryViewModel(
         gpsLat: Double,
         gpsLng: Double,
         timestamp: Long = System.currentTimeMillis(),
+        submissionId: String = "",
         onResult: (
             Boolean,
             String
@@ -118,7 +119,7 @@ class CostSummaryViewModel(
 
         val amount = cleanedAmount.toDoubleOrNull()
 
-        if (amount == null || amount < 0) {
+        if (amount == null || !amount.isFinite() || amount < 0) {
             onResult(false, "Please enter a valid cost amount.")
             return
         }
@@ -129,7 +130,10 @@ class CostSummaryViewModel(
 
                 val allowedTypes = costTypeDao.getActive().map { it.code }
 
-                if (costType !in allowedTypes) {
+                if (
+                    costType !in allowedTypes ||
+                    costType !in setOf(COST_TRANSPORT, COST_PROCESSING, COST_HANDLING, COST_INTEREST)
+                ) {
                     onResult(false, "Invalid cost type.")
                     return@launch
                 }
@@ -141,7 +145,8 @@ class CostSummaryViewModel(
                     description = description,
                     gpsLat = gpsLat,
                     gpsLng = gpsLng,
-                    timestamp = timestamp
+                    timestamp = timestamp,
+                    submissionId = submissionId
                 )
 
                 loadCostSummary(animalId)

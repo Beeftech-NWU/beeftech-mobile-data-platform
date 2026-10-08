@@ -332,7 +332,7 @@ fun FarmTraceabilityScreen(
             MenuSpacer()
 
             TraceabilityMenuCard(
-                title = "Cost Summary",
+                title = "Costs",
                 subtitle = "View direct and indirect animal costs",
                 icon = Icons.Outlined.Payments,
                 onClick = onCostSummaryClick

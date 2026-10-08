@@ -19,6 +19,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -32,6 +34,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -179,6 +182,123 @@ fun TraceabilitySectionTitle(
     }
 }
 
+/**
+ * Compact, accessible help for every Traceability field. Existing explicitly
+ * supplied help text takes precedence over these defaults.
+ */
+private fun traceabilityDefaultFieldHelp(label: String): String {
+    val cleanLabel = label.trim().removeSuffix("*").trim()
+    return when (cleanLabel.lowercase()) {
+        "animal", "animal tag", "animal tag / reference", "animal reference" ->
+            "This record is linked to the selected animal. To use a different animal, select it before opening this form."
+        "disease / condition" ->
+            "Select or enter the condition being treated. Use a clear name so this treatment is easy to find later."
+        "treatment type" ->
+            "Choose the treatment administered to this animal, or enter its name if it is not listed."
+        "batch number" ->
+            "BeefTech generates this treatment record number after you choose the condition and treatment. It cannot be edited here."
+        "volume used" ->
+            "Enter the amount of treatment actually administered. Include the correct unit if it is needed (for example, 5 mL)."
+        "cost" ->
+            "Enter the expense for this animal in South African rand. Costs saved in their original workflow are counted automatically."
+        "movement type" ->
+            "Choose whether the animal moved within your site, to another site, was sold, or had another movement outcome."
+        "movement date" ->
+            "Choose the date on which the movement actually happened, using the calendar."
+        "from location" ->
+            "The origin is based on the animal's recorded location. Check it before recording the movement."
+        "to location", "destination site", "destination / outcome", "buyer / destination" ->
+            "Enter where the animal moved. For a sale, give the buyer or destination so the movement can be traced."
+        "responsible worker" ->
+            "Choose or enter the person responsible for this event so the record can be followed up."
+        "notes", "notes (optional)" ->
+            "Optional details about the event, such as the reason or anything that will help explain it later."
+        "supplier name" ->
+            "Select the supplier linked to this animal, or enter an external supplier who is not registered."
+        "gln number" ->
+            "Enter the supplier's 13-digit Global Location Number if available. Do not invent a number."
+        "date of purchase" ->
+            "Select the actual purchase date using the calendar."
+        "purchase batch number" ->
+            "Generated from the selected supplier and purchase date. Animals sharing this purchase batch are grouped together."
+        "cost type" ->
+            "Choose Transport, Processing, Handling or Interest. Treatment and Feed costs are recorded in their own workflows and included automatically."
+        "distance (km)" ->
+            "Enter the distance travelled in kilometres for one transport trip."
+        "rate per km (r)" ->
+            "Enter the transport rate charged in rand for each kilometre, for example 12.50 for R12.50/km."
+        "number of trips" ->
+            "Enter how many trips were needed for this transport expense. Use 1 for a single trip."
+        "animals sharing trip" ->
+            "Enter how many animals shared the transport expense. BeefTech divides the distance-based trip cost between them."
+        "extra charges (r)" ->
+            "Enter extra transport expenses allocated to this animal, such as its share of tolls or loading fees."
+        "annual interest rate (%)" ->
+            "Enter the annual percentage rate, for example 10 for 10% per year. The calculator uses simple interest."
+        "interest period (days)" ->
+            "Enter the number of days interest applies. The calculation uses the annual rate divided across 365 days."
+        "amount" ->
+            "Enter this animal's cost in rand, or calculate it using the calculator shown for the selected cost type."
+        "description" ->
+            "Briefly describe the expense, such as a transport journey, processing service or handling charge."
+        "cost date" ->
+            "Choose the date this expense was incurred using the calendar."
+        "destination" ->
+            "Choose the animal's real destination or enter it if it is not in the saved locations."
+        "days in destination", "days" ->
+            "Enter how many days the animal spent at this destination or on this feed ration."
+        "ration" ->
+            "Select the actual feed ration used for this animal, or enter a new ration where allowed."
+        "mortality reason" ->
+            "Choose or enter the reason for the animal's death using the information available."
+        "date of mortality", "mortality date" ->
+            "Choose the date the mortality occurred, not the date it was reported."
+        else ->
+            "Enter or select $cleanLabel for the selected animal. Use an accurate value from the farm record."
+    }
+}
+
+@Composable
+fun TraceabilityHelpLabel(label: String, helperText: String = "") {
+    var showHelp by remember { mutableStateOf(false) }
+    val explanation = helperText.takeIf { it.isNotBlank() }
+        ?: traceabilityDefaultFieldHelp(label)
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = label.uppercase(),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.6.sp,
+            color = BeeftechPrimaryDark
+        )
+        IconButton(
+            onClick = { showHelp = true },
+            modifier = Modifier.size(40.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Info,
+                contentDescription = "Help for ${label.trim()}",
+                tint = BeeftechPrimaryDark,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+
+    if (showHelp) {
+        AlertDialog(
+            onDismissRequest = { showHelp = false },
+            title = { Text(label.trim()) },
+            text = { Text(explanation) },
+            confirmButton = {
+                TextButton(onClick = { showHelp = false }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+}
+
 @Composable
 fun TraceabilityTextField(
     label: String,
@@ -204,22 +324,12 @@ fun TraceabilityTextField(
         }
 
     val supportingText =
-        if (isError && errorText.isNotBlank()) {
-            errorText
-        } else {
-            helperText
-        }
+        if (isError && errorText.isNotBlank()) errorText else ""
 
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
-        Text(
-            text = displayLabel.uppercase(),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 0.6.sp,
-            color = BeeftechPrimaryDark
-        )
+        TraceabilityHelpLabel(displayLabel, helperText)
 
         Spacer(modifier = Modifier.height(7.dp))
 
@@ -329,13 +439,7 @@ fun TraceabilityDropdown(
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
-        Text(
-            text = displayLabel.uppercase(),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 0.6.sp,
-            color = BeeftechPrimaryDark
-        )
+        TraceabilityHelpLabel(displayLabel, helperText)
 
         Spacer(modifier = Modifier.height(7.dp))
 
@@ -433,16 +537,7 @@ fun TraceabilityDropdown(
             }
         }
 
-        if (helperText.isNotBlank()) {
-            Spacer(modifier = Modifier.height(5.dp))
 
-            Text(
-                text = helperText,
-                fontSize = 11.sp,
-                lineHeight = 15.sp,
-                color = BeeftechMutedText
-            )
-        }
     }
 }
 
@@ -503,13 +598,7 @@ fun TraceabilitySearchableDropdown(
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
-        Text(
-            text = displayLabel.uppercase(),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 0.6.sp,
-            color = BeeftechPrimaryDark
-        )
+        TraceabilityHelpLabel(displayLabel, helperText)
 
         Spacer(modifier = Modifier.height(7.dp))
 
@@ -646,16 +735,7 @@ fun TraceabilitySearchableDropdown(
             }
         }
 
-        if (helperText.isNotBlank()) {
-            Spacer(modifier = Modifier.height(5.dp))
 
-            Text(
-                text = helperText,
-                fontSize = 11.sp,
-                lineHeight = 15.sp,
-                color = BeeftechMutedText
-            )
-        }
     }
 }
 
@@ -670,13 +750,7 @@ fun TraceabilityChoiceSelector(
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
-        Text(
-            text = label.uppercase(),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 0.6.sp,
-            color = BeeftechPrimaryDark
-        )
+        TraceabilityHelpLabel(label = label)
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -803,12 +877,9 @@ fun TraceabilityReadOnlyField(
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
-        Text(
-            text = label.uppercase(),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 0.6.sp,
-            color = BeeftechPrimaryDark
+        TraceabilityHelpLabel(
+            label = label,
+            helperText = "This value comes from the saved record or is generated automatically. Edit it in its original registration form if needed."
         )
 
         Spacer(modifier = Modifier.height(7.dp))

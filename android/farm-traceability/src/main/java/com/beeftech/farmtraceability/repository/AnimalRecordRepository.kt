@@ -23,11 +23,21 @@ data class AnimalRecordSummary(
 
     val entryMass: String = "",
 
+    val registeredBirthMass: String = "",
+
     val lastMass: String = "",
 
     val daysAtFacility: String = "",
 
-    val averageDailyGain: String = ""
+    val averageDailyGain: String = "",
+    val hasCalfRegistration: Boolean = false,
+    val massHistory: List<AnimalMassReading> = emptyList()
+)
+
+data class AnimalMassReading(
+    val massKg: Double,
+    val dateMillis: Long,
+    val source: String
 )
 
 
@@ -52,31 +62,16 @@ class AnimalRecordRepository(
             }
 
 
-            val registration =
-                try {
-
-                    if (
-                        tagNumber.isBlank()
-                    ) {
-
-                        null
-
-                    } else {
-
-                        database
-                            .calfRegistrationDao()
-                            .getRegistrationByTag(
-                                tagNumber
-                            )
-                            .firstOrNull()
-                    }
-
-                } catch (
-                    _: Exception
-                ) {
-
-                    null
-                }
+            // Resolve by canonical animal ID, not display tag text.
+            val registration = try {
+                database.calfRegistrationDao()
+                    .getAllRegistrationViews()
+                    .firstOrNull()
+                    .orEmpty()
+                    .firstOrNull { it.animalId == animalId }
+            } catch (_: Exception) {
+                null
+            }
 
 
             var databaseBreed =
@@ -87,10 +82,6 @@ class AnimalRecordRepository(
 
             var animalBirthdate:
                     Long? =
-                null
-
-            var animalMass:
-                    Double? =
                 null
 
             var animalCaptureAt:
@@ -115,7 +106,6 @@ class AnimalRecordRepository(
                             breed,
                             gender,
                             birthdate,
-                            massKg,
                             captureAt
                         FROM animals
                         WHERE animalId = ?
@@ -149,12 +139,6 @@ class AnimalRecordRepository(
                                 cursor
                                     .getColumnIndex(
                                         "birthdate"
-                                    )
-
-                            val massIndex =
-                                cursor
-                                    .getColumnIndex(
-                                        "massKg"
                                     )
 
                             val captureIndex =
@@ -212,21 +196,6 @@ class AnimalRecordRepository(
 
 
                             if (
-                                massIndex >= 0 &&
-                                !cursor.isNull(
-                                    massIndex
-                                )
-                            ) {
-
-                                animalMass =
-                                    cursor
-                                        .getDouble(
-                                            massIndex
-                                        )
-                            }
-
-
-                            if (
                                 captureIndex >= 0 &&
                                 !cursor.isNull(
                                     captureIndex
@@ -249,114 +218,62 @@ class AnimalRecordRepository(
             }
 
 
-            var firstWeight:
-                    Double? =
-                null
-
-            var lastWeight:
-                    Double? =
-                null
-
-
-            /*
-             * animal_weights is the source of truth for later
-             * weigh-ins.
-             */
-            try {
-
-                database
-                    .openHelper
-                    .readableDatabase
-                    .query(
-                        """
-                        SELECT
-                            weight_kg,
-                            weigh_date
-                        FROM animal_weights
-                        WHERE animal_id = ?
-                        ORDER BY weigh_date ASC
-                        """.trimIndent(),
-
-                        arrayOf<Any?>(
-                            animalId
-                        )
-                    )
-                    .use {
-                            cursor ->
-
-                        val weightIndex =
-                            cursor
-                                .getColumnIndex(
-                                    "weight_kg"
-                                )
-
-
-                        while (
-                            cursor.moveToNext()
-                        ) {
-
-                            if (
-                                weightIndex >= 0 &&
-                                !cursor.isNull(
-                                    weightIndex
-                                )
-                            ) {
-
-                                val weight =
-                                    cursor
-                                        .getDouble(
-                                            weightIndex
-                                        )
-
-
-                                if (
-                                    firstWeight == null
-                                ) {
-
-                                    firstWeight =
-                                        weight
-                                }
-
-
-                                lastWeight =
-                                    weight
-                            }
-                        }
-                    }
-
-            } catch (
-                _: Exception
-            ) {
-                // No recorded weigh-in yet.
+            // Registration is the single source of truth for birth mass.
+            // Subsequent dated weighings live in animal_weights; corrections to
+            // the birth mass never manufacture another weighing event.
+            val readings = mutableListOf<AnimalMassReading>()
+            val birthMass = registration?.birthWeightKg?.takeIf { it > 0.0 }
+            val birthTimestamp = registration?.birthdate?.takeIf { it > 0L }
+            if (birthMass != null && birthTimestamp != null) {
+                readings += AnimalMassReading(birthMass, birthTimestamp, "Registered birth mass")
             }
 
+            try {
+                database.openHelper.readableDatabase.query(
+                    """
+                    SELECT weight_kg, weigh_date FROM animal_weights
+                    WHERE animal_id = ? AND weight_kg > 0
+                    ORDER BY weigh_date ASC
+                    """.trimIndent(),
+                    arrayOf<Any?>(animalId)
+                ).use { cursor ->
+                    val weightColumn = cursor.getColumnIndexOrThrow("weight_kg")
+                    val dateColumn = cursor.getColumnIndexOrThrow("weigh_date")
+                    while (cursor.moveToNext()) {
+                        val weight = cursor.getDouble(weightColumn)
+                        val recordedAt = cursor.getLong(dateColumn)
+                        if (weight.isFinite() && weight > 0.0 && recordedAt > 0L) {
+                            readings += AnimalMassReading(weight, recordedAt, "Weighing")
+                        }
+                    }
+                }
+            } catch (_: Exception) {
+                // No weight measurements have been recorded yet.
+            }
 
-            /*
-             * Entry mass priority:
-             *
-             * 1. animal mass captured at registration
-             * 2. calf registration birth weight
-             * 3. earliest recorded weight
-             */
-            val entryWeight =
-                animalMass
-                    ?: registration
-                        ?.birthWeightKg
-                    ?: firstWeight
+            val latestWeighing = readings.filter { it.source == "Weighing" }
+                .maxByOrNull { it.dateMillis }
+            val earliestWeighing = readings.filter { it.source == "Weighing" }
+                .minByOrNull { it.dateMillis }
+            val entryWeight = birthMass ?: earliestWeighing?.massKg
+            val currentWeight = latestWeighing?.massKg ?: birthMass
 
-
-            /*
-             * Last mass:
-             *
-             * latest weigh-in first, then current animal mass,
-             * then registration weight as a final fallback.
-             */
-            val currentWeight =
-                lastWeight
-                    ?: animalMass
-                    ?: registration
-                        ?.birthWeightKg
-
+            // Compare dated measurements, never elapsed time at the facility.
+            // Collapsing repeated measurements on the same day avoids a
+            // misleading divide-by-zero ADG.
+            val latestDistinctDays = readings
+                .filter { it.massKg.isFinite() && it.massKg > 0.0 && it.dateMillis > 0L }
+                .sortedByDescending { it.dateMillis }
+                .distinctBy { utcCalendarDay(it.dateMillis) }
+                .take(2)
+            val adg = if (latestDistinctDays.size == 2) {
+                val newer = latestDistinctDays[0]
+                val older = latestDistinctDays[1]
+                val elapsedDays = utcCalendarDay(newer.dateMillis) - utcCalendarDay(older.dateMillis)
+                if (elapsedDays > 0L) {
+                    (newer.massKg - older.massKg) / elapsedDays.toDouble()
+                } else null
+            } else null
 
             val birthDateMillis =
                 registration
@@ -405,26 +322,6 @@ class AnimalRecordRepository(
                         )
                             .toInt()
                     }
-
-
-            val adg =
-                if (
-                    entryWeight != null &&
-                    currentWeight != null &&
-                    days != null &&
-                    days > 0
-                ) {
-
-                    (
-                        currentWeight -
-                            entryWeight
-                    ) /
-                        days.toDouble()
-
-                } else {
-
-                    null
-                }
 
 
             val photoPath =
@@ -494,6 +391,9 @@ class AnimalRecordRepository(
                         }
                         .orEmpty(),
 
+                registeredBirthMass =
+                    birthMass?.let { "%.1f kg".format(Locale.US, it) }.orEmpty(),
+
                 lastMass =
                     currentWeight
                         ?.let {
@@ -512,17 +412,26 @@ class AnimalRecordRepository(
                         .orEmpty(),
 
                 averageDailyGain =
-                    adg
-                        ?.let {
-                            "%.2f kg/day".format(
-                                Locale.US,
-                                it
-                            )
-                        }
-                        .orEmpty()
+                    adg?.let { "%.2f kg/day".format(Locale.US, it) }
+                        ?: "Not enough data",
+                hasCalfRegistration = registration != null,
+                massHistory = readings.sortedByDescending { it.dateMillis }
             )
         }
 
+
+    private fun utcCalendarDay(timestamp: Long): Long {
+        val local = Calendar.getInstance().apply { timeInMillis = timestamp }
+        val utc = Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply {
+            clear()
+            set(
+                local.get(Calendar.YEAR),
+                local.get(Calendar.MONTH),
+                local.get(Calendar.DAY_OF_MONTH)
+            )
+        }
+        return utc.timeInMillis / DAY_MILLIS
+    }
 
     private fun formatDate(
         epochMillis: Long

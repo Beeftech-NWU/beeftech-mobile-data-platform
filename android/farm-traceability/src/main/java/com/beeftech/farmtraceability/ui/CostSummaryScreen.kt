@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 
 @Composable
 fun CostSummaryScreen(
@@ -65,22 +66,12 @@ fun CostSummaryScreen(
         amount: String,
         description: String,
         costDate: String,
+        submissionId: String,
         onCompleted: (Boolean, String) -> Unit
-    ) -> Unit = { _, _, _, _, onCompleted ->
+    ) -> Unit = { _, _, _, _, _, onCompleted ->
         onCompleted(
             false,
             "Cost saving is unavailable."
-        )
-    },
-    onSaveMass: (
-        massKg: String,
-        weighDate: String,
-        note: String,
-        onCompleted: (Boolean, String) -> Unit
-    ) -> Unit = { _, _, _, onCompleted ->
-        onCompleted(
-            false,
-            "Mass saving is unavailable."
         )
     },
     onBackClick: () -> Unit = {}
@@ -99,6 +90,19 @@ fun CostSummaryScreen(
 
     var costMessage by remember {
         mutableStateOf("")
+    }
+
+    var savingCost by remember {
+        mutableStateOf(false)
+    }
+
+    var selectedCostView by remember {
+        mutableStateOf("CAPTURE")
+    }
+
+    // A single draft ID is reused on retries. A successful save gets a new ID.
+    var submissionId by remember {
+        mutableStateOf(UUID.randomUUID().toString())
     }
 
     var transportDistanceKm by remember {
@@ -141,21 +145,6 @@ fun CostSummaryScreen(
         mutableStateOf(todayDate)
     }
 
-    var massValue by remember {
-        mutableStateOf("")
-    }
-
-    var massDate by remember {
-        mutableStateOf(todayDate)
-    }
-
-    var massNote by remember {
-        mutableStateOf("")
-    }
-
-    var massMessage by remember {
-        mutableStateOf("")
-    }
 
     Column(
         modifier = Modifier
@@ -169,8 +158,8 @@ fun CostSummaryScreen(
             } else {
                 "ANIMAL $animalReference"
             },
-            title = "Cost Summary",
-            subtitle = "Direct and indirect livestock costs",
+            title = "Costs",
+            subtitle = "Capture expenses or review the saved cost breakdown",
             icon = Icons.Outlined.Payments,
             showBackButton = true,
             onBackClick = onBackClick
@@ -181,9 +170,27 @@ fun CostSummaryScreen(
                 .fillMaxWidth()
                 .padding(18.dp)
         ) {
-            TraceabilitySectionTitle(
-                "Direct Costs"
-            )
+            Row(modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = { selectedCostView = "CAPTURE" },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(if (selectedCostView == "CAPTURE") "Add Cost ✓" else "Add Cost")
+                }
+                Spacer(modifier = Modifier.size(8.dp))
+                OutlinedButton(
+                    onClick = { selectedCostView = "OVERVIEW" },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(if (selectedCostView == "OVERVIEW") "Overview ✓" else "Overview")
+                }
+            }
+            Spacer(modifier = Modifier.height(18.dp))
+
+            if (selectedCostView == "OVERVIEW") {
+                TraceabilitySectionTitle(
+                    "Direct Costs"
+                )
 
             Spacer(
                 modifier = Modifier.height(12.dp)
@@ -268,6 +275,9 @@ fun CostSummaryScreen(
                 modifier = Modifier.height(18.dp)
             )
 
+            }
+
+            if (selectedCostView == "CAPTURE") {
             TraceabilityCard {
                 Text(
                     text = "ADD / CALCULATE COST",
@@ -278,6 +288,13 @@ fun CostSummaryScreen(
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
+
+                TraceabilityHelpLabel(
+                    label = "Cost Type",
+                    helperText = "Select the expense you are recording. Transport, Processing, Handling and Interest are entered here; Treatment and Feed costs are included from their original workflows."
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
 
                 Row(modifier = Modifier.fillMaxWidth()) {
                     listOf(
@@ -291,7 +308,13 @@ fun CostSummaryScreen(
 
                         OutlinedButton(
                             onClick = {
-                                selectedCostType = option.first
+                                if (selectedCostType != option.first) {
+                                    selectedCostType = option.first
+                                    costAmount = ""
+                                    costNote = ""
+                                    costDate = todayDate
+                                    submissionId = UUID.randomUUID().toString()
+                                }
                                 costMessage = ""
                             },
                             modifier = Modifier.weight(1f)
@@ -326,7 +349,13 @@ fun CostSummaryScreen(
 
                         OutlinedButton(
                             onClick = {
-                                selectedCostType = option.first
+                                if (selectedCostType != option.first) {
+                                    selectedCostType = option.first
+                                    costAmount = ""
+                                    costNote = ""
+                                    costDate = todayDate
+                                    submissionId = UUID.randomUUID().toString()
+                                }
                                 costMessage = ""
                             },
                             modifier = Modifier.weight(1f)
@@ -381,6 +410,7 @@ fun CostSummaryScreen(
 
                     TraceabilityTextField(
                         label = "Rate per km (R)",
+                        helperText = "Enter the actual transport charge in rand per kilometre (R/km). This is multiplied by the distance and number of trips.",
                         value = transportRatePerKm,
                         onValueChange = {
                             transportRatePerKm = it
@@ -396,6 +426,7 @@ fun CostSummaryScreen(
 
                     TraceabilityTextField(
                         label = "Number of Trips",
+                        helperText = "Enter the total number of trips required for this journey. Use 1 when it was a single trip.",
                         value = transportTrips,
                         onValueChange = {
                             transportTrips = it
@@ -550,6 +581,7 @@ fun CostSummaryScreen(
 
                     TraceabilityTextField(
                         label = "Annual Interest Rate (%)",
+                        helperText = "Enter the yearly interest rate as a percentage. For example, enter 10 for 10% per annum.",
                         value = interestAnnualRate,
                         onValueChange = {
                             interestAnnualRate = it
@@ -565,6 +597,7 @@ fun CostSummaryScreen(
 
                     TraceabilityTextField(
                         label = "Interest Period (days)",
+                        helperText = "Enter the number of days the animal's costs were financed. Simple interest uses this period over 365 days.",
                         value = interestDays,
                         onValueChange = {
                             interestDays = it
@@ -694,9 +727,10 @@ fun CostSummaryScreen(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 TraceabilityPrimaryButton(
-                    text = "Save Cost",
+                    text = if (savingCost) "Saving Cost..." else "Save Cost",
                     icon = Icons.Outlined.Save,
                     onClick = {
+                        if (!savingCost) {
                         val amount =
                             costAmount
                                 .replace(",", ".")
@@ -709,26 +743,37 @@ fun CostSummaryScreen(
                             costMessage =
                                 "Enter a valid cost amount."
                         } else {
+                            savingCost = true
                             onSaveCost(
                                 selectedCostType,
                                 costAmount,
                                 costNote,
-                                costDate
+                                costDate,
+                                submissionId
                             ) {
                                     success,
                                     message ->
 
-                                if (
-                                    success
-                                ) {
+                                savingCost = false
+                                if (success) {
                                     costAmount = ""
                                     costNote = ""
-                                    costMessage = ""
+                                    costDate = todayDate
+                                    transportDistanceKm = ""
+                                    transportRatePerKm = ""
+                                    transportTrips = "1"
+                                    transportAnimals = "1"
+                                    transportExtras = "0"
+                                    interestAnnualRate = ""
+                                    interestDays = ""
+                                    submissionId = UUID.randomUUID().toString()
+                                    costMessage = message
+                                    selectedCostView = "OVERVIEW"
                                 } else {
-                                    costMessage =
-                                        message
+                                    costMessage = message
                                 }
                             }
+                        }
                         }
                     }
                 )
@@ -736,6 +781,9 @@ fun CostSummaryScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            }
+
+            if (selectedCostView == "OVERVIEW") {
             TraceabilitySectionTitle(
                 "Cost Overview"
             )
@@ -756,11 +804,11 @@ fun CostSummaryScreen(
                         ?.let {
                             displayCost(it)
                         }
-                        ?: "Record mass",
+                        ?: "Mass unavailable",
 
                 lastMassDate =
                     lastMassDate.ifBlank {
-                        "Record mass"
+                        "Not recorded"
                     }
             )
 
@@ -768,123 +816,16 @@ fun CostSummaryScreen(
                 modifier = Modifier.height(18.dp)
             )
 
-            TraceabilityCard {
-                Text(
-                    text = "RECORD CURRENT MASS",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.6.sp,
-                    color = BeeftechPrimaryDark
-                )
-
-                Spacer(
-                    modifier = Modifier.height(10.dp)
-                )
-
-                TraceabilityTextField(
-                    label = "Mass (kg)",
-                    value = massValue,
-                    onValueChange = {
-                        massValue = it
-                        massMessage = ""
-                    },
-                    icon =
-                        Icons.Outlined.MonitorWeight,
-                    placeholder = "e.g. 218.5",
-                    helperText = "Record a new measured mass. Cost per kg will recalculate automatically.",
-                    required = true,
-                    numeric = true,
-                    decimal = true
-                )
-
-                Spacer(
-                    modifier = Modifier.height(14.dp)
-                )
-
-                TraceabilityDatePickerField(
-                    label = "Weigh Date",
-                    value = massDate,
-                    onValueChange = {
-                        massDate = it
-                        massMessage = ""
-                    },
-                    helperText = "Tap the calendar to select the date this mass was measured.",
-                    required = true,
-                    maxToday = true
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                TraceabilityTextField(
-                    label = "Mass Note",
-                    value = massNote,
-                    onValueChange = {
-                        massNote = it
-                        massMessage = ""
-                    },
-                    icon = Icons.AutoMirrored.Outlined.ReceiptLong,
-                    placeholder = "Optional note",
-                    helperText = "Optional note about this weighing."
-                )
-
-                if (massMessage.isNotBlank()) {
-                    Spacer(
-                        modifier = Modifier.height(10.dp)
-                    )
-
-                    TraceabilityFormMessage(
-                        message = massMessage
-                    )
-                }
-
-                Spacer(
-                    modifier = Modifier.height(14.dp)
-                )
-
-                TraceabilityPrimaryButton(
-                    text = "Save Mass",
-                    icon = Icons.Outlined.Save,
-                    onClick = {
-                        val mass =
-                            massValue
-                                .replace(",", ".")
-                                .toDoubleOrNull()
-
-                        if (
-                            mass == null ||
-                            mass <= 0.0
-                        ) {
-                            massMessage =
-                                "Enter a valid mass greater than zero."
-                        } else {
-                            onSaveMass(
-                                massValue,
-                                massDate,
-                                massNote
-                            ) {
-                                    success,
-                                    message ->
-
-                                if (success) {
-                                    massValue =
-                                        ""
-                                    massNote =
-                                        ""
-                                    massMessage =
-                                        ""
-                                } else {
-                                    massMessage =
-                                        message
-                                }
-                            }
-                        }
-                    }
-                )
-            }
+            Text(
+                text = "Mass is entered or corrected in Calf Registration. This screen reads that saved mass for cost/kg.",
+                fontSize = 12.sp,
+                color = BeeftechMutedText
+            )
 
             Spacer(
                 modifier = Modifier.height(30.dp)
             )
+            }
         }
     }
 }
@@ -1077,7 +1018,7 @@ private fun TotalCostCard(
                     icon =
                         Icons.Outlined.MonitorWeight,
                     label =
-                        "COST / KG",
+                        "COST / BIRTH KG",
                     value =
                         costPerKg
                 )
@@ -1088,7 +1029,7 @@ private fun TotalCostCard(
                     icon =
                         Icons.Outlined.CalendarMonth,
                     label =
-                        "LAST MASS DATE",
+                        "REGISTERED BIRTH DATE",
                     value =
                         lastMassDate
                 )

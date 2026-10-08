@@ -289,7 +289,7 @@ fun SupplierScreen(
                     )
 
                     TraceabilitySecondaryButton(
-                        text = "Record / Update Mass",
+                        text = "Open Calf Registration to Edit Mass",
                         icon = Icons.Outlined.MonitorWeight,
                         onClick = onRecordMassClick
                     )

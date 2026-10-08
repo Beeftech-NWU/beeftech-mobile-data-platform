@@ -794,6 +794,10 @@ class MainActivity : ComponentActivity() {
 
                                         FarmTraceabilityFlow(
 
+                                            onCalfRegistrationClick = {
+                                                selectedDemoTab = tabs.indexOf(AppTab.CALF_REGISTRATION)
+                                            },
+
                                             onFarmerRegistrationClick = {
 
                                                 val intent =
@@ -979,6 +983,7 @@ class MainActivity : ComponentActivity() {
                                                     amount,
                                                     description,
                                                     costDate,
+                                                    submissionId,
                                                     onCompleted ->
 
                                                 costSummaryViewModel
@@ -997,6 +1002,7 @@ class MainActivity : ComponentActivity() {
                                                             0.0,
                                                         timestamp =
                                                             costDate,
+                                                        submissionId = submissionId,
                                                         onResult = {
                                                                 success,
                                                                 message ->
@@ -1011,108 +1017,6 @@ class MainActivity : ComponentActivity() {
                                                             )
                                                         }
                                                     )
-                                            },
-
-                                            onSaveWeight = {
-                                                    animalId,
-                                                    weightKg,
-                                                    weighDate,
-                                                    note,
-                                                    onCompleted ->
-
-                                                uiScope.launch {
-
-                                                    try {
-
-                                                        val animal =
-                                                            database
-                                                                .animalDao()
-                                                                .getById(
-                                                                    animalId
-                                                                )
-
-                                                        if (
-                                                            animal == null
-                                                        ) {
-
-                                                            val message =
-                                                                "Unable to find the selected animal."
-
-                                                            showUiMessage(
-                                                                message
-                                                            )
-
-                                                            onCompleted(
-                                                                false,
-                                                                message
-                                                            )
-
-                                                        } else {
-
-                                                            val record =
-                                                                AnimalWeightEntity(
-                                                                    animalId =
-                                                                        animalId,
-                                                                    weightKg =
-                                                                        weightKg,
-                                                                    weighDate =
-                                                                        weighDate,
-                                                                    notes =
-                                                                        note
-                                                                            .trim()
-                                                                            .takeIf {
-                                                                                it.isNotBlank()
-                                                                            }
-                                                                            ?: "Manual mass captured in Cost Summary",
-                                                                    gpsLat =
-                                                                        animal.gpsLat,
-                                                                    gpsLng =
-                                                                        animal.gpsLng,
-                                                                    deviceId =
-                                                                        animal.deviceId,
-                                                                    capturedAt =
-                                                                        System.currentTimeMillis(),
-                                                                    syncStatus =
-                                                                        "PENDING"
-                                                                )
-
-                                                            database
-                                                                .animalWeightDao()
-                                                                .insertWeight(
-                                                                    record
-                                                                )
-
-                                                            val message =
-                                                                "Mass saved successfully."
-
-                                                            showUiMessage(
-                                                                message
-                                                            )
-
-                                                            onCompleted(
-                                                                true,
-                                                                message
-                                                            )
-                                                        }
-
-                                                    } catch (
-                                                        exception: Exception
-                                                    ) {
-
-                                                        val message =
-                                                            exception.message
-                                                                ?: "Unable to save mass."
-
-                                                        showUiMessage(
-                                                            message
-                                                        )
-
-                                                        onCompleted(
-                                                            false,
-                                                            message
-                                                        )
-                                                    }
-                                                }
                                             },
 
                                             supplierRecords =

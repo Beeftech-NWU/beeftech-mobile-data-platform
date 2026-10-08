@@ -32,6 +32,17 @@ import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import com.beeftech.farmtraceability.repository.AnimalMassReading
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -60,9 +71,12 @@ fun AnimalRecordScreen(
     supplierName: String = "",
     status: String = "",
     entryMass: String = "",
+    registeredBirthMass: String = "",
     lastMass: String = "",
     daysAtFacility: String = "",
     averageDailyGain: String = "",
+    hasCalfRegistration: Boolean = false,
+    massHistory: List<AnimalMassReading> = emptyList(),
     movementCount: Int = 0,
     feedCount: Int = 0,
     treatmentCount: Int = 0,
@@ -74,8 +88,33 @@ fun AnimalRecordScreen(
     onTreatmentsClick: () -> Unit = {},
     onAnimalMovementClick: () -> Unit = {},
     onCostSummaryClick: () -> Unit = {},
+    onSaveRegisteredMass: (String, (Boolean, String) -> Unit) -> Unit = { _, done ->
+        done(false, "Saving registered mass is unavailable.")
+    },
+    onSaveWeighing: (String, String, String, (Boolean, String) -> Unit) -> Unit = { _, _, _, done ->
+        done(false, "Saving a weighing is unavailable.")
+    },
     onMortalityClick: () -> Unit = {}
 ) {
+    var showMassEditor by remember(tagNumber) { mutableStateOf(false) }
+    var editingRegistered by remember(tagNumber) { mutableStateOf(true) }
+    var massInput by remember(tagNumber) { mutableStateOf("") }
+    var massDate by remember(tagNumber) {
+        mutableStateOf(SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date()))
+    }
+    var massNote by remember(tagNumber) { mutableStateOf("") }
+    var massError by remember(tagNumber) { mutableStateOf("") }
+    var massSaving by remember(tagNumber) { mutableStateOf(false) }
+
+    fun openMassEditor() {
+        editingRegistered = hasCalfRegistration
+        massInput = if (hasCalfRegistration) registeredBirthMass.removeSuffix("kg").trim() else ""
+        massDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
+        massNote = ""
+        massError = ""
+        showMassEditor = true
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -141,15 +180,10 @@ fun AnimalRecordScreen(
                 )
                 AnimalInfoTile(
                     icon = Icons.Outlined.MonitorWeight,
-                    label = "Current Mass",
-                    value =
-                        lastMass.ifBlank {
-                            entryMass.ifBlank {
-                                "Add mass"
-                            }
-                        },
+                    label = "Registered Mass",
+                    value = registeredBirthMass.ifBlank { "Tap to add mass" },
                     modifier = Modifier.weight(1f),
-                    onClick = onCostSummaryClick
+                    onClick = { openMassEditor() }
                 )
             }
 
@@ -186,7 +220,11 @@ fun AnimalRecordScreen(
                     ) {
                         PerformanceValue("Entry", entryMass.ifBlank { "—" })
                         PerformanceValue("Days", daysAtFacility.ifBlank { "—" })
-                        PerformanceValue("ADG", averageDailyGain.ifBlank { "—" })
+                        PerformanceValue(
+                            "ADG",
+                            averageDailyGain.ifBlank { "Not enough data" },
+                            "Average Daily Gain is the change between two recorded masses divided by the calendar days between those measurements."
+                        )
                     }
                 }
             }
@@ -239,6 +277,116 @@ fun AnimalRecordScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
         }
+    }
+
+    if (showMassEditor) {
+        AlertDialog(
+            onDismissRequest = { if (!massSaving) showMassEditor = false },
+            title = { Text("Mass records") },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(9.dp)
+                ) {
+                    Text("Update mass without leaving Animal Record.", fontSize = 12.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        OutlinedButton(
+                            enabled = !massSaving && hasCalfRegistration,
+                            onClick = {
+                                editingRegistered = true
+                                massInput = registeredBirthMass.removeSuffix("kg").trim()
+                                massError = ""
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) { Text("Correct birth mass", fontSize = 10.sp) }
+                        OutlinedButton(
+                            enabled = !massSaving,
+                            onClick = {
+                                editingRegistered = false
+                                massInput = ""
+                                massError = ""
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) { Text("New weighing", fontSize = 10.sp) }
+                    }
+                    if (editingRegistered) {
+                        Text(
+                            "This updates the original Calf Registration mass; no extra mass record is created.",
+                            fontSize = 11.sp,
+                            color = BeeftechMutedText
+                        )
+                    }
+                    TraceabilityTextField(
+                        label = if (editingRegistered) "Registered Mass (kg)" else "Weighing Mass (kg)",
+                        value = massInput,
+                        onValueChange = { massInput = it; massError = "" },
+                        icon = Icons.Outlined.MonitorWeight,
+                        placeholder = "e.g. 218.5",
+                        required = true,
+                        numeric = true,
+                        decimal = true
+                    )
+                    if (!editingRegistered) {
+                        TraceabilityDatePickerField(
+                            label = "Weighing Date",
+                            value = massDate,
+                            onValueChange = { massDate = it; massError = "" },
+                            required = true,
+                            maxToday = true
+                        )
+                        TraceabilityTextField(
+                            label = "Weighing Note",
+                            value = massNote,
+                            onValueChange = { massNote = it },
+                            icon = Icons.Outlined.MonitorWeight,
+                            placeholder = "Optional note"
+                        )
+                    }
+                    if (massHistory.isNotEmpty()) {
+                        Text("Mass history", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        massHistory.take(6).forEach { reading ->
+                            val dateLabel = SimpleDateFormat(
+                                "dd MMM yyyy", Locale.getDefault()
+                            ).format(Date(reading.dateMillis))
+                            val massLabel = "%.1f".format(Locale.US, reading.massKg)
+                            Text(
+                                "$dateLabel · $massLabel kg · ${reading.source}",
+                                fontSize = 11.sp,
+                                color = BeeftechMutedText
+                            )
+                        }
+                    }
+                    if (massError.isNotBlank()) {
+                        Text(massError, color = Color(0xFFB13E3A), fontSize = 12.sp)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    enabled = !massSaving,
+                    onClick = {
+                        val parsed = massInput.replace(",", ".").trim().toDoubleOrNull()
+                        if (parsed == null || !parsed.isFinite() || parsed <= 0.0) {
+                            massError = "Enter a valid mass greater than zero."
+                        } else {
+                            massSaving = true
+                            val done: (Boolean, String) -> Unit = { success, message ->
+                                massSaving = false
+                                if (success) showMassEditor = false
+                                else massError = message
+                            }
+                            if (editingRegistered) onSaveRegisteredMass(massInput, done)
+                            else onSaveWeighing(massInput, massDate, massNote, done)
+                        }
+                    }
+                ) { Text(if (massSaving) "Saving…" else "Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showMassEditor = false }, enabled = !massSaving) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
@@ -396,9 +544,13 @@ private fun AnimalInfoTile(
 }
 
 @Composable
-private fun PerformanceValue(label: String, value: String) {
+private fun PerformanceValue(label: String, value: String, help: String = "") {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, fontSize = 10.sp, color = BeeftechMutedText)
+        if (help.isNotBlank()) {
+            TraceabilityHelpLabel(label, help)
+        } else {
+            Text(label, fontSize = 10.sp, color = BeeftechMutedText)
+        }
         Text(value, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = BeeftechPrimaryDeep)
     }
 }

@@ -8,6 +8,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import com.beeftech.farmtraceability.repository.AnimalMassEditorRepository
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.platform.LocalContext
@@ -54,6 +57,9 @@ fun FarmTraceabilityFlow(
     onExitTraceability: () -> Unit = {},
 
     onFarmerRegistrationClick: () -> Unit = {},
+
+    // One editing location for animal mass: Calf Registration.
+    onCalfRegistrationClick: () -> Unit = {},
 
     movementRecords: List<AnimalMovementEntity> = emptyList(),
 
@@ -137,30 +143,15 @@ fun FarmTraceabilityFlow(
         amount: String,
         description: String,
         costDate: Long,
+        submissionId: String,
         onCompleted: (
             Boolean,
             String
         ) -> Unit
-    ) -> Unit = { _, _, _, _, _, onCompleted ->
+    ) -> Unit = { _, _, _, _, _, _, onCompleted ->
         onCompleted(
             false,
             "Cost save is unavailable."
-        )
-    },
-
-    onSaveWeight: (
-        animalId: String,
-        weightKg: Double,
-        weighDate: Long,
-        note: String,
-        onCompleted: (
-            Boolean,
-            String
-        ) -> Unit
-    ) -> Unit = { _, _, _, _, onCompleted ->
-        onCompleted(
-            false,
-            "Mass save is unavailable."
         )
     },
 
@@ -1143,6 +1134,9 @@ fun FarmTraceabilityFlow(
                     .getDatabase()
 
 
+            val massSaveScope = rememberCoroutineScope()
+            var massRevision by remember(selectedAnimalReference) { mutableStateOf(0) }
+
             var summary by
                 remember(
                     database,
@@ -1159,7 +1153,8 @@ fun FarmTraceabilityFlow(
             LaunchedEffect(
                 database,
                 selectedAnimalReference,
-                selectedTagNumber
+                selectedTagNumber,
+                massRevision
             ) {
 
                 if (
@@ -1361,6 +1356,9 @@ fun FarmTraceabilityFlow(
                 entryMass =
                     summary.entryMass,
 
+                registeredBirthMass =
+                    summary.registeredBirthMass,
+
                 lastMass =
                     summary.lastMass,
 
@@ -1369,6 +1367,8 @@ fun FarmTraceabilityFlow(
 
                 averageDailyGain =
                     summary.averageDailyGain,
+                hasCalfRegistration = summary.hasCalfRegistration,
+                massHistory = summary.massHistory,
 
                 movementCount =
                     movementCount,
@@ -1422,6 +1422,44 @@ fun FarmTraceabilityFlow(
                         TraceabilityScreen
                             .COST_SUMMARY
                     )
+                },
+
+                onSaveRegisteredMass = { massText, done ->
+                    val massValue = massText.replace(",", ".").trim().toDoubleOrNull()
+                    if (database == null || massValue == null) {
+                        done(false, "A valid mass and database connection are required.")
+                    } else {
+                        massSaveScope.launch {
+                            try {
+                                AnimalMassEditorRepository(database).correctRegisteredMass(
+                                    selectedAnimalReference, massValue
+                                )
+                                massRevision++
+                                done(true, "Registered mass corrected.")
+                            } catch (error: Exception) {
+                                done(false, error.message ?: "Unable to correct registered mass.")
+                            }
+                        }
+                    }
+                },
+                onSaveWeighing = { massText, dateText, note, done ->
+                    val massValue = massText.replace(",", ".").trim().toDoubleOrNull()
+                    val weighDate = parseTraceabilityDate(dateText)
+                    if (database == null || massValue == null || weighDate == null) {
+                        done(false, "Enter a valid mass and weighing date.")
+                    } else {
+                        massSaveScope.launch {
+                            try {
+                                AnimalMassEditorRepository(database).recordWeighing(
+                                    selectedAnimalReference, massValue, weighDate, note
+                                )
+                                massRevision++
+                                done(true, "Weighing recorded locally.")
+                            } catch (error: Exception) {
+                                done(false, error.message ?: "Unable to record weighing.")
+                            }
+                        }
+                    }
                 },
 
                 onMortalityClick = {
@@ -1847,38 +1885,17 @@ fun FarmTraceabilityFlow(
                                 """
                                 SELECT
                                     COUNT(*) AS head_count,
-                                    SUM(
-                                        CASE
-                                            WHEN entry_mass IS NOT NULL
-                                            THEN 1
-                                            ELSE 0
-                                        END
-                                    ) AS mass_count,
-                                    AVG(entry_mass) AS avg_mass
+                                    SUM(CASE WHEN entry_mass > 0 THEN 1 ELSE 0 END) AS mass_count,
+                                    AVG(CASE WHEN entry_mass > 0 THEN entry_mass END) AS avg_mass
                                 FROM (
                                     SELECT
                                         ap.animal_id,
-                                        COALESCE(
-                                            cr.birth_weight_kg,
-                                            (
-                                                SELECT aw.weight_kg
-                                                FROM animal_weights aw
-                                                WHERE aw.animal_id = ap.animal_id
-                                                ORDER BY aw.weigh_date ASC
-                                                LIMIT 1
-                                            )
-                                        ) AS entry_mass
+                                        MAX(cr.birth_weight_kg) AS entry_mass
                                     FROM animal_purchases ap
                                     LEFT JOIN calf_registrations cr
                                         ON cr.registered_animal_id = ap.animal_id
-                                    WHERE LOWER(
-                                        TRIM(
-                                            IFNULL(
-                                                ap.purchase_batch_number,
-                                                ''
-                                            )
-                                        )
-                                    ) = LOWER(TRIM(?))
+                                    WHERE LOWER(TRIM(IFNULL(ap.purchase_batch_number, '')))
+                                        = LOWER(TRIM(?))
                                     GROUP BY ap.animal_id
                                 )
                                 """.trimIndent(),
@@ -2120,12 +2137,7 @@ fun FarmTraceabilityFlow(
                         value
                 },
 
-                onRecordMassClick = {
-                    navigateTo(
-                        TraceabilityScreen
-                            .COST_SUMMARY
-                    )
-                },
+                onRecordMassClick = onCalfRegistrationClick,
 
                 onViewFarmClick = {
 
@@ -2386,101 +2398,43 @@ fun FarmTraceabilityFlow(
                 DatabaseProvider
                     .getDatabase()
 
-            var latestMassKg by
-                remember(
-                    database,
-                    selectedAnimalReference
-                ) {
-                    mutableStateOf<Double?>(
-                        null
-                    )
+            var registrationMassKg by
+                remember(selectedAnimalReference) {
+                    mutableStateOf<Double?>(null)
                 }
 
-            var latestMassDateMillis by
-                remember(
-                    database,
-                    selectedAnimalReference
-                ) {
-                    mutableStateOf<Long?>(
-                        null
-                    )
-                }
-
-            var massRefreshKey by
-                remember(
-                    selectedAnimalReference
-                ) {
-                    mutableStateOf(0)
+            var registeredBirthDate by
+                remember(selectedAnimalReference) {
+                    mutableStateOf<Long?>(null)
                 }
 
             LaunchedEffect(
                 selectedAnimalReference,
-                database,
-                massRefreshKey
+                database
             ) {
-                if (
-                    selectedAnimalReference
-                        .isNotBlank()
-                ) {
-                    onLoadCostSummary(
-                        selectedAnimalReference
-                    )
-
-                    val latestWeight =
-                        try {
-                            database
-                                ?.animalWeightDao()
-                                ?.getLatestWeightForAnimal(
-                                    selectedAnimalReference
-                                )
-                                ?.firstOrNull()
-                        } catch (
-                            _: Exception
-                        ) {
-                            null
-                        }
-
-                    val registration =
-                        if (
-                            latestWeight == null
-                        ) {
-                            try {
-                                database
-                                    ?.calfRegistrationDao()
-                                    ?.getAllRegistrationViews()
-                                    ?.firstOrNull()
-                                    ?.firstOrNull {
-                                        it.animalId ==
-                                            selectedAnimalReference
-                                    }
-                            } catch (
-                                _: Exception
-                            ) {
-                                null
+                if (selectedAnimalReference.isNotBlank()) {
+                    onLoadCostSummary(selectedAnimalReference)
+                    val registration = try {
+                        database
+                            ?.calfRegistrationDao()
+                            ?.getAllRegistrationViews()
+                            ?.firstOrNull()
+                            ?.firstOrNull {
+                                it.animalId == selectedAnimalReference
                             }
-                        } else {
-                            null
-                        }
-
-                    latestMassKg =
-                        latestWeight
-                            ?.weightKg
-                            ?: registration
-                                ?.birthWeightKg
-
-                    latestMassDateMillis =
-                        latestWeight
-                            ?.weighDate
-                            ?: registration
-                                ?.birthdate
+                    } catch (_: Exception) {
+                        null
+                    }
+                    registrationMassKg = registration?.birthWeightKg
+                    registeredBirthDate = registration?.birthdate
                 } else {
-                    latestMassKg = null
-                    latestMassDateMillis = null
+                    registrationMassKg = null
+                    registeredBirthDate = null
                 }
             }
 
             val costPerKgText =
-                latestMassKg
+                registrationMassKg
                     ?.takeIf {
                         it > 0.0
                     }
@@ -2496,7 +2450,7 @@ fun FarmTraceabilityFlow(
                     .orEmpty()
 
             val lastMassDateText =
-                latestMassDateMillis
+                registeredBirthDate
                     ?.takeIf {
                         it > 0L
                     }
@@ -2570,6 +2524,7 @@ fun FarmTraceabilityFlow(
                         amount,
                         description,
                         costDateText,
+                        submissionId,
                         onCompleted ->
 
                     val parsedCostDate =
@@ -2593,7 +2548,8 @@ fun FarmTraceabilityFlow(
                             costType,
                             amount,
                             description,
-                            parsedCostDate
+                            parsedCostDate,
+                            submissionId
                         ) {
                                 success,
                                 message ->
@@ -2610,68 +2566,6 @@ fun FarmTraceabilityFlow(
                                 success,
                                 message
                             )
-                        }
-                    }
-                },
-
-                onSaveMass = {
-                        massText,
-                        weighDateText,
-                        massNote,
-                        onCompleted ->
-
-                    val parsedMass =
-                        massText
-                            .replace(
-                                ",",
-                                "."
-                            )
-                            .trim()
-                            .toDoubleOrNull()
-
-                    val parsedDate =
-                        parseTraceabilityDate(
-                            weighDateText
-                        )
-
-                    when {
-                        parsedMass == null ||
-                            parsedMass <= 0.0 -> {
-
-                            onCompleted(
-                                false,
-                                "Enter a valid mass greater than zero."
-                            )
-                        }
-
-                        parsedDate == null -> {
-
-                            onCompleted(
-                                false,
-                                "Choose a valid weigh date."
-                            )
-                        }
-
-                        else -> {
-
-                            onSaveWeight(
-                                selectedAnimalReference,
-                                parsedMass,
-                                parsedDate,
-                                massNote
-                            ) {
-                                    success,
-                                    message ->
-
-                                if (success) {
-                                    massRefreshKey += 1
-                                }
-
-                                onCompleted(
-                                    success,
-                                    message
-                                )
-                            }
                         }
                     }
                 },

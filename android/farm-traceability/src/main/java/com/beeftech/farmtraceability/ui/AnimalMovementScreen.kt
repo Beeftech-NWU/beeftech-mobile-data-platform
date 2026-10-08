@@ -144,10 +144,9 @@ fun AnimalMovementScreen(
                 )
 
                 Spacer(modifier = Modifier.height(14.dp))
-                Text(
-                    text = "Movement Type *",
-                    fontWeight = FontWeight.SemiBold,
-                    color = BeeftechText
+                TraceabilityHelpLabel(
+                    label = "Movement Type *",
+                    helperText = "Choose whether this animal was moved within the site, sent to another site, sold, or moved for another reason."
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
