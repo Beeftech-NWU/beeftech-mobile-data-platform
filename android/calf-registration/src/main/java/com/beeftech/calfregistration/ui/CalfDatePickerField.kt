@@ -93,13 +93,27 @@ fun CalfDatePickerField(
         modifier =
             Modifier.fillMaxWidth()
     ) {
-        Text(
-            text = label.uppercase(),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 0.6.sp,
-            color = BeeftechPrimaryDark
-        )
+        if (infoText.isNullOrBlank()) {
+            Text(
+                text = label.uppercase(),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.6.sp,
+                color = BeeftechPrimaryDark
+            )
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = label.uppercase(),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.6.sp,
+                    color = BeeftechPrimaryDark
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                CalfBirthHelpIcon(title = label, message = infoText)
+            }
+        }
 
         Spacer(
             modifier = Modifier.height(7.dp)
