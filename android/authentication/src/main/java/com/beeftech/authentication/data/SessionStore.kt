@@ -6,6 +6,7 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.beeftech.authentication.domain.LoggedInUser
 import com.beeftech.database.security.CurrentUserIdRegistry
+import com.beeftech.database.security.SyncIdentityRegistry
 import com.beeftech.database.security.TokenProvider
 import com.beeftech.database.security.UnauthorizedReason
 import kotlinx.coroutines.flow.Flow
@@ -121,6 +122,16 @@ class EncryptedSessionStore(
             null
         }
 
+    init {
+        /* After an app restart the sync workers run before anyone signs in again. */
+        publishSyncIdentity()
+    }
+
+    /* Shares the farm code and device the batch names are built from with the feature modules. */
+    private fun publishSyncIdentity() {
+        val user = currentUser()
+        SyncIdentityRegistry.set(user?.farmCode, user?.deviceId)
+    }
 
     companion object {
 
@@ -286,6 +297,8 @@ class EncryptedSessionStore(
                     null
                 }
             )
+
+        publishSyncIdentity()
     }
 
 
@@ -395,6 +408,8 @@ class EncryptedSessionStore(
                     null
                 }
             )
+
+        publishSyncIdentity()
     }
 
 
@@ -526,6 +541,8 @@ class EncryptedSessionStore(
             .setCurrentUserId(
                 null
             )
+
+        SyncIdentityRegistry.clear()
     }
 
 

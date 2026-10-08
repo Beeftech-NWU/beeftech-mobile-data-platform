@@ -1,5 +1,7 @@
 package com.beeftech.calfregistration.data
 
+import com.beeftech.database.util.BatchNaming
+import com.beeftech.database.util.ProjectCode
 import com.beeftech.database.BackendConfig
 import com.beeftech.database.dao.CalfRegistrationView
 import com.beeftech.database.security.TokenProvider
@@ -110,7 +112,13 @@ class CalfRegistrationApiClient(
         return httpClient.post("${baseUrl}api/calf-registrations/sync") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer $token")
-            setBody(CalfRegistrationSyncRequest(deviceId = deviceId, records = records))
+            setBody(
+                CalfRegistrationSyncRequest(
+                    deviceId = deviceId,
+                    records = records,
+                    batchName = BatchNaming.nameFor(ProjectCode.CALF_REG)
+                )
+            )
         }
     }
 
