@@ -31,6 +31,8 @@ import com.beeftech.management.data.ManagementApiClient
 import com.beeftech.management.data.Site
 import com.beeftech.management.viewmodel.SitesViewModel
 import com.beeftech.management.viewmodel.SitesViewModelFactory
+import com.beeftech.management.viewmodel.isValidFarmCode
+import com.beeftech.management.viewmodel.normaliseFarmCode
 
 const val MAX_SITE_NAME_LENGTH = 100
 
@@ -58,16 +60,23 @@ fun SitesScreen(
     val state by viewModel.uiState.collectAsState()
     var showCreate by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf<Site?>(null) }
+    var changingCode by remember { mutableStateOf<Site?>(null) }
 
     LaunchedEffect(Unit) { viewModel.refresh() }
 
     if (showCreate) {
-        SiteNameDialog(
-            title = "Add site",
-            initial = "",
-            confirmLabel = "Add",
+        NewSiteDialog(
             onDismiss = { showCreate = false },
-            onConfirm = { name -> viewModel.createSite(name) { showCreate = false } }
+            onConfirm = { name, farmCode -> viewModel.createSite(name, farmCode) { showCreate = false } }
+        )
+    }
+
+    changingCode?.let { site ->
+        FarmCodeDialog(
+            title = "Farm code for ${site.name}",
+            initial = site.farmCode.orEmpty(),
+            onDismiss = { changingCode = null },
+            onConfirm = { code -> viewModel.changeFarmCode(site, code) { changingCode = null } }
         )
     }
 
@@ -116,6 +125,7 @@ fun SitesScreen(
                 SiteCard(
                     site = site,
                     onRename = { renaming = site },
+                    onChangeFarmCode = { changingCode = site },
                     onToggleActive = { viewModel.setActive(site, !site.active) }
                 )
             }
@@ -127,6 +137,7 @@ fun SitesScreen(
 private fun SiteCard(
     site: Site,
     onRename: () -> Unit,
+    onChangeFarmCode: () -> Unit,
     onToggleActive: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -134,7 +145,8 @@ private fun SiteCard(
             Text(site.name, style = MaterialTheme.typography.titleMedium)
             Text(
                 buildString {
-                    append(site.siteId)
+                    append(site.farmCode ?: "No farm code")
+                    append(" · ${site.siteId}")
                     append(" · ${site.activeUserCount} active user${if (site.activeUserCount == 1L) "" else "s"}")
                     append(if (site.active) " · Active" else " · Inactive")
                 },
@@ -142,6 +154,7 @@ private fun SiteCard(
             )
             Row {
                 TextButton(onClick = onRename) { Text("Rename") }
+                TextButton(onClick = onChangeFarmCode) { Text("Farm code") }
                 TextButton(onClick = onToggleActive) { Text(if (site.active) "Deactivate" else "Reactivate") }
             }
         }
@@ -178,3 +191,73 @@ private fun SiteNameDialog(
         }
     )
 }
+
+@Composable
+private fun FarmCodeField(value: String, onValueChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = { entered ->
+            onValueChange(entered.uppercase().filter { it in 'A'..'Z' || it in '0'..'9' }.take(FARM_CODE_LENGTH))
+        },
+        label = { Text("Farm code") },
+        supportingText = { Text("4 characters, A-Z and 0-9. Starts every file name from this farm.") },
+        singleLine = true
+    )
+}
+
+@Composable
+private fun NewSiteDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (name: String, farmCode: String) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var farmCode by remember { mutableStateOf("") }
+    val valid = name.trim().isNotEmpty() && isValidFarmCode(farmCode)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add site") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { if (it.length <= MAX_SITE_NAME_LENGTH) name = it },
+                    label = { Text("Site name") },
+                    singleLine = true
+                )
+                FarmCodeField(farmCode) { farmCode = it }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(name, farmCode) }, enabled = valid) { Text("Add") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+@Composable
+private fun FarmCodeDialog(
+    title: String,
+    initial: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var farmCode by remember { mutableStateOf(initial) }
+    val valid = isValidFarmCode(farmCode) && normaliseFarmCode(farmCode) != initial
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { FarmCodeField(farmCode) { farmCode = it } },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(farmCode) }, enabled = valid) { Text("Save") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+private const val FARM_CODE_LENGTH = 4
