@@ -38,7 +38,7 @@ class SitesSchemaMigrationTest {
 
         SitesSchemaMigration.run(database)
 
-        assertTrue(columns(database).containsAll(listOf("active", "updated_at")))
+        assertTrue(columns(database).containsAll(listOf("active", "updated_at", "farm_code")))
         val row = transaction(database) {
             exec("SELECT name, active, updated_at FROM sites WHERE site_id = 'dev-site-1'") { rs ->
                 rs.next()
@@ -57,6 +57,45 @@ class SitesSchemaMigrationTest {
 
         assertEquals(1, columns(database).count { it == "active" })
         assertEquals(1, columns(database).count { it == "updated_at" })
+    }
+
+    @Test
+    fun `existing sites get S001, S002 in creation order and the code is unique`() {
+        val database = legacyDatabase()
+        transaction(database) {
+            exec("INSERT INTO sites (site_id, name, created_at) VALUES ('older', 'Older', 1)")
+            exec("INSERT INTO sites (site_id, name, created_at) VALUES ('newer', 'Newer', 9)")
+        }
+
+        SitesSchemaMigration.run(database)
+
+        val codes = transaction(database) {
+            exec("SELECT site_id, farm_code FROM sites ORDER BY created_at") { rs ->
+                buildList { while (rs.next()) add(rs.getString(1) to rs.getString(2)) }
+            }
+        }
+        assertEquals(listOf("older" to "S001", "dev-site-1" to "S002", "newer" to "S003"), codes)
+
+        val duplicate = runCatching {
+            transaction(database) { exec("UPDATE sites SET farm_code = 'S001' WHERE site_id = 'newer'") }
+        }
+        assertTrue(duplicate.isFailure, "the unique index must reject a duplicate farm code")
+    }
+
+    @Test
+    fun `a second run keeps the codes and does not reuse one for a later site`() {
+        val database = legacyDatabase()
+        SitesSchemaMigration.run(database)
+        transaction(database) { exec("INSERT INTO sites (site_id, name, created_at, farm_code) VALUES ('x', 'X', 20, NULL)") }
+
+        SitesSchemaMigration.run(database)
+
+        val codes = transaction(database) {
+            exec("SELECT site_id, farm_code FROM sites ORDER BY created_at") { rs ->
+                buildList { while (rs.next()) add(rs.getString(1) to rs.getString(2)) }
+            }
+        }
+        assertEquals(listOf("dev-site-1" to "S001", "x" to "S002"), codes)
     }
 
     @Test

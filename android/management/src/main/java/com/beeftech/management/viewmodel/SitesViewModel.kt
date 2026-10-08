@@ -21,6 +21,11 @@ data class SitesUiState(
     val notice: String? = null
 )
 
+fun normaliseFarmCode(input: String): String = input.trim().uppercase()
+
+/* Four characters, A-Z and 0-9, as the server requires. */
+fun isValidFarmCode(input: String): Boolean = Regex("^[A-Z0-9]{4}$").matches(normaliseFarmCode(input))
+
 class SitesViewModel(
     private val apiClient: ManagementApiClient
 ) : ViewModel() {
@@ -42,9 +47,9 @@ class SitesViewModel(
         }
     }
 
-    fun createSite(name: String, onCreated: () -> Unit = {}) {
+    fun createSite(name: String, farmCode: String, onCreated: () -> Unit = {}) {
         viewModelScope.launch {
-            val result = apiClient.createSite(name.trim())
+            val result = apiClient.createSite(name.trim(), normaliseFarmCode(farmCode))
             if (result is ManagementResult.Success) {
                 _uiState.update {
                     it.copy(
@@ -65,6 +70,14 @@ class SitesViewModel(
         viewModelScope.launch {
             val result = apiClient.updateSite(site.siteId, name = name.trim())
             if (applySiteResult(result, "Renamed to ${name.trim()}")) onRenamed()
+        }
+    }
+
+    fun changeFarmCode(site: Site, farmCode: String, onChanged: () -> Unit = {}) {
+        viewModelScope.launch {
+            val code = normaliseFarmCode(farmCode)
+            val result = apiClient.updateSite(site.siteId, farmCode = code)
+            if (applySiteResult(result, "Farm code for ${site.name} is now $code")) onChanged()
         }
     }
 

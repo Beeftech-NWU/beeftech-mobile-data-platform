@@ -44,13 +44,23 @@ class SiteService(
         validateName(name)?.let { return it }
         if (siteRepository.nameTaken(name)) return SiteResult.Conflict("A site with that name already exists")
 
+        val farmCode = request.farmCode?.trim()?.uppercase().orEmpty()
+        validateFarmCode(farmCode)?.let { return it }
+        if (siteRepository.farmCodeTaken(farmCode)) return SiteResult.Conflict("A site with that farm code already exists")
+
         /* The server picks the id: hand-typed ids were the old way in (future-checks #27). */
         val siteId = generateSiteId()
         siteRepository.insert(
             siteId = siteId,
             name = name,
+            farmCode = farmCode,
             now = now(),
-            audit = auditEntry(actor, AuditActions.SITE_CREATE, siteId, auditDetails("name" to name))
+            audit = auditEntry(
+                actor,
+                AuditActions.SITE_CREATE,
+                siteId,
+                auditDetails("name" to name, "farmCode" to farmCode)
+            )
         )
 
         return SiteResult.Ok(siteRepository.find(siteId)!!)
@@ -71,6 +81,13 @@ class SiteService(
                 return SiteResult.Conflict("A site with that name already exists")
             }
         }
+        val farmCode = request.farmCode?.trim()?.uppercase() ?: site.farmCode
+        if (farmCode != site.farmCode) {
+            validateFarmCode(farmCode.orEmpty())?.let { return it }
+            if (siteRepository.farmCodeTaken(farmCode.orEmpty(), exceptSiteId = site.siteId)) {
+                return SiteResult.Conflict("A site with that farm code already exists")
+            }
+        }
         if (!active && site.active && site.activeUserCount > 0) {
             return SiteResult.Conflict(
                 "This site still has ${site.activeUserCount} active user(s). Move or deactivate them first."
@@ -80,6 +97,7 @@ class SiteService(
         val changes = buildList {
             if (name != site.name) add("name" to "${site.name}->$name")
             if (active != site.active) add("active" to "${site.active}->$active")
+            if (farmCode != site.farmCode) add("farmCode" to "${site.farmCode}->$farmCode")
         }
 
         /* A call that changes nothing leaves no audit row. */
@@ -88,6 +106,7 @@ class SiteService(
                 siteId = site.siteId,
                 name = name,
                 active = active,
+                farmCode = farmCode,
                 now = now(),
                 audit = auditEntry(actor, AuditActions.SITE_UPDATE, site.siteId, auditDetails(*changes.toTypedArray()))
             )
@@ -99,6 +118,13 @@ class SiteService(
     private fun validateName(name: String): SiteResult.Invalid? =
         if (name.length !in 1..MAX_NAME_LENGTH) {
             SiteResult.Invalid("Site name must be 1-$MAX_NAME_LENGTH characters")
+        } else {
+            null
+        }
+
+    private fun validateFarmCode(farmCode: String): SiteResult.Invalid? =
+        if (!FARM_CODE.matches(farmCode)) {
+            SiteResult.Invalid("Farm code must be exactly 4 characters, A-Z and 0-9")
         } else {
             null
         }
@@ -137,5 +163,6 @@ class SiteService(
 
     private companion object {
         const val MAX_NAME_LENGTH = 100
+        val FARM_CODE = Regex("^[A-Z0-9]{4}$")
     }
 }

@@ -62,7 +62,7 @@ class SitesApiClientTest {
     }
 
     @Test
-    fun `createSite posts the name`() = runTest {
+    fun `createSite posts the name and farm code`() = runTest {
         var seen: HttpRequestData? = null
         var body = ""
         val api = client {
@@ -71,11 +71,11 @@ class SitesApiClientTest {
             HttpStatusCode.Created to """{"success":true,"message":"ok","data":$siteJson}"""
         }
 
-        val result = api.createSite("North")
+        val result = api.createSite("North", "NRTH")
 
         assertEquals(HttpMethod.Post, seen!!.method)
         assertEquals("http://test-host/api/sites", seen!!.url.toString())
-        assertEquals("""{"name":"North"}""", body)
+        assertEquals("""{"name":"North","farmCode":"NRTH"}""", body)
         assertEquals("site-1", (result as ManagementResult.Success).value.siteId)
     }
 
@@ -91,11 +91,13 @@ class SitesApiClientTest {
 
         api.updateSite("site-1", name = "North Farm")
         api.updateSite("site-1", active = false)
+        api.updateSite("site-1", farmCode = "NR02")
 
         assertEquals(HttpMethod.Patch, seen!!.method)
         assertEquals("http://test-host/api/sites/site-1", seen!!.url.toString())
         assertEquals("""{"name":"North Farm"}""", bodies[0])
         assertEquals("""{"active":false}""", bodies[1])
+        assertEquals("""{"farmCode":"NR02"}""", bodies[2])
     }
 
     @Test

@@ -93,7 +93,7 @@ class SitesViewModelTest {
         vm.await { it.sites.isNotEmpty() }
 
         val created = CompletableDeferred<Unit>()
-        vm.createSite("  Alpha ") { created.complete(Unit) }
+        vm.createSite("  Alpha ", " alph ") { created.complete(Unit) }
         created.awaitFired()
 
         assertEquals(listOf("Alpha", "North"), vm.uiState.value.sites.map { it.name })
@@ -113,7 +113,7 @@ class SitesViewModelTest {
         vm.await { it.sites.isNotEmpty() }
 
         var created = false
-        vm.createSite("north") { created = true }
+        vm.createSite("north", "NRTH") { created = true }
         vm.await { it.error != null }
 
         assertFalse(created)

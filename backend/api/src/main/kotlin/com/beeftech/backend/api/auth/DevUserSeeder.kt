@@ -51,6 +51,7 @@ object DevUserSeeder {
                 SitesTable.insert {
                     it[siteId] = DEV_SITE_ID
                     it[name] = DEV_SITE_NAME
+                    it[farmCode] = "S001"
                     it[createdAt] = System.currentTimeMillis()
                 }
             }

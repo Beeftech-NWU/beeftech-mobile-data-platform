@@ -20,7 +20,8 @@ data class UserProfileDto(
     val role: Int?,
     @SerialName("pin_hash") val pinHash: String,
     @SerialName("device_assigned_id") val deviceAssignedId: String? = null,
-    @SerialName("site_id") val siteId: String? = null
+    @SerialName("site_id") val siteId: String? = null,
+    @SerialName("farm_code") val farmCode: String? = null
 )
 
 @Serializable

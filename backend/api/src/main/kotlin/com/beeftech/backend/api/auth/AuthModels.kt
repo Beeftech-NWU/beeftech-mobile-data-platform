@@ -20,7 +20,9 @@ data class UserProfile(
     val role: Int?,
     @SerialName("pin_hash") val pinHash: String,
     @SerialName("device_assigned_id") val deviceAssignedId: String?,
-    @SerialName("site_id") val siteId: String? = null
+    @SerialName("site_id") val siteId: String? = null,
+    /* The site's four-character farm code, used to name files and sync batches. */
+    @SerialName("farm_code") val farmCode: String? = null
 )
 
 @Serializable
