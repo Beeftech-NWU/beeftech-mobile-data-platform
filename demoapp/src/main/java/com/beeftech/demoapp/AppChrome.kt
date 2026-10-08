@@ -1,5 +1,6 @@
 package com.beeftech.demoapp
 
+import com.beeftech.database.util.ModulePending
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
@@ -496,7 +497,11 @@ fun BeefHomeScreen(
     onDashboard: () -> Unit,
     onReports: () -> Unit,
     onMyActivity: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    pendingByModule: List<ModulePending> = emptyList(),
+    lastRunLine: String = "",
+    canSyncNow: Boolean = false,
+    onSyncNow: () -> Unit = {}
 ) {
     LazyColumn(
         modifier = modifier
@@ -625,6 +630,45 @@ fun BeefHomeScreen(
                         pendingCount = pendingCount,
                         syncState = syncState
                     )
+
+                    if (pendingByModule.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            pendingByModule.forEach { module ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = module.label,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = BeefText
+                                    )
+                                    Text(
+                                        text = "${module.count} waiting",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = BeefText
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (lastRunLine.isNotBlank()) {
+                        Text(
+                            text = lastRunLine,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = BeefMutedText
+                        )
+                    }
+
+                    Button(
+                        onClick = onSyncNow,
+                        enabled = canSyncNow,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (canSyncNow) "Sync now" else "Sync now (needs internet)")
+                    }
 
                     Text(
                         text = if (pendingCount > 0) {

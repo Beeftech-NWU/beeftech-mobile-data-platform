@@ -25,6 +25,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.beeftech.database.entity.SyncRunEntity
+import com.beeftech.database.entity.SyncRunResult
+import com.beeftech.database.util.SyncRunDisplay
 import com.beeftech.management.data.roleLabel
 import java.text.DateFormat
 import java.util.Date
@@ -78,7 +81,8 @@ fun MyActivityScreen(
     pendingCount: Int,
     oldestPendingAt: Long?,
     onBack: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    syncHistory: List<SyncRunEntity> = emptyList()
 ) {
 
     val isSynced =
@@ -559,6 +563,12 @@ fun MyActivityScreen(
 
 
             /*
+             * Sync history: the last runs, newest first.
+             */
+            SyncHistoryCard(syncHistory)
+
+
+            /*
              * Information card
              */
             Card(
@@ -611,6 +621,77 @@ fun MyActivityScreen(
                             MaterialTheme
                                 .colorScheme
                                 .onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun SyncHistoryCard(runs: List<SyncRunEntity>) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = "Sync history",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            if (runs.isEmpty()) {
+                Text(
+                    text = "No sync has run on this device for you yet. Runs are kept for 30 days.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            runs.forEachIndexed { index, run ->
+                if (index > 0) HorizontalDivider(color = ManagementSage.copy(alpha = 0.12f))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = SyncRunDisplay.moduleLabel(run.module),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "${SyncRunDisplay.triggerLabel(run.trigger)} · " +
+                                SyncRunDisplay.timeLabel(run.startedAt),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = SyncRunDisplay.countsLine(run),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        run.message?.takeIf { it.isNotBlank() }?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                    Text(
+                        text = SyncRunDisplay.resultLabel(run.result),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (run.result == SyncRunResult.SUCCESS) ManagementSage else ManagementWarning
                     )
                 }
             }
