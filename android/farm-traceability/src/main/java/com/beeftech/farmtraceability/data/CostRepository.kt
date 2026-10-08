@@ -19,8 +19,18 @@ class CostRepository(
         description: String,
         gpsLat: Double,
         gpsLng: Double,
-        timestamp: Long = System.currentTimeMillis()
+        timestamp: Long = System.currentTimeMillis(),
+        submissionId: String = ""
     ): SaveCostOutcome {
+
+        // The same draft submission ID is reused for retries, preventing duplicate charges.
+        val recordGuid = submissionId.trim().ifBlank {
+            java.util.UUID.randomUUID().toString()
+        }
+        val existing = animalCostDao.findByRecordGuid(recordGuid)
+        if (existing != null) {
+            return SaveCostOutcome(cost = existing, syncErrorMessage = null)
+        }
 
         val cost =
             AnimalCost(
@@ -30,7 +40,8 @@ class CostRepository(
                 description = description.trim(),
                 gpsLat = gpsLat,
                 gpsLng = gpsLng,
-                timestamp = timestamp
+                timestamp = timestamp,
+                recordGuid = recordGuid
             )
 
         /*

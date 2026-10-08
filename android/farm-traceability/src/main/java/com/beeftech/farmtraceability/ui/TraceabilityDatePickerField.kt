@@ -85,17 +85,9 @@ fun TraceabilityDatePickerField(
         modifier =
             Modifier.fillMaxWidth()
     ) {
-        Text(
-            text =
-                if (required) {
-                    "${label.uppercase()} *"
-                } else {
-                    label.uppercase()
-                },
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 0.6.sp,
-            color = BeeftechPrimaryDark
+        TraceabilityHelpLabel(
+            if (required) "$label *" else label,
+            helperText.orEmpty()
         )
 
         Spacer(
@@ -168,17 +160,6 @@ fun TraceabilityDatePickerField(
                 )
         )
 
-        if (!helperText.isNullOrBlank()) {
-            Spacer(
-                modifier =
-                    Modifier.height(4.dp)
-            )
 
-            Text(
-                text = helperText,
-                fontSize = 11.sp,
-                color = BeeftechMutedText
-            )
-        }
     }
 }

@@ -153,12 +153,21 @@ fun CalfTextField(
     icon: ImageVector = Icons.Outlined.EditNote,
     onFocusLost: (() -> Unit)? = null,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
-    keyboardActions: KeyboardActions = KeyboardActions.Default
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+    infoText: String? = null
 ) {
     // onFocusChanged also reports "unfocused" on first composition, so only react after real focus.
     var hadFocus by remember { mutableStateOf(false) }
     Column(modifier = modifier.fillMaxWidth()) {
-        Text(text = label.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.6.sp, color = BeeftechPrimaryDark)
+        if (infoText.isNullOrBlank()) {
+            Text(text = label.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.6.sp, color = BeeftechPrimaryDark)
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(text = label.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.6.sp, color = BeeftechPrimaryDark)
+                Spacer(modifier = Modifier.width(4.dp))
+                CalfBirthHelpIcon(title = label, message = infoText)
+            }
+        }
         Spacer(modifier = Modifier.height(7.dp))
         OutlinedTextField(
             value = value,
