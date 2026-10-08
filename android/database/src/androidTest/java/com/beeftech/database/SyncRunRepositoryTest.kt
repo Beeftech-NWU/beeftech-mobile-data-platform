@@ -53,12 +53,13 @@ class SyncRunRepositoryTest {
 
     @Test
     fun recentRunsComeBackNewestFirstAndOnlyForTheSignedInUser() = runBlocking {
-        record(SyncRunModule.COST, started = 1_000)
-        record(SyncRunModule.CALF, started = 3_000)
-        record(SyncRunModule.MORTALITY, started = 2_000)
+        /* Recent enough to survive the 30 day pruning that every save runs. */
+        record(SyncRunModule.COST, started = clock - 3_000)
+        record(SyncRunModule.CALF, started = clock - 1_000)
+        record(SyncRunModule.MORTALITY, started = clock - 2_000)
 
         CurrentUserIdRegistry.setCurrentUserId("someone-else")
-        record(SyncRunModule.FARMER, started = 4_000)
+        record(SyncRunModule.FARMER, started = clock)
 
         CurrentUserIdRegistry.setCurrentUserId(USER)
         val modules = repository.observeRecent().first().map { it.module }
