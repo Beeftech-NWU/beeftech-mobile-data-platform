@@ -7,6 +7,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
@@ -655,6 +656,9 @@ class MainActivity : ComponentActivity() {
                                         Modifier
                                             .fillMaxSize()
                                             .padding(innerPadding)
+                                            // The header and bottom nav already handled the system bars and
+                                            // the keyboard; screens inside must not pad for them again.
+                                            .consumeWindowInsets(innerPadding)
                                 ) {
 
                                     if (showMyActivity) {

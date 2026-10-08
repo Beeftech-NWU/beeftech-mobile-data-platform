@@ -99,62 +99,11 @@ fun CalfDetailsStepScreen(
 
     Scaffold(
         topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = BeeftechSurface,
-                shadowElevation = 1.dp
-            ) {
-                Column(
-                    modifier = Modifier
-                        .statusBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = onBackClick) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                                    contentDescription = "Back",
-                                    tint = BeeftechText
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = "Register calf",
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = BeeftechText
-                                )
-                                Text(
-                                    text = "Step 2 of 4: Calf details",
-                                    fontSize = 13.sp,
-                                    color = BeeftechMutedText
-                                )
-                            }
-                        }
-
-                        Surface(
-                            shape = RoundedCornerShape(99.dp),
-                            color = Color(0xFFDDEFE4)
-                        ) {
-                            Text(
-                                text = "Step 2",
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF17402D)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                    StepProgress(currentStep = 2, totalSteps = 4)
-                }
-            }
+            CalfStepTopBar(
+                step = 2,
+                title = "Calf details",
+                onBackClick = onBackClick
+            )
         },
         bottomBar = {
             BottomActionDock {
@@ -184,8 +133,8 @@ fun CalfDetailsStepScreen(
                 .background(BeeftechBackground)
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
                 text = "Type and appearance",
