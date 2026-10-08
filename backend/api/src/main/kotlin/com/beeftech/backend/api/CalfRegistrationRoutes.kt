@@ -1,5 +1,6 @@
 package com.beeftech.backend.api
 
+import com.beeftech.backend.api.common.FileNaming.ProjectCode
 import com.beeftech.backend.api.auth.JwtService
 import com.beeftech.backend.api.common.ApiResponse
 import io.ktor.http.ContentDisposition
@@ -27,7 +28,11 @@ fun Route.calfRegistrationRoutes(
 
         val request = call.receive<CalfRegistrationSyncRequest>()
 
+        if (!call.acceptBatch(principal, ProjectCode.CALF_REG, request.batchName)) return@post
+
         val response = service.syncRecords(request, principal.userId, principal.siteId, principal.recordScope())
+
+        SyncUploadLog.record(principal, ProjectCode.CALF_REG, request.batchName, response.results.map { it.status })
 
         call.respond(
             ApiResponse(

@@ -1,5 +1,6 @@
 package com.beeftech.backend.api
 
+import com.beeftech.backend.api.common.FileNaming.ProjectCode
 import com.beeftech.backend.api.auth.JwtService
 import com.beeftech.backend.api.common.ApiResponse
 import io.ktor.server.request.receive
@@ -29,7 +30,8 @@ data class TraceabilityEventUpload(
 @Serializable
 data class TraceabilityEventSyncRequest(
     val records:
-        List<TraceabilityEventUpload>
+        List<TraceabilityEventUpload>,
+    val batchName: String? = null
 )
 
 
@@ -125,6 +127,9 @@ fun Route.traceabilityEventRoutes(
             call.receive<
                 TraceabilityEventSyncRequest
                 >()
+
+
+        if (!call.acceptBatch(principal, ProjectCode.TRACE_EVENT, request.batchName)) return@post
 
 
         val response =
@@ -279,6 +284,8 @@ fun Route.traceabilityEventRoutes(
                 )
             }
 
+
+        SyncUploadLog.record(principal, ProjectCode.TRACE_EVENT, request.batchName, response.results.map { it.status })
 
         call.respond(
             ApiResponse(

@@ -3,6 +3,9 @@ package com.beeftech.calfregistration.util
 import android.content.Context
 import android.net.Uri
 import androidx.core.content.FileProvider
+import com.beeftech.database.security.SyncIdentityRegistry
+import com.beeftech.database.util.FileNamingUtils
+import com.beeftech.database.util.ProjectCode
 import java.io.File
 
 /**
@@ -29,7 +32,7 @@ object CalfPhotoCapture {
      */
     fun finalizeCapture(context: Context, capture: File, tagNumber: String): String? {
         val directory = File(context.filesDir, PHOTO_DIR).apply { mkdirs() }
-        val target = File(directory, "calf_${safeName(tagNumber)}_${System.currentTimeMillis()}.jpg")
+        val target = File(directory, photoFileName(tagNumber, System.currentTimeMillis(), directory))
 
         return try {
             ImageCompressionUtils.compressImageFile(capture.absolutePath, target)
@@ -45,6 +48,29 @@ object CalfPhotoCapture {
         val directory = File(context.filesDir, PHOTO_DIR)
         if (file.parentFile?.canonicalPath == directory.canonicalPath) {
             file.delete()
+        }
+    }
+
+    /**
+     * [FarmCode]-CALF_REG-[YYYYMMDD]-[HHMMSS]-[DeviceID].jpg when this device knows its farm code,
+     * otherwise the older calf_<tag>_<time>.jpg. A second photo in the same second keeps the older
+     * form too, so a name is never reused.
+     */
+    internal fun photoFileName(tagNumber: String, nowMillis: Long, directory: File): String {
+        val named = runCatching {
+            FileNamingUtils.build(
+                farmCode = SyncIdentityRegistry.farmCode().orEmpty(),
+                project = ProjectCode.CALF_REG,
+                epochMillis = nowMillis,
+                deviceId = SyncIdentityRegistry.deviceId().orEmpty(),
+                extension = "jpg"
+            )
+        }.getOrNull()
+
+        return if (named != null && !File(directory, named).exists()) {
+            named
+        } else {
+            "calf_${safeName(tagNumber)}_$nowMillis.jpg"
         }
     }
 

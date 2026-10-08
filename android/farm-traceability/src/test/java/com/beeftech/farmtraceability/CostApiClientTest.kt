@@ -1,7 +1,9 @@
 package com.beeftech.farmtraceability
 
 import com.beeftech.database.entity.AnimalCost
+import com.beeftech.database.security.SyncIdentityRegistry
 import com.beeftech.database.security.TokenProvider
+import com.beeftech.database.util.FileNamingUtils
 import com.beeftech.farmtraceability.data.CostApiClient
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -20,7 +22,9 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.After
 import org.junit.Test
 
 class CostApiClientTest {
@@ -60,6 +64,34 @@ class CostApiClientTest {
             install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
         }
     )
+
+    @After
+    fun clearSyncIdentity() = SyncIdentityRegistry.clear()
+
+    private suspend fun sentBatchName(): String? {
+        var body = ""
+        client { body = String(it.body.toByteArray()) }.syncCosts(listOf(cost), "phone")
+        return Json.parseToJsonElement(body).jsonObject["batchName"]?.jsonPrimitive?.content
+    }
+
+    @Test
+    fun `the upload is named from the signed-in farm code and device`() = runTest {
+        SyncIdentityRegistry.set("BF01", "MOB_DEV_a1b2c3d4")
+
+        val name = sentBatchName()!!
+
+        val parts = FileNamingUtils.parse(name)!!
+        assertEquals("BF01", parts.farmCode)
+        assertEquals("COST", parts.project)
+        assertEquals("MOB_DEV_a1b2c3d4", parts.deviceId)
+    }
+
+    @Test
+    fun `the upload goes without a name until the farm code is known`() = runTest {
+        SyncIdentityRegistry.clear()
+
+        assertNull(sentBatchName())
+    }
 
     @Test
     fun `fails without a token and does not call the server`() = runTest {

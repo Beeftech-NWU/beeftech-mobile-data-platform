@@ -7,6 +7,30 @@ import kotlin.test.assertContains
 
 class FarmerSalesNotificationTest {
 
+    private fun payload(farmCode: String?, deviceId: String = "MOB_DEV_a1b2c3d4") =
+        FarmerSalesNotificationPayload(
+            farmerId = "FARMER/1",
+            farmCode = farmCode,
+            deviceId = deviceId,
+            submittedByUserId = "USER-1",
+            submittedByUsername = "jvdm",
+            serverSyncedAt = 1_791_468_309_000L
+        )
+
+    @Test
+    fun `the attachment is named from the submitter's farm code, the device and the server time`() {
+        kotlin.test.assertEquals(
+            "BF01-FARMER_REG-20261008-140509-MOB_DEV_a1b2c3d4.json",
+            attachmentFileName(payload("BF01"))
+        )
+    }
+
+    @Test
+    fun `the attachment keeps the older name when there is no farm code`() {
+        kotlin.test.assertEquals("farmer-registration-FARMER_1.json", attachmentFileName(payload(null)))
+        kotlin.test.assertEquals("farmer-registration-FARMER_1.json", attachmentFileName(payload("BF01", deviceId = "---")))
+    }
+
     @Test
     fun `farmer sales notification serializes required registration data`() {
 

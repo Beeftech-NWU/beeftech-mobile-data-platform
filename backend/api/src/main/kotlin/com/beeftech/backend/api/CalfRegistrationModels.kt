@@ -37,7 +37,9 @@ data class CalfRegistrationDto(
 @Serializable
 data class CalfRegistrationSyncRequest(
     val deviceId: String,
-    val records: List<CalfRegistrationDto>
+    val records: List<CalfRegistrationDto>,
+    /* [FarmCode]-[Project]-[YYYYMMDD]-[HHMMSS]-[DeviceID]; absent from app versions that predate it. */
+    val batchName: String? = null
 )
 
 @Serializable

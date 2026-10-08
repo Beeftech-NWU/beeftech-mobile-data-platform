@@ -1,5 +1,6 @@
 package com.beeftech.backend.api
 
+import com.beeftech.backend.api.common.FileNaming.ProjectCode
 import com.beeftech.backend.api.auth.JwtService
 import com.beeftech.backend.api.common.ApiResponse
 import io.ktor.server.request.receive
@@ -20,11 +21,17 @@ fun Route.costRoutes(
 
         val request = call.receive<CostSyncRequest>()
 
+        if (!call.acceptBatch(principal, ProjectCode.COST, request.batchName)) return@post
+
+        val response = costService.sync(request, principal.userId, principal.siteId)
+
+        SyncUploadLog.record(principal, ProjectCode.COST, request.batchName, response.results.map { it.status })
+
         call.respond(
             ApiResponse(
                 success = true,
                 message = "Costs synchronized.",
-                data = costService.sync(request, principal.userId, principal.siteId)
+                data = response
             )
         )
     }

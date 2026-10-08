@@ -1,5 +1,7 @@
 package com.beeftech.farmtraceability.data
 
+import com.beeftech.database.util.BatchNaming
+import com.beeftech.database.util.ProjectCode
 import com.beeftech.database.BackendConfig
 import com.beeftech.database.entity.AnimalCost
 import com.beeftech.database.security.TokenProvider
@@ -38,7 +40,9 @@ data class CostSyncDto(
 @Serializable
 data class CostSyncRequest(
     val deviceId: String,
-    val records: List<CostSyncDto>
+    val records: List<CostSyncDto>,
+    /* [FarmCode]-[Project]-[YYYYMMDD]-[HHMMSS]-[DeviceID]; null until this device has the farm code. */
+    val batchName: String? = null
 )
 
 @Serializable
@@ -94,7 +98,8 @@ class CostApiClient(
                 setBody(
                     CostSyncRequest(
                         deviceId = deviceId,
-                        records = records.map { it.toDto(deviceId) }
+                        records = records.map { it.toDto(deviceId) },
+                        batchName = BatchNaming.nameFor(ProjectCode.COST)
                     )
                 )
             }

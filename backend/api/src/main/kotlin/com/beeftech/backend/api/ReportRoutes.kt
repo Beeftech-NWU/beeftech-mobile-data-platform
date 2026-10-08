@@ -1,5 +1,6 @@
 package com.beeftech.backend.api
 
+import com.beeftech.backend.api.common.FileNaming
 import com.beeftech.backend.api.auth.JwtService
 import com.beeftech.backend.api.auth.Role
 import com.beeftech.backend.api.common.ApiResponse
@@ -72,7 +73,18 @@ private fun io.ktor.server.application.ApplicationCall.attachment(fileName: Stri
     )
 }
 
-private fun fileName(report: ReportResponse, extension: String): String {
-    val day = Instant.ofEpochMilli(report.generatedAt).atZone(ZoneOffset.UTC).toLocalDate()
-    return "beeftech-${report.report}-$day.$extension"
+/** Farm code used for a report that covers every site, so it has no single farm to name it after. */
+internal const val ALL_SITES_FARM_CODE = "ALLS"
+
+/** [FarmCode]-REPORT-[YYYYMMDD]-[HHMMSS]-SERVER.ext, with the generated time in UTC. */
+internal suspend fun fileName(report: ReportResponse, extension: String): String {
+    val farmCode = report.siteId?.let { farmCodeOfSite(it) } ?: ALL_SITES_FARM_CODE
+    return FileNaming.build(
+        farmCode = farmCode,
+        project = FileNaming.ProjectCode.REPORT,
+        instant = Instant.ofEpochMilli(report.generatedAt),
+        deviceId = "SERVER",
+        extension = extension,
+        zone = ZoneOffset.UTC
+    )
 }

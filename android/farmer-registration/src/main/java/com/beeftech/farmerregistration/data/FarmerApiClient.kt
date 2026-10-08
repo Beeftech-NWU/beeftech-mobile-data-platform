@@ -1,5 +1,7 @@
 package com.beeftech.farmerregistration.data
 
+import com.beeftech.database.util.BatchNaming
+import com.beeftech.database.util.ProjectCode
 import com.beeftech.database.BackendConfig
 import android.content.Context
 import android.provider.Settings
@@ -68,7 +70,9 @@ data class FarmerPayload(
 @Serializable
 data class FarmerSyncRequest(
     val deviceId: String,
-    val records: List<FarmerPayload>
+    val records: List<FarmerPayload>,
+    /* [FarmCode]-[Project]-[YYYYMMDD]-[HHMMSS]-[DeviceID]; null until this device has the farm code. */
+    val batchName: String? = null
 )
 
 @Serializable
@@ -121,7 +125,8 @@ class FarmerApiClient(
         val payload = farmer.toPayload(addresses, roles)
         val request = FarmerSyncRequest(
             deviceId = getDeviceId(),
-            records = listOf(payload)
+            records = listOf(payload),
+            batchName = BatchNaming.nameFor(ProjectCode.FARMER_REG)
         )
 
         val response = client.post("$baseUrl/api/farmers/sync") {

@@ -70,7 +70,8 @@ object DatabaseFactory {
                 LoginEventsTable,
                 CostTypeTable,
                 AppSettingsTable,
-                SyncSecurityEventsTable
+                SyncSecurityEventsTable,
+                SyncUploadLogTable
             )
         }
 
