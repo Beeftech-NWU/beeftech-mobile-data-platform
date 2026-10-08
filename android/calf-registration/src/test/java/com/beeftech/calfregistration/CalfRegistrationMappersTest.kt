@@ -101,6 +101,15 @@ class CalfRegistrationMappersTest {
     }
 
     @Test
+    fun `toNewCalf stores the brand mark, and null when blank`() {
+        val withMark = newCalf(CalfRegistrationData(tagNumber = "Blu1234567", mark = "K7"))
+        val withoutMark = newCalf(CalfRegistrationData(tagNumber = "Blu1234567", mark = " "))
+
+        assertEquals("K7", withMark.animal.brandMark)
+        assertNull(withoutMark.animal.brandMark)
+    }
+
+    @Test
     fun `toNewCalf expands shorthand tags`() {
         val calf = newCalf(CalfRegistrationData(tagNumber = "B1234567"))
 

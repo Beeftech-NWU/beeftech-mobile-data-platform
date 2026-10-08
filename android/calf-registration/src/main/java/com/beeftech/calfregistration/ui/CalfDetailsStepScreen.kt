@@ -260,6 +260,12 @@ fun CalfDetailsStepScreen(
                 selectedValue = formData.conformity.ifEmpty { "Normal / Good" },
                 onClick = { activeLookupField = "CONFORMITY" }
             )
+            CalfTextField(
+                label = "Brand mark (optional)",
+                value = formData.mark,
+                onValueChange = { onFormDataChange(formData.copy(mark = it.take(40))) },
+                placeholder = "Brand or distinguishing mark"
+            )
             // Birth details remain in the same CalfRegistrationData record as the other steps.
             Spacer(modifier = Modifier.height(6.dp))
             CalfSectionTitle("Birth Details")

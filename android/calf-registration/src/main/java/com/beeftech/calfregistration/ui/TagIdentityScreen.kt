@@ -1,5 +1,6 @@
 package com.beeftech.calfregistration.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -84,6 +85,20 @@ fun TagIdentityScreen(
         }
     }
 
+    // Going Back (not Next) must still leave the full tag, or Save rejects the short form.
+    val handleBack: (() -> Unit)? = onBackClick?.let { back ->
+        {
+            if (isTagValid && formData.tagNumber != expandedTag) {
+                onFormDataChange(formData.copy(tagNumber = expandedTag))
+            }
+            back()
+        }
+    }
+
+    if (handleBack != null) {
+        BackHandler(onBack = handleBack)
+    }
+
     fun handleNext() {
         if (isTagValid && !isDuplicateTag) {
             onFormDataChange(formData.copy(tagNumber = expandedTag))
@@ -109,8 +124,8 @@ fun TagIdentityScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (onBackClick != null) {
-                                IconButton(onClick = onBackClick) {
+                            if (handleBack != null) {
+                                IconButton(onClick = handleBack) {
                                     Icon(
                                         imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                                         contentDescription = "Back",

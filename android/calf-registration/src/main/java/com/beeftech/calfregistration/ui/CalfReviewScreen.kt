@@ -170,6 +170,24 @@ fun CalfReviewScreen(
                     if (formData.conformity.isNotBlank()) {
                         append(", ${formData.conformity}")
                     }
+                    if (formData.mark.isNotBlank()) {
+                        append(", mark: ${formData.mark}")
+                    }
+                },
+                onChangeClick = { onJumpToStep(2) }
+            )
+
+            ReviewRow(
+                label = "Birth details",
+                value = buildString {
+                    append(
+                        formData.birthDate.ifBlank { "Date not entered (registration date will be used)" }
+                    )
+                    append(", ")
+                    append(
+                        formData.birthWeightKg.takeIf { it.isNotBlank() }?.let { "$it kg" }
+                            ?: "not weighed"
+                    )
                 },
                 onChangeClick = { onJumpToStep(2) }
             )
@@ -187,13 +205,15 @@ fun CalfReviewScreen(
             )
 
             // Review row 5: Parents
-            val hasParents = formData.dameTagNumber.isNotBlank() || formData.sireTagNumber.isNotBlank()
+            val hasDam = com.beeftech.calfregistration.data.CalfRegistrationMappers.parentTag(formData.dameTagNumber) != null
+            val hasSire = com.beeftech.calfregistration.data.CalfRegistrationMappers.parentTag(formData.sireTagNumber) != null
+            val hasParents = hasDam || hasSire
             ReviewRow(
                 label = "Parentage (Dam / Sire)",
                 value = if (hasParents) {
                     buildString {
-                        if (formData.dameTagNumber.isNotBlank()) append("Dam: ${formData.dameTagNumber} ")
-                        if (formData.sireTagNumber.isNotBlank()) append("Sire: ${formData.sireTagNumber}")
+                        if (hasDam) append("Dam: ${formData.dameTagNumber} ")
+                        if (hasSire) append("Sire: ${formData.sireTagNumber}")
                     }.trim()
                 } else {
                     "None specified"
