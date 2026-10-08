@@ -26,6 +26,8 @@ data class FarmerEntity(
     val land_ownership: String? = null,
     val fa_code_rmis: String? = null,
     val gln_number: String? = null,
+    val herd_capacity: Int? = null,
+    val interest_status: String? = null,
 
     @ColumnInfo(name = "record_guid")
     val recordGuid: String = UUID.randomUUID().toString()

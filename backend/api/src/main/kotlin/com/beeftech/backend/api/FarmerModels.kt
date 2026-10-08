@@ -38,6 +38,8 @@ data class FarmerDto(
     val landOwnership: String? = null,
     val faCodeRmis: String? = null,
     val glnNumber: String? = null,
+    val herdCapacity: Int? = null,
+    val interestStatus: String? = null,
     val addresses: List<FarmerAddressDto> = emptyList(),
     val roles: List<FarmerRoleDto> = emptyList()
 )

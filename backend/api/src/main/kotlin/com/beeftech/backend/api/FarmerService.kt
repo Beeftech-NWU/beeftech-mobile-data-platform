@@ -64,6 +64,12 @@ class FarmerService(
                                     glnNumber =
                                         farmer.glnNumber,
 
+                                    herdCapacity =
+                                        farmer.herdCapacity,
+
+                                    interestStatus =
+                                        farmer.interestStatus,
+
                                     gpsLatitude =
                                         farmer.gpsLatitude,
 

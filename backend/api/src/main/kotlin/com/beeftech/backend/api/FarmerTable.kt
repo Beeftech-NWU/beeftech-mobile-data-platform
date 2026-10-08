@@ -118,6 +118,19 @@ object FarmerTable : Table("farmers") {
         )
             .nullable()
 
+    val herdCapacity =
+        integer(
+            "herd_capacity"
+        )
+            .nullable()
+
+    val interestStatus =
+        varchar(
+            "interest_status",
+            64
+        )
+            .nullable()
+
     override val primaryKey =
         PrimaryKey(
             farmerId

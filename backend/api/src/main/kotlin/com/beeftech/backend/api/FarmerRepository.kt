@@ -117,6 +117,12 @@ class FarmerRepository {
             glnNumber =
                 this[FarmerTable.glnNumber],
 
+            herdCapacity =
+                this[FarmerTable.herdCapacity],
+
+            interestStatus =
+                this[FarmerTable.interestStatus],
+
             addresses =
                 addresses,
 
@@ -229,6 +235,12 @@ class FarmerRepository {
 
                     it[glnNumber] =
                         dto.glnNumber
+
+                    it[herdCapacity] =
+                        dto.herdCapacity
+
+                    it[interestStatus] =
+                        dto.interestStatus
                 }
 
             } else {
@@ -279,6 +291,12 @@ class FarmerRepository {
 
                     it[glnNumber] =
                         dto.glnNumber
+
+                    it[herdCapacity] =
+                        dto.herdCapacity
+
+                    it[interestStatus] =
+                        dto.interestStatus
                 }
             }
 

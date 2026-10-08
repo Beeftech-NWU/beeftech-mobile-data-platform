@@ -142,6 +142,21 @@ fun RegisteredFarmersScreen(
                                             Modifier.height(14.dp)
                                     )
 
+                                    farmer.interest_status
+                                        ?.takeIf { it.isNotBlank() }
+                                        ?.let { interest ->
+                                            TraceabilityInfoRow(
+                                                icon = Icons.Outlined.Tag,
+                                                title = "Interest Status",
+                                                subtitle = interest
+                                            )
+
+                                            Spacer(
+                                                modifier =
+                                                    Modifier.height(14.dp)
+                                            )
+                                        }
+
                                     FarmerRegistrationStatusPill(
                                         syncStatus =
                                             farmer.sync_status
