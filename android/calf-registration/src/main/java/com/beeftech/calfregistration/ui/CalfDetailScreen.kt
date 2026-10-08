@@ -62,7 +62,9 @@ fun CalfDetailScreen(
                 "Type" to calf.animalType,
                 "Gender" to calf.gender,
                 "Age" to calf.age,
-                "Condition" to calf.condition
+                "Condition" to calf.condition,
+                "Birth date" to calf.birthDate,
+                "Birth mass" to calf.birthWeightKg.takeIf { it.isNotBlank() }?.let { "$it kg" }.orEmpty()
             )
             DetailSection(
                 "Appearance",

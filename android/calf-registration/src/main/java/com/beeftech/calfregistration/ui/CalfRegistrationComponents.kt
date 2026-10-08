@@ -315,6 +315,57 @@ fun CalfMenuCard(
     }
 }
 
+/** One compact header for every wizard step: back arrow, "Step N of 4 · title", and the progress bar. */
+@Composable
+fun CalfStepTopBar(
+    step: Int,
+    title: String,
+    onBackClick: (() -> Unit)?,
+    totalSteps: Int = 4
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = BeeftechSurface,
+        shadowElevation = 1.dp
+    ) {
+        Column(modifier = Modifier.padding(start = 4.dp, end = 16.dp, bottom = 4.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (onBackClick != null) {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = "Back",
+                            tint = BeeftechText
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.width(12.dp))
+                }
+                Text(
+                    text = "Step $step of $totalSteps",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = BeeftechPrimaryDark
+                )
+                Text(
+                    text = "  ·  $title",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = BeeftechText
+                )
+            }
+            StepProgress(
+                currentStep = step,
+                totalSteps = totalSteps,
+                modifier = Modifier.padding(start = 12.dp)
+            )
+        }
+    }
+}
+
 @Composable
 fun StepProgress(
     currentStep: Int,
@@ -324,7 +375,7 @@ fun StepProgress(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         for (i in 1..totalSteps) {
@@ -404,7 +455,7 @@ fun BottomActionDock(
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .imePadding()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             content = content
         )
@@ -469,7 +520,7 @@ fun TagColorCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
+                .height(48.dp)
                 .background(
                     color = bg,
                     shape = RoundedCornerShape(
