@@ -6,6 +6,7 @@ import com.beeftech.calfregistration.data.SYNC_STATUS_PENDING
 import com.beeftech.calfregistration.data.SYNC_STATUS_REJECTED
 import com.beeftech.calfregistration.data.SYNC_STATUS_SYNCED
 import com.beeftech.calfregistration.ui.CalfRegistrationData
+import com.beeftech.calfregistration.ui.CalfRegistrationLookups
 import com.beeftech.database.dao.CalfRegistrationView
 import com.beeftech.database.entity.IdentifierTypes
 import org.junit.Assert.assertEquals
@@ -224,22 +225,43 @@ class CalfRegistrationMappersTest {
         val form = CalfRegistrationData(
             tagNumber = "Blu1234567",
             age = "1-2 Weeks",
-            condition = "Poor",
+            condition = "2",
             conformity = "P — Poor"
         )
 
         val registration = newCalf(form).registration
 
         assertEquals("1-2 Weeks", registration.ageClass)
-        assertEquals("Poor", registration.bodyCondition)
+        assertEquals("2", registration.bodyCondition)
         assertEquals("P — Poor", registration.conformity)
 
         val restored = CalfRegistrationMappers.toFormData(
             view().copy(ageClass = registration.ageClass, bodyCondition = registration.bodyCondition, conformity = registration.conformity)
         )
         assertEquals("1-2 Weeks", restored.age)
-        assertEquals("Poor", restored.condition)
+        assertEquals("2", restored.condition)
         assertEquals("P — Poor", restored.conformity)
+    }
+
+    @Test
+    fun `toFormData converts conditions saved before the 1-5 scale`() {
+        fun condition(stored: String?) =
+            CalfRegistrationMappers.toFormData(view().copy(bodyCondition = stored)).condition
+
+        assertEquals("1", condition("Poor"))
+        assertEquals("2", condition("Fair"))
+        assertEquals("3", condition("Good"))
+        assertEquals("5", condition("Excellent"))
+        assertEquals("5", condition(" excellent "))
+        assertEquals("4", condition("4"))
+        assertEquals("3", condition("Alert"))
+        assertEquals("3", condition(null))
+    }
+
+    @Test
+    fun `condition is shown as score and label`() {
+        assertEquals("5 – Excellent", CalfRegistrationLookups.conditionDisplay("5"))
+        assertEquals("3 – Good", CalfRegistrationLookups.conditionDisplay("3"))
     }
 
     @Test
@@ -249,7 +271,7 @@ class CalfRegistrationMappersTest {
         )
 
         assertEquals("Newborn", restored.age)
-        assertEquals("Good", restored.condition)
+        assertEquals("3", restored.condition)
         assertEquals("F — Fair", restored.conformity)
     }
 
