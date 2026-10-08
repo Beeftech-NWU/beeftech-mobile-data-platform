@@ -19,6 +19,7 @@ import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -78,6 +79,39 @@ fun TreatmentsScreen(
         mutableStateOf(cost)
     }
 
+    var validationMessage by remember {
+        mutableStateOf("")
+    }
+
+    LaunchedEffect(
+        diseaseState,
+        treatmentState,
+        animalReference
+    ) {
+
+        val generated =
+            generateTreatmentBatchNumber(
+                disease =
+                    diseaseState,
+                treatment =
+                    treatmentState,
+                animalReference =
+                    animalReference
+            )
+
+        if (
+            batchState != generated
+        ) {
+
+            batchState =
+                generated
+
+            onBatchNumberChange(
+                generated
+            )
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -112,12 +146,17 @@ fun TreatmentsScreen(
 
             TraceabilityCard {
                 TraceabilitySearchableDropdown(
-                    label = "Disease",
+                    label = "Disease / Condition",
                     value = diseaseState,
                     options = diseaseOptions,
                     icon = Icons.Outlined.Healing,
+                    placeholder = "Search, select or enter condition",
+                    helperText = "Choose a saved condition or enter another one when it is not listed.",
+                    required = true,
+                    allowCustomEntry = true,
                     onValueChange = {
                         diseaseState = it
+                        validationMessage = ""
                         onDiseaseChange(it)
                     }
                 )
@@ -136,13 +175,18 @@ fun TreatmentsScreen(
             )
 
             TraceabilityCard {
-                TraceabilityDropdown(
+                TraceabilitySearchableDropdown(
                     label = "Treatment Type",
                     value = treatmentState,
                     options = treatmentOptions,
                     icon = Icons.Outlined.Medication,
+                    placeholder = "Search, select or enter treatment",
+                    helperText = "Choose an existing treatment or enter a new treatment/product name.",
+                    required = true,
+                    allowCustomEntry = true,
                     onValueChange = {
                         treatmentState = it
+                        validationMessage = ""
                         onTreatmentChange(it)
                     }
                 )
@@ -152,13 +196,14 @@ fun TreatmentsScreen(
                 )
 
                 TraceabilityTextField(
-                    label = "Batch No.",
+                    label = "Batch Number",
                     value = batchState,
-                    onValueChange = {
-                        batchState = it
-                        onBatchNumberChange(it)
-                    },
-                    icon = Icons.Outlined.Numbers
+                    onValueChange = {},
+                    icon = Icons.Outlined.Numbers,
+                    placeholder = "—",
+                    helperText = "Generated automatically from the animal, condition and treatment.",
+                    required = true,
+                    readOnly = true
                 )
 
                 Spacer(
@@ -172,7 +217,10 @@ fun TreatmentsScreen(
                         volumeState = it
                         onVolumeUsedChange(it)
                     },
-                    icon = Icons.Outlined.Science
+                    icon = Icons.Outlined.Science,
+                    placeholder = "0.0",
+                    helperText = "Enter the recorded treatment volume.",
+                    decimal = true
                 )
 
                 Spacer(
@@ -186,7 +234,10 @@ fun TreatmentsScreen(
                         costState = it
                         onCostChange(it)
                     },
-                    icon = Icons.Outlined.Payments
+                    icon = Icons.Outlined.Payments,
+                    placeholder = "0.00",
+                    helperText = "Enter the treatment cost in ZAR.",
+                    decimal = true
                 )
 
 
@@ -196,17 +247,37 @@ fun TreatmentsScreen(
                 modifier = Modifier.height(26.dp)
             )
 
+            TraceabilityFormMessage(
+                message = validationMessage
+            )
+
+            if (validationMessage.isNotBlank()) {
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
             TraceabilityPrimaryButton(
                 text = "Save Treatment",
                 icon = Icons.Outlined.Save,
                 onClick = {
-                    onSaveClick(
-                        diseaseState,
-                        treatmentState,
-                        batchState,
-                        volumeState,
-                        costState
-                    )
+                    validationMessage = when {
+                        diseaseState.trim().isBlank() ->
+                            "Select or enter the disease / condition."
+                        treatmentState.trim().isBlank() ->
+                            "Select or enter the treatment type."
+                        batchState.trim().isBlank() ->
+                            "Select or enter the medication batch number."
+                        else -> ""
+                    }
+
+                    if (validationMessage.isBlank()) {
+                        onSaveClick(
+                            diseaseState.trim(),
+                            treatmentState.trim(),
+                            batchState.trim(),
+                            volumeState.trim(),
+                            costState.trim()
+                        )
+                    }
                 }
             )
 
@@ -292,6 +363,101 @@ fun TreatmentsScreen(
         }
     }
 }
+
+private fun generateTreatmentBatchNumber(
+    disease: String,
+    treatment: String,
+    animalReference: String
+): String {
+
+    val normalizedDisease =
+        disease.trim()
+
+    val normalizedTreatment =
+        treatment.trim()
+
+    if (
+        normalizedDisease.isBlank() ||
+        normalizedTreatment.isBlank()
+    ) {
+        return ""
+    }
+
+    fun token(
+        value: String,
+        length: Int,
+        fallback: String
+    ): String =
+        value
+            .filter {
+                it.isLetterOrDigit()
+            }
+            .uppercase(
+                Locale.ROOT
+            )
+            .take(
+                length
+            )
+            .ifBlank {
+                fallback
+            }
+
+    val dateToken =
+        SimpleDateFormat(
+            "yyyyMMdd",
+            Locale.US
+        )
+            .format(
+                Date()
+            )
+
+    val diseaseToken =
+        token(
+            normalizedDisease,
+            3,
+            "CON"
+        )
+
+    val treatmentToken =
+        token(
+            normalizedTreatment,
+            4,
+            "TRT"
+        )
+
+    val animalToken =
+        token(
+            animalReference,
+            4,
+            "ANML"
+        )
+
+    val hashSource =
+        "$dateToken|$animalToken|${normalizedDisease.lowercase(Locale.ROOT)}|" +
+            normalizedTreatment.lowercase(
+                Locale.ROOT
+            )
+
+    val hashToken =
+        Integer
+            .toHexString(
+                hashSource
+                    .hashCode()
+            )
+            .uppercase(
+                Locale.ROOT
+            )
+            .padStart(
+                8,
+                '0'
+            )
+            .takeLast(
+                4
+            )
+
+    return "TRT-$dateToken-$diseaseToken-$treatmentToken-$animalToken-$hashToken"
+}
+
 
 @Preview(showBackground = true)
 @Composable

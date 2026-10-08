@@ -9,6 +9,8 @@ data class CalfRegistrationData(
     val hideColour: String = "RED",
     val conformity: String = "F — Fair",
     val mark: String = "",
+    val birthDate: String = "",
+    val birthWeightKg: String = "",
     val dameTagNumber: String = "Select dame",
     val sireTagNumber: String = "Select sire",
     val photoPath: String? = null,

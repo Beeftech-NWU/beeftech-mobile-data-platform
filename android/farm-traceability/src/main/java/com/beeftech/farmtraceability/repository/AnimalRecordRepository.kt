@@ -1,6 +1,9 @@
 package com.beeftech.farmtraceability.repository
 
 import com.beeftech.database.BeefTechDatabase
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
@@ -11,6 +14,12 @@ data class AnimalRecordSummary(
     val breed: String = "",
 
     val gender: String = "",
+
+    val birthDate: String = "",
+
+    val age: String = "",
+
+    val photoPath: String = "",
 
     val entryMass: String = "",
 
@@ -76,6 +85,10 @@ class AnimalRecordRepository(
             var databaseGender =
                 ""
 
+            var animalBirthdate:
+                    Long? =
+                null
+
             var animalMass:
                     Double? =
                 null
@@ -101,6 +114,7 @@ class AnimalRecordRepository(
                         SELECT
                             breed,
                             gender,
+                            birthdate,
                             massKg,
                             captureAt
                         FROM animals
@@ -129,6 +143,12 @@ class AnimalRecordRepository(
                                 cursor
                                     .getColumnIndex(
                                         "gender"
+                                    )
+
+                            val birthdateIndex =
+                                cursor
+                                    .getColumnIndex(
+                                        "birthdate"
                                     )
 
                             val massIndex =
@@ -173,6 +193,21 @@ class AnimalRecordRepository(
                                             genderIndex
                                         )
                                         .orEmpty()
+                            }
+
+
+                            if (
+                                birthdateIndex >= 0 &&
+                                !cursor.isNull(
+                                    birthdateIndex
+                                )
+                            ) {
+
+                                animalBirthdate =
+                                    cursor
+                                        .getLong(
+                                            birthdateIndex
+                                        )
                             }
 
 
@@ -323,6 +358,18 @@ class AnimalRecordRepository(
                         ?.birthWeightKg
 
 
+            val birthDateMillis =
+                registration
+                    ?.birthdate
+                    ?.takeIf {
+                        it > 0L
+                    }
+                    ?: animalBirthdate
+                        ?.takeIf {
+                            it > 0L
+                        }
+
+
             val facilityStart =
                 registration
                     ?.registrationDate
@@ -380,6 +427,28 @@ class AnimalRecordRepository(
                 }
 
 
+            val photoPath =
+                try {
+
+                    database
+                        .animalMediaDao()
+                        .getMediaForAnimalByType(
+                            animalId,
+                            "PHOTO"
+                        )
+                        .firstOrNull()
+                        ?.firstOrNull()
+                        ?.filePath
+                        .orEmpty()
+
+                } catch (
+                    _: Exception
+                ) {
+
+                    ""
+                }
+
+
             AnimalRecordSummary(
 
                 breed =
@@ -397,6 +466,23 @@ class AnimalRecordRepository(
                             it.isNotBlank()
                         }
                         ?: databaseGender,
+
+                birthDate =
+                    birthDateMillis
+                        ?.let {
+                            formatDate(it)
+                        }
+                        .orEmpty(),
+
+                age =
+                    birthDateMillis
+                        ?.let {
+                            formatAge(it)
+                        }
+                        .orEmpty(),
+
+                photoPath =
+                    photoPath,
 
                 entryMass =
                     entryWeight
@@ -436,6 +522,81 @@ class AnimalRecordRepository(
                         .orEmpty()
             )
         }
+
+
+    private fun formatDate(
+        epochMillis: Long
+    ): String =
+        SimpleDateFormat(
+            "dd MMM yyyy",
+            Locale.getDefault()
+        )
+            .format(
+                Date(epochMillis)
+            )
+
+
+    private fun formatAge(
+        birthDateMillis: Long
+    ): String {
+
+        val birth =
+            Calendar.getInstance().apply {
+                timeInMillis =
+                    birthDateMillis
+            }
+
+        val today =
+            Calendar.getInstance()
+
+        var years =
+            today.get(
+                Calendar.YEAR
+            ) -
+                birth.get(
+                    Calendar.YEAR
+                )
+
+        var months =
+            today.get(
+                Calendar.MONTH
+            ) -
+                birth.get(
+                    Calendar.MONTH
+                )
+
+        if (
+            today.get(
+                Calendar.DAY_OF_MONTH
+            ) <
+            birth.get(
+                Calendar.DAY_OF_MONTH
+            )
+        ) {
+            months--
+        }
+
+        if (
+            months < 0
+        ) {
+            years--
+            months += 12
+        }
+
+        return when {
+            years > 0 && months > 0 ->
+                "$years y $months mo"
+
+            years > 0 ->
+                "$years y"
+
+            months > 0 ->
+                "$months mo"
+
+            else ->
+                "< 1 mo"
+        }
+    }
 
 
     private companion object {

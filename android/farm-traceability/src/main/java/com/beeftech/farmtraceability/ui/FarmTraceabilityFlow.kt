@@ -30,6 +30,10 @@ import com.beeftech.farmtraceability.viewmodel.FindAnimalViewModelFactory
 import com.beeftech.farmtraceability.viewmodel.SyncStatusViewModel
 import com.beeftech.farmtraceability.viewmodel.SyncStatusViewModelFactory
 import com.beeftech.farmtraceability.worker.TraceabilitySyncScheduler
+import kotlinx.coroutines.flow.firstOrNull
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 private enum class TraceabilityScreen {
     HOME,
@@ -59,11 +63,12 @@ fun FarmTraceabilityFlow(
         animalId: String,
         movementInformation: String,
         responsibleWorker: String,
+        movementDate: Long,
         onCompleted: (
             Boolean,
             String
         ) -> Unit
-    ) -> Unit = { _, _, _, onCompleted ->
+    ) -> Unit = { _, _, _, _, onCompleted ->
         onCompleted(
             false,
             "Movement save is unavailable."
@@ -125,6 +130,39 @@ fun FarmTraceabilityFlow(
     totalAnimalCost: Double = 0.0,
 
     onLoadCostSummary: (String) -> Unit = {},
+
+    onSaveCost: (
+        animalId: String,
+        costType: String,
+        amount: String,
+        description: String,
+        costDate: Long,
+        onCompleted: (
+            Boolean,
+            String
+        ) -> Unit
+    ) -> Unit = { _, _, _, _, _, onCompleted ->
+        onCompleted(
+            false,
+            "Cost save is unavailable."
+        )
+    },
+
+    onSaveWeight: (
+        animalId: String,
+        weightKg: Double,
+        weighDate: Long,
+        note: String,
+        onCompleted: (
+            Boolean,
+            String
+        ) -> Unit
+    ) -> Unit = { _, _, _, _, onCompleted ->
+        onCompleted(
+            false,
+            "Mass save is unavailable."
+        )
+    },
 
     supplierRecords: List<AnimalPurchaseEntity> = emptyList(),
 
@@ -1124,6 +1162,44 @@ fun FarmTraceabilityFlow(
                 selectedTagNumber
             ) {
 
+                if (
+                    selectedAnimalReference
+                        .isNotBlank()
+                ) {
+
+                    /*
+                     * Animal Record is an overview screen.
+                     *
+                     * Load every linked record source for the selected
+                     * animal so the cards show current database values
+                     * instead of UI defaults or sample values.
+                     */
+                    onLoadMovements(
+                        selectedAnimalReference
+                    )
+
+                    onLoadLocationFeed(
+                        selectedAnimalReference
+                    )
+
+                    onLoadTreatments(
+                        selectedAnimalReference
+                    )
+
+                    onLoadMortalities(
+                        selectedAnimalReference
+                    )
+
+                    onLoadSuppliers(
+                        selectedAnimalReference
+                    )
+
+                    onLoadCostSummary(
+                        selectedAnimalReference
+                    )
+                }
+
+
                 summary =
                     if (
                         database != null &&
@@ -1158,6 +1234,102 @@ fun FarmTraceabilityFlow(
             }
 
 
+            val currentLocation =
+                locationFeedRecords
+                    .filter {
+                        !it.feedLocationType
+                            .isNullOrBlank()
+                    }
+                    .maxByOrNull {
+                        it.movementDate
+                    }
+                    ?.destinationFarmId
+                    ?.trim()
+                    .orEmpty()
+
+
+            val supplierName =
+                supplierRecords
+                    .maxByOrNull {
+                        it.purchaseDate
+                    }
+                    ?.sellerName
+                    ?.trim()
+                    .orEmpty()
+
+
+            val latestMovement =
+                movementRecords
+                    .filter {
+                        it.feedLocationType
+                            .isNullOrBlank()
+                    }
+                    .maxByOrNull {
+                        it.movementDate
+                    }
+
+
+            val status =
+                when {
+
+                    mortalityRecords
+                        .isNotEmpty() -> {
+
+                        "Deceased"
+                    }
+
+                    latestMovement
+                        ?.destinationFarmId
+                        ?.trim()
+                        ?.equals(
+                            "Sold",
+                            ignoreCase = true
+                        ) == true -> {
+
+                        "Sold"
+                    }
+
+                    latestMovement != null -> {
+
+                        "Moved"
+                    }
+
+                    else -> {
+                        ""
+                    }
+                }
+
+
+            val movementCount =
+                movementRecords
+                    .count {
+                        it.feedLocationType
+                            .isNullOrBlank()
+                    }
+
+
+            val feedCount =
+                locationFeedRecords
+                    .count {
+                        !it.feedLocationType
+                            .isNullOrBlank()
+                    }
+
+
+            val totalCostText =
+                totalAnimalCost
+                    .takeIf {
+                        it > 0.0
+                    }
+                    ?.let {
+                        "R %.2f".format(
+                            Locale.US,
+                            it
+                        )
+                    }
+                    .orEmpty()
+
+
             AnimalRecordScreen(
                 tagNumber =
                     selectedTagNumber,
@@ -1167,6 +1339,24 @@ fun FarmTraceabilityFlow(
 
                 gender =
                     summary.gender,
+
+                birthDate =
+                    summary.birthDate,
+
+                age =
+                    summary.age,
+
+                photoPath =
+                    summary.photoPath,
+
+                currentLocation =
+                    currentLocation,
+
+                supplierName =
+                    supplierName,
+
+                status =
+                    status,
 
                 entryMass =
                     summary.entryMass,
@@ -1179,6 +1369,21 @@ fun FarmTraceabilityFlow(
 
                 averageDailyGain =
                     summary.averageDailyGain,
+
+                movementCount =
+                    movementCount,
+
+                feedCount =
+                    feedCount,
+
+                treatmentCount =
+                    treatmentRecords.size,
+
+                mortalityCount =
+                    mortalityRecords.size,
+
+                totalCost =
+                    totalCostText,
 
                 onBackClick = {
                     navigateBack()
@@ -1227,7 +1432,6 @@ fun FarmTraceabilityFlow(
                 }
             )
         }
-
 
         TraceabilityScreen
             .ANIMAL_MOVEMENT -> {
@@ -1528,21 +1732,33 @@ fun FarmTraceabilityFlow(
 
                 onSaveClick = {
                         movementInformation,
-                        responsibleWorker ->
+                        responsibleWorker,
+                        movementDateText ->
 
-                    onSaveMovement(
-                        selectedAnimalReference,
-                        movementInformation,
-                        responsibleWorker
+                    val parsedMovementDate =
+                        parseTraceabilityDate(
+                            movementDateText
+                        )
+
+                    if (
+                        parsedMovementDate != null
                     ) {
-                            success,
-                            _ ->
 
-                        if (
-                            success
+                        onSaveMovement(
+                            selectedAnimalReference,
+                            movementInformation,
+                            responsibleWorker,
+                            parsedMovementDate
                         ) {
+                                success,
+                                _ ->
 
-                            returnToAnimalRecordAfterSave()
+                            if (
+                                success
+                            ) {
+
+                                returnToAnimalRecordAfterSave()
+                            }
                         }
                     }
                 }
@@ -1573,6 +1789,182 @@ fun FarmTraceabilityFlow(
 
                     mutableStateOf("")
                 }
+
+            var batchHeadCount by
+                remember(
+                    selectedAnimalReference
+                ) {
+                    mutableStateOf("")
+                }
+
+            var batchAverageEntryMass by
+                remember(
+                    selectedAnimalReference
+                ) {
+                    mutableStateOf("")
+                }
+
+            var batchMassCoverage by
+                remember(
+                    selectedAnimalReference
+                ) {
+                    mutableStateOf("")
+                }
+
+            val activePurchaseBatch =
+                supplierRecords
+                    .firstOrNull {
+                        !it.purchaseBatchNumber
+                            .isNullOrBlank()
+                    }
+                    ?.purchaseBatchNumber
+                    .orEmpty()
+
+            LaunchedEffect(
+                database,
+                activePurchaseBatch,
+                supplierRecords
+            ) {
+
+                if (
+                    database == null ||
+                    activePurchaseBatch
+                        .isBlank()
+                ) {
+
+                    batchHeadCount = ""
+                    batchAverageEntryMass = ""
+                    batchMassCoverage = ""
+
+                } else {
+
+                    try {
+
+                        database
+                            .openHelper
+                            .readableDatabase
+                            .query(
+                                """
+                                SELECT
+                                    COUNT(*) AS head_count,
+                                    SUM(
+                                        CASE
+                                            WHEN entry_mass IS NOT NULL
+                                            THEN 1
+                                            ELSE 0
+                                        END
+                                    ) AS mass_count,
+                                    AVG(entry_mass) AS avg_mass
+                                FROM (
+                                    SELECT
+                                        ap.animal_id,
+                                        COALESCE(
+                                            cr.birth_weight_kg,
+                                            (
+                                                SELECT aw.weight_kg
+                                                FROM animal_weights aw
+                                                WHERE aw.animal_id = ap.animal_id
+                                                ORDER BY aw.weigh_date ASC
+                                                LIMIT 1
+                                            )
+                                        ) AS entry_mass
+                                    FROM animal_purchases ap
+                                    LEFT JOIN calf_registrations cr
+                                        ON cr.registered_animal_id = ap.animal_id
+                                    WHERE LOWER(
+                                        TRIM(
+                                            IFNULL(
+                                                ap.purchase_batch_number,
+                                                ''
+                                            )
+                                        )
+                                    ) = LOWER(TRIM(?))
+                                    GROUP BY ap.animal_id
+                                )
+                                """.trimIndent(),
+                                arrayOf<Any?>(
+                                    activePurchaseBatch
+                                )
+                            )
+                            .use {
+                                    cursor ->
+
+                                if (
+                                    cursor.moveToFirst()
+                                ) {
+
+                                    val head =
+                                        cursor.getInt(
+                                            cursor.getColumnIndexOrThrow(
+                                                "head_count"
+                                            )
+                                        )
+
+                                    val massCount =
+                                        cursor.getInt(
+                                            cursor.getColumnIndexOrThrow(
+                                                "mass_count"
+                                            )
+                                        )
+
+                                    val averageIndex =
+                                        cursor.getColumnIndexOrThrow(
+                                            "avg_mass"
+                                        )
+
+                                    val average =
+                                        if (
+                                            cursor.isNull(
+                                                averageIndex
+                                            )
+                                        ) {
+                                            null
+                                        } else {
+                                            cursor.getDouble(
+                                                averageIndex
+                                            )
+                                        }
+
+                                    batchHeadCount =
+                                        head
+                                            .takeIf {
+                                                it > 0
+                                            }
+                                            ?.toString()
+                                            .orEmpty()
+
+                                    batchAverageEntryMass =
+                                        average
+                                            ?.let {
+                                                "%.1f kg".format(
+                                                    Locale.US,
+                                                    it
+                                                )
+                                            }
+                                            .orEmpty()
+
+                                    batchMassCoverage =
+                                        if (
+                                            head > 0 &&
+                                            massCount > 0
+                                        ) {
+                                            "$massCount of $head animals with recorded entry mass"
+                                        } else {
+                                            ""
+                                        }
+                                }
+                            }
+
+                    } catch (
+                        _: Exception
+                    ) {
+
+                        batchHeadCount = ""
+                        batchAverageEntryMass = ""
+                        batchMassCoverage = ""
+                    }
+                }
+            }
 
 
             LaunchedEffect(
@@ -1703,6 +2095,15 @@ fun FarmTraceabilityFlow(
                         ?.gln_number
                         .orEmpty(),
 
+                headInBatch =
+                    batchHeadCount,
+
+                averageEntryMass =
+                    batchAverageEntryMass,
+
+                entryMassCoverage =
+                    batchMassCoverage,
+
                 linkedFarm =
                     linkedFarm,
 
@@ -1717,6 +2118,13 @@ fun FarmTraceabilityFlow(
 
                     selectedSupplierName =
                         value
+                },
+
+                onRecordMassClick = {
+                    navigateTo(
+                        TraceabilityScreen
+                            .COST_SUMMARY
+                    )
                 },
 
                 onViewFarmClick = {
@@ -1974,8 +2382,41 @@ fun FarmTraceabilityFlow(
         TraceabilityScreen
             .COST_SUMMARY -> {
 
+            val database =
+                DatabaseProvider
+                    .getDatabase()
+
+            var latestMassKg by
+                remember(
+                    database,
+                    selectedAnimalReference
+                ) {
+                    mutableStateOf<Double?>(
+                        null
+                    )
+                }
+
+            var latestMassDateMillis by
+                remember(
+                    database,
+                    selectedAnimalReference
+                ) {
+                    mutableStateOf<Long?>(
+                        null
+                    )
+                }
+
+            var massRefreshKey by
+                remember(
+                    selectedAnimalReference
+                ) {
+                    mutableStateOf(0)
+                }
+
             LaunchedEffect(
-                selectedAnimalReference
+                selectedAnimalReference,
+                database,
+                massRefreshKey
             ) {
                 if (
                     selectedAnimalReference
@@ -1984,8 +2425,92 @@ fun FarmTraceabilityFlow(
                     onLoadCostSummary(
                         selectedAnimalReference
                     )
+
+                    val latestWeight =
+                        try {
+                            database
+                                ?.animalWeightDao()
+                                ?.getLatestWeightForAnimal(
+                                    selectedAnimalReference
+                                )
+                                ?.firstOrNull()
+                        } catch (
+                            _: Exception
+                        ) {
+                            null
+                        }
+
+                    val registration =
+                        if (
+                            latestWeight == null
+                        ) {
+                            try {
+                                database
+                                    ?.calfRegistrationDao()
+                                    ?.getAllRegistrationViews()
+                                    ?.firstOrNull()
+                                    ?.firstOrNull {
+                                        it.animalId ==
+                                            selectedAnimalReference
+                                    }
+                            } catch (
+                                _: Exception
+                            ) {
+                                null
+                            }
+                        } else {
+                            null
+                        }
+
+                    latestMassKg =
+                        latestWeight
+                            ?.weightKg
+                            ?: registration
+                                ?.birthWeightKg
+
+                    latestMassDateMillis =
+                        latestWeight
+                            ?.weighDate
+                            ?: registration
+                                ?.birthdate
+                } else {
+                    latestMassKg = null
+                    latestMassDateMillis = null
                 }
             }
+
+            val costPerKgText =
+                latestMassKg
+                    ?.takeIf {
+                        it > 0.0
+                    }
+                    ?.let {
+                            mass ->
+
+                        "%.2f".format(
+                            Locale.US,
+                            totalAnimalCost /
+                                mass
+                        )
+                    }
+                    .orEmpty()
+
+            val lastMassDateText =
+                latestMassDateMillis
+                    ?.takeIf {
+                        it > 0L
+                    }
+                    ?.let {
+                            timestamp ->
+
+                        SimpleDateFormat(
+                            "dd MMM yyyy",
+                            Locale.getDefault()
+                        ).format(
+                            Date(timestamp)
+                        )
+                    }
+                    .orEmpty()
 
             CostSummaryScreen(
                 animalReference =
@@ -2034,11 +2559,129 @@ fun FarmTraceabilityFlow(
                         totalAnimalCost
                     ),
 
+                costPerKg =
+                    costPerKgText,
+
+                lastMassDate =
+                    lastMassDateText,
+
+                onSaveCost = {
+                        costType,
+                        amount,
+                        description,
+                        costDateText,
+                        onCompleted ->
+
+                    val parsedCostDate =
+                        parseTraceabilityDate(
+                            costDateText
+                        )
+
+                    if (
+                        parsedCostDate == null
+                    ) {
+
+                        onCompleted(
+                            false,
+                            "Choose a valid cost date."
+                        )
+
+                    } else {
+
+                        onSaveCost(
+                            selectedAnimalReference,
+                            costType,
+                            amount,
+                            description,
+                            parsedCostDate
+                        ) {
+                                success,
+                                message ->
+
+                            if (
+                                success
+                            ) {
+                                onLoadCostSummary(
+                                    selectedAnimalReference
+                                )
+                            }
+
+                            onCompleted(
+                                success,
+                                message
+                            )
+                        }
+                    }
+                },
+
+                onSaveMass = {
+                        massText,
+                        weighDateText,
+                        massNote,
+                        onCompleted ->
+
+                    val parsedMass =
+                        massText
+                            .replace(
+                                ",",
+                                "."
+                            )
+                            .trim()
+                            .toDoubleOrNull()
+
+                    val parsedDate =
+                        parseTraceabilityDate(
+                            weighDateText
+                        )
+
+                    when {
+                        parsedMass == null ||
+                            parsedMass <= 0.0 -> {
+
+                            onCompleted(
+                                false,
+                                "Enter a valid mass greater than zero."
+                            )
+                        }
+
+                        parsedDate == null -> {
+
+                            onCompleted(
+                                false,
+                                "Choose a valid weigh date."
+                            )
+                        }
+
+                        else -> {
+
+                            onSaveWeight(
+                                selectedAnimalReference,
+                                parsedMass,
+                                parsedDate,
+                                massNote
+                            ) {
+                                    success,
+                                    message ->
+
+                                if (success) {
+                                    massRefreshKey += 1
+                                }
+
+                                onCompleted(
+                                    success,
+                                    message
+                                )
+                            }
+                        }
+                    }
+                },
+
                 onBackClick = {
                     navigateBack()
                 }
             )
         }
+
 
         TraceabilityScreen
             .MORTALITY -> {
@@ -2157,6 +2800,27 @@ fun FarmTraceabilityFlow(
                 }
             )
         }
+    }
+}
+
+private fun parseTraceabilityDate(
+    value: String
+): Long? {
+    if (value.isBlank()) {
+        return null
+    }
+
+    return try {
+        SimpleDateFormat(
+            "dd/MM/yyyy",
+            Locale.getDefault()
+        ).apply {
+            isLenient = false
+        }
+            .parse(value)
+            ?.time
+    } catch (_: Exception) {
+        null
     }
 }
 

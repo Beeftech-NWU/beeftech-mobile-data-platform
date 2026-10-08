@@ -1,6 +1,8 @@
 package com.beeftech.management.ui
 
+import android.graphics.BitmapFactory
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -43,10 +45,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.beeftech.database.DatabaseProvider
 import com.beeftech.management.data.ManagementApiClient
 import com.beeftech.management.data.REVIEW_TYPES
 import com.beeftech.management.data.ReviewRecord
@@ -55,6 +61,7 @@ import com.beeftech.management.viewmodel.RecordsReviewViewModelFactory
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.flow.firstOrNull
 
 const val MAX_VOID_REASON_LENGTH = 500
 
@@ -80,58 +87,22 @@ private enum class AnimalFilter(val label: String) {
     DECEASED("Deceased")
 }
 
-private data class MockAnimal(
+/**
+ * One REAL animal row shown in the Animals list.
+ *
+ * This deliberately contains no mock/sample fallback values.
+ */
+private data class AnimalListItem(
+    val animalId: String,
     val tag: String,
     val breed: String,
     val sex: String,
     val age: String,
     val weight: String,
-    val status: String
+    val location: String,
+    val status: String,
+    val photoPath: String
 )
-
-private val mockupAnimals =
-    listOf(
-        MockAnimal(
-            tag = "ZA100123",
-            breed = "Angus",
-            sex = "Heifer",
-            age = "12 months",
-            weight = "320 kg",
-            status = "At Site"
-        ),
-        MockAnimal(
-            tag = "ZA100124",
-            breed = "Brahman",
-            sex = "Steer",
-            age = "14 months",
-            weight = "410 kg",
-            status = "At Site"
-        ),
-        MockAnimal(
-            tag = "ZA100125",
-            breed = "Angus",
-            sex = "Heifer",
-            age = "10 months",
-            weight = "295 kg",
-            status = "Moved"
-        ),
-        MockAnimal(
-            tag = "ZA100126",
-            breed = "Bonsmara",
-            sex = "Steer",
-            age = "18 months",
-            weight = "480 kg",
-            status = "At Site"
-        ),
-        MockAnimal(
-            tag = "ZA100127",
-            breed = "Hereford",
-            sex = "Heifer",
-            age = "16 months",
-            weight = "360 kg",
-            status = "At Site"
-        )
-    )
 
 /* Keyed by user, so a different user logging in on the same device never sees the previous list. */
 @Composable
@@ -145,12 +116,19 @@ fun RecordsReviewTab(
         factory = RecordsReviewViewModelFactory(apiClient)
     )
 
-    RecordsReviewScreen(viewModel = viewModel, modifier = modifier)
+    RecordsReviewScreen(
+        viewModel = viewModel,
+        modifier = modifier
+    )
 }
 
 /**
- * Keeps the existing online records-review workflow intact and adds the mockup Animals list
- * as the default Records view. The Animals list is visual/demo data from the signed-off mockup.
+ * Records has two views:
+ *
+ * 1. Animals - loaded from the encrypted local BeefTech database.
+ * 2. Captured Records - the existing online review/void workflow.
+ *
+ * No example animal rows are used at runtime.
  */
 @Composable
 fun RecordsReviewScreen(
@@ -165,10 +143,186 @@ fun RecordsReviewScreen(
     var animalSearchQuery by remember { mutableStateOf("") }
     var animalFilter by remember { mutableStateOf(AnimalFilter.ALL) }
 
-    LaunchedEffect(Unit) { viewModel.refresh() }
+    var liveAnimals by remember {
+        mutableStateOf<List<AnimalListItem>>(emptyList())
+    }
+
+    var animalLoading by remember {
+        mutableStateOf(true)
+    }
+
+    var animalError by remember {
+        mutableStateOf("")
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.refresh()
+    }
+
+    /*
+     * Use the same encrypted Room database as Calf Registration and
+     * Farm Traceability. The list therefore reflects actual local records,
+     * including records captured while offline.
+     */
+    LaunchedEffect(selectedSection) {
+        if (
+            selectedSection !=
+            RecordsSection.ANIMALS
+        ) {
+            return@LaunchedEffect
+        }
+
+        animalLoading = true
+        animalError = ""
+
+        val database = DatabaseProvider.getDatabase()
+
+        if (database == null) {
+            liveAnimals = emptyList()
+            animalError = "Animal data is unavailable because the local database is not initialised."
+            animalLoading = false
+            return@LaunchedEffect
+        }
+
+        try {
+            database
+                .calfRegistrationDao()
+                .getAllRegistrationViews()
+                .collect { registrations ->
+                    val rows =
+                        registrations.map { registration ->
+                            val latestWeight =
+                                try {
+                                    database
+                                        .animalWeightDao()
+                                        .getLatestWeightForAnimal(
+                                            registration.animalId
+                                        )
+                                        .firstOrNull()
+                                        ?.weightKg
+                                } catch (_: Exception) {
+                                    null
+                                }
+
+                            val movements =
+                                try {
+                                    database
+                                        .animalMovementDao()
+                                        .getByAnimalId(
+                                            registration.animalId
+                                        )
+                                        .filter {
+                                            it.feedLocationType
+                                                .isNullOrBlank()
+                                        }
+                                } catch (_: Exception) {
+                                    emptyList()
+                                }
+
+                            val latestMovement =
+                                movements.maxByOrNull {
+                                    it.movementDate
+                                }
+
+                            val mortalityExists =
+                                try {
+                                    database
+                                        .mortalityDao()
+                                        .getByAnimalId(
+                                            registration.animalId
+                                        )
+                                        .isNotEmpty()
+                                } catch (_: Exception) {
+                                    false
+                                }
+
+                            val destination =
+                                latestMovement
+                                    ?.destinationFarmId
+                                    .orEmpty()
+                                    .trim()
+
+                            val status =
+                                deriveAnimalStatus(
+                                    mortalityExists = mortalityExists,
+                                    destination = destination
+                                )
+
+                            val location =
+                                cleanDestination(
+                                    destination
+                                )
+
+                            val displayWeight =
+                                latestWeight
+                                    ?: registration.birthWeightKg
+
+                            AnimalListItem(
+                                animalId =
+                                    registration.animalId,
+
+                                tag =
+                                    registration.tagNumber
+                                        .trim()
+                                        .ifBlank {
+                                            registration.animalId
+                                        },
+
+                                breed =
+                                    registration.breed
+                                        .trim(),
+
+                                sex =
+                                    registration.gender
+                                        .orEmpty()
+                                        .trim(),
+
+                                age =
+                                    formatAnimalAge(
+                                        registration.birthdate
+                                    ),
+
+                                weight =
+                                    formatAnimalWeight(
+                                        displayWeight
+                                    ),
+
+                                location =
+                                    location,
+
+                                status =
+                                    status,
+
+                                photoPath =
+                                    registration.photoPath
+                                        .orEmpty()
+                                        .trim()
+                            )
+                        }
+
+                    liveAnimals =
+                        rows.sortedBy {
+                            it.tag.lowercase(
+                                Locale.ROOT
+                            )
+                        }
+
+                    animalError = ""
+                    animalLoading = false
+                }
+
+        } catch (exception: Exception) {
+            liveAnimals = emptyList()
+            animalError =
+                exception.message
+                    ?: "Unable to load animals from the local database."
+            animalLoading = false
+        }
+    }
 
     val filteredRecords = remember(state.visibleRecords, reviewSearchQuery) {
         val query = reviewSearchQuery.trim()
+
         if (query.isBlank()) {
             state.visibleRecords
         } else {
@@ -180,23 +334,50 @@ fun RecordsReviewScreen(
         }
     }
 
-    val filteredAnimals = remember(animalSearchQuery, animalFilter) {
-        val query = animalSearchQuery.trim()
-        mockupAnimals.filter { animal ->
-            val matchesQuery =
-                query.isBlank() ||
-                    animal.tag.contains(query, ignoreCase = true) ||
-                    animal.breed.contains(query, ignoreCase = true) ||
-                    animal.sex.contains(query, ignoreCase = true) ||
-                    animal.status.contains(query, ignoreCase = true)
+    val filteredAnimals =
+        remember(
+            liveAnimals,
+            animalSearchQuery,
+            animalFilter
+        ) {
+            val query =
+                animalSearchQuery.trim()
 
-            val matchesFilter =
-                animalFilter == AnimalFilter.ALL ||
-                    animal.status.equals(animalFilter.label, ignoreCase = true)
+            liveAnimals.filter { animal ->
+                val matchesQuery =
+                    query.isBlank() ||
+                        animal.tag.contains(
+                            query,
+                            ignoreCase = true
+                        ) ||
+                        animal.breed.contains(
+                            query,
+                            ignoreCase = true
+                        ) ||
+                        animal.sex.contains(
+                            query,
+                            ignoreCase = true
+                        ) ||
+                        animal.location.contains(
+                            query,
+                            ignoreCase = true
+                        ) ||
+                        animal.status.contains(
+                            query,
+                            ignoreCase = true
+                        )
 
-            matchesQuery && matchesFilter
+                val matchesFilter =
+                    animalFilter == AnimalFilter.ALL ||
+                        animal.status.equals(
+                            animalFilter.label,
+                            ignoreCase = true
+                        )
+
+                matchesQuery &&
+                    matchesFilter
+            }
         }
-    }
 
     voidTarget?.let { record ->
         VoidDialog(
@@ -214,48 +395,86 @@ fun RecordsReviewScreen(
             modifier
                 .fillMaxSize()
                 .background(RecordsCream)
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(
+                    horizontal = 16.dp,
+                    vertical = 14.dp
+                ),
+        verticalArrangement =
+            Arrangement.spacedBy(12.dp)
     ) {
         Row(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .horizontalScroll(
+                        rememberScrollState()
+                    ),
+            horizontalArrangement =
+                Arrangement.spacedBy(8.dp)
         ) {
-            RecordsSection.values().forEach { section ->
-                FilterChip(
-                    selected = selectedSection == section,
-                    onClick = { selectedSection = section },
-                    label = {
-                        Text(
-                            text = section.label,
-                            fontWeight =
-                                if (selectedSection == section) {
-                                    FontWeight.SemiBold
-                                } else {
-                                    FontWeight.Normal
-                                }
-                        )
-                    },
-                    colors =
-                        FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = RecordsSage,
-                            selectedLabelColor = Color.White
-                        )
-                )
-            }
+            RecordsSection
+                .values()
+                .forEach { section ->
+                    FilterChip(
+                        selected =
+                            selectedSection == section,
+                        onClick = {
+                            selectedSection = section
+                        },
+                        label = {
+                            Text(
+                                text = section.label,
+                                fontWeight =
+                                    if (
+                                        selectedSection ==
+                                        section
+                                    ) {
+                                        FontWeight.SemiBold
+                                    } else {
+                                        FontWeight.Normal
+                                    }
+                            )
+                        },
+                        colors =
+                            FilterChipDefaults
+                                .filterChipColors(
+                                    selectedContainerColor =
+                                        RecordsSage,
+                                    selectedLabelColor =
+                                        Color.White
+                                )
+                    )
+                }
         }
 
         when (selectedSection) {
             RecordsSection.ANIMALS ->
-                AnimalsMockupContent(
-                    searchQuery = animalSearchQuery,
-                    onSearchQueryChange = { animalSearchQuery = it },
-                    selectedFilter = animalFilter,
-                    onFilterChange = { animalFilter = it },
-                    animals = filteredAnimals
+                AnimalsContent(
+                    searchQuery =
+                        animalSearchQuery,
+
+                    onSearchQueryChange = {
+                        animalSearchQuery = it
+                    },
+
+                    selectedFilter =
+                        animalFilter,
+
+                    onFilterChange = {
+                        animalFilter = it
+                    },
+
+                    totalAnimalCount =
+                        liveAnimals.size,
+
+                    animals =
+                        filteredAnimals,
+
+                    isLoading =
+                        animalLoading,
+
+                    errorMessage =
+                        animalError
                 )
 
             RecordsSection.REVIEW ->
@@ -263,207 +482,570 @@ fun RecordsReviewScreen(
                     state = state,
                     filteredRecords = filteredRecords,
                     searchQuery = reviewSearchQuery,
-                    onSearchQueryChange = { reviewSearchQuery = it },
-                    onRefresh = viewModel::refresh,
-                    onTypeSelected = viewModel::selectType,
-                    onShowVoidedChange = viewModel::setShowVoided,
-                    onVoid = { voidTarget = it }
+                    onSearchQueryChange = {
+                        reviewSearchQuery = it
+                    },
+                    onRefresh =
+                        viewModel::refresh,
+                    onTypeSelected =
+                        viewModel::selectType,
+                    onShowVoidedChange =
+                        viewModel::setShowVoided,
+                    onVoid = {
+                        voidTarget = it
+                    }
                 )
         }
     }
 }
 
 @Composable
-private fun ColumnScope.AnimalsMockupContent(
+private fun ColumnScope.AnimalsContent(
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     selectedFilter: AnimalFilter,
     onFilterChange: (AnimalFilter) -> Unit,
-    animals: List<MockAnimal>
+    totalAnimalCount: Int,
+    animals: List<AnimalListItem>,
+    isLoading: Boolean,
+    errorMessage: String
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Bottom
+        modifier =
+            Modifier.fillMaxWidth(),
+        horizontalArrangement =
+            Arrangement.SpaceBetween,
+        verticalAlignment =
+            Alignment.Bottom
     ) {
         Column {
             Text(
                 text = "Animals",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = RecordsText
+                style =
+                    MaterialTheme
+                        .typography
+                        .headlineSmall,
+                fontWeight =
+                    FontWeight.Bold,
+                color =
+                    RecordsText
             )
+
             Text(
-                text = "156 animals",
-                style = MaterialTheme.typography.bodySmall,
-                color = RecordsMuted
+                text =
+                    "$totalAnimalCount " +
+                        if (totalAnimalCount == 1) {
+                            "animal"
+                        } else {
+                            "animals"
+                        },
+                style =
+                    MaterialTheme
+                        .typography
+                        .bodySmall,
+                color =
+                    RecordsMuted
             )
         }
 
         Surface(
-            shape = RoundedCornerShape(999.dp),
-            color = RecordsSoft
+            shape =
+                RoundedCornerShape(999.dp),
+            color =
+                RecordsSoft
         ) {
+            val shownLabel =
+                when {
+                    searchQuery.isNotBlank() ->
+                        "${animals.size} matching"
+
+                    selectedFilter ==
+                        AnimalFilter.ALL ->
+                        "${animals.size} shown"
+
+                    selectedFilter ==
+                        AnimalFilter.AT_SITE ->
+                        "${animals.size} at site"
+
+                    else ->
+                        "${animals.size} " +
+                            selectedFilter
+                                .label
+                                .lowercase(
+                                    Locale.ROOT
+                                )
+                }
+
             Text(
-                text = "${animals.count { it.status == "At Site" }} shown on site",
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                style = MaterialTheme.typography.labelSmall,
-                color = RecordsSageStrong,
-                fontWeight = FontWeight.SemiBold
+                text =
+                    shownLabel,
+                modifier =
+                    Modifier.padding(
+                        horizontal = 10.dp,
+                        vertical = 6.dp
+                    ),
+                style =
+                    MaterialTheme
+                        .typography
+                        .labelSmall,
+                color =
+                    RecordsSageStrong,
+                fontWeight =
+                    FontWeight.SemiBold
             )
         }
     }
 
     OutlinedTextField(
-        value = searchQuery,
-        onValueChange = onSearchQueryChange,
-        modifier = Modifier.fillMaxWidth(),
-        singleLine = true,
-        label = { Text("Search animals") },
-        placeholder = { Text("Search by tag, breed or location") },
-        leadingIcon = {
-            Icon(
-                imageVector = Icons.Outlined.Search,
-                contentDescription = null
+        value =
+            searchQuery,
+        onValueChange =
+            onSearchQueryChange,
+        modifier =
+            Modifier.fillMaxWidth(),
+        singleLine =
+            true,
+        label = {
+            Text("Search animals")
+        },
+        placeholder = {
+            Text(
+                "Search by tag, breed, sex, location or status"
             )
         },
-        shape = RoundedCornerShape(14.dp)
+        leadingIcon = {
+            Icon(
+                imageVector =
+                    Icons.Outlined.Search,
+                contentDescription =
+                    null
+            )
+        },
+        shape =
+            RoundedCornerShape(14.dp)
     )
 
     Row(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .horizontalScroll(
+                    rememberScrollState()
+                ),
+        horizontalArrangement =
+            Arrangement.spacedBy(8.dp)
     ) {
-        AnimalFilter.values().forEach { filter ->
-            FilterChip(
-                selected = selectedFilter == filter,
-                onClick = { onFilterChange(filter) },
-                label = { Text(filter.label) },
-                colors =
-                    FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = RecordsSage,
-                        selectedLabelColor = Color.White
-                    )
-            )
-        }
-    }
-
-    if (animals.isEmpty()) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = RecordsSurface),
-            shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.dp, RecordsBorder)
-        ) {
-            Column(
-                modifier = Modifier.padding(22.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Pets,
-                    contentDescription = null,
-                    tint = RecordsSage,
-                    modifier = Modifier.size(34.dp)
-                )
-                Spacer(modifier = Modifier.size(8.dp))
-                Text(
-                    text = "No animals match this filter",
-                    fontWeight = FontWeight.SemiBold,
-                    color = RecordsText
-                )
-                Text(
-                    text = "Try another status or search term.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = RecordsMuted
+        AnimalFilter
+            .values()
+            .forEach { filter ->
+                FilterChip(
+                    selected =
+                        selectedFilter ==
+                            filter,
+                    onClick = {
+                        onFilterChange(
+                            filter
+                        )
+                    },
+                    label = {
+                        Text(
+                            filter.label
+                        )
+                    },
+                    colors =
+                        FilterChipDefaults
+                            .filterChipColors(
+                                selectedContainerColor =
+                                    RecordsSage,
+                                selectedLabelColor =
+                                    Color.White
+                            )
                 )
             }
+    }
+
+    when {
+        isLoading -> {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(28.dp),
+                contentAlignment =
+                    Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
         }
-    } else {
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(9.dp)
-        ) {
-            items(animals, key = { it.tag }) { animal ->
-                AnimalMockupCard(animal)
+
+        errorMessage.isNotBlank() -> {
+            Card(
+                modifier =
+                    Modifier.fillMaxWidth(),
+                colors =
+                    CardDefaults
+                        .cardColors(
+                            containerColor =
+                                RecordsSurface
+                        ),
+                shape =
+                    RoundedCornerShape(16.dp),
+                border =
+                    BorderStroke(
+                        1.dp,
+                        RecordsBorder
+                    )
+            ) {
+                Column(
+                    modifier =
+                        Modifier.padding(
+                            20.dp
+                        )
+                ) {
+                    Text(
+                        text =
+                            "Unable to load animals",
+                        fontWeight =
+                            FontWeight.SemiBold,
+                        color =
+                            RecordsText
+                    )
+
+                    Text(
+                        text =
+                            errorMessage,
+                        style =
+                            MaterialTheme
+                                .typography
+                                .bodySmall,
+                        color =
+                            RecordsMuted,
+                        modifier =
+                            Modifier.padding(
+                                top = 4.dp
+                            )
+                    )
+                }
+            }
+        }
+
+        animals.isEmpty() -> {
+            Card(
+                modifier =
+                    Modifier.fillMaxWidth(),
+                colors =
+                    CardDefaults
+                        .cardColors(
+                            containerColor =
+                                RecordsSurface
+                        ),
+                shape =
+                    RoundedCornerShape(16.dp),
+                border =
+                    BorderStroke(
+                        1.dp,
+                        RecordsBorder
+                    )
+            ) {
+                Column(
+                    modifier =
+                        Modifier.padding(
+                            22.dp
+                        ),
+                    horizontalAlignment =
+                        Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector =
+                            Icons.Outlined.Pets,
+                        contentDescription =
+                            null,
+                        tint =
+                            RecordsSage,
+                        modifier =
+                            Modifier.size(
+                                34.dp
+                            )
+                    )
+
+                    Spacer(
+                        modifier =
+                            Modifier.size(
+                                8.dp
+                            )
+                    )
+
+                    Text(
+                        text =
+                            if (
+                                totalAnimalCount ==
+                                0
+                            ) {
+                                "No animals recorded yet"
+                            } else {
+                                "No animals match this filter"
+                            },
+                        fontWeight =
+                            FontWeight.SemiBold,
+                        color =
+                            RecordsText
+                    )
+
+                    Text(
+                        text =
+                            if (
+                                totalAnimalCount ==
+                                0
+                            ) {
+                                "Registered animals will appear here automatically."
+                            } else {
+                                "Try another status or search term."
+                            },
+                        style =
+                            MaterialTheme
+                                .typography
+                                .bodySmall,
+                        color =
+                            RecordsMuted
+                    )
+                }
+            }
+        }
+
+        else -> {
+            LazyColumn(
+                modifier =
+                    Modifier.weight(1f),
+                verticalArrangement =
+                    Arrangement.spacedBy(
+                        9.dp
+                    )
+            ) {
+                items(
+                    items = animals,
+                    key = {
+                        it.animalId
+                    }
+                ) { animal ->
+                    AnimalCard(
+                        animal
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun AnimalMockupCard(
-    animal: MockAnimal
+private fun AnimalCard(
+    animal: AnimalListItem
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = RecordsSurface),
-        border = BorderStroke(1.dp, RecordsBorder),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        modifier =
+            Modifier.fillMaxWidth(),
+        shape =
+            RoundedCornerShape(16.dp),
+        colors =
+            CardDefaults.cardColors(
+                containerColor =
+                    RecordsSurface
+            ),
+        border =
+            BorderStroke(
+                1.dp,
+                RecordsBorder
+            ),
+        elevation =
+            CardDefaults.cardElevation(
+                defaultElevation = 1.dp
+            )
     ) {
         Row(
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment =
+                Alignment.CenterVertically
         ) {
-            Box(
+            AnimalThumbnail(
+                photoPath =
+                    animal.photoPath
+            )
+
+            Spacer(
                 modifier =
-                    Modifier
-                        .size(58.dp)
-                        .background(
-                            color = RecordsSoft,
-                            shape = RoundedCornerShape(13.dp)
-                        ),
-                contentAlignment = Alignment.Center
+                    Modifier.size(
+                        12.dp
+                    )
+            )
+
+            Column(
+                modifier =
+                    Modifier.weight(1f)
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.Pets,
-                    contentDescription = null,
-                    tint = RecordsSageStrong,
-                    modifier = Modifier.size(30.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.size(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = animal.tag,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = RecordsText
+                    text =
+                        animal.tag,
+                    style =
+                        MaterialTheme
+                            .typography
+                            .titleMedium,
+                    fontWeight =
+                        FontWeight.Bold,
+                    color =
+                        RecordsText
                 )
 
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement =
+                        Arrangement.spacedBy(
+                            6.dp
+                        )
                 ) {
-                    AnimalMetaChip(animal.breed)
-                    AnimalMetaChip(animal.sex)
+                    if (
+                        animal.breed
+                            .isNotBlank()
+                    ) {
+                        AnimalMetaChip(
+                            animal.breed
+                        )
+                    }
+
+                    if (
+                        animal.sex
+                            .isNotBlank()
+                    ) {
+                        AnimalMetaChip(
+                            animal.sex
+                        )
+                    }
                 }
 
+                val detail =
+                    listOf(
+                        animal.age,
+                        animal.weight,
+                        animal.location
+                    )
+                        .filter {
+                            it.isNotBlank()
+                        }
+                        .joinToString(" · ")
+
                 Text(
-                    text = "${animal.age} · ${animal.weight}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = RecordsMuted,
-                    modifier = Modifier.padding(top = 5.dp)
+                    text =
+                        detail.ifBlank {
+                            "Additional details unavailable"
+                        },
+                    style =
+                        MaterialTheme
+                            .typography
+                            .bodySmall,
+                    color =
+                        RecordsMuted,
+                    modifier =
+                        Modifier.padding(
+                            top = 5.dp
+                        ),
+                    maxLines =
+                        1
                 )
             }
 
-            Column(horizontalAlignment = Alignment.End) {
-                AnimalStatusBadge(animal.status)
-                Spacer(modifier = Modifier.size(10.dp))
+            Column(
+                horizontalAlignment =
+                    Alignment.End
+            ) {
+                AnimalStatusBadge(
+                    animal.status
+                )
+
+                Spacer(
+                    modifier =
+                        Modifier.size(
+                            10.dp
+                        )
+                )
+
                 Icon(
-                    imageVector = Icons.Outlined.ChevronRight,
-                    contentDescription = null,
-                    tint = RecordsSageStrong,
-                    modifier = Modifier.size(20.dp)
+                    imageVector =
+                        Icons.Outlined
+                            .ChevronRight,
+                    contentDescription =
+                        "Animal details",
+                    tint =
+                        RecordsSageStrong,
+                    modifier =
+                        Modifier.size(
+                            20.dp
+                        )
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun AnimalThumbnail(
+    photoPath: String
+) {
+    val bitmap =
+        remember(photoPath) {
+            photoPath
+                .takeIf {
+                    it.isNotBlank()
+                }
+                ?.let {
+                    runCatching {
+                        BitmapFactory
+                            .decodeFile(it)
+                    }
+                        .getOrNull()
+                }
+        }
+
+    Box(
+        modifier =
+            Modifier
+                .size(58.dp)
+                .clip(
+                    RoundedCornerShape(
+                        13.dp
+                    )
+                )
+                .background(
+                    RecordsSoft
+                ),
+        contentAlignment =
+            Alignment.Center
+    ) {
+        if (
+            bitmap != null
+        ) {
+            Image(
+                bitmap =
+                    bitmap.asImageBitmap(),
+                contentDescription =
+                    "Animal photo",
+                modifier =
+                    Modifier.fillMaxSize(),
+                contentScale =
+                    ContentScale.Crop
+            )
+        } else {
+            Icon(
+                imageVector =
+                    Icons.Outlined.Pets,
+                contentDescription =
+                    null,
+                tint =
+                    RecordsSageStrong,
+                modifier =
+                    Modifier.size(
+                        30.dp
+                    )
+            )
         }
     }
 }
@@ -473,14 +1055,25 @@ private fun AnimalMetaChip(
     text: String
 ) {
     Surface(
-        shape = RoundedCornerShape(6.dp),
-        color = Color(0xFFF1F3F1)
+        shape =
+            RoundedCornerShape(6.dp),
+        color =
+            Color(0xFFF1F3F1)
     ) {
         Text(
-            text = text,
-            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-            style = MaterialTheme.typography.labelSmall,
-            color = RecordsMuted
+            text =
+                text,
+            modifier =
+                Modifier.padding(
+                    horizontal = 7.dp,
+                    vertical = 3.dp
+                ),
+            style =
+                MaterialTheme
+                    .typography
+                    .labelSmall,
+            color =
+                RecordsMuted
         )
     }
 }
@@ -491,33 +1084,211 @@ private fun AnimalStatusBadge(
 ) {
     val background =
         when (status) {
-            "At Site" -> Color(0xFFDFF3E5)
-            "Moved" -> Color(0xFFDCEEFF)
-            "Sold" -> Color(0xFFFFEED3)
-            else -> Color(0xFFF9DAD7)
+            "At Site" ->
+                Color(0xFFDFF3E5)
+
+            "Moved" ->
+                Color(0xFFDCEEFF)
+
+            "Sold" ->
+                Color(0xFFFFEED3)
+
+            "Deceased" ->
+                Color(0xFFF9DAD7)
+
+            else ->
+                Color(0xFFEDEFEA)
         }
 
     val foreground =
         when (status) {
-            "At Site" -> Color(0xFF2F7A4C)
-            "Moved" -> Color(0xFF2D6F98)
-            "Sold" -> Color(0xFF936000)
-            else -> Color(0xFFB23A35)
+            "At Site" ->
+                Color(0xFF2F7A4C)
+
+            "Moved" ->
+                Color(0xFF2D6F98)
+
+            "Sold" ->
+                Color(0xFF936000)
+
+            "Deceased" ->
+                Color(0xFFB23A35)
+
+            else ->
+                RecordsSageStrong
         }
 
     Surface(
-        shape = RoundedCornerShape(999.dp),
-        color = background
+        shape =
+            RoundedCornerShape(999.dp),
+        color =
+            background
     ) {
         Text(
-            text = status,
-            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = foreground
+            text =
+                status,
+            modifier =
+                Modifier.padding(
+                    horizontal = 9.dp,
+                    vertical = 5.dp
+                ),
+            style =
+                MaterialTheme
+                    .typography
+                    .labelSmall,
+            fontWeight =
+                FontWeight.SemiBold,
+            color =
+                foreground
         )
     }
 }
+
+private fun deriveAnimalStatus(
+    mortalityExists: Boolean,
+    destination: String
+): String =
+    when {
+        mortalityExists ->
+            "Deceased"
+
+        destination.startsWith(
+            "Sold:",
+            ignoreCase = true
+        ) ->
+            "Sold"
+
+        destination.startsWith(
+            "Another site:",
+            ignoreCase = true
+        ) ||
+            destination.startsWith(
+                "Other:",
+                ignoreCase = true
+            ) ->
+            "Moved"
+
+        else ->
+            "At Site"
+    }
+
+private fun cleanDestination(
+    rawDestination: String
+): String {
+    val value =
+        rawDestination
+            .substringBefore(
+                " · "
+            )
+            .trim()
+
+    return when {
+        value.startsWith(
+            "Sold:",
+            ignoreCase = true
+        ) ->
+            value.substringAfter(":")
+                .trim()
+
+        value.startsWith(
+            "Another site:",
+            ignoreCase = true
+        ) ->
+            value.substringAfter(":")
+                .trim()
+
+        value.startsWith(
+            "Other:",
+            ignoreCase = true
+        ) ->
+            value.substringAfter(":")
+                .trim()
+
+        else ->
+            value
+    }
+}
+
+private fun formatAnimalAge(
+    birthDate: Long
+): String {
+    if (
+        birthDate <= 0L
+    ) {
+        return ""
+    }
+
+    val now =
+        System.currentTimeMillis()
+
+    if (
+        birthDate > now
+    ) {
+        return ""
+    }
+
+    val elapsed =
+        now - birthDate
+
+    val months =
+        (
+            elapsed /
+                (
+                    30.4375 *
+                        24.0 *
+                        60.0 *
+                        60.0 *
+                        1000.0
+                )
+        )
+            .toInt()
+            .coerceAtLeast(0)
+
+    return if (
+        months < 24
+    ) {
+        "$months " +
+            if (months == 1) {
+                "month"
+            } else {
+                "months"
+            }
+    } else {
+        val years =
+            months / 12
+
+        "$years " +
+            if (years == 1) {
+                "year"
+            } else {
+                "years"
+            }
+    }
+}
+
+private fun formatAnimalWeight(
+    weight: Double?
+): String {
+    val value =
+        weight
+            ?.takeIf {
+                it >= 0.0
+            }
+            ?: return ""
+
+    return if (
+        value % 1.0 == 0.0
+    ) {
+        "${value.toInt()} kg"
+    } else {
+        String.format(
+            Locale.US,
+            "%.1f kg",
+            value
+        )
+    }
+}
+
 
 @Composable
 private fun ColumnScope.RecordsReviewContent(

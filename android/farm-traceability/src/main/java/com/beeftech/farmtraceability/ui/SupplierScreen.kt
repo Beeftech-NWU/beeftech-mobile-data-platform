@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.LocalShipping
 import androidx.compose.material.icons.outlined.LocationOn
@@ -22,6 +21,7 @@ import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Tag
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,6 +44,7 @@ fun SupplierScreen(
     purchaseBatch: String = "",
     headInBatch: String = "",
     averageEntryMass: String = "",
+    entryMassCoverage: String = "",
     linkedFarm: String = "",
     supplierOptions: List<String> = emptyList(),
     supplierRecords: List<AnimalPurchaseEntity> = emptyList(),
@@ -53,6 +54,7 @@ fun SupplierScreen(
     onPurchaseDateChange: (String) -> Unit = {},
     onPurchaseBatchChange: (String) -> Unit = {},
     onViewFarmClick: () -> Unit = {},
+    onRecordMassClick: () -> Unit = {},
     onSaveClick: (
         supplierName: String,
         glnNumber: String,
@@ -68,12 +70,59 @@ fun SupplierScreen(
         mutableStateOf(glnNumber)
     }
 
-    var purchaseDateState by remember(purchaseDate) {
-        mutableStateOf(purchaseDate)
+    val todayPurchaseDate = remember {
+        SimpleDateFormat(
+            "dd/MM/yyyy",
+            Locale.getDefault()
+        ).format(Date())
     }
 
-    var purchaseBatchState by remember(purchaseBatch) {
-        mutableStateOf(purchaseBatch)
+    var purchaseDateState by remember(purchaseDate) {
+        mutableStateOf(
+            purchaseDate.ifBlank {
+                todayPurchaseDate
+            }
+        )
+    }
+
+    val purchaseBatchState =
+        remember(
+            purchaseBatch,
+            supplierNameState,
+            purchaseDateState
+        ) {
+            purchaseBatch
+                .trim()
+                .takeIf {
+                    it.isNotBlank()
+                }
+                ?: generatePurchaseBatchNumber(
+                    supplierName =
+                        supplierNameState,
+                    purchaseDate =
+                        purchaseDateState
+                )
+        }
+
+    /*
+     * Keep the existing callback contract alive for any caller that wants
+     * to observe the automatically supplied values.
+     */
+    LaunchedEffect(
+        purchaseDateState,
+        purchaseBatchState
+    ) {
+        onPurchaseDateChange(
+            purchaseDateState
+        )
+
+        onPurchaseBatchChange(
+            purchaseBatchState
+        )
+    }
+
+    var validationMessage by remember {
+        mutableStateOf("")
     }
 
     Column(
@@ -112,8 +161,13 @@ fun SupplierScreen(
                     value = supplierNameState,
                     options = supplierOptions,
                     icon = Icons.Outlined.Person,
+                    placeholder = "Search registered supplier or enter new supplier",
+                    helperText = "Select an existing supplier, or type a new supplier name if it is not listed.",
+                    required = true,
+                    allowCustomEntry = true,
                     onValueChange = {
                         supplierNameState = it
+                        validationMessage = ""
                         onSupplierNameChange(it)
                     }
                 )
@@ -123,23 +177,42 @@ fun SupplierScreen(
                 TraceabilityTextField(
                     label = "GLN Number",
                     value = glnNumberState,
-                    onValueChange = {
-                        glnNumberState = it
-                        onGlnNumberChange(it)
+                    onValueChange = { rawValue ->
+                        val normalized =
+                            rawValue
+                                .filter {
+                                    it.isDigit()
+                                }
+                                .take(13)
+
+                        glnNumberState =
+                            normalized
+
+                        validationMessage =
+                            ""
+
+                        onGlnNumberChange(
+                            normalized
+                        )
                     },
-                    icon = Icons.Outlined.Numbers
+                    icon = Icons.Outlined.Numbers,
+                    placeholder = "e.g. 6001234567894",
+                    helperText = "Enter the supplier's 13-digit Global Location Number. Leave blank when no GLN is available.",
+                    numeric = true
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                TraceabilityTextField(
+                TraceabilityDatePickerField(
                     label = "Date of Purchase",
                     value = purchaseDateState,
                     onValueChange = {
                         purchaseDateState = it
-                        onPurchaseDateChange(it)
+                        validationMessage = ""
                     },
-                    icon = Icons.Outlined.CalendarMonth
+                    helperText = "Set to today automatically. Tap the calendar to choose an earlier purchase date.",
+                    required = true,
+                    maxToday = true
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -147,11 +220,11 @@ fun SupplierScreen(
                 TraceabilityTextField(
                     label = "Purchase Batch Number",
                     value = purchaseBatchState,
-                    onValueChange = {
-                        purchaseBatchState = it
-                        onPurchaseBatchChange(it)
-                    },
-                    icon = Icons.Outlined.Tag
+                    onValueChange = {},
+                    icon = Icons.Outlined.Tag,
+                    placeholder = "Generated after selecting a supplier",
+                    helperText = "Generated automatically from the supplier and purchase date. Animals from the same supplier purchase date reuse the same batch reference.",
+                    readOnly = true
                 )
             }
 
@@ -180,13 +253,47 @@ fun SupplierScreen(
                 TraceabilityInfoRow(
                     icon = Icons.Outlined.MonitorWeight,
                     title = "Average Entry Mass",
-                    subtitle = if (averageEntryMass.isBlank()) {
-                        "Average entry mass unavailable"
-                    } else {
-                        "Recorded batch average"
-                    },
+                    subtitle =
+                        when {
+                            averageEntryMass.isNotBlank() &&
+                                entryMassCoverage.isNotBlank() -> {
+
+                                entryMassCoverage
+                            }
+
+                            averageEntryMass.isNotBlank() -> {
+
+                                "Recorded batch average"
+                            }
+
+                            headInBatch.isNotBlank() -> {
+
+                                "No entry masses recorded for this batch"
+                            }
+
+                            else -> {
+
+                                "Save a purchase batch to calculate the average"
+                            }
+                        },
                     value = averageEntryMass
                 )
+
+                if (
+                    headInBatch.isNotBlank() &&
+                    averageEntryMass.isBlank()
+                ) {
+
+                    Spacer(
+                        modifier = Modifier.height(14.dp)
+                    )
+
+                    TraceabilitySecondaryButton(
+                        text = "Record / Update Mass",
+                        icon = Icons.Outlined.MonitorWeight,
+                        onClick = onRecordMassClick
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -217,16 +324,54 @@ fun SupplierScreen(
 
             Spacer(modifier = Modifier.height(26.dp))
 
+            TraceabilityFormMessage(
+                message = validationMessage
+            )
+
+            if (validationMessage.isNotBlank()) {
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
             TraceabilityPrimaryButton(
                 text = "Save Supplier",
                 icon = Icons.Outlined.Save,
                 onClick = {
-                    onSaveClick(
-                        supplierNameState,
-                        glnNumberState,
-                        purchaseDateState,
-                        purchaseBatchState
-                    )
+                    validationMessage =
+                        when {
+                            supplierNameState
+                                .trim()
+                                .isBlank() -> {
+
+                                "Select or enter a supplier name."
+                            }
+
+                            glnNumberState
+                                .isNotBlank() &&
+                                glnNumberState.length != 13 -> {
+
+                                "GLN must contain exactly 13 digits."
+                            }
+
+                            !isValidPurchaseDate(
+                                purchaseDateState
+                            ) -> {
+
+                                "Purchase date must use DD/MM/YYYY."
+                            }
+
+                            else -> {
+                                ""
+                            }
+                        }
+
+                    if (validationMessage.isBlank()) {
+                        onSaveClick(
+                            supplierNameState.trim(),
+                            glnNumberState.trim(),
+                            purchaseDateState.trim(),
+                            purchaseBatchState.trim()
+                        )
+                    }
                 }
             )
 
@@ -295,6 +440,133 @@ fun SupplierScreen(
         }
     }
 }
+
+private fun generatePurchaseBatchNumber(
+    supplierName: String,
+    purchaseDate: String
+): String {
+    val normalizedSupplier =
+        supplierName
+            .trim()
+            .lowercase(
+                Locale.ROOT
+            )
+
+    if (
+        normalizedSupplier.isBlank() ||
+        !isValidPurchaseDate(
+            purchaseDate
+        )
+    ) {
+        return ""
+    }
+
+    val supplierPrefix =
+        normalizedSupplier
+            .filter {
+                it.isLetterOrDigit()
+            }
+            .uppercase(
+                Locale.ROOT
+            )
+            .take(3)
+            .ifBlank {
+                "SUP"
+            }
+
+    val supplierHash =
+        Integer
+            .toHexString(
+                normalizedSupplier
+                    .hashCode()
+            )
+            .uppercase(
+                Locale.ROOT
+            )
+            .padStart(
+                8,
+                '0'
+            )
+            .takeLast(4)
+
+    val dateToken =
+        purchaseDate
+            .trim()
+            .let {
+                    value ->
+
+                val match =
+                    Regex(
+                        """^(\d{2})/(\d{2})/(\d{4})$"""
+                    )
+                        .matchEntire(
+                            value
+                        )
+
+                if (
+                    match == null
+                ) {
+                    ""
+                } else {
+                    val day =
+                        match
+                            .groupValues[1]
+
+                    val month =
+                        match
+                            .groupValues[2]
+
+                    val year =
+                        match
+                            .groupValues[3]
+
+                    "$year$month$day"
+                }
+            }
+
+    return "PB-$dateToken-$supplierPrefix-$supplierHash"
+}
+
+
+private fun isValidPurchaseDate(
+    value: String
+): Boolean {
+    val normalized =
+        value.trim()
+
+    if (
+        normalized.isBlank()
+    ) {
+        return false
+    }
+
+    return try {
+        val formatter =
+            SimpleDateFormat(
+                "dd/MM/yyyy",
+                Locale.US
+            )
+                .apply {
+                    isLenient = false
+                }
+
+        val parsed =
+            formatter.parse(
+                normalized
+            )
+
+        parsed != null &&
+            formatter.format(
+                parsed
+            ) == normalized
+
+    } catch (
+        _: Exception
+    ) {
+        false
+    }
+}
+
 
 @Preview(showBackground = true)
 @Composable
