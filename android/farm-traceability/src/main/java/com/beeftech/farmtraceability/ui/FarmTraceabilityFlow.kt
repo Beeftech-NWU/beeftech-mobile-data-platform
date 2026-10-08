@@ -1036,6 +1036,11 @@ fun FarmTraceabilityFlow(
                     .uiState
                     .collectAsState()
 
+                val animals by
+                findAnimalViewModel
+                    .animals
+                    .collectAsState()
+
                 LaunchedEffect(
                     uiState
                 ) {
@@ -1099,6 +1104,9 @@ fun FarmTraceabilityFlow(
                     }
 
                 FindAnimalScreen(
+                    animals =
+                        animals,
+
                     isLoading =
                         uiState is
                                 FindAnimalUiState
@@ -1120,6 +1128,15 @@ fun FarmTraceabilityFlow(
                         findAnimalViewModel
                             .findAnimal(
                                 reference
+                            )
+                    },
+
+                    onAnimalSelected = {
+                            animal ->
+
+                        findAnimalViewModel
+                            .selectAnimal(
+                                animal
                             )
                     }
                 )
