@@ -3,8 +3,11 @@ package com.beeftech.database.repository
 import com.beeftech.database.dao.PendingSyncDao
 import com.beeftech.database.dao.SyncRunDao
 import com.beeftech.database.entity.SyncRunEntity
+import com.beeftech.database.entity.SyncRunModule
 import com.beeftech.database.entity.SyncRunResult
 import com.beeftech.database.security.CurrentUserIdRegistry
+import com.beeftech.database.util.BatchNaming
+import com.beeftech.database.util.ProjectCode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -33,6 +36,9 @@ class SyncRunRepository(
     ) {
         val userId = userIdProvider()?.takeIf { it.isNotBlank() } ?: return
 
+        /* The upload this run sent, if it sent one: the newest name its module's client issued since it started. */
+        val batch = batchName ?: projectOf(module)?.let { BatchNaming.lastNameSince(it, startedAt) }
+
         syncRunDao.insert(
             SyncRunEntity(
                 userId = userId,
@@ -44,7 +50,7 @@ class SyncRunRepository(
                 failedCount = failedCount,
                 result = result,
                 message = message?.take(MAX_MESSAGE_LENGTH),
-                batchName = batchName
+                batchName = batch
             )
         )
         syncRunDao.pruneOlderThan(now() - RETENTION_MILLIS)
@@ -109,6 +115,18 @@ class SyncRunRepository(
     }
 
     companion object {
+        /** The project code each module's uploads are named with. */
+        fun projectOf(module: String): ProjectCode? = when (module) {
+            SyncRunModule.CALF -> ProjectCode.CALF_REG
+            SyncRunModule.FARMER -> ProjectCode.FARMER_REG
+            SyncRunModule.TREATMENT -> ProjectCode.TREATMENT
+            SyncRunModule.MOVEMENT -> ProjectCode.MOVEMENT
+            SyncRunModule.MORTALITY -> ProjectCode.MORTALITY
+            SyncRunModule.COST -> ProjectCode.COST
+            SyncRunModule.TRACEABILITY -> ProjectCode.TRACE_EVENT
+            else -> null
+        }
+
         const val MAX_MESSAGE_LENGTH = 300
         val RETENTION_MILLIS: Long = TimeUnit.DAYS.toMillis(30)
     }

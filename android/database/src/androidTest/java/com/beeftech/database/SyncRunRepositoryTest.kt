@@ -9,6 +9,9 @@ import com.beeftech.database.entity.SyncRunTrigger
 import com.beeftech.database.repository.PendingSyncRepository
 import com.beeftech.database.repository.SyncRunRepository
 import com.beeftech.database.security.CurrentUserIdRegistry
+import com.beeftech.database.security.SyncIdentityRegistry
+import com.beeftech.database.util.BatchNaming
+import com.beeftech.database.util.ProjectCode
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -46,6 +49,8 @@ class SyncRunRepositoryTest {
 
     @After
     fun tearDown() {
+        SyncIdentityRegistry.clear()
+        BatchNaming.forgetIssued()
         CurrentUserIdRegistry.clear()
         if (::database.isInitialized) database.close()
         context.deleteDatabase(DATABASE_NAME)
@@ -98,6 +103,20 @@ class SyncRunRepositoryTest {
         val counts = repository.observePendingByType().first()
 
         assertEquals(mapOf("ANIMAL_COST" to 2, "MORTALITY" to 1), counts)
+    }
+
+    @Test
+    fun aRunKeepsTheBatchNameItsUploadUsed() = runBlocking {
+        SyncIdentityRegistry.set("BF01", "MOB_DEV_1")
+        val started = clock - 1_000
+        val name = BatchNaming.nameFor(ProjectCode.COST, nowMillis = clock - 500)
+
+        record(SyncRunModule.COST, started = started)
+        record(SyncRunModule.CALF, started = started)
+
+        val byModule = repository.observeRecent().first().associate { it.module to it.batchName }
+        assertEquals(name, byModule["COST"])
+        assertEquals(null, byModule["CALF"])
     }
 
     private suspend fun record(module: String, started: Long) =
