@@ -5,7 +5,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
@@ -111,8 +114,9 @@ private sealed interface PhotoState {
 /** The calf's photo from this device, or a note when the file is not here. */
 @Composable
 private fun PhotoSection(tagNumber: String, photoPath: String) {
-    val state by produceState<PhotoState>(PhotoState.Loading, photoPath) {
-        value = withContext(Dispatchers.IO) {
+    var state by remember(photoPath) { mutableStateOf<PhotoState>(PhotoState.Loading) }
+    LaunchedEffect(photoPath) {
+        state = withContext(Dispatchers.IO) {
             ImageCompressionUtils.decodeForDisplay(photoPath)
                 ?.let { PhotoState.Loaded(it.asImageBitmap()) }
                 ?: PhotoState.Missing
