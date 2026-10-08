@@ -2,6 +2,8 @@ package com.beeftech.calfregistration.ui
 
 data class CalfRegistrationData(
     val tagNumber: String = "",
+    val oldTagNumber: String = "",
+    val referenceNumber: String = "",
     val animalType: String = "BRN — Brangus",
     val gender: String = "Female",
     val age: String = "Newborn",
@@ -11,10 +13,15 @@ data class CalfRegistrationData(
     val mark: String = "",
     val birthDate: String = "",
     val birthWeightKg: String = "",
-    val dameTagNumber: String = "Select dame",
-    val sireTagNumber: String = "Select sire",
+    val dameTagNumber: String = CalfRegistrationLookups.DAME_PLACEHOLDER,
+    val sireTagNumber: String = CalfRegistrationLookups.SIRE_PLACEHOLDER,
+    val processProof: String = "",
+    val implantProof: String = "",
     val photoPath: String? = null,
     val synced: Boolean = false,
+    /** The server rejected this record and automatic retries stopped. */
+    val needsAttention: Boolean = false,
+    val syncError: String? = null,
     val dateRegistered: String = "26 Aug"
 )
 
@@ -65,20 +72,8 @@ object CalfRegistrationLookups {
         "P — Poor"
     )
 
-    val dameTagList = listOf(
-        "Blu0000011 (Bonsmara)",
-        "Red0000024 (Brangus)",
-        "Grn0000039 (Brahman)",
-        "Yel0000052 (Nguni)",
-        "Blu0000088 (Angus)"
-    )
-
-    val sireTagList = listOf(
-        "Blu0000902 (Bonsmara Stud)",
-        "Red0000550 (Brangus Stud)",
-        "Grn0000110 (Brahman Stud)",
-        "Yel0000301 (Nguni Stud)"
-    )
+    const val DAME_PLACEHOLDER = "Select dame"
+    const val SIRE_PLACEHOLDER = "Select sire"
 
     val initialRegisteredCalves = listOf(
         CalfRegistrationData(

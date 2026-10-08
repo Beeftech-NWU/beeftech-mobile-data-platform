@@ -22,6 +22,8 @@ data class CalfRegistrationView(
     val tagNumber: String,
     val breed: String,
     val gender: String?,
+    val hideColour: String?,
+    val brandMark: String?,
     val birthdate: Long,
     val damAnimalId: String?,
     val damTagNumber: String?,
@@ -29,6 +31,13 @@ data class CalfRegistrationView(
     val sireTagNumber: String?,
     val birthWeightKg: Double?,
     val calvingEase: String?,
+    val ageClass: String?,
+    val bodyCondition: String?,
+    val conformity: String?,
+    val processProof: String?,
+    val implantProof: String?,
+    val oldTagNumber: String?,
+    val referenceNumber: String?,
     val registrationDate: Long,
     val gpsLat: Double,
     val gpsLng: Double,
@@ -37,7 +46,21 @@ data class CalfRegistrationView(
     val photoPath: String?,
     val recordGuid: String,
     val syncStatus: String,
-    val syncedAt: Long?
+    val syncedAt: Long?,
+    val syncError: String?
+)
+
+/** A registered animal that can be picked as a dam or sire: its active TAG and breed. */
+data class ParentCandidate(
+    val tagNumber: String,
+    val breed: String
+)
+
+/** A calf photo on the device that has not reached the server yet. */
+data class PhotoUpload(
+    val mediaId: String,
+    val tagNumber: String,
+    val filePath: String
 )
 
 @Dao
@@ -90,11 +113,60 @@ abstract class CalfRegistrationDao {
     @Query(VIEW_SELECT + " ORDER BY a.captureAt DESC")
     abstract fun getAllRegistrationViews(): Flow<List<CalfRegistrationView>>
 
-    @Query(VIEW_SELECT + " WHERE cr.sync_status != 'SYNCED'")
+    @Query(VIEW_SELECT + " WHERE cr.sync_status = 'PENDING'")
     abstract suspend fun getPendingRegistrationViews(): List<CalfRegistrationView>
 
-    @Query("UPDATE calf_registrations SET sync_status = 'SYNCED', synced_at = :syncedAt WHERE record_guid IN (:recordGuids)")
+    @Query("""
+        SELECT t.identifier_value AS tagNumber, a.breed AS breed
+        FROM animals a
+        INNER JOIN animal_identifiers t
+                ON t.animal_id = a.animalId AND t.identifier_type = 'TAG' AND t.valid_to IS NULL
+        WHERE a.gender = :gender
+        ORDER BY t.identifier_value
+    """)
+    abstract suspend fun getParentCandidates(gender: String): List<ParentCandidate>
+
+    @Query("UPDATE calf_registrations SET sync_status = 'SYNCED', synced_at = :syncedAt, sync_error = NULL, sync_attempts = 0 WHERE record_guid IN (:recordGuids)")
     abstract suspend fun markSynced(recordGuids: List<String>, syncedAt: Long)
+
+    /**
+     * The server explicitly rejected this record. Stores its message and counts the
+     * attempt; once [maxAttempts] is reached the record becomes REJECTED and stops
+     * being retried until [requeueRejected].
+     */
+    @Query("""
+        UPDATE calf_registrations
+        SET sync_error = :message,
+            sync_attempts = sync_attempts + 1,
+            sync_status = CASE WHEN sync_attempts + 1 >= :maxAttempts THEN 'REJECTED' ELSE sync_status END
+        WHERE record_guid = :recordGuid AND sync_status = 'PENDING'
+    """)
+    abstract suspend fun recordRejection(recordGuid: String, message: String, maxAttempts: Int)
+
+    /**
+     * Photos still to upload. Only calves the server already has: the upload route needs
+     * the record to exist.
+     */
+    @Query("""
+        SELECT m.media_id AS mediaId, t.identifier_value AS tagNumber, m.file_path AS filePath
+        FROM animal_media m
+        INNER JOIN calf_registrations cr ON cr.registered_animal_id = m.animal_id
+        INNER JOIN animal_identifiers t
+                ON t.animal_id = m.animal_id AND t.identifier_type = 'TAG' AND t.valid_to IS NULL
+        WHERE m.media_type = 'PHOTO' AND m.upload_status = 'PENDING' AND cr.sync_status = 'SYNCED'
+        ORDER BY m.created_at
+    """)
+    abstract suspend fun getPhotosAwaitingUpload(): List<PhotoUpload>
+
+    @Query("UPDATE animal_media SET upload_status = 'UPLOADED', upload_error = NULL WHERE media_id = :mediaId")
+    abstract suspend fun markPhotoUploaded(mediaId: String)
+
+    @Query("UPDATE animal_media SET upload_status = 'FAILED', upload_error = :error WHERE media_id = :mediaId")
+    abstract suspend fun markPhotoUploadFailed(mediaId: String, error: String)
+
+    /** Manual retry: give every REJECTED record a fresh set of attempts. */
+    @Query("UPDATE calf_registrations SET sync_status = 'PENDING', sync_attempts = 0, sync_error = NULL WHERE sync_status = 'REJECTED'")
+    abstract suspend fun requeueRejected()
 
     @Query("SELECT * FROM calf_registrations WHERE dam_id = :damAnimalId")
     abstract fun getOffspringByDam(damAnimalId: String): Flow<List<CalfRegistrationEntity>>
@@ -110,6 +182,8 @@ abstract class CalfRegistrationDao {
                 t.identifier_value  AS tagNumber,
                 a.breed             AS breed,
                 a.gender            AS gender,
+                a.hideColour        AS hideColour,
+                a.brandMark         AS brandMark,
                 a.birthdate         AS birthdate,
                 cr.dam_id           AS damAnimalId,
                 dt.identifier_value AS damTagNumber,
@@ -117,6 +191,17 @@ abstract class CalfRegistrationDao {
                 st.identifier_value AS sireTagNumber,
                 cr.birth_weight_kg  AS birthWeightKg,
                 cr.calving_ease     AS calvingEase,
+                cr.age_class        AS ageClass,
+                cr.body_condition   AS bodyCondition,
+                cr.conformity       AS conformity,
+                cr.process_proof    AS processProof,
+                cr.implant_proof    AS implantProof,
+                (SELECT i.identifier_value FROM animal_identifiers i
+                  WHERE i.animal_id = a.animalId AND i.identifier_type = 'OLD_TAG' AND i.valid_to IS NULL
+                  ORDER BY i.valid_from DESC LIMIT 1) AS oldTagNumber,
+                (SELECT i.identifier_value FROM animal_identifiers i
+                  WHERE i.animal_id = a.animalId AND i.identifier_type = 'REFERENCE' AND i.valid_to IS NULL
+                  ORDER BY i.valid_from DESC LIMIT 1) AS referenceNumber,
                 cr.registration_date AS registrationDate,
                 a.gpsLat            AS gpsLat,
                 a.gpsLng            AS gpsLng,
@@ -127,7 +212,8 @@ abstract class CalfRegistrationDao {
                   ORDER BY m.created_at DESC LIMIT 1) AS photoPath,
                 cr.record_guid      AS recordGuid,
                 cr.sync_status      AS syncStatus,
-                cr.synced_at        AS syncedAt
+                cr.synced_at        AS syncedAt,
+                cr.sync_error       AS syncError
             FROM calf_registrations cr
             INNER JOIN animals a ON a.animalId = cr.registered_animal_id
             INNER JOIN animal_identifiers t

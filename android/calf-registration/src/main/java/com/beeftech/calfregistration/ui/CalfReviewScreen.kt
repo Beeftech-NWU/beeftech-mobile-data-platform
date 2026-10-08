@@ -201,6 +201,29 @@ fun CalfReviewScreen(
                 onChangeClick = { onJumpToStep(3) }
             )
 
+            // Optional identifiers and proofs: shown only when entered
+            if (formData.oldTagNumber.isNotBlank() || formData.referenceNumber.isNotBlank()) {
+                ReviewRow(
+                    label = "Other identifiers",
+                    value = buildString {
+                        if (formData.oldTagNumber.isNotBlank()) append("Old tag: ${formData.oldTagNumber} ")
+                        if (formData.referenceNumber.isNotBlank()) append("Reference: ${formData.referenceNumber}")
+                    }.trim(),
+                    onChangeClick = { onJumpToStep(1) }
+                )
+            }
+
+            if (formData.processProof.isNotBlank() || formData.implantProof.isNotBlank()) {
+                ReviewRow(
+                    label = "Verification",
+                    value = buildString {
+                        if (formData.processProof.isNotBlank()) append("Process: ${formData.processProof} ")
+                        if (formData.implantProof.isNotBlank()) append("Implant: ${formData.implantProof}")
+                    }.trim(),
+                    onChangeClick = { onJumpToStep(3) }
+                )
+            }
+
             // Review row 6: Photo
             ReviewRow(
                 label = "Photo",
