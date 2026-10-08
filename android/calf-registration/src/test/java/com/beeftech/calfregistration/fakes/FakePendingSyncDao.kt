@@ -1,6 +1,7 @@
 package com.beeftech.calfregistration.fakes
 
 import com.beeftech.database.dao.PendingSyncDao
+import com.beeftech.database.dao.PendingTypeCount
 import com.beeftech.database.entity.PendingSync
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -93,6 +94,19 @@ class FakePendingSyncDao : PendingSyncDao {
         return items
             .filter { it.userId == userId && it.entityType == entityType && it.entityId == entityId }
             .sortedBy { it.createdAt }
+    }
+
+    override suspend fun countForUserAndTypes(userId: String, entityTypes: List<String>): Int {
+        return items.count { it.userId == userId && it.entityType in entityTypes }
+    }
+
+    override fun observePendingCountsByType(userId: String): Flow<List<PendingTypeCount>> {
+        return flowOf(
+            items.filter { it.userId == userId }
+                .groupingBy { it.entityType }
+                .eachCount()
+                .map { PendingTypeCount(it.key, it.value) }
+        )
     }
 
     override suspend fun getPendingCountForUser(userId: String): Int {

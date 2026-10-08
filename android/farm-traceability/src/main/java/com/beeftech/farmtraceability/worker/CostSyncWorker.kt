@@ -1,5 +1,9 @@
 package com.beeftech.farmtraceability.worker
 
+import com.beeftech.database.entity.SyncRunModule
+import com.beeftech.database.entity.SyncRunTrigger
+import com.beeftech.database.repository.SyncRunRepository
+import com.beeftech.database.repository.SyncRunSummary
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -38,6 +42,11 @@ class CostSyncWorker(
          * online sign-in provides one.
          */
         if (tokenProvider.token() == null) {
+            SyncRunRepository(database.syncRunDao(), database.pendingSyncDao()).recordOffline(
+                module = SyncRunModule.COST,
+                trigger = inputData.getString(SyncRunSummary.TRIGGER_INPUT_KEY) ?: SyncRunTrigger.AUTO,
+                firstAttempt = runAttemptCount == 0
+            )
             return Result.retry()
         }
 
@@ -48,11 +57,23 @@ class CostSyncWorker(
                     database.pendingSyncDao()
                 )
 
-            CostRepository(
-                animalCostDao = database.animalCostDao(),
-                pendingSyncRepository = pendingSyncRepository,
-                apiClient = CostApiClient(tokenProvider = tokenProvider)
-            ).syncPending()
+            val syncRuns =
+                SyncRunRepository(
+                    database.syncRunDao(),
+                    database.pendingSyncDao()
+                )
+
+            val trigger =
+                inputData.getString(SyncRunSummary.TRIGGER_INPUT_KEY)
+                    ?: SyncRunTrigger.AUTO
+
+            syncRuns.trackRun(SyncRunModule.COST, listOf(CostRepository.ENTITY_TYPE), trigger) {
+                CostRepository(
+                    animalCostDao = database.animalCostDao(),
+                    pendingSyncRepository = pendingSyncRepository,
+                    apiClient = CostApiClient(tokenProvider = tokenProvider)
+                ).syncPending()
+            }
 
             val remaining =
                 pendingSyncRepository
