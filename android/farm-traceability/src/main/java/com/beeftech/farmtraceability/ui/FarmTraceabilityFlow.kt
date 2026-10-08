@@ -937,6 +937,17 @@ fun FarmTraceabilityFlow(
                         ?.land_ownership
                         .orEmpty(),
 
+                herdCapacity =
+                    loadedFarmer
+                        ?.herd_capacity
+                        ?.toString()
+                        .orEmpty(),
+
+                interestStatus =
+                    loadedFarmer
+                        ?.interest_status
+                        .orEmpty(),
+
                 faCodeRmis =
                     loadedFarmer
                         ?.fa_code_rmis

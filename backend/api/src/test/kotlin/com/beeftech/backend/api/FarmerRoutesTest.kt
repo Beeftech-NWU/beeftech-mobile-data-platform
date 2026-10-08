@@ -14,6 +14,8 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -66,6 +68,8 @@ class FarmerRoutesTest {
                       "landOwnership": "Owned",
                       "faCodeRmis": "FA-RMIS-01",
                       "glnNumber": "GLN-123",
+                      "herdCapacity": 450,
+                      "interestStatus": "Interested",
                       "addresses": [
                         {
                           "addressId": "addr-1",
@@ -86,6 +90,14 @@ class FarmerRoutesTest {
         }
 
         assertEquals(HttpStatusCode.OK, syncResponse.status)
+
+        val firstGet = client.get("/api/farmers/farmer-1") {
+            header("Authorization", "Bearer $token")
+        }
+        val firstFarmer = Json.parseToJsonElement(firstGet.bodyAsText())
+            .jsonObject["data"]!!.jsonObject
+        assertEquals(450, firstFarmer["herdCapacity"]!!.jsonPrimitive.intOrNull)
+        assertEquals("Interested", firstFarmer["interestStatus"]!!.jsonPrimitive.content)
 
         /* A retry must update in place and still carry the fields. */
         val retryResponse = client.post("/api/farmers/sync") {
@@ -129,6 +141,8 @@ class FarmerRoutesTest {
 
         assertEquals("9608551/07", farmer["coRegIdNo"]!!.jsonPrimitive.content)
         assertEquals("Leased", farmer["landOwnership"]!!.jsonPrimitive.content)
+        assertEquals(null, farmer["herdCapacity"]?.jsonPrimitive?.intOrNull)
+        assertEquals(null, farmer["interestStatus"]?.jsonPrimitive?.contentOrNull)
 
         val address = farmer["addresses"]!!.jsonArray[0].jsonObject
         assertEquals("Namibia", address["country"]!!.jsonPrimitive.content)

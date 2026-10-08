@@ -230,7 +230,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
     companion object {
 
         /** Current Room schema version. Bump here when adding a migration. */
-        const val VERSION = 42
+        const val VERSION = 43
 
         /**
          * Phase 3 Migration (Version 9 -> 10):
@@ -3902,6 +3902,36 @@ abstract class BeefTechDatabase : RoomDatabase() {
                         .forEach { column ->
                             db.execSQL("ALTER TABLE `calf_registrations` ADD COLUMN `$column` TEXT")
                         }
+                }
+            }
+
+        /**
+         * Migration (Version 42 -> 43): farmer herd capacity and sales interest
+         * status. Nullable, so existing farmers keep NULL. Idempotent.
+         */
+        val MIGRATION_42_43 =
+            object : Migration(42, 43) {
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+
+                    val existing = mutableSetOf<String>()
+
+                    db.query("PRAGMA table_info(`farmers`)").use { cursor ->
+                        val nameIndex = cursor.getColumnIndex("name")
+                        while (cursor.moveToNext()) {
+                            existing += cursor.getString(nameIndex)
+                        }
+                    }
+
+                    if ("herd_capacity" !in existing) {
+                        db.execSQL("ALTER TABLE `farmers` ADD COLUMN `herd_capacity` INTEGER")
+                    }
+
+                    if ("interest_status" !in existing) {
+                        db.execSQL("ALTER TABLE `farmers` ADD COLUMN `interest_status` TEXT")
+                    }
                 }
             }
     }

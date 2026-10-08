@@ -28,6 +28,8 @@ fun FarmerFarmProfileScreen(
     vatNumber: String = "",
     coRegIdNo: String = "",
     landOwnership: String = "",
+    herdCapacity: String = "",
+    interestStatus: String = "",
     faCodeRmis: String = "",
     glnNumber: String = "",
     businessRoles: String = "",
@@ -148,6 +150,26 @@ fun FarmerFarmProfileScreen(
                     title = "Land Ownership",
                     subtitle = landOwnership.ifBlank {
                         "Land ownership unavailable"
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                TraceabilityInfoRow(
+                    icon = Icons.Outlined.Tag,
+                    title = "Herd Capacity",
+                    subtitle = herdCapacity.ifBlank {
+                        "Herd capacity unavailable"
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                TraceabilityInfoRow(
+                    icon = Icons.Outlined.Tag,
+                    title = "Interest Status",
+                    subtitle = interestStatus.ifBlank {
+                        "Interest status unavailable"
                     }
                 )
 

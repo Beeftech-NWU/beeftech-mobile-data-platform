@@ -28,6 +28,8 @@ data class FarmerSalesNotificationPayload(
     val landOwnership: String? = null,
     val faCodeRmis: String? = null,
     val glnNumber: String? = null,
+    val herdCapacity: Int? = null,
+    val interestStatus: String? = null,
     val gpsLatitude: Double? = null,
     val gpsLongitude: Double? = null,
     val addresses: List<FarmerAddressDto> = emptyList(),
@@ -428,6 +430,14 @@ class SmtpFarmerSalesNotificationService(
 
                                 appendLine(
                                     "GLN number: ${payload.glnNumber ?: "N/A"}"
+                                )
+
+                                appendLine(
+                                    "Herd capacity: ${payload.herdCapacity ?: "N/A"}"
+                                )
+
+                                appendLine(
+                                    "Interest status: ${payload.interestStatus ?: "N/A"}"
                                 )
 
                                 appendLine(

@@ -17,6 +17,8 @@ class FarmerSalesNotificationTest {
                 organisationName = "Test Farm",
                 emailAddress = "farmer@example.com",
                 vatNumber = "VAT-001",
+                herdCapacity = 450,
+                interestStatus = "Follow-up needed",
                 gpsLatitude = -26.2041,
                 gpsLongitude = 28.0473,
                 addresses =
@@ -68,6 +70,8 @@ class FarmerSalesNotificationTest {
         assertContains(json, "\"vatNumber\":\"VAT-001\"")
         assertContains(json, "\"gpsLatitude\":-26.2041")
         assertContains(json, "\"gpsLongitude\":28.0473")
+        assertContains(json, "\"herdCapacity\":450")
+        assertContains(json, "\"interestStatus\":\"Follow-up needed\"")
         assertContains(json, "\"addresses\"")
         assertContains(json, "\"roles\"")
     }

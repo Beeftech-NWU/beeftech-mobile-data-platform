@@ -5,7 +5,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 /**
  * Adds the farmer registration columns (co-reg/ID, land ownership, FA code,
- * GLN, street code, postal address, country) to farmers / farmer_addresses
+ * GLN, herd capacity, interest status, street code, postal address, country) to farmers / farmer_addresses
  * databases created before they existed. SchemaUtils.create never alters an
  * existing table, so without this the inserts fail on an already-deployed DB.
  *
@@ -14,17 +14,21 @@ import org.jetbrains.exposed.sql.transactions.transaction
  */
 object FarmerSchemaMigration {
 
+    private const val TEXT = "VARCHAR(255) NULL"
+
     private val NEW_COLUMNS = mapOf(
         "farmers" to listOf(
-            "co_reg_id_no",
-            "land_ownership",
-            "fa_code_rmis",
-            "gln_number"
+            "co_reg_id_no" to TEXT,
+            "land_ownership" to TEXT,
+            "fa_code_rmis" to TEXT,
+            "gln_number" to TEXT,
+            "herd_capacity" to "INTEGER NULL",
+            "interest_status" to "VARCHAR(64) NULL"
         ),
         "farmer_addresses" to listOf(
-            "street_code",
-            "postal_address",
-            "country"
+            "street_code" to TEXT,
+            "postal_address" to TEXT,
+            "country" to TEXT
         )
     )
 
@@ -37,8 +41,8 @@ object FarmerSchemaMigration {
             if (existing.isEmpty()) return@forEach
 
             newColumns
-                .filter { it !in existing }
-                .forEach { exec("ALTER TABLE $table ADD COLUMN $it VARCHAR(255) NULL") }
+                .filter { (name, _) -> name !in existing }
+                .forEach { (name, type) -> exec("ALTER TABLE $table ADD COLUMN $name $type") }
         }
     }
 }

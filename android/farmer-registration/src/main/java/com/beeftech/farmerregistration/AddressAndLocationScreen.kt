@@ -63,10 +63,22 @@ data class AddressAndLocationData(
     val country: String = "",
     val landOwnership: String = "",
     val faCodeRmis: String = "",
-    val glnNumber: String = ""
+    val glnNumber: String = "",
+    val herdCapacity: String = "",
+    val interestStatus: String = ""
 )
 
 object AddressAndLocationLookups {
+
+    const val MAX_HERD_CAPACITY = 100_000
+
+    val interestStatuses =
+        listOf(
+            "Interested",
+            "Follow-up needed",
+            "Not interested",
+            "Already a client"
+        )
 
     val provinces =
         listOf(
@@ -502,6 +514,38 @@ fun AddressAndLocationContent(
                     modifier = Modifier.height(16.dp)
                 )
 
+                FarmerIdentifierTextField(
+                    label = "Herd Capacity",
+                    value = formData.herdCapacity,
+                    onValueChange = { entered ->
+                        val capacity = entered.toIntOrNull()
+                        if (capacity == null || capacity <= AddressAndLocationLookups.MAX_HERD_CAPACITY) {
+                            onFormDataChange(formData.copy(herdCapacity = entered))
+                        }
+                    },
+                    placeholder = "Number of animals the farm can hold",
+                    helperText = "Optional. Whole number from 0 to 100000.",
+                    maxLength = 6
+                )
+
+                Spacer(
+                    modifier = Modifier.height(16.dp)
+                )
+
+                FarmerDropdownField(
+                    label = "Interest Status",
+                    selectedOption = formData.interestStatus,
+                    options = AddressAndLocationLookups.interestStatuses,
+                    onOptionSelected = {
+                        onFormDataChange(formData.copy(interestStatus = it))
+                    },
+                    placeholder = "Select interest status (optional)"
+                )
+
+                Spacer(
+                    modifier = Modifier.height(16.dp)
+                )
+
                 FarmerEditableLookupField(
                     label = "FA Code (RMIS)",
                     value = formData.faCodeRmis,
@@ -860,7 +904,8 @@ fun FarmerIdentifierTextField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     helperText: String,
-    errorMessage: String = ""
+    errorMessage: String = "",
+    maxLength: Int = 13
 ) {
 
     Column(
@@ -888,7 +933,7 @@ fun FarmerIdentifierTextField(
                         .filter {
                             it.isDigit()
                         }
-                        .take(13)
+                        .take(maxLength)
                 )
             },
             placeholder = {

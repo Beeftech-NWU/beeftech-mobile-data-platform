@@ -472,6 +472,16 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
                                                 gln_number =
                                                     addressData.glnNumber
                                                         .trim()
+                                                        .ifBlank { null },
+
+                                                herd_capacity =
+                                                    addressData.herdCapacity
+                                                        .trim()
+                                                        .toIntOrNull(),
+
+                                                interest_status =
+                                                    addressData.interestStatus
+                                                        .trim()
                                                         .ifBlank { null }
                                             )
 
