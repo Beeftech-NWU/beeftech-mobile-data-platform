@@ -34,6 +34,7 @@ import com.beeftech.calfregistration.viewmodel.CalfRegistrationViewModel
 import com.beeftech.calfregistration.viewmodel.CalfRegistrationViewModelFactory
 import com.beeftech.database.DatabaseProvider
 import com.beeftech.database.DatabaseResult
+import com.beeftech.database.entity.AnimalWeightEntity
 import com.beeftech.database.repository.PendingSyncRepository
 import com.beeftech.database.repository.SyncRepository
 import com.beeftech.database.repository.SyncPolicyEnforcer
@@ -820,6 +821,7 @@ class MainActivity : ComponentActivity() {
                                                     animalId,
                                                     movementInformation,
                                                     responsibleWorker,
+                                                    movementDate,
                                                     onCompleted ->
 
                                                 movementViewModel
@@ -830,6 +832,8 @@ class MainActivity : ComponentActivity() {
                                                             movementInformation,
                                                         responsibleWorker =
                                                             responsibleWorker,
+                                                        movementDate =
+                                                            movementDate,
                                                         onResult = {
                                                                 success,
                                                                 message ->
@@ -967,6 +971,148 @@ class MainActivity : ComponentActivity() {
                                                     .loadCostSummary(
                                                         animalId
                                                     )
+                                            },
+
+                                            onSaveCost = {
+                                                    animalId,
+                                                    costType,
+                                                    amount,
+                                                    description,
+                                                    costDate,
+                                                    onCompleted ->
+
+                                                costSummaryViewModel
+                                                    .saveCost(
+                                                        animalId =
+                                                            animalId,
+                                                        costType =
+                                                            costType,
+                                                        amountText =
+                                                            amount,
+                                                        description =
+                                                            description,
+                                                        gpsLat =
+                                                            0.0,
+                                                        gpsLng =
+                                                            0.0,
+                                                        timestamp =
+                                                            costDate,
+                                                        onResult = {
+                                                                success,
+                                                                message ->
+
+                                                            showUiMessage(
+                                                                message
+                                                            )
+
+                                                            onCompleted(
+                                                                success,
+                                                                message
+                                                            )
+                                                        }
+                                                    )
+                                            },
+
+                                            onSaveWeight = {
+                                                    animalId,
+                                                    weightKg,
+                                                    weighDate,
+                                                    note,
+                                                    onCompleted ->
+
+                                                uiScope.launch {
+
+                                                    try {
+
+                                                        val animal =
+                                                            database
+                                                                .animalDao()
+                                                                .getById(
+                                                                    animalId
+                                                                )
+
+                                                        if (
+                                                            animal == null
+                                                        ) {
+
+                                                            val message =
+                                                                "Unable to find the selected animal."
+
+                                                            showUiMessage(
+                                                                message
+                                                            )
+
+                                                            onCompleted(
+                                                                false,
+                                                                message
+                                                            )
+
+                                                        } else {
+
+                                                            val record =
+                                                                AnimalWeightEntity(
+                                                                    animalId =
+                                                                        animalId,
+                                                                    weightKg =
+                                                                        weightKg,
+                                                                    weighDate =
+                                                                        weighDate,
+                                                                    notes =
+                                                                        note
+                                                                            .trim()
+                                                                            .takeIf {
+                                                                                it.isNotBlank()
+                                                                            }
+                                                                            ?: "Manual mass captured in Cost Summary",
+                                                                    gpsLat =
+                                                                        animal.gpsLat,
+                                                                    gpsLng =
+                                                                        animal.gpsLng,
+                                                                    deviceId =
+                                                                        animal.deviceId,
+                                                                    capturedAt =
+                                                                        System.currentTimeMillis(),
+                                                                    syncStatus =
+                                                                        "PENDING"
+                                                                )
+
+                                                            database
+                                                                .animalWeightDao()
+                                                                .insertWeight(
+                                                                    record
+                                                                )
+
+                                                            val message =
+                                                                "Mass saved successfully."
+
+                                                            showUiMessage(
+                                                                message
+                                                            )
+
+                                                            onCompleted(
+                                                                true,
+                                                                message
+                                                            )
+                                                        }
+
+                                                    } catch (
+                                                        exception: Exception
+                                                    ) {
+
+                                                        val message =
+                                                            exception.message
+                                                                ?: "Unable to save mass."
+
+                                                        showUiMessage(
+                                                            message
+                                                        )
+
+                                                        onCompleted(
+                                                            false,
+                                                            message
+                                                        )
+                                                    }
+                                                }
                                             },
 
                                             supplierRecords =

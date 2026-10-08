@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.ArrowDropDown
@@ -41,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -184,13 +186,35 @@ fun TraceabilityTextField(
     onValueChange: (String) -> Unit,
     icon: ImageVector,
     singleLine: Boolean = true,
-    minLines: Int = 1
+    minLines: Int = 1,
+    placeholder: String = "",
+    helperText: String = "",
+    required: Boolean = false,
+    readOnly: Boolean = false,
+    numeric: Boolean = false,
+    decimal: Boolean = false,
+    isError: Boolean = false,
+    errorText: String = ""
 ) {
+    val displayLabel =
+        if (required && !label.trimEnd().endsWith("*")) {
+            "$label *"
+        } else {
+            label
+        }
+
+    val supportingText =
+        if (isError && errorText.isNotBlank()) {
+            errorText
+        } else {
+            helperText
+        }
+
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
         Text(
-            text = label.uppercase(),
+            text = displayLabel.uppercase(),
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 0.6.sp,
@@ -205,6 +229,23 @@ fun TraceabilityTextField(
             modifier = Modifier.fillMaxWidth(),
             singleLine = singleLine,
             minLines = minLines,
+            readOnly = readOnly,
+            isError = isError,
+            placeholder = {
+                if (placeholder.isNotBlank()) {
+                    Text(
+                        text = placeholder,
+                        color = BeeftechMutedText
+                    )
+                }
+            },
+            keyboardOptions = KeyboardOptions(
+                keyboardType = when {
+                    decimal -> KeyboardType.Decimal
+                    numeric -> KeyboardType.Number
+                    else -> KeyboardType.Text
+                }
+            ),
             leadingIcon = {
                 Box(
                     modifier = Modifier
@@ -225,13 +266,36 @@ fun TraceabilityTextField(
             },
             shape = RoundedCornerShape(11.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = BeeftechPrimaryDark,
-                unfocusedBorderColor = BeeftechBorder,
+                focusedBorderColor = if (isError) {
+                    Color(0xFFB3261E)
+                } else {
+                    BeeftechPrimaryDark
+                },
+                unfocusedBorderColor = if (isError) {
+                    Color(0xFFB3261E)
+                } else {
+                    BeeftechBorder
+                },
                 cursorColor = BeeftechPrimaryDark,
                 focusedContainerColor = BeeftechWhite,
                 unfocusedContainerColor = BeeftechWhite
             )
         )
+
+        if (supportingText.isNotBlank()) {
+            Spacer(modifier = Modifier.height(5.dp))
+
+            Text(
+                text = supportingText,
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+                color = if (isError) {
+                    Color(0xFFB3261E)
+                } else {
+                    BeeftechMutedText
+                }
+            )
+        }
     }
 }
 
@@ -241,15 +305,32 @@ fun TraceabilityDropdown(
     value: String,
     options: List<String>,
     icon: ImageVector,
-    onValueChange: (String) -> Unit
+    onValueChange: (String) -> Unit,
+    placeholder: String = "",
+    helperText: String = "",
+    required: Boolean = false
 ) {
     var expanded by remember { mutableStateOf(false) }
+
+    val cleanOptions = remember(options) {
+        options
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinctBy { it.lowercase() }
+    }
+
+    val displayLabel =
+        if (required && !label.trimEnd().endsWith("*")) {
+            "$label *"
+        } else {
+            label
+        }
 
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
         Text(
-            text = label.uppercase(),
+            text = displayLabel.uppercase(),
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 0.6.sp,
@@ -267,7 +348,9 @@ fun TraceabilityDropdown(
                 readOnly = true,
                 placeholder = {
                     Text(
-                        text = "Select $label",
+                        text = placeholder.ifBlank {
+                            "Select ${label.lowercase()}"
+                        },
                         color = BeeftechMutedText
                     )
                 },
@@ -292,7 +375,7 @@ fun TraceabilityDropdown(
                 trailingIcon = {
                     Icon(
                         imageVector = Icons.Outlined.ArrowDropDown,
-                        contentDescription = "Open options",
+                        contentDescription = "Open $label options",
                         tint = BeeftechPrimaryDark
                     )
                 },
@@ -320,21 +403,45 @@ fun TraceabilityDropdown(
                 onDismissRequest = { expanded = false },
                 modifier = Modifier.fillMaxWidth(0.88f)
             ) {
-                options.forEach { option ->
+                if (cleanOptions.isEmpty()) {
                     DropdownMenuItem(
                         text = {
                             Text(
-                                text = option,
-                                color = BeeftechText
+                                text = "No options available",
+                                color = BeeftechMutedText
                             )
                         },
-                        onClick = {
-                            onValueChange(option)
-                            expanded = false
-                        }
+                        onClick = {},
+                        enabled = false
                     )
+                } else {
+                    cleanOptions.forEach { option ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = option,
+                                    color = BeeftechText
+                                )
+                            },
+                            onClick = {
+                                onValueChange(option)
+                                expanded = false
+                            }
+                        )
+                    }
                 }
             }
+        }
+
+        if (helperText.isNotBlank()) {
+            Spacer(modifier = Modifier.height(5.dp))
+
+            Text(
+                text = helperText,
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+                color = BeeftechMutedText
+            )
         }
     }
 }
@@ -345,7 +452,11 @@ fun TraceabilitySearchableDropdown(
     value: String,
     options: List<String>,
     icon: ImageVector,
-    onValueChange: (String) -> Unit
+    onValueChange: (String) -> Unit,
+    placeholder: String = "",
+    helperText: String = "",
+    required: Boolean = false,
+    allowCustomEntry: Boolean = true
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -353,11 +464,19 @@ fun TraceabilitySearchableDropdown(
         mutableStateOf(value)
     }
 
-    val filteredOptions = remember(searchText, options) {
+    val cleanOptions = remember(options) {
+        options
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinctBy { it.lowercase() }
+            .sortedBy { it.lowercase() }
+    }
+
+    val filteredOptions = remember(searchText, cleanOptions) {
         if (searchText.isBlank()) {
-            options
+            cleanOptions
         } else {
-            options.filter { option ->
+            cleanOptions.filter { option ->
                 option.contains(
                     other = searchText,
                     ignoreCase = true
@@ -366,11 +485,26 @@ fun TraceabilitySearchableDropdown(
         }
     }
 
+    val hasExactMatch =
+        cleanOptions.any {
+            it.equals(
+                searchText.trim(),
+                ignoreCase = true
+            )
+        }
+
+    val displayLabel =
+        if (required && !label.trimEnd().endsWith("*")) {
+            "$label *"
+        } else {
+            label
+        }
+
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
         Text(
-            text = label.uppercase(),
+            text = displayLabel.uppercase(),
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 0.6.sp,
@@ -388,15 +522,21 @@ fun TraceabilitySearchableDropdown(
                     searchText = input
                     expanded = true
 
-                    // Keep the actual parent value synchronized with
-                    // exactly what the user types into this field.
-                    onValueChange(input)
+                    if (allowCustomEntry) {
+                        onValueChange(input)
+                    }
                 },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 placeholder = {
                     Text(
-                        text = "Select $label",
+                        text = placeholder.ifBlank {
+                            if (allowCustomEntry) {
+                                "Search, select or enter ${label.lowercase()}"
+                            } else {
+                                "Search or select ${label.lowercase()}"
+                            }
+                        },
                         color = BeeftechMutedText
                     )
                 },
@@ -426,7 +566,7 @@ fun TraceabilitySearchableDropdown(
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.ArrowDropDown,
-                            contentDescription = "Open options",
+                            contentDescription = "Open $label options",
                             tint = BeeftechPrimaryDark
                         )
                     }
@@ -442,13 +582,13 @@ fun TraceabilitySearchableDropdown(
             )
 
             DropdownMenu(
-                expanded = expanded && filteredOptions.isNotEmpty(),
+                expanded = expanded,
                 onDismissRequest = {
                     expanded = false
                 },
                 modifier = Modifier
                     .fillMaxWidth(0.88f)
-                    .heightIn(max = 280.dp)
+                    .heightIn(max = 300.dp)
             ) {
                 filteredOptions.forEach { option ->
                     DropdownMenuItem(
@@ -465,7 +605,56 @@ fun TraceabilitySearchableDropdown(
                         }
                     )
                 }
+
+                if (
+                    allowCustomEntry &&
+                    searchText.isNotBlank() &&
+                    !hasExactMatch
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "Use \"${searchText.trim()}\"",
+                                color = BeeftechPrimaryDark,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        },
+                        onClick = {
+                            val customValue = searchText.trim()
+                            searchText = customValue
+                            onValueChange(customValue)
+                            expanded = false
+                        }
+                    )
+                }
+
+                if (
+                    filteredOptions.isEmpty() &&
+                    !allowCustomEntry
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "No matching options",
+                                color = BeeftechMutedText
+                            )
+                        },
+                        onClick = {},
+                        enabled = false
+                    )
+                }
             }
+        }
+
+        if (helperText.isNotBlank()) {
+            Spacer(modifier = Modifier.height(5.dp))
+
+            Text(
+                text = helperText,
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+                color = BeeftechMutedText
+            )
         }
     }
 }
@@ -569,6 +758,36 @@ fun TraceabilityStatusBadge(
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
             color = textColor
+        )
+    }
+}
+
+@Composable
+fun TraceabilityFormMessage(
+    message: String
+) {
+    if (message.isBlank()) {
+        return
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = Color(0xFFFFEDEA),
+                shape = RoundedCornerShape(10.dp)
+            )
+            .padding(
+                horizontal = 12.dp,
+                vertical = 10.dp
+            )
+    ) {
+        Text(
+            text = message,
+            fontSize = 12.sp,
+            lineHeight = 17.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color(0xFFB3261E)
         )
     }
 }

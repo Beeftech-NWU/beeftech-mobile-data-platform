@@ -16,7 +16,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LocalShipping
 import androidx.compose.material.icons.outlined.MoreHoriz
@@ -80,19 +79,28 @@ fun AnimalMovementScreen(
     ) -> Unit = { _, _, _ -> },
     onSaveClick: (
         movementInformation: String,
-        responsibleWorker: String
-    ) -> Unit = { _, _ -> }
+        responsibleWorker: String,
+        movementDate: String
+    ) -> Unit = { _, _, _ -> }
 ) {
     var animalReferenceState by remember(animalReference) { mutableStateOf(animalReference) }
     var destinationState by remember(movementInformation) { mutableStateOf(movementInformation) }
     var workerState by remember(responsibleWorker) { mutableStateOf(responsibleWorker) }
     var movementType by remember { mutableStateOf("Within Site") }
     var notes by remember { mutableStateOf("") }
+    var validationMessage by remember { mutableStateOf("") }
 
     val latestMovement = movementRecords.maxByOrNull { it.timestamp }
     val fromLocation = latestMovement?.destinationFarmId?.takeIf { it.isNotBlank() } ?: "Main site"
     val today = remember {
-        SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date())
+        SimpleDateFormat(
+            "dd/MM/yyyy",
+            Locale.getDefault()
+        ).format(Date())
+    }
+
+    var movementDateState by remember {
+        mutableStateOf(today)
     }
 
     Column(
@@ -128,7 +136,11 @@ fun AnimalMovementScreen(
                         animalReferenceState = value
                         onAnimalReferenceChange(value)
                     },
-                    icon = Icons.Outlined.Pets
+                    icon = Icons.Outlined.Pets,
+                    placeholder = "Selected animal tag",
+                    helperText = "This movement will be saved against the selected animal.",
+                    required = true,
+                    readOnly = true
                 )
 
                 Spacer(modifier = Modifier.height(14.dp))
@@ -149,9 +161,7 @@ fun AnimalMovementScreen(
                             selected = movementType == option.label,
                             onClick = {
                                 movementType = option.label
-                                if (option.label == "Sold" && destinationState.isBlank()) {
-                                    destinationState = "Buyer / destination"
-                                }
+                                validationMessage = ""
                             },
                             modifier = Modifier.weight(1f)
                         )
@@ -160,11 +170,16 @@ fun AnimalMovementScreen(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                TraceabilityTextField(
-                    label = "Date",
-                    value = today,
-                    onValueChange = {},
-                    icon = Icons.Outlined.CalendarMonth
+                TraceabilityDatePickerField(
+                    label = "Movement Date",
+                    value = movementDateState,
+                    onValueChange = {
+                        movementDateState = it
+                        validationMessage = ""
+                    },
+                    helperText = "Tap the calendar to choose the date the movement occurred.",
+                    required = true,
+                    maxToday = true
                 )
 
                 Spacer(modifier = Modifier.height(14.dp))
@@ -173,24 +188,35 @@ fun AnimalMovementScreen(
                     label = "From Location",
                     value = fromLocation,
                     onValueChange = {},
-                    icon = Icons.Outlined.Home
+                    icon = Icons.Outlined.Home,
+                    helperText = "Current location from the animal's latest movement record.",
+                    readOnly = true
                 )
 
                 Spacer(modifier = Modifier.height(14.dp))
 
                 TraceabilityTextField(
                     label = when (movementType) {
-                        "Sold" -> "Buyer / Destination *"
-                        "Another Site" -> "Destination Site *"
-                        "Other" -> "Destination / Outcome *"
-                        else -> "To Location *"
+                        "Sold" -> "Buyer / Destination"
+                        "Another Site" -> "Destination Site"
+                        "Other" -> "Destination / Outcome"
+                        else -> "To Location"
                     },
                     value = destinationState,
                     onValueChange = { value ->
                         destinationState = value
+                        validationMessage = ""
                         onMovementInformationChange(value)
                     },
-                    icon = Icons.Outlined.Route
+                    icon = Icons.Outlined.Route,
+                    placeholder = when (movementType) {
+                        "Sold" -> "Enter buyer or destination"
+                        "Another Site" -> "Enter destination site"
+                        "Other" -> "Enter destination or outcome"
+                        else -> "Enter or select destination location"
+                    },
+                    helperText = "Enter the destination for this movement.",
+                    required = true
                 )
 
                 Spacer(modifier = Modifier.height(14.dp))
@@ -200,8 +226,13 @@ fun AnimalMovementScreen(
                     value = workerState,
                     options = workerOptions,
                     icon = Icons.Outlined.Person,
+                    placeholder = "Search or enter worker",
+                    helperText = "Choose an existing worker or enter the responsible person's name.",
+                    required = true,
+                    allowCustomEntry = true,
                     onValueChange = { value ->
                         workerState = value
+                        validationMessage = ""
                         onResponsibleWorkerChange(value)
                     }
                 )
@@ -214,8 +245,18 @@ fun AnimalMovementScreen(
                     onValueChange = { notes = it },
                     icon = Icons.Outlined.MoreHoriz,
                     singleLine = false,
-                    minLines = 2
+                    minLines = 2,
+                    placeholder = "e.g. Moved to Camp 2 for grazing",
+                    helperText = "Add useful context only when needed."
                 )
+            }
+
+            TraceabilityFormMessage(
+                message = validationMessage
+            )
+
+            if (validationMessage.isNotBlank()) {
+                Spacer(modifier = Modifier.height(10.dp))
             }
 
             TraceabilityPrimaryButton(
@@ -223,16 +264,37 @@ fun AnimalMovementScreen(
                 icon = Icons.Outlined.Route,
                 onClick = {
                     val destination = destinationState.trim()
-                    val encoded = buildString {
-                        when (movementType) {
-                            "Within Site" -> append(destination)
-                            "Another Site" -> append("Another site: $destination")
-                            "Sold" -> append("Sold: $destination")
-                            else -> append("Other: $destination")
-                        }
-                        if (notes.isNotBlank()) append(" · ${notes.trim()}")
+                    val worker = workerState.trim()
+
+                    validationMessage = when {
+                        animalReferenceState.isBlank() ->
+                            "Select an animal before saving this movement."
+                        destination.isBlank() ->
+                            "Enter the destination for this movement."
+                        worker.isBlank() ->
+                            "Select or enter the responsible worker."
+                        movementDateState.isBlank() ->
+                            "Choose the movement date."
+                        else -> ""
                     }
-                    onSaveClick(encoded.trim(), workerState.trim())
+
+                    if (validationMessage.isBlank()) {
+                        val encoded = buildString {
+                            when (movementType) {
+                                "Within Site" -> append(destination)
+                                "Another Site" -> append("Another site: $destination")
+                                "Sold" -> append("Sold: $destination")
+                                else -> append("Other: $destination")
+                            }
+                            if (notes.isNotBlank()) append(" · ${notes.trim()}")
+                        }
+
+                        onSaveClick(
+                            encoded.trim(),
+                            worker,
+                            movementDateState
+                        )
+                    }
                 }
             )
 

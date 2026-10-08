@@ -23,12 +23,18 @@ import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -37,6 +43,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun CostSummaryScreen(
@@ -51,8 +60,103 @@ fun CostSummaryScreen(
     totalAnimalCost: String = "",
     costPerKg: String = "",
     lastMassDate: String = "",
+    onSaveCost: (
+        costType: String,
+        amount: String,
+        description: String,
+        costDate: String,
+        onCompleted: (Boolean, String) -> Unit
+    ) -> Unit = { _, _, _, _, onCompleted ->
+        onCompleted(
+            false,
+            "Cost saving is unavailable."
+        )
+    },
+    onSaveMass: (
+        massKg: String,
+        weighDate: String,
+        note: String,
+        onCompleted: (Boolean, String) -> Unit
+    ) -> Unit = { _, _, _, onCompleted ->
+        onCompleted(
+            false,
+            "Mass saving is unavailable."
+        )
+    },
     onBackClick: () -> Unit = {}
 ) {
+    var selectedCostType by remember {
+        mutableStateOf("TRANSPORT")
+    }
+
+    var costAmount by remember {
+        mutableStateOf("")
+    }
+
+    var costNote by remember {
+        mutableStateOf("")
+    }
+
+    var costMessage by remember {
+        mutableStateOf("")
+    }
+
+    var transportDistanceKm by remember {
+        mutableStateOf("")
+    }
+
+    var transportRatePerKm by remember {
+        mutableStateOf("")
+    }
+
+    var transportTrips by remember {
+        mutableStateOf("1")
+    }
+
+    var transportAnimals by remember {
+        mutableStateOf("1")
+    }
+
+    var transportExtras by remember {
+        mutableStateOf("0")
+    }
+
+    var interestAnnualRate by remember {
+        mutableStateOf("")
+    }
+
+    var interestDays by remember {
+        mutableStateOf("")
+    }
+
+    val todayDate =
+        remember {
+            SimpleDateFormat(
+                "dd/MM/yyyy",
+                Locale.getDefault()
+            ).format(Date())
+        }
+
+    var costDate by remember {
+        mutableStateOf(todayDate)
+    }
+
+    var massValue by remember {
+        mutableStateOf("")
+    }
+
+    var massDate by remember {
+        mutableStateOf(todayDate)
+    }
+
+    var massNote by remember {
+        mutableStateOf("")
+    }
+
+    var massMessage by remember {
+        mutableStateOf("")
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -161,8 +265,476 @@ fun CostSummaryScreen(
             }
 
             Spacer(
-                modifier = Modifier.height(24.dp)
+                modifier = Modifier.height(18.dp)
             )
+
+            TraceabilityCard {
+                Text(
+                    text = "ADD / CALCULATE COST",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.6.sp,
+                    color = BeeftechPrimaryDark
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    listOf(
+                        "TRANSPORT" to "Transport",
+                        "PROCESSING" to "Processing"
+                    ).forEachIndexed { index, option ->
+
+                        if (index > 0) {
+                            Spacer(modifier = Modifier.size(8.dp))
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                selectedCostType = option.first
+                                costMessage = ""
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text =
+                                    option.second +
+                                        if (
+                                            selectedCostType ==
+                                            option.first
+                                        ) {
+                                            " ✓"
+                                        } else {
+                                            ""
+                                        }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    listOf(
+                        "HANDLING" to "Handling",
+                        "INTEREST" to "Interest"
+                    ).forEachIndexed { index, option ->
+
+                        if (index > 0) {
+                            Spacer(modifier = Modifier.size(8.dp))
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                selectedCostType = option.first
+                                costMessage = ""
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text =
+                                    option.second +
+                                        if (
+                                            selectedCostType ==
+                                            option.first
+                                        ) {
+                                            " ✓"
+                                        } else {
+                                            ""
+                                        }
+                            )
+                        }
+                    }
+                }
+
+                if (
+                    selectedCostType ==
+                    "TRANSPORT"
+                ) {
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = "TRANSPORT CALCULATOR",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = BeeftechPrimaryDark
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    TraceabilityTextField(
+                        label = "Distance (km)",
+                        value = transportDistanceKm,
+                        onValueChange = {
+                            transportDistanceKm = it
+                            costMessage = ""
+                        },
+                        icon = Icons.Outlined.LocalShipping,
+                        placeholder = "e.g. 100",
+                        helperText = "Total distance travelled for one trip.",
+                        numeric = true,
+                        decimal = true
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    TraceabilityTextField(
+                        label = "Rate per km (R)",
+                        value = transportRatePerKm,
+                        onValueChange = {
+                            transportRatePerKm = it
+                            costMessage = ""
+                        },
+                        icon = Icons.Outlined.Payments,
+                        placeholder = "e.g. 12.00",
+                        numeric = true,
+                        decimal = true
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    TraceabilityTextField(
+                        label = "Number of Trips",
+                        value = transportTrips,
+                        onValueChange = {
+                            transportTrips = it
+                            costMessage = ""
+                        },
+                        icon = Icons.Outlined.LocalShipping,
+                        placeholder = "1",
+                        numeric = true
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    TraceabilityTextField(
+                        label = "Animals Sharing Trip",
+                        value = transportAnimals,
+                        onValueChange = {
+                            transportAnimals = it
+                            costMessage = ""
+                        },
+                        icon = Icons.Outlined.LocalShipping,
+                        placeholder = "1",
+                        helperText = "The result is this animal's share of the transport cost.",
+                        numeric = true
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    TraceabilityTextField(
+                        label = "Extra Charges (R)",
+                        value = transportExtras,
+                        onValueChange = {
+                            transportExtras = it
+                            costMessage = ""
+                        },
+                        icon = Icons.Outlined.Payments,
+                        placeholder = "0.00",
+                        helperText = "Optional tolls or other transport charges allocated to this animal.",
+                        numeric = true,
+                        decimal = true
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    TraceabilitySecondaryButton(
+                        text = "Calculate Transport Cost",
+                        icon = Icons.Outlined.LocalShipping,
+                        onClick = {
+                            val distance =
+                                transportDistanceKm
+                                    .replace(",", ".")
+                                    .toDoubleOrNull()
+
+                            val rate =
+                                transportRatePerKm
+                                    .replace(",", ".")
+                                    .toDoubleOrNull()
+
+                            val trips =
+                                transportTrips
+                                    .toIntOrNull()
+
+                            val animals =
+                                transportAnimals
+                                    .toIntOrNull()
+
+                            val extras =
+                                transportExtras
+                                    .replace(",", ".")
+                                    .toDoubleOrNull()
+                                    ?: 0.0
+
+                            if (
+                                distance == null ||
+                                distance < 0.0 ||
+                                rate == null ||
+                                rate < 0.0 ||
+                                trips == null ||
+                                trips <= 0 ||
+                                animals == null ||
+                                animals <= 0 ||
+                                extras < 0.0
+                            ) {
+                                costMessage =
+                                    "Enter valid transport calculator values."
+                            } else {
+                                val calculated =
+                                    (
+                                        distance *
+                                            rate *
+                                            trips.toDouble() /
+                                            animals.toDouble()
+                                    ) +
+                                        extras
+
+                                costAmount =
+                                    "%.2f".format(
+                                        Locale.US,
+                                        calculated
+                                    )
+
+                                costMessage = ""
+                            }
+                        }
+                    )
+                }
+
+                if (
+                    selectedCostType ==
+                    "INTEREST"
+                ) {
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = "INTEREST CALCULATOR",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = BeeftechPrimaryDark
+                    )
+
+                    val interestPrincipal =
+                        (
+                            (
+                                totalAnimalCost
+                                    .toDoubleOrNull()
+                                    ?: 0.0
+                            ) -
+                                (
+                                    interestCost
+                                        .toDoubleOrNull()
+                                        ?: 0.0
+                                )
+                        )
+                            .coerceAtLeast(
+                                0.0
+                            )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text =
+                            "Principal: " +
+                                displayCost(
+                                    interestPrincipal
+                                        .toString()
+                                ),
+                        fontSize = 13.sp,
+                        color = BeeftechMutedText
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    TraceabilityTextField(
+                        label = "Annual Interest Rate (%)",
+                        value = interestAnnualRate,
+                        onValueChange = {
+                            interestAnnualRate = it
+                            costMessage = ""
+                        },
+                        icon = Icons.Outlined.Savings,
+                        placeholder = "e.g. 10",
+                        numeric = true,
+                        decimal = true
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    TraceabilityTextField(
+                        label = "Interest Period (days)",
+                        value = interestDays,
+                        onValueChange = {
+                            interestDays = it
+                            costMessage = ""
+                        },
+                        icon = Icons.Outlined.Savings,
+                        placeholder = "e.g. 30",
+                        numeric = true
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    TraceabilitySecondaryButton(
+                        text = "Calculate Interest",
+                        icon = Icons.Outlined.Savings,
+                        onClick = {
+                            val rate =
+                                interestAnnualRate
+                                    .replace(",", ".")
+                                    .toDoubleOrNull()
+
+                            val days =
+                                interestDays
+                                    .toIntOrNull()
+
+                            if (
+                                interestPrincipal <= 0.0 ||
+                                rate == null ||
+                                rate < 0.0 ||
+                                days == null ||
+                                days < 0
+                            ) {
+                                costMessage =
+                                    "Enter a valid interest rate and period."
+                            } else {
+                                val calculated =
+                                    interestPrincipal *
+                                        (
+                                            rate /
+                                                100.0
+                                        ) *
+                                        days.toDouble() /
+                                        365.0
+
+                                costAmount =
+                                    "%.2f".format(
+                                        Locale.US,
+                                        calculated
+                                    )
+
+                                costMessage = ""
+                            }
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                TraceabilityTextField(
+                    label = "Amount",
+                    value = costAmount,
+                    onValueChange = {
+                        costAmount = it
+                        costMessage = ""
+                    },
+                    icon = Icons.Outlined.Payments,
+                    placeholder = "0.00",
+                    helperText =
+                        when (
+                            selectedCostType
+                        ) {
+                            "TRANSPORT" ->
+                                "Enter the final transport amount or use the calculator above."
+
+                            "PROCESSING" ->
+                                "Enter the actual processing amount. BeefTech does not invent a processing cost."
+
+                            "HANDLING" ->
+                                "Enter the actual handling amount."
+
+                            else ->
+                                "Enter interest manually or use the calculator above."
+                        },
+                    required = true,
+                    numeric = true,
+                    decimal = true
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                TraceabilityTextField(
+                    label = "Description",
+                    value = costNote,
+                    onValueChange = {
+                        costNote = it
+                        costMessage = ""
+                    },
+                    icon = Icons.AutoMirrored.Outlined.ReceiptLong,
+                    placeholder = "Optional description",
+                    helperText = "Describe what this cost was for when useful."
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                TraceabilityDatePickerField(
+                    label = "Cost Date",
+                    value = costDate,
+                    onValueChange = {
+                        costDate = it
+                        costMessage = ""
+                    },
+                    helperText = "Tap the calendar to select when this cost was incurred.",
+                    required = true,
+                    maxToday = true
+                )
+
+                if (
+                    costMessage.isNotBlank()
+                ) {
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    TraceabilityFormMessage(
+                        message = costMessage
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                TraceabilityPrimaryButton(
+                    text = "Save Cost",
+                    icon = Icons.Outlined.Save,
+                    onClick = {
+                        val amount =
+                            costAmount
+                                .replace(",", ".")
+                                .toDoubleOrNull()
+
+                        if (
+                            amount == null ||
+                            amount < 0.0
+                        ) {
+                            costMessage =
+                                "Enter a valid cost amount."
+                        } else {
+                            onSaveCost(
+                                selectedCostType,
+                                costAmount,
+                                costNote,
+                                costDate
+                            ) {
+                                    success,
+                                    message ->
+
+                                if (
+                                    success
+                                ) {
+                                    costAmount = ""
+                                    costNote = ""
+                                    costMessage = ""
+                                } else {
+                                    costMessage =
+                                        message
+                                }
+                            }
+                        }
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             TraceabilitySectionTitle(
                 "Cost Overview"
@@ -177,13 +749,138 @@ fun CostSummaryScreen(
                     displayCost(totalAnimalCost),
 
                 costPerKg =
-                    displayCost(costPerKg),
+                    costPerKg
+                        .takeIf {
+                            it.isNotBlank()
+                        }
+                        ?.let {
+                            displayCost(it)
+                        }
+                        ?: "Record mass",
 
                 lastMassDate =
                     lastMassDate.ifBlank {
-                        "Not recorded"
+                        "Record mass"
                     }
             )
+
+            Spacer(
+                modifier = Modifier.height(18.dp)
+            )
+
+            TraceabilityCard {
+                Text(
+                    text = "RECORD CURRENT MASS",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.6.sp,
+                    color = BeeftechPrimaryDark
+                )
+
+                Spacer(
+                    modifier = Modifier.height(10.dp)
+                )
+
+                TraceabilityTextField(
+                    label = "Mass (kg)",
+                    value = massValue,
+                    onValueChange = {
+                        massValue = it
+                        massMessage = ""
+                    },
+                    icon =
+                        Icons.Outlined.MonitorWeight,
+                    placeholder = "e.g. 218.5",
+                    helperText = "Record a new measured mass. Cost per kg will recalculate automatically.",
+                    required = true,
+                    numeric = true,
+                    decimal = true
+                )
+
+                Spacer(
+                    modifier = Modifier.height(14.dp)
+                )
+
+                TraceabilityDatePickerField(
+                    label = "Weigh Date",
+                    value = massDate,
+                    onValueChange = {
+                        massDate = it
+                        massMessage = ""
+                    },
+                    helperText = "Tap the calendar to select the date this mass was measured.",
+                    required = true,
+                    maxToday = true
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                TraceabilityTextField(
+                    label = "Mass Note",
+                    value = massNote,
+                    onValueChange = {
+                        massNote = it
+                        massMessage = ""
+                    },
+                    icon = Icons.AutoMirrored.Outlined.ReceiptLong,
+                    placeholder = "Optional note",
+                    helperText = "Optional note about this weighing."
+                )
+
+                if (massMessage.isNotBlank()) {
+                    Spacer(
+                        modifier = Modifier.height(10.dp)
+                    )
+
+                    TraceabilityFormMessage(
+                        message = massMessage
+                    )
+                }
+
+                Spacer(
+                    modifier = Modifier.height(14.dp)
+                )
+
+                TraceabilityPrimaryButton(
+                    text = "Save Mass",
+                    icon = Icons.Outlined.Save,
+                    onClick = {
+                        val mass =
+                            massValue
+                                .replace(",", ".")
+                                .toDoubleOrNull()
+
+                        if (
+                            mass == null ||
+                            mass <= 0.0
+                        ) {
+                            massMessage =
+                                "Enter a valid mass greater than zero."
+                        } else {
+                            onSaveMass(
+                                massValue,
+                                massDate,
+                                massNote
+                            ) {
+                                    success,
+                                    message ->
+
+                                if (success) {
+                                    massValue =
+                                        ""
+                                    massNote =
+                                        ""
+                                    massMessage =
+                                        ""
+                                } else {
+                                    massMessage =
+                                        message
+                                }
+                            }
+                        }
+                    }
+                )
+            }
 
             Spacer(
                 modifier = Modifier.height(30.dp)

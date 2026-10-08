@@ -18,7 +18,8 @@ class CostRepository(
         amount: Double,
         description: String,
         gpsLat: Double,
-        gpsLng: Double
+        gpsLng: Double,
+        timestamp: Long = System.currentTimeMillis()
     ): SaveCostOutcome {
 
         val cost =
@@ -29,7 +30,7 @@ class CostRepository(
                 description = description.trim(),
                 gpsLat = gpsLat,
                 gpsLng = gpsLng,
-                timestamp = System.currentTimeMillis()
+                timestamp = timestamp
             )
 
         /*

@@ -58,7 +58,7 @@ fun AnimalRecordScreen(
     age: String = "",
     currentLocation: String = "",
     supplierName: String = "",
-    status: String = "At Site",
+    status: String = "",
     entryMass: String = "",
     lastMass: String = "",
     daysAtFacility: String = "",
@@ -67,7 +67,7 @@ fun AnimalRecordScreen(
     feedCount: Int = 0,
     treatmentCount: Int = 0,
     mortalityCount: Int = 0,
-    costCount: Int = 0,
+    totalCost: String = "",
     onBackClick: () -> Unit = {},
     onSupplierClick: () -> Unit = {},
     onLocationFeedClick: () -> Unit = {},
@@ -132,14 +132,24 @@ fun AnimalRecordScreen(
                 AnimalInfoTile(
                     icon = Icons.Outlined.LocationOn,
                     label = "Current Location",
-                    value = currentLocation.ifBlank { "Main site" },
-                    modifier = Modifier.weight(1f)
+                    value =
+                        currentLocation.ifBlank {
+                            "Add location"
+                        },
+                    modifier = Modifier.weight(1f),
+                    onClick = onLocationFeedClick
                 )
                 AnimalInfoTile(
                     icon = Icons.Outlined.MonitorWeight,
                     label = "Current Mass",
-                    value = lastMass.ifBlank { entryMass.ifBlank { "Unavailable" } },
-                    modifier = Modifier.weight(1f)
+                    value =
+                        lastMass.ifBlank {
+                            entryMass.ifBlank {
+                                "Add mass"
+                            }
+                        },
+                    modifier = Modifier.weight(1f),
+                    onClick = onCostSummaryClick
                 )
             }
 
@@ -218,7 +228,10 @@ fun AnimalRecordScreen(
 
             RecordLinkCard(
                 title = "Costs",
-                subtitle = "$costCount cost record${if (costCount == 1) "" else "s"}",
+                subtitle =
+                    totalCost.ifBlank {
+                        "No recorded costs"
+                    },
                 icon = Icons.Outlined.Payments,
                 accent = Color(0xFF1B7A52),
                 onClick = onCostSummaryClick
@@ -309,22 +322,38 @@ private fun AnimalRecordStatus(status: String) {
     val deceased = status.equals("Deceased", true)
     val sold = status.equals("Sold", true)
     val moved = status.equals("Moved", true)
+    val knownStatus = status.isNotBlank()
+
     val background = when {
         deceased -> Color(0xFFFFE1DF)
         sold -> Color(0xFFFFEDD4)
         moved -> Color(0xFFDCEEFF)
-        else -> Color(0xFFDDF4E4)
+        knownStatus -> Color(0xFFDDF4E4)
+        else -> Color(0xFFF1F3F2)
     }
+
     val foreground = when {
         deceased -> Color(0xFFB13E3A)
         sold -> Color(0xFF9A6517)
         moved -> Color(0xFF2C6CA3)
-        else -> Color(0xFF2D774C)
+        knownStatus -> Color(0xFF2D774C)
+        else -> BeeftechMutedText
     }
-    Surface(shape = RoundedCornerShape(50.dp), color = background) {
+
+    Surface(
+        shape = RoundedCornerShape(50.dp),
+        color = background
+    ) {
         Text(
-            text = status.ifBlank { "At Site" },
-            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+            text =
+                status.ifBlank {
+                    "Status unavailable"
+                },
+            modifier =
+                Modifier.padding(
+                    horizontal = 9.dp,
+                    vertical = 5.dp
+                ),
             fontSize = 9.sp,
             fontWeight = FontWeight.Bold,
             color = foreground
@@ -418,16 +447,5 @@ private fun RecordLinkCard(
 @Preview(showBackground = true)
 @Composable
 private fun AnimalRecordScreenPreview() {
-    AnimalRecordScreen(
-        tagNumber = "ZA100123",
-        breed = "Angus",
-        gender = "Heifer",
-        birthDate = "15 Mar 2024",
-        age = "12 months",
-        currentLocation = "Main Camp",
-        movementCount = 3,
-        feedCount = 12,
-        treatmentCount = 5,
-        costCount = 3
-    )
+    AnimalRecordScreen()
 }

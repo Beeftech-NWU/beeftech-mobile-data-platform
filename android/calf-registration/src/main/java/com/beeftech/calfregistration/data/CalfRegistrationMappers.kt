@@ -51,9 +51,40 @@ object CalfRegistrationMappers {
 
         val animalId = UUID.randomUUID().toString()
 
+        val birthDate =
+            parseUiDate(
+                formData.birthDate
+            )
+                ?: startOfDay(
+                    capture.captureAt
+                )
+
+        val birthWeightKg =
+            formData.birthWeightKg
+                .trim()
+                .replace(",", ".")
+                .takeIf {
+                    it.isNotBlank()
+                }
+                ?.toDoubleOrNull()
+
+        require(
+            formData.birthWeightKg.isBlank() ||
+                birthWeightKg != null
+        ) {
+            "Birth mass must be a valid number."
+        }
+
+        require(
+            birthWeightKg == null ||
+                birthWeightKg in 1.0..150.0
+        ) {
+            "Birth mass must be between 1 and 150 kg."
+        }
+
         val animal = Animal(
             animalId = animalId,
-            birthdate = startOfDay(capture.captureAt), // assumption: calf registered on day of birth
+            birthdate = birthDate,
             breed = breedName(formData.animalType),
             gender = formData.gender,
             hideColour = formData.hideColour,
@@ -78,6 +109,7 @@ object CalfRegistrationMappers {
             registeredAnimalId = animalId,
             damId = damAnimalId,
             sireId = sireAnimalId,
+            birthWeightKg = birthWeightKg,
             registrationDate = capture.captureAt
         )
 
@@ -88,6 +120,17 @@ object CalfRegistrationMappers {
         tagNumber = view.tagNumber,
         animalType = view.breed,
         gender = view.gender ?: "",
+        birthDate = displayFullDate(view.birthdate),
+        birthWeightKg =
+            view.birthWeightKg
+                ?.let {
+                    String.format(
+                        Locale.US,
+                        "%.1f",
+                        it
+                    )
+                }
+                .orEmpty(),
         dameTagNumber = view.damTagNumber ?: SELECT_DAME_PLACEHOLDER,
         sireTagNumber = view.sireTagNumber ?: SELECT_SIRE_PLACEHOLDER,
         photoPath = view.photoPath,
@@ -121,6 +164,37 @@ object CalfRegistrationMappers {
             identifierType = type,
             identifierValue = value,
             validFrom = validFrom
+        )
+
+    private fun parseUiDate(
+        value: String
+    ): Long? {
+        if (value.isBlank()) {
+            return null
+        }
+
+        return try {
+            SimpleDateFormat(
+                "dd/MM/yyyy",
+                Locale.getDefault()
+            ).apply {
+                isLenient = false
+            }
+                .parse(value)
+                ?.time
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun displayFullDate(
+        epochMillis: Long
+    ): String =
+        SimpleDateFormat(
+            "dd/MM/yyyy",
+            Locale.getDefault()
+        ).format(
+            Date(epochMillis)
         )
 
     /** "26 Aug" -- matches CalfRegistrationData.dateRegistered's placeholder style. */
