@@ -101,6 +101,8 @@ import com.beeftech.database.dao.PendingSyncDao
 import com.beeftech.database.dao.SyncSecurityDao
 import com.beeftech.database.dao.RoleDao
 import com.beeftech.database.dao.SyncBatchDao
+import com.beeftech.database.dao.SyncRunDao
+import com.beeftech.database.entity.SyncRunEntity
 import com.beeftech.database.dao.TreatmentDao
 import com.beeftech.database.dao.UserDao
 
@@ -163,7 +165,10 @@ import com.beeftech.database.dao.UserDao
 
         // Phase 4 (Admin) reference data pulled from the server
         ReferenceItem::class,
-        DeviceConfigEntry::class
+        DeviceConfigEntry::class,
+
+        // Sync history shown on Home and in My activity
+        SyncRunEntity::class
     ],
     version = BeefTechDatabase.VERSION,
     exportSchema = true
@@ -223,6 +228,9 @@ abstract class BeefTechDatabase : RoomDatabase() {
     // Phase 4 (Admin) reference data and server-provided settings
     abstract fun referenceDataDao(): ReferenceDataDao
 
+    // Sync history
+    abstract fun syncRunDao(): SyncRunDao
+
 
     // =========================================================================
     // Migration Configurations
@@ -230,7 +238,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
     companion object {
 
         /** Current Room schema version. Bump here when adding a migration. */
-        const val VERSION = 43
+        const val VERSION = 44
 
         /**
          * Phase 3 Migration (Version 9 -> 10):
@@ -3932,6 +3940,37 @@ abstract class BeefTechDatabase : RoomDatabase() {
                     if ("interest_status" !in existing) {
                         db.execSQL("ALTER TABLE `farmers` ADD COLUMN `interest_status` TEXT")
                     }
+                }
+            }
+
+        /**
+         * Migration (Version 43 -> 44): the sync run history. A new table only, so no existing data
+         * is touched. Idempotent.
+         */
+        val MIGRATION_43_44 =
+            object : Migration(43, 44) {
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+                    db.execSQL(
+                        "CREATE TABLE IF NOT EXISTS `sync_runs` (" +
+                            "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                            "`user_id` TEXT NOT NULL, " +
+                            "`module` TEXT NOT NULL, " +
+                            "`trigger` TEXT NOT NULL, " +
+                            "`started_at` INTEGER NOT NULL, " +
+                            "`finished_at` INTEGER NOT NULL, " +
+                            "`synced_count` INTEGER NOT NULL, " +
+                            "`failed_count` INTEGER NOT NULL, " +
+                            "`result` TEXT NOT NULL, " +
+                            "`message` TEXT, " +
+                            "`batch_name` TEXT)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_sync_runs_user_id_started_at` " +
+                            "ON `sync_runs` (`user_id`, `started_at`)"
+                    )
                 }
             }
     }
