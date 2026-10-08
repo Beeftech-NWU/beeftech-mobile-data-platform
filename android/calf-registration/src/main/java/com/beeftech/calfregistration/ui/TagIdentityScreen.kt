@@ -335,6 +335,27 @@ fun TagIdentityScreen(
                     fontWeight = FontWeight.Bold
                 )
             }
+
+            Spacer(modifier = Modifier.height(20.dp))
+            CalfSectionTitle("Other identifiers (optional)")
+            Spacer(modifier = Modifier.height(12.dp))
+            CalfCard {
+                CalfTextField(
+                    label = "Old tag number",
+                    value = formData.oldTagNumber,
+                    onValueChange = { onFormDataChange(formData.copy(oldTagNumber = it.take(MAX_IDENTIFIER_LENGTH))) },
+                    placeholder = "Previous or legacy tag"
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                CalfTextField(
+                    label = "Reference number",
+                    value = formData.referenceNumber,
+                    onValueChange = { onFormDataChange(formData.copy(referenceNumber = it.take(MAX_IDENTIFIER_LENGTH))) },
+                    placeholder = "Optional"
+                )
+            }
         }
     }
 }
+
+private const val MAX_IDENTIFIER_LENGTH = 40

@@ -51,6 +51,9 @@ fun CalfRegistrationFlow(
     val registeredCalves by
         viewModel.registeredCalves.collectAsState()
 
+    val parentOptions by
+        viewModel.parentOptions.collectAsState()
+
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -133,6 +136,8 @@ fun CalfRegistrationFlow(
                 CalfFlowStep.STEP_3_CONDITION -> {
                     CalfConditionStepScreen(
                         formData = formData,
+                        damOptions = parentOptions.dams,
+                        sireOptions = parentOptions.sires,
                         onFormDataChange = { updated -> formData = updated },
                         onNextClick = {
                             navigateTo(CalfFlowStep.STEP_4_REVIEW)
@@ -200,13 +205,20 @@ fun CalfRegistrationFlow(
                 }
 
                 CalfFlowStep.CALF_DETAIL -> {
-                    val calf = selectedCalf
+                    // Re-read from the live list so a retry shows the new status.
+                    val calf = registeredCalves.firstOrNull { it.tagNumber == selectedCalf?.tagNumber }
+                        ?: selectedCalf
                     if (calf == null) {
                         LaunchedEffect(Unit) { navigateBack() }
                     } else {
                         CalfDetailScreen(
                             calf = calf,
-                            onBackClick = { navigateBack() }
+                            onBackClick = { navigateBack() },
+                            onRetryClick = {
+                                viewModel.retrySync(retryRejected = true) { _, message ->
+                                    scope.launch { snackbarHostState.showSnackbar(message) }
+                                }
+                            }
                         )
                     }
                 }

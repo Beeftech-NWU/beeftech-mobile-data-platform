@@ -1,11 +1,22 @@
 package com.beeftech.backend.api
 
-class CalfRegistrationService(private val repository: CalfRegistrationRepository) {
+sealed interface PhotoUploadOutcome {
+    data class Stored(val path: String) : PhotoUploadOutcome
+    data object NotFound : PhotoUploadOutcome
+    data object NotAJpeg : PhotoUploadOutcome
+    data object TooLarge : PhotoUploadOutcome
+}
+
+class CalfRegistrationService(
+    private val repository: CalfRegistrationRepository,
+    private val photoStore: CalfPhotoStore
+) {
 
     suspend fun syncRecords(
         request: CalfRegistrationSyncRequest,
         submittedBy: String? = null,
-        siteId: String? = null
+        siteId: String? = null,
+        scope: RecordScope = RecordScope.User(submittedBy.orEmpty())
     ): CalfRegistrationSyncResponse {
 
         val results = request.records.map { dto ->
@@ -16,7 +27,8 @@ class CalfRegistrationService(private val repository: CalfRegistrationRepository
                     dto,
                     System.currentTimeMillis(),
                     submittedBy,
-                    siteId
+                    siteId,
+                    scope
                 )
 
                 CalfRegistrationSyncResult(
@@ -51,12 +63,27 @@ class CalfRegistrationService(private val repository: CalfRegistrationRepository
         return repository.findByTagNumber(tagNumber, scope)
     }
 
-    suspend fun updateMedia(tagNumber: String, photoPath: String): Boolean {
-        return repository.updatePhotoPath(tagNumber, photoPath)
+    /** Stores the calf's photo. The record must exist and be inside the caller's scope. */
+    suspend fun storePhoto(tagNumber: String, bytes: ByteArray, scope: RecordScope): PhotoUploadOutcome {
+        if (bytes.size > CalfPhotoStore.MAX_BYTES) return PhotoUploadOutcome.TooLarge
+        if (!CalfPhotoStore.looksLikeJpeg(bytes)) return PhotoUploadOutcome.NotAJpeg
+
+        val record = repository.findByTagNumber(tagNumber, scope) ?: return PhotoUploadOutcome.NotFound
+
+        photoStore.save(record.recordguid, bytes)
+
+        val path = "/api/calf-registrations/$tagNumber/photo"
+        repository.updatePhotoPath(tagNumber, path, scope)
+        return PhotoUploadOutcome.Stored(path)
     }
 
-    suspend fun generateCertificatePdf(tagNumber: String): ByteArray? {
-        val record = repository.findByTagNumber(tagNumber) ?: return null
+    suspend fun loadPhoto(tagNumber: String, scope: RecordScope): ByteArray? {
+        val record = repository.findByTagNumber(tagNumber, scope) ?: return null
+        return photoStore.read(record.recordguid)
+    }
+
+    suspend fun generateCertificatePdf(tagNumber: String, scope: RecordScope = RecordScope.All): ByteArray? {
+        val record = repository.findByTagNumber(tagNumber, scope) ?: return null
         return PdfGenerator.generateBirthCertificate(record)
     }
 }

@@ -173,6 +173,50 @@ class CalfRegistrationDaoTest {
         assertEquals(calfUuid, viewAfterDup!!.animalId)
     }
 
+    @Test
+    fun getParentCandidates_returnsActiveTagAndBreedForTheRequestedGender() = runBlocking {
+        val result = DatabaseFactory.create(
+            context = context,
+            passphrase = createCorrectPassphrase()
+        )
+        database = (result as DatabaseResult.Success).database
+        val dao = database!!.calfRegistrationDao()
+
+        suspend fun register(tag: String, gender: String, breed: String) {
+            val uuid = UUID.randomUUID().toString()
+            dao.registerCalf(
+                Animal(
+                    animalId = uuid,
+                    birthdate = System.currentTimeMillis(),
+                    breed = breed,
+                    gender = gender,
+                    gpsLat = 0.0,
+                    gpsLng = 0.0,
+                    captureAt = System.currentTimeMillis(),
+                    deviceId = "device-1",
+                    recordGuid = UUID.randomUUID().toString()
+                ),
+                listOf(AnimalIdentifierEntity(animalId = uuid, identifierType = IdentifierTypes.TAG, identifierValue = tag)),
+                emptyList(),
+                CalfRegistrationEntity(registeredAnimalId = uuid, registrationDate = 1704067200000L)
+            )
+        }
+
+        register("Red0000024", "Female", "Brangus")
+        register("Blu0000011", "Female", "Bonsmara")
+        register("Blu0000902", "Male", "Bonsmara")
+        register("Blu0000100", "Steer", "Angus")
+
+        assertEquals(
+            listOf("Blu0000011" to "Bonsmara", "Red0000024" to "Brangus"),
+            dao.getParentCandidates("Female").map { it.tagNumber to it.breed }
+        )
+        assertEquals(
+            listOf("Blu0000902" to "Bonsmara"),
+            dao.getParentCandidates("Male").map { it.tagNumber to it.breed }
+        )
+    }
+
     private fun count(table: String, where: String? = null): Int {
         val sql = "SELECT COUNT(*) FROM `$table`" + (where?.let { " WHERE $it" } ?: "")
         return database!!.openHelper.readableDatabase.query(sql).use { c ->

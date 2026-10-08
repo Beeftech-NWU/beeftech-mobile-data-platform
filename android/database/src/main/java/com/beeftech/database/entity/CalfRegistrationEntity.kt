@@ -57,6 +57,22 @@ data class CalfRegistrationEntity(
     @ColumnInfo(name = "calving_ease")
     val calvingEase: String? = null,
 
+    @ColumnInfo(name = "age_class")
+    val ageClass: String? = null,
+
+    @ColumnInfo(name = "body_condition")
+    val bodyCondition: String? = null,
+
+    @ColumnInfo(name = "conformity")
+    val conformity: String? = null,
+
+    /** Free-text proof references entered during registration. */
+    @ColumnInfo(name = "process_proof")
+    val processProof: String? = null,
+
+    @ColumnInfo(name = "implant_proof")
+    val implantProof: String? = null,
+
     @ColumnInfo(name = "registration_date")
     val registrationDate: Long,
 
@@ -67,5 +83,13 @@ data class CalfRegistrationEntity(
     val syncStatus: String = "PENDING",
 
     @ColumnInfo(name = "synced_at")
-    val syncedAt: Long? = null
+    val syncedAt: Long? = null,
+
+    /** Last message the server gave when it rejected this record, shown to the user. */
+    @ColumnInfo(name = "sync_error")
+    val syncError: String? = null,
+
+    /** Times the server explicitly rejected this record; reaching the cap makes it REJECTED. */
+    @ColumnInfo(name = "sync_attempts", defaultValue = "0")
+    val syncAttempts: Int = 0
 )

@@ -230,7 +230,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
     companion object {
 
         /** Current Room schema version. Bump here when adding a migration. */
-        const val VERSION = 38
+        const val VERSION = 42
 
         /**
          * Phase 3 Migration (Version 9 -> 10):
@@ -3784,5 +3784,125 @@ abstract class BeefTechDatabase : RoomDatabase() {
                 createLookupTriggers(db)
             }
         }
+
+        /**
+         * Migration (Version 38 -> 39): record the calf's age class, body
+         * condition and conformity captured in the registration wizard.
+         * Nullable, so existing registrations keep NULL. Idempotent.
+         */
+        val MIGRATION_38_39 =
+            object : Migration(38, 39) {
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+
+                    val existing = mutableSetOf<String>()
+
+                    db.query("PRAGMA table_info(`calf_registrations`)").use { cursor ->
+                        val nameIndex = cursor.getColumnIndex("name")
+                        while (cursor.moveToNext()) {
+                            existing += cursor.getString(nameIndex)
+                        }
+                    }
+
+                    listOf("age_class", "body_condition", "conformity")
+                        .filter { it !in existing }
+                        .forEach { column ->
+                            db.execSQL(
+                                "ALTER TABLE `calf_registrations` ADD COLUMN `$column` TEXT"
+                            )
+                        }
+                }
+            }
+
+        /**
+         * Migration (Version 39 -> 40): remember why the server rejected a calf
+         * registration and how many times, so a rejected record can stop retrying
+         * and tell the user. Existing rows get no error and zero attempts. Idempotent.
+         */
+        val MIGRATION_39_40 =
+            object : Migration(39, 40) {
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+
+                    val existing = mutableSetOf<String>()
+
+                    db.query("PRAGMA table_info(`calf_registrations`)").use { cursor ->
+                        val nameIndex = cursor.getColumnIndex("name")
+                        while (cursor.moveToNext()) {
+                            existing += cursor.getString(nameIndex)
+                        }
+                    }
+
+                    if ("sync_error" !in existing) {
+                        db.execSQL("ALTER TABLE `calf_registrations` ADD COLUMN `sync_error` TEXT")
+                    }
+
+                    if ("sync_attempts" !in existing) {
+                        db.execSQL("ALTER TABLE `calf_registrations` ADD COLUMN `sync_attempts` INTEGER NOT NULL DEFAULT 0")
+                    }
+                }
+            }
+
+        /**
+         * Migration (Version 40 -> 41): track whether each animal photo has reached
+         * the server. Existing rows start PENDING with no error. Idempotent.
+         */
+        val MIGRATION_40_41 =
+            object : Migration(40, 41) {
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+
+                    val existing = mutableSetOf<String>()
+
+                    db.query("PRAGMA table_info(`animal_media`)").use { cursor ->
+                        val nameIndex = cursor.getColumnIndex("name")
+                        while (cursor.moveToNext()) {
+                            existing += cursor.getString(nameIndex)
+                        }
+                    }
+
+                    if ("upload_status" !in existing) {
+                        db.execSQL("ALTER TABLE `animal_media` ADD COLUMN `upload_status` TEXT NOT NULL DEFAULT 'PENDING'")
+                    }
+
+                    if ("upload_error" !in existing) {
+                        db.execSQL("ALTER TABLE `animal_media` ADD COLUMN `upload_error` TEXT")
+                    }
+                }
+            }
+
+        /**
+         * Migration (Version 41 -> 42): process proof and implant proof on calf
+         * registrations. Nullable, so existing rows keep NULL. Idempotent.
+         */
+        val MIGRATION_41_42 =
+            object : Migration(41, 42) {
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+
+                    val existing = mutableSetOf<String>()
+
+                    db.query("PRAGMA table_info(`calf_registrations`)").use { cursor ->
+                        val nameIndex = cursor.getColumnIndex("name")
+                        while (cursor.moveToNext()) {
+                            existing += cursor.getString(nameIndex)
+                        }
+                    }
+
+                    listOf("process_proof", "implant_proof")
+                        .filter { it !in existing }
+                        .forEach { column ->
+                            db.execSQL("ALTER TABLE `calf_registrations` ADD COLUMN `$column` TEXT")
+                        }
+                }
+            }
     }
 }

@@ -107,7 +107,8 @@ class CalfRegistrationSyncWorker(
                 remainingViews.isNotEmpty() ||
                 outcome
                     .errorMessagesByTagNumber
-                    .isNotEmpty()
+                    .isNotEmpty() ||
+                outcome.photosPending > 0
             ) {
 
                 Log.w(

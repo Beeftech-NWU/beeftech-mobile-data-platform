@@ -6,6 +6,7 @@ import com.beeftech.calfregistration.data.CalfRegistrationApiClient
 import com.beeftech.calfregistration.data.CalfRegistrationRepository
 import com.beeftech.calfregistration.fakes.FakeCalfRegistrationDao
 import com.beeftech.calfregistration.fakes.FakePendingSyncDao
+import com.beeftech.calfregistration.fakes.rejectingApiClient
 import com.beeftech.calfregistration.fakes.successfulApiClient
 import com.beeftech.calfregistration.ui.CalfRegistrationData
 import com.beeftech.calfregistration.viewmodel.CalfRegistrationViewModel
@@ -87,6 +88,45 @@ class CalfRegistrationViewModelTest {
 
         assertEquals(1, viewModel.registeredCalves.value.size)
         assertEquals("Blu0000001", viewModel.registeredCalves.value.first().tagNumber)
+    }
+
+    @Test
+    fun `parentOptions refreshes after a female calf is saved`() = runBlocking {
+        val viewModel = buildViewModel(successfulApiClient())
+        assertTrue(viewModel.parentOptions.value.dams.isEmpty())
+
+        val resultDeferred = CompletableDeferred<Pair<Boolean, String>>()
+        viewModel.saveCalf(
+            CalfRegistrationData(tagNumber = "Blu0000011", animalType = "BNM — Bonsmara", gender = "Female")
+        ) { success, message -> resultDeferred.complete(success to message) }
+        withTimeout(5_000) { resultDeferred.await() }
+
+        assertEquals(listOf("Blu0000011 (Bonsmara)"), viewModel.parentOptions.value.dams)
+        assertTrue(viewModel.parentOptions.value.sires.isEmpty())
+    }
+
+    @Test
+    fun `retrySync reports the server reason once a calf is rejected for good`() = runBlocking {
+        val viewModel = buildViewModel(rejectingApiClient("Tag already registered"))
+
+        val saved = CompletableDeferred<Pair<Boolean, String>>()
+        viewModel.saveCalf(CalfRegistrationData(tagNumber = "Blu1234567")) { ok, msg -> saved.complete(ok to msg) }
+        withTimeout(5_000) { saved.await() }
+
+        suspend fun retry(): Pair<Boolean, String> {
+            val result = CompletableDeferred<Pair<Boolean, String>>()
+            viewModel.retrySync { ok, msg -> result.complete(ok to msg) }
+            return withTimeout(5_000) { result.await() }
+        }
+
+        val second = retry()
+        assertEquals(false, second.first)
+        assertTrue(second.second.contains("Tag already registered"))
+
+        val third = retry()
+        assertEquals(false, third.first)
+        assertTrue(third.second.contains("rejected calf Blu1234567"))
+        assertTrue(viewModel.registeredCalves.value.single().needsAttention)
     }
 
     @Test

@@ -19,17 +19,57 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalContext
+import com.beeftech.calfregistration.util.CalfPhotoCapture
 import com.beeftech.tagscanner.ui.EarTagScannerDialog
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 
 @Composable
 fun CalfConditionStepScreen(
     formData: CalfRegistrationData,
+    damOptions: List<String>,
+    sireOptions: List<String>,
     onFormDataChange: (CalfRegistrationData) -> Unit,
     onNextClick: () -> Unit,
     onBackClick: () -> Unit
 ) {
     var activeLookupField by remember { mutableStateOf<String?>(null) }
     var scanField by remember { mutableStateOf<String?>(null) }
+
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val latestFormData by rememberUpdatedState(formData)
+    val latestOnFormDataChange by rememberUpdatedState(onFormDataChange)
+
+    // Survives the app being recreated while the camera is open.
+    var captureFilePath by rememberSaveable { mutableStateOf<String?>(null) }
+
+    val takePicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken ->
+        val capture = captureFilePath?.let { File(it) }
+        captureFilePath = null
+
+        if (taken && capture != null) {
+            coroutineScope.launch {
+                val saved = withContext(Dispatchers.IO) {
+                    CalfPhotoCapture.finalizeCapture(context, capture, latestFormData.tagNumber)
+                }
+                if (saved != null) {
+                    latestOnFormDataChange(latestFormData.copy(photoPath = saved))
+                } else {
+                    Toast.makeText(context, "Could not read the photo. Please try again.", Toast.LENGTH_LONG).show()
+                }
+            }
+        } else {
+            capture?.delete()
+        }
+    }
 
     scanField?.let { field ->
         EarTagScannerDialog(
@@ -62,14 +102,14 @@ fun CalfConditionStepScreen(
             }
             "DAM" -> Quadruple(
                 "Select Dam Tag",
-                CalfRegistrationLookups.dameTagList,
+                listOf(CalfRegistrationLookups.DAME_PLACEHOLDER) + damOptions,
                 formData.dameTagNumber
             ) { selected: String ->
                 onFormDataChange(formData.copy(dameTagNumber = selected))
             }
             else -> Quadruple(
                 "Select Sire Tag",
-                CalfRegistrationLookups.sireTagList,
+                listOf(CalfRegistrationLookups.SIRE_PLACEHOLDER) + sireOptions,
                 formData.sireTagNumber
             ) { selected: String ->
                 onFormDataChange(formData.copy(sireTagNumber = selected))
@@ -90,6 +130,18 @@ fun CalfConditionStepScreen(
                     modifier = Modifier.verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
+                    if (options.size == 1 && (activeLookupField == "DAM" || activeLookupField == "SIRE")) {
+                        Text(
+                            text = if (activeLookupField == "DAM") {
+                                "No registered females found on this device yet."
+                            } else {
+                                "No registered males found on this device yet."
+                            },
+                            color = BeeftechText,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
                     options.forEach { option ->
                         TextButton(
                             onClick = {
@@ -303,15 +355,41 @@ fun CalfConditionStepScreen(
 
             HorizontalDivider(color = BeeftechBorder, thickness = 1.dp)
 
-            // Photo attachment button
+            // Verification (optional proof references)
+            CalfSectionTitle("Verification (optional)")
+            CalfCard {
+                CalfTextField(
+                    label = "Process proof",
+                    value = formData.processProof,
+                    onValueChange = { onFormDataChange(formData.copy(processProof = it.take(MAX_PROOF_LENGTH))) },
+                    placeholder = "Reference or note"
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                CalfTextField(
+                    label = "Implant proof",
+                    value = formData.implantProof,
+                    onValueChange = { onFormDataChange(formData.copy(implantProof = it.take(MAX_PROOF_LENGTH))) },
+                    placeholder = "Reference or note"
+                )
+            }
+
+            HorizontalDivider(color = BeeftechBorder, thickness = 1.dp)
+
+            // Photo attachment button: opens the camera, or removes the attached photo
             val hasPhoto = formData.photoPath != null
             OutlinedButton(
                 onClick = {
-                    // Toggle mock attached photo state for capture
                     if (hasPhoto) {
+                        CalfPhotoCapture.deleteSavedPhoto(context, formData.photoPath)
                         onFormDataChange(formData.copy(photoPath = null))
                     } else {
-                        onFormDataChange(formData.copy(photoPath = "captured_photo_uri"))
+                        try {
+                            val (file, uri) = CalfPhotoCapture.newCaptureTarget(context)
+                            captureFilePath = file.absolutePath
+                            takePicture.launch(uri)
+                        } catch (_: Exception) {
+                            Toast.makeText(context, "No camera app is available.", Toast.LENGTH_LONG).show()
+                        }
                     }
                 },
                 modifier = Modifier
@@ -331,7 +409,7 @@ fun CalfConditionStepScreen(
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = if (hasPhoto) "Calf photo attached (Tap to remove)" else "Attach calf photo",
+                    text = if (hasPhoto) "Calf photo attached (Tap to remove)" else "Take calf photo",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = if (hasPhoto) BeeftechPrimary else BeeftechText
@@ -340,3 +418,5 @@ fun CalfConditionStepScreen(
         }
     }
 }
+
+private const val MAX_PROOF_LENGTH = 200

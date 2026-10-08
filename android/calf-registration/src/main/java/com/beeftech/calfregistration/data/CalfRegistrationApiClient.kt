@@ -12,6 +12,7 @@ import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.header
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
@@ -70,6 +71,37 @@ class CalfRegistrationApiClient(
         }
     }
 
+    /**
+     * Uploads the calf's JPEG. 4xx answers other than 401/408/429 mean the server will never
+     * take this file ([PhotoUploadResult.Rejected]); anything else is worth another try.
+     */
+    suspend fun uploadPhoto(tagNumber: String, jpeg: ByteArray): PhotoUploadResult {
+        return try {
+            val token = tokenProvider.token()
+                ?: return PhotoUploadResult.RetryLater("No authentication token available")
+
+            val response = httpClient.put("${baseUrl}api/calf-registrations/$tagNumber/photo") {
+                contentType(ContentType.Image.JPEG)
+                header("Authorization", "Bearer $token")
+                setBody(jpeg)
+            }
+
+            if (response.status == HttpStatusCode.Unauthorized) {
+                tokenProvider.reportUnauthorized(runCatching { response.bodyAsText() }.getOrNull())
+            }
+
+            val code = response.status.value
+            when {
+                response.status.isSuccess() -> PhotoUploadResult.Uploaded
+                code in 400..499 && code !in RETRYABLE_CLIENT_ERRORS ->
+                    PhotoUploadResult.Rejected("Photo upload refused with status ${response.status}")
+                else -> PhotoUploadResult.RetryLater("Photo upload failed with status ${response.status}")
+            }
+        } catch (exception: Exception) {
+            PhotoUploadResult.RetryLater(exception.message ?: "Photo upload failed")
+        }
+    }
+
     private suspend fun postSync(
         records: List<CalfRegistrationDto>,
         deviceId: String,
@@ -82,4 +114,17 @@ class CalfRegistrationApiClient(
         }
     }
 
+    private companion object {
+        val RETRYABLE_CLIENT_ERRORS = setOf(401, 408, 429)
+    }
+}
+
+sealed interface PhotoUploadResult {
+    data object Uploaded : PhotoUploadResult
+
+    /** The server refused this file for good; do not retry. */
+    data class Rejected(val message: String) : PhotoUploadResult
+
+    /** Offline, server trouble, or sign-in needed: try again later. */
+    data class RetryLater(val message: String) : PhotoUploadResult
 }
