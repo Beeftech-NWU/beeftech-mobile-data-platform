@@ -46,6 +46,7 @@ import com.beeftech.database.entity.AnimalWeightEntity
 import com.beeftech.database.entity.CostType
 
 // Phase 6 Entities
+import com.beeftech.database.entity.FarmerAnimalLink
 import com.beeftech.database.entity.AnimalOwnershipEntity
 import com.beeftech.database.entity.AnimalPurchaseEntity
 
@@ -77,6 +78,7 @@ import com.beeftech.database.dao.AnimalMovementDao
 import com.beeftech.database.dao.AnimalIdentifierDao
 import com.beeftech.database.dao.AnimalMediaDao
 import com.beeftech.database.dao.AnimalWeightDao
+import com.beeftech.database.dao.FarmerAnimalLinkDao
 import com.beeftech.database.dao.AnimalOwnershipDao
 import com.beeftech.database.dao.AnimalPurchaseDao
 import com.beeftech.database.dao.BreedDao
@@ -139,6 +141,7 @@ import com.beeftech.database.dao.UserDao
         
         // Phase 6 Entities
         AnimalOwnershipEntity::class,
+        FarmerAnimalLink::class,
         AnimalPurchaseEntity::class,
         
         // Phase 7 Entity
@@ -199,6 +202,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
     abstract fun animalWeightDao(): AnimalWeightDao
 
     // Phase 6 DAOs
+    abstract fun farmerAnimalLinkDao(): FarmerAnimalLinkDao
     abstract fun animalOwnershipDao(): AnimalOwnershipDao
     abstract fun animalPurchaseDao(): AnimalPurchaseDao
 
@@ -230,7 +234,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
     companion object {
 
         /** Current Room schema version. Bump here when adding a migration. */
-        const val VERSION = 38
+        const val VERSION = 39
 
         /**
          * Phase 3 Migration (Version 9 -> 10):
@@ -3486,6 +3490,25 @@ abstract class BeefTechDatabase : RoomDatabase() {
          *
          * Every operation is idempotent.
          */
+        val MIGRATION_38_39 = object : Migration(38, 39) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""CREATE TABLE IF NOT EXISTS `farmer_animal_links` (
+                    `link_id` TEXT NOT NULL PRIMARY KEY,
+                    `farmer_id` TEXT NOT NULL,
+                    `animal_id` TEXT NOT NULL,
+                    `record_guid` TEXT NOT NULL,
+                    `effective_from` INTEGER NOT NULL,
+                    `effective_to` INTEGER,
+                    `sync_status` TEXT NOT NULL,
+                    FOREIGN KEY(`farmer_id`) REFERENCES `farmers`(`farmer_id`) ON UPDATE NO ACTION ON DELETE RESTRICT,
+                    FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE RESTRICT
+                )""".trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farmer_animal_links_farmer_id` ON `farmer_animal_links` (`farmer_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farmer_animal_links_animal_id` ON `farmer_animal_links` (`animal_id`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_farmer_animal_links_record_guid` ON `farmer_animal_links` (`record_guid`)")
+            }
+        }
+
         val MIGRATION_37_38 =
             object : Migration(37, 38) {
 

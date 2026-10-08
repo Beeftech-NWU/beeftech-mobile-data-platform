@@ -42,6 +42,7 @@ private enum class TraceabilityScreen {
     HOME,
     REGISTERED_FARMERS,
     FARMER_FARM_PROFILE,
+    FARMER_ANIMAL_ASSIGNMENT,
     FIND_ANIMAL,
     ANIMAL_RECORD,
     ANIMAL_MOVEMENT,
@@ -690,6 +691,56 @@ fun FarmTraceabilityFlow(
             )
         }
 
+        TraceabilityScreen.FARMER_ANIMAL_ASSIGNMENT -> {
+            val database = DatabaseProvider.getDatabase()
+            val farmerId = selectedFarmerId.orEmpty()
+            var animals by remember(farmerId) { mutableStateOf(emptyList<com.beeftech.database.entity.Animal>()) }
+            var links by remember(farmerId) { mutableStateOf(emptyList<com.beeftech.database.entity.FarmerAnimalLink>()) }
+            var farmerName by remember(farmerId) { mutableStateOf("") }
+            var busy by remember(farmerId) { mutableStateOf(false) }
+            var message by remember(farmerId) { mutableStateOf("") }
+            val scope = rememberCoroutineScope()
+
+            LaunchedEffect(database, farmerId) {
+                try {
+                    val activeDatabase = database ?: error("Local database is unavailable")
+                    animals = activeDatabase.animalDao().getAll()
+                    links = activeDatabase.farmerAnimalLinkDao().allActive()
+                    farmerName = activeDatabase.farmerDao().getAllFarmers()
+                        .firstOrNull { it.farmer_id == farmerId }?.organisation_name.orEmpty()
+                } catch (exception: Exception) {
+                    message = "Unable to load assignments: ${exception.message}"
+                }
+            }
+            FarmerAnimalAssignmentScreen(
+                farmerName = farmerName.ifBlank { "Registered farmer" },
+                farmerId = farmerId,
+                animals = animals,
+                activeLinks = links,
+                isBusy = busy,
+                message = message,
+                onAssign = { selected ->
+                    if (!busy && farmerId.isNotBlank()) {
+                        busy = true
+                        scope.launch {
+                            try {
+                                val activeDatabase = database ?: error("Local database is unavailable")
+                                var saved = 0
+                                selected.forEach { animalId ->
+                                    if (activeDatabase.farmerAnimalLinkDao().assign(farmerId, animalId)) saved++
+                                }
+                                links = activeDatabase.farmerAnimalLinkDao().allActive()
+                                message = "$saved animal assignment(s) saved offline; server sync not yet available."
+                            } catch (exception: Exception) {
+                                message = "Unable to save: ${exception.message}"
+                            } finally { busy = false }
+                        }
+                    }
+                },
+                onBack = { navigateBack() }
+            )
+        }
+
         TraceabilityScreen
             .FARMER_FARM_PROFILE -> {
 
@@ -983,6 +1034,7 @@ fun FarmTraceabilityFlow(
                 errorMessage =
                     profileError,
 
+                onAssignAnimals = { navigateTo(TraceabilityScreen.FARMER_ANIMAL_ASSIGNMENT) },
                 onBackClick = {
                     navigateBack()
                 }

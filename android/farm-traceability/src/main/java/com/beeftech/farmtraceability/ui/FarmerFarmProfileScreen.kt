@@ -1,6 +1,8 @@
 package com.beeftech.farmtraceability.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -39,6 +41,7 @@ fun FarmerFarmProfileScreen(
     syncStatus: String = "",
     isLoading: Boolean = false,
     errorMessage: String = "",
+    onAssignAnimals: () -> Unit = {},
     onBackClick: () -> Unit = {}
 ) {
     Column(
@@ -61,6 +64,8 @@ fun FarmerFarmProfileScreen(
                 .fillMaxWidth()
                 .padding(18.dp)
         ) {
+            Button(onClick = onAssignAnimals, modifier = Modifier.fillMaxWidth()) { Text("Assign registered animals") }
+            Spacer(modifier = Modifier.height(16.dp))
             if (isLoading) {
                 TraceabilityCard {
                     TraceabilityInfoRow(
