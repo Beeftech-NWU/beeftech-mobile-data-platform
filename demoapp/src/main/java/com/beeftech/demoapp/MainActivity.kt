@@ -1,5 +1,9 @@
 package com.beeftech.demoapp
 
+import com.beeftech.database.entity.SyncRunTrigger
+import com.beeftech.database.repository.SyncRunRepository
+import com.beeftech.database.util.SyncRunDisplay
+import androidx.work.ExistingWorkPolicy
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -206,6 +210,12 @@ class MainActivity : ComponentActivity() {
                      */
                     val pendingSyncRepository =
                         PendingSyncRepository(
+                            database.pendingSyncDao()
+                        )
+
+                    val syncRunRepository =
+                        SyncRunRepository(
+                            database.syncRunDao(),
                             database.pendingSyncDao()
                         )
 
@@ -530,6 +540,16 @@ class MainActivity : ComponentActivity() {
 
                             val isOnline by rememberIsOnline()
 
+                            val syncHistory by
+                            remember(loggedInUser.userId) {
+                                syncRunRepository.observeRecent()
+                            }.collectAsState(initial = emptyList())
+
+                            val pendingByType by
+                            remember(loggedInUser.userId) {
+                                syncRunRepository.observePendingByType()
+                            }.collectAsState(initial = emptyMap())
+
                             val syncState =
                                 appSyncUiState(
                                     isOnline = isOnline,
@@ -679,6 +699,9 @@ class MainActivity : ComponentActivity() {
                                             oldestPendingAt =
                                                 oldestPendingAt,
 
+                                            syncHistory =
+                                                syncHistory,
+
                                             onBack = {
                                                 showMyActivity =
                                                     false
@@ -695,6 +718,34 @@ class MainActivity : ComponentActivity() {
                                             role = loggedInUser.roleEnum,
                                             pendingCount = pendingCount,
                                             syncState = syncState,
+                                            pendingByModule =
+                                                SyncRunDisplay.pendingByModule(pendingByType),
+                                            lastRunLine =
+                                                SyncRunDisplay.lastRunLine(syncHistory.firstOrNull()),
+                                            canSyncNow = isOnline,
+                                            onSyncNow = {
+                                                lifecycleScope.launch {
+                                                    /*
+                                                     * Sync now is an explicit request, so farmer
+                                                     * registrations that hit the automatic retry cap
+                                                     * get another try, as with Retry Sync.
+                                                     */
+                                                    withContext(Dispatchers.IO) {
+                                                        pendingSyncRepository
+                                                            .getAllPendingOperations()
+                                                            .filter { it.entityType == "FARMER_REGISTRATION" }
+                                                            .forEach { pendingSyncRepository.resetRetryCount(it.id) }
+                                                    }
+
+                                                    SyncAllDispatcher.dispatch(
+                                                        applicationContext,
+                                                        SyncRunTrigger.MANUAL,
+                                                        ExistingWorkPolicy.REPLACE
+                                                    )
+
+                                                    showUiMessage("Sync started.")
+                                                }
+                                            },
                                             onRegisterCalf = {
                                                 selectedDemoTab = tabs.indexOf(AppTab.CALF_REGISTRATION)
                                             },
