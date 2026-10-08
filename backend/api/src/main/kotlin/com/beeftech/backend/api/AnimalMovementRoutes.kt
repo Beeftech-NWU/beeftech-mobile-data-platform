@@ -1,5 +1,6 @@
 package com.beeftech.backend.api
 
+import com.beeftech.backend.api.common.FileNaming.ProjectCode
 import com.beeftech.backend.api.auth.JwtService
 import com.beeftech.backend.api.common.ApiResponse
 import io.ktor.http.HttpStatusCode
@@ -32,12 +33,16 @@ fun Route.animalMovementRoutes(
                         AnimalMovementSyncRequest
                         >()
 
+            if (!call.acceptBatch(principal, ProjectCode.MOVEMENT, request.batchName)) return@post
+
             val response =
                 animalMovementService.sync(
                     request,
                     principal.userId,
                     principal.siteId
                 )
+
+            SyncUploadLog.record(principal, ProjectCode.MOVEMENT, request.batchName, response.results.map { it.status })
 
             call.respond(
                 HttpStatusCode.OK,

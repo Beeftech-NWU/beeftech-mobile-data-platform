@@ -1,5 +1,6 @@
 package com.beeftech.backend.api
 
+import com.beeftech.backend.api.common.FileNaming.ProjectCode
 import com.beeftech.backend.api.auth.JwtService
 import com.beeftech.backend.api.common.ApiResponse
 import io.ktor.server.request.receive
@@ -26,12 +27,16 @@ fun Route.treatmentRoutes(
         val request =
             call.receive<TreatmentSyncRequest>()
 
+        if (!call.acceptBatch(principal, ProjectCode.TREATMENT, request.batchName)) return@post
+
         val response =
             service.syncRecords(
                 request,
                 principal.userId,
                 principal.siteId
             )
+
+        SyncUploadLog.record(principal, ProjectCode.TREATMENT, request.batchName, response.results.map { it.status })
 
         call.respond(
             ApiResponse(

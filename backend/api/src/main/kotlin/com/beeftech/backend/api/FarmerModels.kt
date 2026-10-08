@@ -47,7 +47,9 @@ data class FarmerDto(
 @Serializable
 data class FarmerSyncRequest(
     val deviceId: String,
-    val records: List<FarmerDto>
+    val records: List<FarmerDto>,
+    /* [FarmCode]-[Project]-[YYYYMMDD]-[HHMMSS]-[DeviceID]; absent from app versions that predate it. */
+    val batchName: String? = null
 )
 
 @Serializable
