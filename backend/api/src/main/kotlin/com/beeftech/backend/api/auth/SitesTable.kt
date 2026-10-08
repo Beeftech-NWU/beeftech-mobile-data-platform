@@ -11,5 +11,8 @@ object SitesTable : Table("sites") {
     val active = bool("active").default(true)
     val updatedAt = long("updated_at").nullable()
 
+    /* Four characters, A-Z and 0-9, used as the first part of every file and batch name. Null only on a database not yet migrated. */
+    val farmCode = varchar("farm_code", 4).nullable().uniqueIndex()
+
     override val primaryKey = PrimaryKey(siteId)
 }

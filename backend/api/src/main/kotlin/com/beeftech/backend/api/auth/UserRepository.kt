@@ -174,6 +174,16 @@ class UserRepository {
         }
     }
 
+    /* Null when the site doesn't exist or has no farm code yet. */
+    suspend fun farmCodeOf(siteId: String): String? {
+        return newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
+            SitesTable.selectAll()
+                .where { SitesTable.siteId eq siteId }
+                .singleOrNull()
+                ?.get(SitesTable.farmCode)
+        }
+    }
+
     suspend fun updateSite(userId: String, siteId: String?) {
         newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
             UsersTable.update({ UsersTable.userId eq userId }) {
