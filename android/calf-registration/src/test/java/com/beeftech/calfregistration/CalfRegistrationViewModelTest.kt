@@ -27,12 +27,13 @@ import org.mockito.Mockito
 @OptIn(ExperimentalCoroutinesApi::class)
 class CalfRegistrationViewModelTest {
 
-    private val mockContext = Mockito.mock(Context::class.java)
+    private val mockContext: Context = object : android.content.ContextWrapper(null) {
+        override fun getApplicationContext(): Context = this
+    }
 
     @Before
     fun setUp() {
         Dispatchers.setMain(Dispatchers.Unconfined)
-        Mockito.`when`(mockContext.applicationContext).thenReturn(mockContext)
     }
 
     @After

@@ -1,0 +1,229 @@
+package com.beeftech.calfregistration.ui
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+@Composable
+fun CalfReviewScreen(
+    formData: CalfRegistrationData,
+    onJumpToStep: (Int) -> Unit,
+    onSaveCalfClick: () -> Unit,
+    onBackClick: () -> Unit,
+    isSaving: Boolean = false
+) {
+    Scaffold(
+        topBar = {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = BeeftechSurface,
+                shadowElevation = 1.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .statusBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = onBackClick) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                                    contentDescription = "Back",
+                                    tint = BeeftechText
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = "Register calf",
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = BeeftechText
+                                )
+                                Text(
+                                    text = "Step 4 of 4: Check",
+                                    fontSize = 13.sp,
+                                    color = BeeftechMutedText
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(99.dp),
+                            color = Color(0xFFDDEFE4)
+                        ) {
+                            Text(
+                                text = "Step 4",
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF17402D)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    StepProgress(currentStep = 4, totalSteps = 4)
+                }
+            }
+        },
+        bottomBar = {
+            BottomActionDock {
+                Button(
+                    onClick = onSaveCalfClick,
+                    enabled = !isSaving && formData.tagNumber.isNotBlank(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 56.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = BeeftechPrimary,
+                        contentColor = BeeftechWhite
+                    )
+                ) {
+                    if (isSaving) {
+                        CircularProgressIndicator(
+                            color = BeeftechWhite,
+                            modifier = Modifier.size(22.dp),
+                            strokeWidth = 2.5.dp
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Saving calf...",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Outlined.CheckCircle,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Save calf",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(BeeftechBackground)
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = "Review details",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = BeeftechText
+            )
+
+            // Review row 1: Ear tag
+            ReviewRow(
+                label = "Ear tag",
+                value = formData.tagNumber.ifEmpty { "Not entered" },
+                onChangeClick = { onJumpToStep(1) }
+            )
+
+            // Review row 2: Type and gender
+            ReviewRow(
+                label = "Type and gender",
+                value = buildString {
+                    append(formData.animalType.ifEmpty { "Brangus" })
+                    if (formData.gender.isNotBlank()) {
+                        append(", ${formData.gender}")
+                    }
+                },
+                onChangeClick = { onJumpToStep(2) }
+            )
+
+            // Review row 3: Hide and conformity
+            ReviewRow(
+                label = "Appearance and score",
+                value = buildString {
+                    append(formData.hideColour.ifEmpty { "Black" })
+                    if (formData.conformity.isNotBlank()) {
+                        append(", ${formData.conformity}")
+                    }
+                },
+                onChangeClick = { onJumpToStep(2) }
+            )
+
+            // Review row 4: Age and condition
+            ReviewRow(
+                label = "Age and condition",
+                value = buildString {
+                    append(formData.age.ifEmpty { "Newborn" })
+                    if (formData.condition.isNotBlank()) {
+                        append(", ${formData.condition}")
+                    }
+                },
+                onChangeClick = { onJumpToStep(3) }
+            )
+
+            // Review row 5: Parents
+            val hasParents = formData.dameTagNumber.isNotBlank() || formData.sireTagNumber.isNotBlank()
+            ReviewRow(
+                label = "Parentage (Dam / Sire)",
+                value = if (hasParents) {
+                    buildString {
+                        if (formData.dameTagNumber.isNotBlank()) append("Dam: ${formData.dameTagNumber} ")
+                        if (formData.sireTagNumber.isNotBlank()) append("Sire: ${formData.sireTagNumber}")
+                    }.trim()
+                } else {
+                    "None specified"
+                },
+                onChangeClick = { onJumpToStep(3) }
+            )
+
+            // Review row 6: Photo
+            ReviewRow(
+                label = "Photo",
+                value = if (formData.photoPath != null) "Attached" else "None",
+                onChangeClick = { onJumpToStep(3) }
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Honest offline note card
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = Color(0xFFEEF3EF),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = "Saves on this phone. Sends automatically when there is signal.",
+                    modifier = Modifier.padding(14.dp),
+                    fontSize = 13.5.sp,
+                    color = Color(0xFF2B3A31),
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    }
+}
