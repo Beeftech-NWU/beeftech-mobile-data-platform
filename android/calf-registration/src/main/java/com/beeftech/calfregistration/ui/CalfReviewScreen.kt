@@ -147,7 +147,7 @@ fun CalfReviewScreen(
                 value = buildString {
                     append(formData.age.ifEmpty { "Newborn" })
                     if (formData.condition.isNotBlank()) {
-                        append(", ${formData.condition}")
+                        append(", ${CalfRegistrationLookups.conditionDisplay(formData.condition)}")
                     }
                 },
                 onChangeClick = { onJumpToStep(3) }

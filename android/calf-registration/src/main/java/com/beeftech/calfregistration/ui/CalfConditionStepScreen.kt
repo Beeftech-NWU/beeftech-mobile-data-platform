@@ -104,19 +104,12 @@ fun CalfConditionStepScreen(
         )
     } else if (activeLookupField != null) {
         val (title, options, currentVal, onSelect) = when (activeLookupField) {
-            "AGE" -> Quadruple(
+            else -> Quadruple(
                 "Select Age",
                 CalfRegistrationLookups.ages,
                 formData.age
             ) { selected: String ->
                 onFormDataChange(formData.copy(age = selected))
-            }
-            else -> Quadruple(
-                "Select Condition",
-                CalfRegistrationLookups.conditions,
-                formData.condition
-            ) { selected: String ->
-                onFormDataChange(formData.copy(condition = selected))
             }
         }
 
@@ -220,11 +213,9 @@ fun CalfConditionStepScreen(
             )
 
             // Condition score
-            CalfLookupDropdownField(
-                label = "Condition / Vitality",
-                badgeLabel = "SELECT",
-                selectedValue = formData.condition.ifEmpty { "Good / Alert" },
-                onClick = { activeLookupField = "CONDITION" }
+            CalfConditionScale(
+                selected = formData.condition,
+                onSelected = { onFormDataChange(formData.copy(condition = it)) }
             )
 
             HorizontalDivider(color = BeeftechBorder, thickness = 1.dp)

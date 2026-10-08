@@ -194,7 +194,7 @@ private fun traceabilityDefaultFieldHelp(label: String): String {
         "disease / condition" ->
             "Select or enter the condition being treated. Use a clear name so this treatment is easy to find later."
         "treatment type" ->
-            "Choose the treatment administered to this animal, or enter its name if it is not listed."
+            "Choose the treatment administered to this animal from the list. Use Other if it is not listed."
         "batch number" ->
             "BeefTech generates this treatment record number after you choose the condition and treatment. It cannot be edited here."
         "volume used" ->

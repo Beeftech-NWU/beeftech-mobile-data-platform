@@ -1,6 +1,7 @@
 package com.beeftech.calfregistration.data
 
 import com.beeftech.calfregistration.ui.CalfRegistrationData
+import com.beeftech.calfregistration.ui.CalfRegistrationLookups
 import com.beeftech.database.util.TagNamingUtils
 import com.beeftech.database.dao.CalfRegistrationView
 import com.beeftech.database.entity.Animal
@@ -137,7 +138,7 @@ object CalfRegistrationMappers {
         animalType = view.breed,
         gender = view.gender ?: "",
         age = view.ageClass ?: CalfRegistrationData().age,
-        condition = view.bodyCondition ?: CalfRegistrationData().condition,
+        condition = CalfRegistrationLookups.legacyConditionToScore(view.bodyCondition),
         conformity = view.conformity ?: CalfRegistrationData().conformity,
         hideColour = view.hideColour ?: CalfRegistrationData().hideColour,
         mark = view.brandMark.orEmpty(),
