@@ -125,7 +125,7 @@ nothing.
 | `:android:authentication` | library | `com.beeftech.authentication` | `database` | PIN auth, `AuthGate`, `SessionStore` (wired into demoapp) |
 | `:android:tag-scanner` | library | `com.beeftech.tagscanner` | `database` | Tag scanning, colour detection, tag parsing; used by `calf-registration` and `farm-traceability` (transitive for demoapp) |
 | `:backend:api` | JVM app | `com.beeftech.backend.api` | — | Runnable Ktor server |
-| `:android:app`, `:backend:authentication`, `:backend:sync` | — | — | — | Empty placeholders |
+| `:backend:authentication`, `:backend:sync` | — | — | — | Empty placeholders |
 
 ### `:android:database` — the core module
 
