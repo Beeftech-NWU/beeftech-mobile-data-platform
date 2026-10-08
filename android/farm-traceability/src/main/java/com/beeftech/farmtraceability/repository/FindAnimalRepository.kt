@@ -3,6 +3,7 @@ package com.beeftech.farmtraceability.repository
 import com.beeftech.database.dao.CalfRegistrationDao
 import com.beeftech.database.dao.CalfRegistrationView
 import com.beeftech.database.util.TagNamingUtils
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 
 class FindAnimalRepository(
@@ -17,4 +18,8 @@ class FindAnimalRepository(
             TagNamingUtils.parseAndExpand(animalReference)
         ).firstOrNull()
     }
+
+    /** Every registered animal, newest first, for the search list. */
+    fun observeAnimals(): Flow<List<CalfRegistrationView>> =
+        calfRegistrationDao.getAllRegistrationViews()
 }
