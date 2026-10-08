@@ -84,7 +84,25 @@ fun CalfConditionStepScreen(
         )
     }
 
-    if (activeLookupField != null) {
+    if (activeLookupField == "DAM" || activeLookupField == "SIRE") {
+        val isDam = activeLookupField == "DAM"
+        ParentPickerDialog(
+            title = if (isDam) "Select Dam Tag" else "Select Sire Tag",
+            options = if (isDam) damOptions else sireOptions,
+            selected = if (isDam) formData.dameTagNumber else formData.sireTagNumber,
+            noneOption = if (isDam) CalfRegistrationLookups.DAME_PLACEHOLDER else CalfRegistrationLookups.SIRE_PLACEHOLDER,
+            emptyMessage = if (isDam) "No registered females found on this device yet."
+            else "No registered males found on this device yet.",
+            onSelect = { selected ->
+                onFormDataChange(
+                    if (isDam) formData.copy(dameTagNumber = selected)
+                    else formData.copy(sireTagNumber = selected)
+                )
+                activeLookupField = null
+            },
+            onDismiss = { activeLookupField = null }
+        )
+    } else if (activeLookupField != null) {
         val (title, options, currentVal, onSelect) = when (activeLookupField) {
             "AGE" -> Quadruple(
                 "Select Age",
@@ -93,26 +111,12 @@ fun CalfConditionStepScreen(
             ) { selected: String ->
                 onFormDataChange(formData.copy(age = selected))
             }
-            "CONDITION" -> Quadruple(
+            else -> Quadruple(
                 "Select Condition",
                 CalfRegistrationLookups.conditions,
                 formData.condition
             ) { selected: String ->
                 onFormDataChange(formData.copy(condition = selected))
-            }
-            "DAM" -> Quadruple(
-                "Select Dam Tag",
-                listOf(CalfRegistrationLookups.DAME_PLACEHOLDER) + damOptions,
-                formData.dameTagNumber
-            ) { selected: String ->
-                onFormDataChange(formData.copy(dameTagNumber = selected))
-            }
-            else -> Quadruple(
-                "Select Sire Tag",
-                listOf(CalfRegistrationLookups.SIRE_PLACEHOLDER) + sireOptions,
-                formData.sireTagNumber
-            ) { selected: String ->
-                onFormDataChange(formData.copy(sireTagNumber = selected))
             }
         }
 
@@ -130,18 +134,6 @@ fun CalfConditionStepScreen(
                     modifier = Modifier.verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    if (options.size == 1 && (activeLookupField == "DAM" || activeLookupField == "SIRE")) {
-                        Text(
-                            text = if (activeLookupField == "DAM") {
-                                "No registered females found on this device yet."
-                            } else {
-                                "No registered males found on this device yet."
-                            },
-                            color = BeeftechText,
-                            fontSize = 14.sp,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
-                    }
                     options.forEach { option ->
                         TextButton(
                             onClick = {
