@@ -4,7 +4,7 @@ import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.transactions.transaction
 
 /**
- * Adds sites.active, sites.updated_at and sites.farm_code to databases created before they existed.
+ * Adds sites.active, sites.updated_at, sites.farm_code and sites.sales_rep_email to databases created before they existed.
  * Existing sites stay active. Sites without a farm code get S001, S002, ... in the order they were created,
  * and the unique index on farm_code is created once every row has one.
  *
@@ -29,6 +29,10 @@ object SitesSchemaMigration {
 
         if ("farm_code" !in existing) {
             exec("ALTER TABLE sites ADD COLUMN farm_code VARCHAR(4) NULL")
+        }
+
+        if ("sales_rep_email" !in existing) {
+            exec("ALTER TABLE sites ADD COLUMN sales_rep_email VARCHAR(255) NULL")
         }
 
         backfillFarmCodes()

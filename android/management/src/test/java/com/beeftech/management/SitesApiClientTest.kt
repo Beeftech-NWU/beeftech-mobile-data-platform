@@ -80,6 +80,19 @@ class SitesApiClientTest {
     }
 
     @Test
+    fun `createSite sends the sales rep email when there is one`() = runTest {
+        var body = ""
+        val api = client {
+            body = String(it.body.toByteArray())
+            HttpStatusCode.Created to """{"success":true,"message":"ok","data":$siteJson}"""
+        }
+
+        api.createSite("North", "NRTH", "rep@example.com")
+
+        assertEquals("""{"name":"North","farmCode":"NRTH","salesRepEmail":"rep@example.com"}""", body)
+    }
+
+    @Test
     fun `updateSite sends only the fields that change`() = runTest {
         val bodies = mutableListOf<String>()
         var seen: HttpRequestData? = null
@@ -92,12 +105,16 @@ class SitesApiClientTest {
         api.updateSite("site-1", name = "North Farm")
         api.updateSite("site-1", active = false)
         api.updateSite("site-1", farmCode = "NR02")
+        api.updateSite("site-1", salesRepEmail = "rep@example.com")
+        api.updateSite("site-1", salesRepEmail = "")
 
         assertEquals(HttpMethod.Patch, seen!!.method)
         assertEquals("http://test-host/api/sites/site-1", seen!!.url.toString())
         assertEquals("""{"name":"North Farm"}""", bodies[0])
         assertEquals("""{"active":false}""", bodies[1])
         assertEquals("""{"farmCode":"NR02"}""", bodies[2])
+        assertEquals("""{"salesRepEmail":"rep@example.com"}""", bodies[3])
+        assertEquals("""{"salesRepEmail":""}""", bodies[4])
     }
 
     @Test

@@ -65,12 +65,17 @@ data class AddressAndLocationData(
     val faCodeRmis: String = "",
     val glnNumber: String = "",
     val herdCapacity: String = "",
-    val interestStatus: String = ""
+    val interestStatus: String = "",
+    val farmSizeHa: String = "",
+    val headCount: String = "",
+    val primaryBreed: String = ""
 )
 
 object AddressAndLocationLookups {
 
     const val MAX_HERD_CAPACITY = 100_000
+
+    const val MAX_FARM_SIZE_HA = 1_000_000.0
 
     val interestStatuses =
         listOf(
@@ -532,6 +537,57 @@ fun AddressAndLocationContent(
                     modifier = Modifier.height(16.dp)
                 )
 
+                FarmerIdentifierTextField(
+                    label = "Farm Size (ha)",
+                    value = formData.farmSizeHa,
+                    onValueChange = { entered ->
+                        val hectares = FarmerFieldRules.parseFarmSizeHa(entered)
+                        if (hectares == null || hectares <= AddressAndLocationLookups.MAX_FARM_SIZE_HA) {
+                            onFormDataChange(formData.copy(farmSizeHa = entered))
+                        }
+                    },
+                    placeholder = "e.g. 1250.5",
+                    helperText = "Optional. Hectares, up to 2 decimals.",
+                    maxLength = 10,
+                    allowDecimal = true
+                )
+
+                Spacer(
+                    modifier = Modifier.height(16.dp)
+                )
+
+                FarmerIdentifierTextField(
+                    label = "Head Count",
+                    value = formData.headCount,
+                    onValueChange = { entered ->
+                        val count = entered.toIntOrNull()
+                        if (count == null || count <= AddressAndLocationLookups.MAX_HERD_CAPACITY) {
+                            onFormDataChange(formData.copy(headCount = entered))
+                        }
+                    },
+                    placeholder = "Animals on the farm today",
+                    helperText = "Optional. Whole number from 0 to 100000.",
+                    maxLength = 6
+                )
+
+                Spacer(
+                    modifier = Modifier.height(16.dp)
+                )
+
+                FarmerTextField(
+                    label = "Primary Breed",
+                    value = formData.primaryBreed,
+                    onValueChange = {
+                        onFormDataChange(formData.copy(primaryBreed = it))
+                    },
+                    placeholder = "e.g. Bonsmara",
+                    supportingText = "Optional"
+                )
+
+                Spacer(
+                    modifier = Modifier.height(16.dp)
+                )
+
                 FarmerDropdownField(
                     label = "Interest Status",
                     selectedOption = formData.interestStatus,
@@ -905,7 +961,8 @@ fun FarmerIdentifierTextField(
     placeholder: String,
     helperText: String,
     errorMessage: String = "",
-    maxLength: Int = 13
+    maxLength: Int = 13,
+    allowDecimal: Boolean = false
 ) {
 
     Column(
@@ -928,12 +985,17 @@ fun FarmerIdentifierTextField(
             value = value,
             onValueChange = { rawValue ->
 
-                onValueChange(
-                    rawValue
-                        .filter {
+                val cleaned =
+                    if (allowDecimal) {
+                        FarmerFieldRules.cleanDecimal(rawValue)
+                    } else {
+                        rawValue.filter {
                             it.isDigit()
                         }
-                        .take(maxLength)
+                    }
+
+                onValueChange(
+                    cleaned.take(maxLength)
                 )
             },
             placeholder = {
@@ -949,7 +1011,11 @@ fun FarmerIdentifierTextField(
             keyboardOptions =
                 KeyboardOptions(
                     keyboardType =
-                        KeyboardType.Number
+                        if (allowDecimal) {
+                            KeyboardType.Decimal
+                        } else {
+                            KeyboardType.Number
+                        }
                 ),
             modifier =
                 Modifier.fillMaxWidth(),

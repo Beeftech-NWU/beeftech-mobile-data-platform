@@ -238,7 +238,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
     companion object {
 
         /** Current Room schema version. Bump here when adding a migration. */
-        const val VERSION = 44
+        const val VERSION = 45
 
         /**
          * Phase 3 Migration (Version 9 -> 10):
@@ -3971,6 +3971,40 @@ abstract class BeefTechDatabase : RoomDatabase() {
                         "CREATE INDEX IF NOT EXISTS `index_sync_runs_user_id_started_at` " +
                             "ON `sync_runs` (`user_id`, `started_at`)"
                     )
+                }
+            }
+
+        /**
+         * Migration (Version 44 -> 45): farmer contact name and number, farm size, head count and
+         * primary breed. Nullable, so existing farmers keep NULL. Idempotent.
+         */
+        val MIGRATION_44_45 =
+            object : Migration(44, 45) {
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+
+                    val existing = mutableSetOf<String>()
+
+                    db.query("PRAGMA table_info(`farmers`)").use { cursor ->
+                        val nameIndex = cursor.getColumnIndex("name")
+                        while (cursor.moveToNext()) {
+                            existing += cursor.getString(nameIndex)
+                        }
+                    }
+
+                    listOf(
+                        "contact_name" to "TEXT",
+                        "contact_number" to "TEXT",
+                        "farm_size_ha" to "REAL",
+                        "head_count" to "INTEGER",
+                        "primary_breed" to "TEXT"
+                    )
+                        .filter { (column, _) -> column !in existing }
+                        .forEach { (column, type) ->
+                            db.execSQL("ALTER TABLE `farmers` ADD COLUMN `$column` $type")
+                        }
                 }
             }
     }

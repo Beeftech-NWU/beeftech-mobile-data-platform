@@ -28,6 +28,11 @@ data class FarmerEntity(
     val gln_number: String? = null,
     val herd_capacity: Int? = null,
     val interest_status: String? = null,
+    val contact_name: String? = null,
+    val contact_number: String? = null,
+    val farm_size_ha: Double? = null,
+    val head_count: Int? = null,
+    val primary_breed: String? = null,
 
     @ColumnInfo(name = "record_guid")
     val recordGuid: String = UUID.randomUUID().toString()

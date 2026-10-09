@@ -367,27 +367,31 @@ class ManagementApiClient(
             httpClient.get("${baseUrl}api/sites") { bearerAuth(token) }
         }
 
-    suspend fun createSite(name: String, farmCode: String): ManagementResult<Site> =
+    suspend fun createSite(name: String, farmCode: String, salesRepEmail: String? = null): ManagementResult<Site> =
         call(decode = { decodeSite(it) }) { token ->
             httpClient.post("${baseUrl}api/sites") {
                 bearerAuth(token)
                 contentType(ContentType.Application.Json)
-                setBody(CreateSiteBody(name, farmCode))
+                setBody(CreateSiteBody(name, farmCode, salesRepEmail))
             }
         }
 
-    /* Leave a field null to keep it. Deactivating a site that still has active users is a 409. */
+    /*
+     * Leave a field null to keep it, and pass "" as [salesRepEmail] to remove the rep.
+     * Deactivating a site that still has active users is a 409.
+     */
     suspend fun updateSite(
         siteId: String,
         name: String? = null,
         active: Boolean? = null,
-        farmCode: String? = null
+        farmCode: String? = null,
+        salesRepEmail: String? = null
     ): ManagementResult<Site> =
         call(decode = { decodeSite(it) }) { token ->
             httpClient.patch("${baseUrl}api/sites/$siteId") {
                 bearerAuth(token)
                 contentType(ContentType.Application.Json)
-                setBody(UpdateSiteBody(name, active, farmCode))
+                setBody(UpdateSiteBody(name, active, farmCode, salesRepEmail))
             }
         }
 

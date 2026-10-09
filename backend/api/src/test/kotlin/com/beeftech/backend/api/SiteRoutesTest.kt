@@ -181,6 +181,46 @@ class SiteRoutesTest {
     }
 
     @Test
+    fun `a site can have a sales rep email that is checked, changed and removed`() = testApplication {
+        startApp()
+        val client = createClient { }
+        val admin = client.login("admin", "10001")
+
+        val created = client.send(
+            "POST",
+            "/api/sites",
+            admin,
+            """{"name":"Rep Farm","farmCode":"REP1","salesRepEmail":" rep@example.com "}"""
+        )
+        assertEquals(HttpStatusCode.Created, created.status)
+        val site = dataOf(created.bodyAsText()).jsonObject
+        assertEquals("rep@example.com", site.str("salesRepEmail"))
+        val siteId = site.str("siteId")!!
+
+        assertEquals(
+            HttpStatusCode.BadRequest,
+            client.send("POST", "/api/sites", admin, """{"name":"Bad Rep","farmCode":"BAD1","salesRepEmail":"not-an-email"}""").status
+        )
+        assertEquals(
+            HttpStatusCode.BadRequest,
+            client.send("PATCH", "/api/sites/$siteId", admin, """{"salesRepEmail":"a@example.com, b@example.com"}""").status
+        )
+
+        /* Leaving the field out keeps the rep. */
+        val renamed = client.send("PATCH", "/api/sites/$siteId", admin, """{"name":"Rep Farm North"}""")
+        assertEquals("rep@example.com", dataOf(renamed.bodyAsText()).jsonObject.str("salesRepEmail"))
+
+        val changed = client.send("PATCH", "/api/sites/$siteId", admin, """{"salesRepEmail":"north.rep@example.com"}""")
+        assertEquals("north.rep@example.com", dataOf(changed.bodyAsText()).jsonObject.str("salesRepEmail"))
+
+        val removed = client.send("PATCH", "/api/sites/$siteId", admin, """{"salesRepEmail":""}""")
+        assertEquals(HttpStatusCode.OK, removed.status)
+        assertEquals(null, dataOf(removed.bodyAsText()).jsonObject.str("salesRepEmail"))
+
+        assertTrue("rep@example.com->north.rep@example.com" in client.auditRows(admin)[1].str("details")!!)
+    }
+
+    @Test
     fun `login returns the site's farm code`() = testApplication {
         startApp()
         val client = createClient { }

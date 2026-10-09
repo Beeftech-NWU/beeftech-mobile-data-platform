@@ -38,7 +38,7 @@ class SitesSchemaMigrationTest {
 
         SitesSchemaMigration.run(database)
 
-        assertTrue(columns(database).containsAll(listOf("active", "updated_at", "farm_code")))
+        assertTrue(columns(database).containsAll(listOf("active", "updated_at", "farm_code", "sales_rep_email")))
         val row = transaction(database) {
             exec("SELECT name, active, updated_at FROM sites WHERE site_id = 'dev-site-1'") { rs ->
                 rs.next()

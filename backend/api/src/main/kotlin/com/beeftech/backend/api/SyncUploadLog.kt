@@ -129,6 +129,15 @@ suspend fun ApplicationCall.acceptBatch(principal: AuthPrincipal, project: Proje
     return false
 }
 
+/** The site's sales rep email, or null when the site is unknown or has no rep set. */
+suspend fun salesRepEmailOfSite(siteId: String): String? =
+    newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
+        SitesTable.selectAll()
+            .where { SitesTable.siteId eq siteId }
+            .singleOrNull()
+            ?.get(SitesTable.salesRepEmail)
+    }
+
 /** The site's current farm code, or null when the site is unknown or has none yet. */
 suspend fun farmCodeOfSite(siteId: String): String? =
     newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {

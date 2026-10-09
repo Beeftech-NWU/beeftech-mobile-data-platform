@@ -14,5 +14,8 @@ object SitesTable : Table("sites") {
     /* Four characters, A-Z and 0-9, used as the first part of every file and batch name. Null only on a database not yet migrated. */
     val farmCode = varchar("farm_code", 4).nullable().uniqueIndex()
 
+    /* The sales rep who gets the email for each farmer registered on this site. Null falls back to BEEFTECH_SALES_REP_EMAIL. */
+    val salesRepEmail = varchar("sales_rep_email", 255).nullable()
+
     override val primaryKey = PrimaryKey(siteId)
 }

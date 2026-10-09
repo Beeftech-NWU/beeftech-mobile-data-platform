@@ -7,6 +7,7 @@ import androidx.room.Query
 import com.beeftech.database.entity.FarmerAddressEntity
 import com.beeftech.database.entity.FarmerEntity
 import com.beeftech.database.entity.FarmerRoleEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface FarmerDao {
@@ -37,6 +38,12 @@ interface FarmerDao {
         "SELECT * FROM farmers"
     )
     suspend fun getAllFarmers(): List<FarmerEntity>
+
+    /* Newest first. Farmers have no created time, so insertion order (rowid) stands in for it. */
+    @Query(
+        "SELECT * FROM farmers ORDER BY rowid DESC"
+    )
+    fun observeAllFarmers(): Flow<List<FarmerEntity>>
 
     @Query(
         """
