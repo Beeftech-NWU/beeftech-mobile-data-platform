@@ -669,15 +669,15 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
                                     ).show()
 
                                     /*
-                                     * Return to MainActivity.
+                                     * Return to the farmer list, closing the
+                                     * registration steps above it, so the new
+                                     * farmer shows with its Pending Sync pill.
                                      */
                                     val intent =
-                                        Intent().apply {
-
-                                            setClassName(
-                                                this@CoordinatesAndSaveScreen,
-                                                "com.beeftech.demoapp.MainActivity"
-                                            )
+                                        Intent(
+                                            this@CoordinatesAndSaveScreen,
+                                            FarmerListScreen::class.java
+                                        ).apply {
 
                                             flags =
                                                 Intent.FLAG_ACTIVITY_CLEAR_TOP or

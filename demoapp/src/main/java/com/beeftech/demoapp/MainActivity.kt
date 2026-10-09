@@ -61,7 +61,7 @@ import com.beeftech.management.ui.RecordsReviewTab
 import com.beeftech.management.ui.MyActivityScreen
 import com.beeftech.management.ui.TeamTab
 import com.beeftech.demoapp.ui.theme.BeeftechTheme
-import com.beeftech.farmerregistration.ClientDetailsScreen
+import com.beeftech.farmerregistration.FarmerListScreen
 import com.beeftech.farmerregistration.FarmerSyncScheduler
 import com.beeftech.feedcrib.ui.FeedCribFlow
 import com.beeftech.farmtraceability.data.TreatmentApiClient
@@ -858,7 +858,7 @@ class MainActivity : ComponentActivity() {
                                                 val intent =
                                                     Intent(
                                                         this@MainActivity,
-                                                        ClientDetailsScreen::class.java
+                                                        FarmerListScreen::class.java
                                                     )
 
                                                 startActivity(intent)
