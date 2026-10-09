@@ -38,6 +38,8 @@ data class FarmerSalesNotificationPayload(
     val deviceId: String,
     /* The submitter's site farm code; names the attachment. Null for a user with no site. */
     val farmCode: String? = null,
+    /* The submitter's site sales rep, who the email goes to. Null when the site has none. */
+    val assignedSalesmanEmail: String? = null,
     val submittedByUserId: String,
     val submittedByUsername: String,
     val submittedByRole: Int? = null,
@@ -71,7 +73,8 @@ data class SmtpFarmerSalesNotificationConfig(
     val username: String?,
     val password: String?,
     val fromAddress: String,
-    val recipientAddress: String,
+    /* BEEFTECH_SALES_REP_EMAIL: used only when the farmer's site has no sales rep. */
+    val recipientAddress: String?,
     val security: SmtpSecurity
 ) {
 
@@ -154,14 +157,16 @@ data class SmtpFarmerSalesNotificationConfig(
                     ?: username
                     ?: ""
 
+            /* Optional: sites carry their own sales rep, and this is only the fallback. */
             val recipientAddress =
                 environment["BEEFTECH_SALES_REP_EMAIL"]
                     ?.trim()
-                    .orEmpty()
+                    ?.takeIf {
+                        it.isNotBlank()
+                    }
 
             if (
-                fromAddress.isBlank() ||
-                recipientAddress.isBlank()
+                fromAddress.isBlank()
             ) {
                 return null
             }
@@ -275,6 +280,23 @@ class SmtpFarmerSalesNotificationService(
         payload: FarmerSalesNotificationPayload
     ) {
 
+        val recipientAddress =
+            salesRecipientFor(
+                payload,
+                config.recipientAddress
+            )
+
+        if (recipientAddress == null) {
+
+            println(
+                "No sales rep email for farmer " +
+                    payload.farmerId +
+                    ": the site has none and BEEFTECH_SALES_REP_EMAIL is not set. Email skipped."
+            )
+
+            return
+        }
+
         val summaryJson =
             json.encodeToString(payload)
 
@@ -380,7 +402,7 @@ class SmtpFarmerSalesNotificationService(
                 setRecipient(
                     Message.RecipientType.TO,
                     InternetAddress(
-                        config.recipientAddress
+                        recipientAddress
                     )
                 )
 
@@ -512,7 +534,7 @@ class SmtpFarmerSalesNotificationService(
             "Farmer registration notification sent using " +
                 config.provider +
                 " to " +
-                config.recipientAddress +
+                recipientAddress +
                 " for farmer " +
                 payload.farmerId
         )
@@ -528,6 +550,18 @@ class SmtpFarmerSalesNotificationService(
         )
     }
 }
+
+/** The site's sales rep when it has one, otherwise the BEEFTECH_SALES_REP_EMAIL fallback, otherwise null. */
+fun salesRecipientFor(
+    payload: FarmerSalesNotificationPayload,
+    fallbackAddress: String?
+): String? =
+    payload.assignedSalesmanEmail
+        ?.trim()
+        ?.takeIf { it.isNotBlank() }
+        ?: fallbackAddress
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
 
 class LoggingFarmerSalesNotificationService :
     FarmerSalesNotificationService {

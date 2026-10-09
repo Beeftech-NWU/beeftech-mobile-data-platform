@@ -88,6 +88,9 @@ class FarmerService(
                                     farmCode =
                                         principal.siteId?.let { farmCodeOfSite(it) },
 
+                                    assignedSalesmanEmail =
+                                        principal.siteId?.let { salesRepEmailOfSite(it) },
+
                                     submittedByUserId =
                                         principal.userId,
 

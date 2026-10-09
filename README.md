@@ -216,7 +216,7 @@ An environment variable wins over the matching `-D` system property.
 | `BEEFTECH_MEDIA_DIR` | `beeftech.media.dir` | Where uploaded calf photos are stored; defaults to a `media` folder next to the SQLite database |
 | `BEEFTECH_JWT_SECRET` | — | Falls back to a dev secret with a warning; always set in production |
 | `BEEFTECH_SMTP_PROVIDER` / `_HOST` / `_PORT` / `_SECURITY` / `_USERNAME` / `_PASSWORD` / `_FROM` | — | SMTP settings for the farmer sales notification email |
-| `BEEFTECH_SALES_REP_EMAIL` | — | Recipient of the farmer sales notification |
+| `BEEFTECH_SALES_REP_EMAIL` | — | Fallback recipient of the farmer sales notification, used when the farmer's site has no sales rep email |
 
 Deployment: the `Dockerfile` (`:backend:api:installDist`) and `render.yaml` deploy the
 backend to Render.

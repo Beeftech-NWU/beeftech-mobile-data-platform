@@ -51,26 +51,36 @@ class SiteRepository {
                 .any { it[SitesTable.siteId] != exceptSiteId }
         }
 
-    suspend fun insert(siteId: String, name: String, farmCode: String, now: Long, audit: AuditEntry) {
+    suspend fun insert(siteId: String, name: String, farmCode: String, salesRepEmail: String?, now: Long, audit: AuditEntry) {
         newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
             insertAuditRow(audit, now)
             SitesTable.insert {
                 it[SitesTable.siteId] = siteId
                 it[SitesTable.name] = name
                 it[SitesTable.farmCode] = farmCode
+                it[SitesTable.salesRepEmail] = salesRepEmail
                 it[createdAt] = now
                 it[active] = true
             }
         }
     }
 
-    suspend fun update(siteId: String, name: String, active: Boolean, farmCode: String?, now: Long, audit: AuditEntry) {
+    suspend fun update(
+        siteId: String,
+        name: String,
+        active: Boolean,
+        farmCode: String?,
+        salesRepEmail: String?,
+        now: Long,
+        audit: AuditEntry
+    ) {
         newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
             insertAuditRow(audit, now)
             SitesTable.update({ SitesTable.siteId eq siteId }) {
                 it[SitesTable.name] = name
                 it[SitesTable.active] = active
                 it[SitesTable.farmCode] = farmCode
+                it[SitesTable.salesRepEmail] = salesRepEmail
                 it[updatedAt] = now
             }
         }
@@ -90,6 +100,7 @@ class SiteRepository {
         createdAt = this[SitesTable.createdAt],
         updatedAt = this[SitesTable.updatedAt],
         farmCode = this[SitesTable.farmCode],
+        salesRepEmail = this[SitesTable.salesRepEmail],
         activeUserCount = activeUserCount
     )
 }
