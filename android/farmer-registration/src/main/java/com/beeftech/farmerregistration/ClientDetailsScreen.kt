@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -33,6 +34,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -48,9 +50,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -74,6 +78,8 @@ data class ClientRegistrationData(
     val organisationName: String = "",
     val emailAddress: String = "",
     val vatNumber: String = "",
+    val contactName: String = "",
+    val contactNumber: String = "",
     val selectedRoles: Set<String> = emptySet()
 )
 
@@ -186,6 +192,12 @@ fun ClientDetailsContent(
                     .clientCode
                     .trim()
                     .uppercase()
+            )
+
+    val contactNumberIsValid =
+        FarmerFieldRules
+            .isValidContactNumber(
+                formData.contactNumber
             )
 
     Column(
@@ -428,6 +440,60 @@ fun ClientDetailsContent(
 
                 FarmerTextField(
                     label =
+                        "Contact Person",
+                    value =
+                        formData.contactName,
+                    onValueChange = {
+
+                        onFormDataChange(
+                            formData.copy(
+                                contactName = it
+                            )
+                        )
+                    },
+                    supportingText =
+                        "Optional. Person the sales rep should call"
+                )
+
+                Spacer(
+                    modifier =
+                        Modifier.height(16.dp)
+                )
+
+                FarmerTextField(
+                    label =
+                        "Contact Number",
+                    value =
+                        formData.contactNumber,
+                    onValueChange = {
+
+                        onFormDataChange(
+                            formData.copy(
+                                contactNumber = it
+                            )
+                        )
+                    },
+                    placeholder =
+                        "e.g. +27 82 555 0101",
+                    supportingText =
+                        if (contactNumberIsValid) {
+                            "Optional"
+                        } else {
+                            "Use +, digits and spaces, with 9 to 15 digits"
+                        },
+                    isError =
+                        !contactNumberIsValid,
+                    keyboardType =
+                        KeyboardType.Phone
+                )
+
+                Spacer(
+                    modifier =
+                        Modifier.height(16.dp)
+                )
+
+                FarmerTextField(
+                    label =
                         "Email Address",
                     value =
                         formData.emailAddress,
@@ -633,6 +699,7 @@ fun ClientDetailsContent(
                             onContinueClick,
                         enabled =
                             !isDuplicate &&
+                                    contactNumberIsValid &&
                                     formData
                                         .clientCode
                                         .isNotBlank()
@@ -731,7 +798,9 @@ fun FarmerTextField(
     isError: Boolean = false,
     modifier: Modifier = Modifier,
     icon: ImageVector =
-        Icons.Outlined.EditNote
+        Icons.Outlined.EditNote,
+    keyboardType: KeyboardType =
+        KeyboardType.Text
 ) {
 
     Column(
@@ -771,6 +840,11 @@ fun FarmerTextField(
             },
             singleLine = true,
             isError = isError,
+            keyboardOptions =
+                KeyboardOptions(
+                    keyboardType =
+                        keyboardType
+                ),
             leadingIcon = {
 
                 Box(
@@ -968,11 +1042,19 @@ private fun Text(
         TextUnit.Unspecified
 ) {
 
+    /* As material3 Text does: an unset colour follows the surrounding content colour (white on a primary button). */
+    val resolvedColor =
+        color.takeOrElse {
+            LocalTextStyle.current.color.takeOrElse {
+                LocalContentColor.current
+            }
+        }
+
     val style =
         LocalTextStyle.current.merge(
             TextStyle(
                 color =
-                    color,
+                    resolvedColor,
                 fontSize =
                     fontSize,
                 fontWeight =

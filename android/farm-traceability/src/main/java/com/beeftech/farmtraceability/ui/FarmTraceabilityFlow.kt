@@ -1205,6 +1205,17 @@ fun FarmTraceabilityFlow(
                         ?.land_ownership
                         .orEmpty(),
 
+                herdCapacity =
+                    loadedFarmer
+                        ?.herd_capacity
+                        ?.toString()
+                        .orEmpty(),
+
+                interestStatus =
+                    loadedFarmer
+                        ?.interest_status
+                        .orEmpty(),
+
                 faCodeRmis =
                     loadedFarmer
                         ?.fa_code_rmis
@@ -1307,6 +1318,11 @@ fun FarmTraceabilityFlow(
                     .uiState
                     .collectAsState()
 
+                val animals by
+                findAnimalViewModel
+                    .animals
+                    .collectAsState()
+
                 LaunchedEffect(
                     uiState
                 ) {
@@ -1370,6 +1386,9 @@ fun FarmTraceabilityFlow(
                     }
 
                 FindAnimalScreen(
+                    animals =
+                        animals,
+
                     isLoading =
                         uiState is
                                 FindAnimalUiState
@@ -1391,6 +1410,15 @@ fun FarmTraceabilityFlow(
                         findAnimalViewModel
                             .findAnimal(
                                 reference
+                            )
+                    },
+
+                    onAnimalSelected = {
+                            animal ->
+
+                        findAnimalViewModel
+                            .selectAnimal(
+                                animal
                             )
                     }
                 )

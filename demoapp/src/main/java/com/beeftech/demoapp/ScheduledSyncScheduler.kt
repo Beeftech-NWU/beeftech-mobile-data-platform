@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import com.beeftech.database.entity.SyncRunTrigger
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
@@ -67,14 +68,16 @@ object ScheduledSyncScheduler {
             workManager = workManager,
             uniqueWorkName = MORNING_WORK_NAME,
             targetHour = MORNING_HOUR,
-            label = "05:00-06:00 morning"
+            label = "05:00-06:00 morning",
+            trigger = SyncRunTrigger.MORNING
         )
 
         enqueueDailyWindow(
             workManager = workManager,
             uniqueWorkName = EVENING_WORK_NAME,
             targetHour = EVENING_HOUR,
-            label = "18:00-19:00 evening"
+            label = "18:00-19:00 evening",
+            trigger = SyncRunTrigger.EVENING
         )
     }
 
@@ -82,7 +85,8 @@ object ScheduledSyncScheduler {
         workManager: WorkManager,
         uniqueWorkName: String,
         targetHour: Int,
-        label: String
+        label: String,
+        trigger: String
     ) {
 
         val initialDelayMillis =
@@ -100,6 +104,9 @@ object ScheduledSyncScheduler {
                 .setInitialDelay(
                     initialDelayMillis,
                     TimeUnit.MILLISECONDS
+                )
+                .setInputData(
+                    SyncAllDispatcher.triggerData(trigger)
                 )
                 .build()
 

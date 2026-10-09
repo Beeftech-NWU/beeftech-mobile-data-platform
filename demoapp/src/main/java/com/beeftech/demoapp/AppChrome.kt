@@ -1,5 +1,6 @@
 package com.beeftech.demoapp
 
+import com.beeftech.database.util.ModulePending
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
@@ -12,7 +13,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -439,7 +442,11 @@ fun BeefHomeScreen(
     onDashboard: () -> Unit,
     onReports: () -> Unit,
     onMyActivity: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    pendingByModule: List<ModulePending> = emptyList(),
+    lastRunLine: String = "",
+    canSyncNow: Boolean = false,
+    onSyncNow: () -> Unit = {}
 ) {
     var showSyncDetails by remember { mutableStateOf(false) }
     LazyColumn(
@@ -493,7 +500,7 @@ fun BeefHomeScreen(
 
         item {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 HomeActionCard(
@@ -517,7 +524,7 @@ fun BeefHomeScreen(
             item { HomeSectionTitle("Farm management", "Monitor activity and review records") }
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     HomeActionCard(
@@ -669,6 +676,45 @@ fun BeefHomeScreen(
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                         }
                     }
+                    if (pendingByModule.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            pendingByModule.forEach { module ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = module.label,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = BeefText
+                                    )
+                                    Text(
+                                        text = "${module.count} waiting",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = BeefText
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (lastRunLine.isNotBlank()) {
+                        Text(
+                            text = lastRunLine,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = BeefMutedText
+                        )
+                    }
+
+                    Button(
+                        onClick = onSyncNow,
+                        enabled = canSyncNow,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (canSyncNow) "Sync now" else "Sync now (needs internet)")
+                    }
+
                 }
             }
         }
@@ -739,6 +785,7 @@ private fun HomeActionCard(
 ) {
     Card(
         modifier = modifier
+            .fillMaxHeight()
             .defaultMinSize(minHeight = 132.dp)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),

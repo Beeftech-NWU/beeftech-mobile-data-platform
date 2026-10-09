@@ -3,6 +3,7 @@ package com.beeftech.backend.api
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 class SmtpFarmerSalesNotificationConfigTest {
 
@@ -135,6 +136,64 @@ class SmtpFarmerSalesNotificationConfigTest {
         assertEquals(
             SmtpSecurity.SSL,
             config.security
+        )
+    }
+
+    @Test
+    fun `smtp stays enabled without BEEFTECH_SALES_REP_EMAIL because sites carry their own rep`() {
+
+        val config =
+            SmtpFarmerSalesNotificationConfig
+                .fromEnvironment(
+                    mapOf(
+                        "BEEFTECH_SMTP_HOST" to
+                            "localhost",
+                        "BEEFTECH_SMTP_PORT" to
+                            "1025",
+                        "BEEFTECH_SMTP_SECURITY" to
+                            "none",
+                        "BEEFTECH_SMTP_FROM" to
+                            "noreply@example.com"
+                    )
+                )
+
+        assertNotNull(config)
+
+        assertNull(
+            config.recipientAddress
+        )
+    }
+
+    @Test
+    fun `the site's sales rep wins over the fallback address`() {
+
+        val payload =
+            FarmerSalesNotificationPayload(
+                farmerId = "f-1",
+                deviceId = "MOB_DEV_1",
+                assignedSalesmanEmail = "site.rep@example.com",
+                submittedByUserId = "u-1",
+                submittedByUsername = "jvdm",
+                serverSyncedAt = 0L
+            )
+
+        assertEquals(
+            "site.rep@example.com",
+            salesRecipientFor(payload, "fallback@example.com")
+        )
+
+        assertEquals(
+            "fallback@example.com",
+            salesRecipientFor(payload.copy(assignedSalesmanEmail = null), "fallback@example.com")
+        )
+
+        assertEquals(
+            "fallback@example.com",
+            salesRecipientFor(payload.copy(assignedSalesmanEmail = "  "), " fallback@example.com ")
+        )
+
+        assertNull(
+            salesRecipientFor(payload.copy(assignedSalesmanEmail = null), null)
         )
     }
 }

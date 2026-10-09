@@ -1,5 +1,7 @@
 package com.beeftech.farmtraceability.data
 
+import com.beeftech.database.util.BatchNaming
+import com.beeftech.database.util.ProjectCode
 import com.beeftech.database.BackendConfig
 import com.beeftech.database.entity.Treatment
 import com.beeftech.database.security.TokenProvider
@@ -40,7 +42,9 @@ data class TreatmentDto(
 @Serializable
 data class TreatmentSyncRequest(
     val deviceId: String,
-    val records: List<TreatmentDto>
+    val records: List<TreatmentDto>,
+    /* [FarmCode]-[Project]-[YYYYMMDD]-[HHMMSS]-[DeviceID]; null until this device has the farm code. */
+    val batchName: String? = null
 )
 
 @Serializable
@@ -307,7 +311,8 @@ class TreatmentApiClient(
             setBody(
                 TreatmentSyncRequest(
                     deviceId = deviceId,
-                    records = records
+                    records = records,
+                    batchName = BatchNaming.nameFor(ProjectCode.TREATMENT)
                 )
             )
         }

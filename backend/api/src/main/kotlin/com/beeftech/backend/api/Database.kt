@@ -40,6 +40,7 @@ object DatabaseFactory {
 
         // Must run before SchemaUtils.create, which never alters an existing table.
         CalfRegistrationSchemaMigration.run(database)
+        CalfRegistrationDetailsSchemaMigration.run(database)
         FarmerSchemaMigration.run(database)
         UsersSchemaMigration.run(database)
         SitesSchemaMigration.run(database)
@@ -70,7 +71,8 @@ object DatabaseFactory {
                 LoginEventsTable,
                 CostTypeTable,
                 AppSettingsTable,
-                SyncSecurityEventsTable
+                SyncSecurityEventsTable,
+                SyncUploadLogTable
             )
         }
 

@@ -5,7 +5,9 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class CostSyncRequest(
     val deviceId: String,
-    val records: List<CostSyncRecord>
+    val records: List<CostSyncRecord>,
+    /* [FarmCode]-[Project]-[YYYYMMDD]-[HHMMSS]-[DeviceID]; absent from app versions that predate it. */
+    val batchName: String? = null
 )
 
 @Serializable

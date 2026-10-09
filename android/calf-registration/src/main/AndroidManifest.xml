@@ -4,6 +4,13 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- Android 11+: lets the app see a camera app to hand the photo capture to. -->
+    <queries>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+    </queries>
+
     <!--
         Development-only: the local Ktor backend is served over HTTP at
         10.0.2.2:8081 from the Android emulator.
@@ -11,6 +18,19 @@
         before production release.
     -->
     <application
-        android:usesCleartextTraffic="true" />
+        android:usesCleartextTraffic="true">
+
+        <!-- Hands the camera app a write-only target for one photo; the app needs no CAMERA permission. -->
+        <provider
+            android:name="com.beeftech.calfregistration.util.CalfFileProvider"
+            android:authorities="${applicationId}.calfregistration.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/calf_file_paths" />
+        </provider>
+
+    </application>
 
 </manifest>

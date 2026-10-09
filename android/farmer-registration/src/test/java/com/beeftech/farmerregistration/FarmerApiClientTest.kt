@@ -90,7 +90,14 @@ class FarmerApiClientTest {
             co_reg_id_no = "9608551/07",
             land_ownership = "Owned",
             fa_code_rmis = "FA-RMIS-01",
-            gln_number = "GLN-123"
+            gln_number = "GLN-123",
+            herd_capacity = 450,
+            interest_status = "Interested",
+            contact_name = "Jan Botha",
+            contact_number = "+27 82 555 0101",
+            farm_size_ha = 1250.5,
+            head_count = 380,
+            primary_breed = "Bonsmara"
         )
 
         val address = FarmerAddressEntity(
@@ -118,6 +125,13 @@ class FarmerApiClientTest {
         assertEquals("Owned", record["landOwnership"]!!.jsonPrimitive.content)
         assertEquals("FA-RMIS-01", record["faCodeRmis"]!!.jsonPrimitive.content)
         assertEquals("GLN-123", record["glnNumber"]!!.jsonPrimitive.content)
+        assertEquals("450", record["herdCapacity"]!!.jsonPrimitive.content)
+        assertEquals("Interested", record["interestStatus"]!!.jsonPrimitive.content)
+        assertEquals("Jan Botha", record["contactName"]!!.jsonPrimitive.content)
+        assertEquals("+27 82 555 0101", record["contactNumber"]!!.jsonPrimitive.content)
+        assertEquals("1250.5", record["farmSizeHa"]!!.jsonPrimitive.content)
+        assertEquals("380", record["headCount"]!!.jsonPrimitive.content)
+        assertEquals("Bonsmara", record["primaryBreed"]!!.jsonPrimitive.content)
 
         val addr = record["addresses"]!!.jsonArray[0].jsonObject
         assertEquals("8600", addr["streetCode"]!!.jsonPrimitive.content)

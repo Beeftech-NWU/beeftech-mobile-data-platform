@@ -4,9 +4,11 @@ import com.beeftech.database.security.TokenProvider
 import com.beeftech.management.data.ManagementApiClient
 import com.beeftech.management.viewmodel.SitesUiState
 import com.beeftech.management.viewmodel.SitesViewModel
+import com.beeftech.management.viewmodel.isValidSalesRepEmail
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.engine.mock.toByteArray
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
@@ -93,7 +95,7 @@ class SitesViewModelTest {
         vm.await { it.sites.isNotEmpty() }
 
         val created = CompletableDeferred<Unit>()
-        vm.createSite("  Alpha ") { created.complete(Unit) }
+        vm.createSite("  Alpha ", " alph ") { created.complete(Unit) }
         created.awaitFired()
 
         assertEquals(listOf("Alpha", "North"), vm.uiState.value.sites.map { it.name })
@@ -113,12 +115,56 @@ class SitesViewModelTest {
         vm.await { it.sites.isNotEmpty() }
 
         var created = false
-        vm.createSite("north") { created = true }
+        vm.createSite("north", "NRTH") { created = true }
         vm.await { it.error != null }
 
         assertFalse(created)
         assertEquals("A site with that name already exists", vm.uiState.value.error)
         assertEquals(1, vm.uiState.value.sites.size)
+    }
+
+    @Test
+    fun `setting and removing a sales rep updates the card`() = runTest {
+        val bodies = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            if (request.method == HttpMethod.Patch) {
+                val body = String(request.body.toByteArray())
+                bodies += body
+                val rep = if ("rep@example.com" in body) ""","salesRepEmail":"rep@example.com"""" else ""
+                respond(oneBody(site("s1", "North").dropLast(1) + rep + "}"), HttpStatusCode.OK, jsonHeaders)
+            } else {
+                respond(listBody(site("s1", "North")), HttpStatusCode.OK, jsonHeaders)
+            }
+        }
+        val vm = SitesViewModel(
+            ManagementApiClient(provider, "http://test-host/", HttpClient(engine) {
+                install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+            })
+        )
+        vm.refresh()
+        vm.await { it.sites.isNotEmpty() }
+
+        val set = CompletableDeferred<Unit>()
+        vm.changeSalesRep(vm.uiState.value.sites.single(), " rep@example.com ") { set.complete(Unit) }
+        set.awaitFired()
+        assertEquals("rep@example.com", vm.uiState.value.sites.single().salesRepEmail)
+        assertEquals("Sales rep for North is now rep@example.com", vm.uiState.value.notice)
+
+        val removed = CompletableDeferred<Unit>()
+        vm.changeSalesRep(vm.uiState.value.sites.single(), "") { removed.complete(Unit) }
+        removed.awaitFired()
+        assertNull(vm.uiState.value.sites.single().salesRepEmail)
+        assertEquals("North no longer has a sales rep", vm.uiState.value.notice)
+        assertEquals(listOf("""{"salesRepEmail":"rep@example.com"}""", """{"salesRepEmail":""}"""), bodies)
+    }
+
+    @Test
+    fun `sales rep emails are checked like the server does`() {
+        assertTrue(isValidSalesRepEmail(""))
+        assertTrue(isValidSalesRepEmail(" rep@example.com "))
+        assertFalse(isValidSalesRepEmail("rep@example"))
+        assertFalse(isValidSalesRepEmail("a@example.com, b@example.com"))
+        assertFalse(isValidSalesRepEmail("Rep <rep@example.com>"))
     }
 
     @Test

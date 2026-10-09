@@ -259,6 +259,9 @@ class ReportRoutesTest {
         val csv = client.report("mortality", manager, "?format=csv")
         assertEquals(HttpStatusCode.OK, csv.status)
         assertTrue(csv.headers[HttpHeaders.ContentDisposition]!!.startsWith("attachment"))
+        val csvName = Regex("filename=\"?([^\";]+)").find(csv.headers[HttpHeaders.ContentDisposition]!!)!!.groupValues[1]
+        assertTrue(com.beeftech.backend.api.common.FileNaming.validate(csvName), csvName)
+        assertTrue(csvName.startsWith("S001-REPORT-") && csvName.endsWith("-SERVER.csv"), csvName)
         assertEquals(
             "Cause of death,Mortalities\r\n\"'=HYPERLINK(\"\"x\"\"), bad\",1\r\n",
             csv.bodyAsText()

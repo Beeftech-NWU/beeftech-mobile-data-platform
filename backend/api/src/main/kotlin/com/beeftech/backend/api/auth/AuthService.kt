@@ -87,7 +87,8 @@ class AuthService(
             role = user.role,
             pinHash = user.pinHash,
             deviceAssignedId = user.deviceAssignedId ?: deviceId,
-            siteId = user.siteId
+            siteId = user.siteId,
+            farmCode = user.siteId?.let { userRepository.farmCodeOf(it) }
         )
 
         return LoginResult.Success(

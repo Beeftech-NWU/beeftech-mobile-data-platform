@@ -32,6 +32,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -44,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -63,10 +65,27 @@ data class AddressAndLocationData(
     val country: String = "",
     val landOwnership: String = "",
     val faCodeRmis: String = "",
-    val glnNumber: String = ""
+    val glnNumber: String = "",
+    val herdCapacity: String = "",
+    val interestStatus: String = "",
+    val farmSizeHa: String = "",
+    val headCount: String = "",
+    val primaryBreed: String = ""
 )
 
 object AddressAndLocationLookups {
+
+    const val MAX_HERD_CAPACITY = 100_000
+
+    const val MAX_FARM_SIZE_HA = 1_000_000.0
+
+    val interestStatuses =
+        listOf(
+            "Interested",
+            "Follow-up needed",
+            "Not interested",
+            "Already a client"
+        )
 
     val provinces =
         listOf(
@@ -502,6 +521,89 @@ fun AddressAndLocationContent(
                     modifier = Modifier.height(16.dp)
                 )
 
+                FarmerIdentifierTextField(
+                    label = "Herd Capacity",
+                    value = formData.herdCapacity,
+                    onValueChange = { entered ->
+                        val capacity = entered.toIntOrNull()
+                        if (capacity == null || capacity <= AddressAndLocationLookups.MAX_HERD_CAPACITY) {
+                            onFormDataChange(formData.copy(herdCapacity = entered))
+                        }
+                    },
+                    placeholder = "Number of animals the farm can hold",
+                    helperText = "Optional. Whole number from 0 to 100000.",
+                    maxLength = 6
+                )
+
+                Spacer(
+                    modifier = Modifier.height(16.dp)
+                )
+
+                FarmerIdentifierTextField(
+                    label = "Farm Size (ha)",
+                    value = formData.farmSizeHa,
+                    onValueChange = { entered ->
+                        val hectares = FarmerFieldRules.parseFarmSizeHa(entered)
+                        if (hectares == null || hectares <= AddressAndLocationLookups.MAX_FARM_SIZE_HA) {
+                            onFormDataChange(formData.copy(farmSizeHa = entered))
+                        }
+                    },
+                    placeholder = "e.g. 1250.5",
+                    helperText = "Optional. Hectares, up to 2 decimals.",
+                    maxLength = 10,
+                    allowDecimal = true
+                )
+
+                Spacer(
+                    modifier = Modifier.height(16.dp)
+                )
+
+                FarmerIdentifierTextField(
+                    label = "Head Count",
+                    value = formData.headCount,
+                    onValueChange = { entered ->
+                        val count = entered.toIntOrNull()
+                        if (count == null || count <= AddressAndLocationLookups.MAX_HERD_CAPACITY) {
+                            onFormDataChange(formData.copy(headCount = entered))
+                        }
+                    },
+                    placeholder = "Animals on the farm today",
+                    helperText = "Optional. Whole number from 0 to 100000.",
+                    maxLength = 6
+                )
+
+                Spacer(
+                    modifier = Modifier.height(16.dp)
+                )
+
+                FarmerTextField(
+                    label = "Primary Breed",
+                    value = formData.primaryBreed,
+                    onValueChange = {
+                        onFormDataChange(formData.copy(primaryBreed = it))
+                    },
+                    placeholder = "e.g. Bonsmara",
+                    supportingText = "Optional"
+                )
+
+                Spacer(
+                    modifier = Modifier.height(16.dp)
+                )
+
+                FarmerDropdownField(
+                    label = "Interest Status",
+                    selectedOption = formData.interestStatus,
+                    options = AddressAndLocationLookups.interestStatuses,
+                    onOptionSelected = {
+                        onFormDataChange(formData.copy(interestStatus = it))
+                    },
+                    placeholder = "Select interest status (optional)"
+                )
+
+                Spacer(
+                    modifier = Modifier.height(16.dp)
+                )
+
                 FarmerEditableLookupField(
                     label = "FA Code (RMIS)",
                     value = formData.faCodeRmis,
@@ -860,7 +962,9 @@ fun FarmerIdentifierTextField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     helperText: String,
-    errorMessage: String = ""
+    errorMessage: String = "",
+    maxLength: Int = 13,
+    allowDecimal: Boolean = false
 ) {
 
     Column(
@@ -883,12 +987,17 @@ fun FarmerIdentifierTextField(
             value = value,
             onValueChange = { rawValue ->
 
-                onValueChange(
-                    rawValue
-                        .filter {
+                val cleaned =
+                    if (allowDecimal) {
+                        FarmerFieldRules.cleanDecimal(rawValue)
+                    } else {
+                        rawValue.filter {
                             it.isDigit()
                         }
-                        .take(13)
+                    }
+
+                onValueChange(
+                    cleaned.take(maxLength)
                 )
             },
             placeholder = {
@@ -904,7 +1013,11 @@ fun FarmerIdentifierTextField(
             keyboardOptions =
                 KeyboardOptions(
                     keyboardType =
-                        KeyboardType.Number
+                        if (allowDecimal) {
+                            KeyboardType.Decimal
+                        } else {
+                            KeyboardType.Number
+                        }
                 ),
             modifier =
                 Modifier.fillMaxWidth(),
@@ -1131,10 +1244,18 @@ private fun Text(
         TextUnit.Unspecified
 ) {
 
+    /* As material3 Text does: an unset colour follows the surrounding content colour (white on a primary button). */
+    val resolvedColor =
+        color.takeOrElse {
+            LocalTextStyle.current.color.takeOrElse {
+                LocalContentColor.current
+            }
+        }
+
     val style =
         LocalTextStyle.current.merge(
             TextStyle(
-                color = color,
+                color = resolvedColor,
                 fontSize = fontSize,
                 fontWeight = fontWeight,
                 letterSpacing =

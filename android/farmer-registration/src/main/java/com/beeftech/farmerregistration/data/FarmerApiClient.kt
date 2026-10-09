@@ -1,5 +1,7 @@
 package com.beeftech.farmerregistration.data
 
+import com.beeftech.database.util.BatchNaming
+import com.beeftech.database.util.ProjectCode
 import com.beeftech.database.BackendConfig
 import android.content.Context
 import android.provider.Settings
@@ -59,6 +61,13 @@ data class FarmerPayload(
     val landOwnership: String? = null,
     val faCodeRmis: String? = null,
     val glnNumber: String? = null,
+    val herdCapacity: Int? = null,
+    val interestStatus: String? = null,
+    val contactName: String? = null,
+    val contactNumber: String? = null,
+    val farmSizeHa: Double? = null,
+    val headCount: Int? = null,
+    val primaryBreed: String? = null,
     val addresses: List<FarmerAddressPayload> = emptyList(),
     val roles: List<FarmerRolePayload> = emptyList()
 )
@@ -66,7 +75,9 @@ data class FarmerPayload(
 @Serializable
 data class FarmerSyncRequest(
     val deviceId: String,
-    val records: List<FarmerPayload>
+    val records: List<FarmerPayload>,
+    /* [FarmCode]-[Project]-[YYYYMMDD]-[HHMMSS]-[DeviceID]; null until this device has the farm code. */
+    val batchName: String? = null
 )
 
 @Serializable
@@ -119,7 +130,8 @@ class FarmerApiClient(
         val payload = farmer.toPayload(addresses, roles)
         val request = FarmerSyncRequest(
             deviceId = getDeviceId(),
-            records = listOf(payload)
+            records = listOf(payload),
+            batchName = BatchNaming.nameFor(ProjectCode.FARMER_REG)
         )
 
         val response = client.post("$baseUrl/api/farmers/sync") {
@@ -162,6 +174,13 @@ class FarmerApiClient(
         landOwnership = land_ownership,
         faCodeRmis = fa_code_rmis,
         glnNumber = gln_number,
+        herdCapacity = herd_capacity,
+        interestStatus = interest_status,
+        contactName = contact_name,
+        contactNumber = contact_number,
+        farmSizeHa = farm_size_ha,
+        headCount = head_count,
+        primaryBreed = primary_breed,
         addresses = addresses.map { it.toPayload() },
         roles = roles.map { it.toPayload() }
     )

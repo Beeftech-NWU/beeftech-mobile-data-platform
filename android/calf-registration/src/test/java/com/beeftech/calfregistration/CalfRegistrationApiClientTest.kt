@@ -16,6 +16,9 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.beeftech.calfregistration.data.PhotoUploadResult
+import io.ktor.http.HttpMethod
+import io.ktor.http.content.OutgoingContent
 
 class CalfRegistrationApiClientTest {
 
@@ -25,6 +28,8 @@ class CalfRegistrationApiClientTest {
         tagNumber = tagNumber,
         breed = "Brangus",
         gender = "Female",
+        hideColour = null,
+        brandMark = null,
         birthdate = 1_700_000_000_000L,
         damAnimalId = null,
         damTagNumber = null,
@@ -32,6 +37,13 @@ class CalfRegistrationApiClientTest {
         sireTagNumber = null,
         birthWeightKg = null,
         calvingEase = null,
+        ageClass = "< 1 Week",
+        bodyCondition = "Excellent",
+        conformity = "G — Good",
+        processProof = null,
+        implantProof = null,
+        oldTagNumber = null,
+        referenceNumber = null,
         registrationDate = 1_672_531_200_000L,
         gpsLat = 0.0,
         gpsLng = 0.0,
@@ -40,7 +52,8 @@ class CalfRegistrationApiClientTest {
         photoPath = null,
         recordGuid = "guid-1",
         syncStatus = "PENDING",
-        syncedAt = null
+        syncedAt = null,
+        syncError = null
     )
 
     @Test
@@ -160,5 +173,69 @@ class CalfRegistrationApiClientTest {
 
         assertTrue(result.isFailure)
         assertEquals(1, syncAttempts)
+    }
+
+    private fun photoClient(status: HttpStatusCode, onRequest: (io.ktor.client.request.HttpRequestData) -> Unit = {}) =
+        CalfRegistrationApiClient(
+            tokenProvider = FakeTokenProvider("test-token"),
+            baseUrl = "http://test-host/",
+            httpClient = HttpClient(
+                MockEngine { request ->
+                    onRequest(request)
+                    respond(content = "{}", status = status, headers = headersOf(HttpHeaders.ContentType, "application/json"))
+                }
+            ) { install(ContentNegotiation) { json() } }
+        )
+
+    @Test
+    fun `uploadPhoto PUTs the JPEG bytes with the bearer token to the calf's photo route`() = runTest {
+        var method: HttpMethod? = null
+        var path: String? = null
+        var auth: String? = null
+        var contentType: String? = null
+        var body: ByteArray? = null
+
+        val result = photoClient(HttpStatusCode.OK) { request ->
+            method = request.method
+            path = request.url.encodedPath
+            auth = request.headers[HttpHeaders.Authorization]
+            contentType = request.body.contentType?.toString()
+            body = (request.body as OutgoingContent.ByteArrayContent).bytes()
+        }.uploadPhoto("Blu1234567", byteArrayOf(1, 2, 3))
+
+        assertEquals(PhotoUploadResult.Uploaded, result)
+        assertEquals(HttpMethod.Put, method)
+        assertEquals("/api/calf-registrations/Blu1234567/photo", path)
+        assertEquals("Bearer test-token", auth)
+        assertEquals("image/jpeg", contentType)
+        assertTrue(byteArrayOf(1, 2, 3).contentEquals(body))
+    }
+
+    @Test
+    fun `uploadPhoto treats a refusal as final and trouble as temporary`() = runTest {
+        assertTrue(photoClient(HttpStatusCode.PayloadTooLarge).uploadPhoto("T", byteArrayOf(1)) is PhotoUploadResult.Rejected)
+        assertTrue(photoClient(HttpStatusCode.UnsupportedMediaType).uploadPhoto("T", byteArrayOf(1)) is PhotoUploadResult.Rejected)
+        assertTrue(photoClient(HttpStatusCode.NotFound).uploadPhoto("T", byteArrayOf(1)) is PhotoUploadResult.Rejected)
+
+        assertTrue(photoClient(HttpStatusCode.InternalServerError).uploadPhoto("T", byteArrayOf(1)) is PhotoUploadResult.RetryLater)
+        assertTrue(photoClient(HttpStatusCode.TooManyRequests).uploadPhoto("T", byteArrayOf(1)) is PhotoUploadResult.RetryLater)
+        assertTrue(photoClient(HttpStatusCode.RequestTimeout).uploadPhoto("T", byteArrayOf(1)) is PhotoUploadResult.RetryLater)
+    }
+
+    @Test
+    fun `uploadPhoto retries later when there is no token or the network throws`() = runTest {
+        val noToken = CalfRegistrationApiClient(
+            tokenProvider = FakeTokenProvider(null),
+            baseUrl = "http://test-host/",
+            httpClient = HttpClient(MockEngine { error("must not be called") })
+        )
+        assertTrue(noToken.uploadPhoto("T", byteArrayOf(1)) is PhotoUploadResult.RetryLater)
+
+        val offline = CalfRegistrationApiClient(
+            tokenProvider = FakeTokenProvider("t"),
+            baseUrl = "http://test-host/",
+            httpClient = HttpClient(MockEngine { throw java.io.IOException("offline") })
+        )
+        assertTrue(offline.uploadPhoto("T", byteArrayOf(1)) is PhotoUploadResult.RetryLater)
     }
 }

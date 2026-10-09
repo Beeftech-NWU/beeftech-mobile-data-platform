@@ -27,62 +27,11 @@ fun CalfReviewScreen(
 ) {
     Scaffold(
         topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = BeeftechSurface,
-                shadowElevation = 1.dp
-            ) {
-                Column(
-                    modifier = Modifier
-                        .statusBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = onBackClick) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                                    contentDescription = "Back",
-                                    tint = BeeftechText
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = "Register calf",
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = BeeftechText
-                                )
-                                Text(
-                                    text = "Step 4 of 4: Check",
-                                    fontSize = 13.sp,
-                                    color = BeeftechMutedText
-                                )
-                            }
-                        }
-
-                        Surface(
-                            shape = RoundedCornerShape(99.dp),
-                            color = Color(0xFFDDEFE4)
-                        ) {
-                            Text(
-                                text = "Step 4",
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF17402D)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                    StepProgress(currentStep = 4, totalSteps = 4)
-                }
-            }
+            CalfStepTopBar(
+                step = 4,
+                title = "Check",
+                onBackClick = onBackClick
+            )
         },
         bottomBar = {
             BottomActionDock {
@@ -133,7 +82,7 @@ fun CalfReviewScreen(
                 .background(BeeftechBackground)
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
@@ -170,6 +119,24 @@ fun CalfReviewScreen(
                     if (formData.conformity.isNotBlank()) {
                         append(", ${formData.conformity}")
                     }
+                    if (formData.mark.isNotBlank()) {
+                        append(", mark: ${formData.mark}")
+                    }
+                },
+                onChangeClick = { onJumpToStep(2) }
+            )
+
+            ReviewRow(
+                label = "Birth details",
+                value = buildString {
+                    append(
+                        formData.birthDate.ifBlank { "Date not entered (today is used)" }
+                    )
+                    append(", ")
+                    append(
+                        formData.birthWeightKg.takeIf { it.isNotBlank() }?.let { "$it kg" }
+                            ?: "not weighed"
+                    )
                 },
                 onChangeClick = { onJumpToStep(2) }
             )
@@ -180,26 +147,51 @@ fun CalfReviewScreen(
                 value = buildString {
                     append(formData.age.ifEmpty { "Newborn" })
                     if (formData.condition.isNotBlank()) {
-                        append(", ${formData.condition}")
+                        append(", ${CalfRegistrationLookups.conditionDisplay(formData.condition)}")
                     }
                 },
                 onChangeClick = { onJumpToStep(3) }
             )
 
             // Review row 5: Parents
-            val hasParents = formData.dameTagNumber.isNotBlank() || formData.sireTagNumber.isNotBlank()
+            val hasDam = com.beeftech.calfregistration.data.CalfRegistrationMappers.parentTag(formData.dameTagNumber) != null
+            val hasSire = com.beeftech.calfregistration.data.CalfRegistrationMappers.parentTag(formData.sireTagNumber) != null
+            val hasParents = hasDam || hasSire
             ReviewRow(
                 label = "Parentage (Dam / Sire)",
                 value = if (hasParents) {
                     buildString {
-                        if (formData.dameTagNumber.isNotBlank()) append("Dam: ${formData.dameTagNumber} ")
-                        if (formData.sireTagNumber.isNotBlank()) append("Sire: ${formData.sireTagNumber}")
+                        if (hasDam) append("Dam: ${formData.dameTagNumber} ")
+                        if (hasSire) append("Sire: ${formData.sireTagNumber}")
                     }.trim()
                 } else {
                     "None specified"
                 },
                 onChangeClick = { onJumpToStep(3) }
             )
+
+            // Optional identifiers and proofs: shown only when entered
+            if (formData.oldTagNumber.isNotBlank() || formData.referenceNumber.isNotBlank()) {
+                ReviewRow(
+                    label = "Other identifiers",
+                    value = buildString {
+                        if (formData.oldTagNumber.isNotBlank()) append("Old tag: ${formData.oldTagNumber} ")
+                        if (formData.referenceNumber.isNotBlank()) append("Reference: ${formData.referenceNumber}")
+                    }.trim(),
+                    onChangeClick = { onJumpToStep(1) }
+                )
+            }
+
+            if (formData.processProof.isNotBlank() || formData.implantProof.isNotBlank()) {
+                ReviewRow(
+                    label = "Verification",
+                    value = buildString {
+                        if (formData.processProof.isNotBlank()) append("Process: ${formData.processProof} ")
+                        if (formData.implantProof.isNotBlank()) append("Implant: ${formData.implantProof}")
+                    }.trim(),
+                    onChangeClick = { onJumpToStep(3) }
+                )
+            }
 
             // Review row 6: Photo
             ReviewRow(

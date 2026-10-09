@@ -63,6 +63,7 @@ fun CalvesRegisteredScreen(
             Spacer(modifier = Modifier.height(12.dp))
             CalfCard {
                 val syncedCount = registeredCalves.count { it.synced }
+                val attentionCount = registeredCalves.count { it.needsAttention }
                 Text(
                     text = "${registeredCalves.size} calves registered",
                     fontSize = 15.sp,
@@ -71,7 +72,8 @@ fun CalvesRegisteredScreen(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "$syncedCount synced • ${registeredCalves.size - syncedCount} pending",
+                    text = "$syncedCount synced • ${registeredCalves.size - syncedCount - attentionCount} pending" +
+                        if (attentionCount > 0) " • $attentionCount need attention" else "",
                     fontSize = 12.sp,
                     color = BeeftechMutedText
                 )
@@ -148,7 +150,11 @@ private fun CalfRegisteredItemCard(calf: CalfRegistrationData, onClick: () -> Un
                 )
             }
             Text(
-                text = if (calf.synced) "SYNCED" else "PENDING",
+                text = when {
+                    calf.needsAttention -> "NEEDS ATTENTION"
+                    calf.synced -> "SYNCED"
+                    else -> "PENDING"
+                },
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
                 color = BeeftechPrimaryDark,

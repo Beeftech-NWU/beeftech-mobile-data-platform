@@ -1,6 +1,7 @@
 package com.beeftech.farmtraceability.ui
 
 import androidx.compose.foundation.background
+import com.beeftech.farmtraceability.data.TreatmentTypeRules
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -175,15 +176,14 @@ fun TreatmentsScreen(
             )
 
             TraceabilityCard {
-                TraceabilitySearchableDropdown(
+                TraceabilityDropdown(
                     label = "Treatment Type",
                     value = treatmentState,
-                    options = treatmentOptions,
+                    options = TreatmentTypeRules.effectiveOptions(treatmentOptions),
                     icon = Icons.Outlined.Medication,
-                    placeholder = "Search, select or enter treatment",
-                    helperText = "Choose an existing treatment or enter a new treatment/product name.",
+                    placeholder = "Select treatment type",
+                    helperText = "Choose the treatment type from the list. Use Other if it is not listed.",
                     required = true,
-                    allowCustomEntry = true,
                     onValueChange = {
                         treatmentState = it
                         validationMessage = ""
@@ -262,8 +262,8 @@ fun TreatmentsScreen(
                     validationMessage = when {
                         diseaseState.trim().isBlank() ->
                             "Select or enter the disease / condition."
-                        treatmentState.trim().isBlank() ->
-                            "Select or enter the treatment type."
+                        TreatmentTypeRules.match(treatmentState, treatmentOptions) == null ->
+                            "Select the treatment type from the list."
                         batchState.trim().isBlank() ->
                             "Select or enter the medication batch number."
                         else -> ""
@@ -272,7 +272,7 @@ fun TreatmentsScreen(
                     if (validationMessage.isBlank()) {
                         onSaveClick(
                             diseaseState.trim(),
-                            treatmentState.trim(),
+                            TreatmentTypeRules.match(treatmentState, treatmentOptions).orEmpty(),
                             batchState.trim(),
                             volumeState.trim(),
                             costState.trim()

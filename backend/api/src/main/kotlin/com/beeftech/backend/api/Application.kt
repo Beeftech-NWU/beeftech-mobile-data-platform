@@ -112,6 +112,7 @@ fun Application.module() {
     val calfRegistrationService =
         CalfRegistrationService(
             calfRegistrationRepository,
+            CalfPhotoStore(CalfPhotoStore.configuredDirectory(jdbcUrl)),
             farmerSalesNotificationService
         )
 

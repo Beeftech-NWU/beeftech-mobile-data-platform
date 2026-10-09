@@ -103,6 +103,8 @@ import com.beeftech.database.dao.PendingSyncDao
 import com.beeftech.database.dao.SyncSecurityDao
 import com.beeftech.database.dao.RoleDao
 import com.beeftech.database.dao.SyncBatchDao
+import com.beeftech.database.dao.SyncRunDao
+import com.beeftech.database.entity.SyncRunEntity
 import com.beeftech.database.dao.TreatmentDao
 import com.beeftech.database.dao.UserDao
 
@@ -133,17 +135,17 @@ import com.beeftech.database.dao.UserDao
         PendingSync::class,
         SyncPolicyState::class,
         SyncSecurityEvent::class,
-        
+
         // Phase 3 Entities
         AnimalIdentifierEntity::class,
         AnimalMediaEntity::class,
         AnimalWeightEntity::class,
-        
+
         // Phase 6 Entities
         AnimalOwnershipEntity::class,
         FarmerAnimalLink::class,
         AnimalPurchaseEntity::class,
-        
+
         // Phase 7 Entity
         CalfRegistrationEntity::class,
 
@@ -166,7 +168,10 @@ import com.beeftech.database.dao.UserDao
 
         // Phase 4 (Admin) reference data pulled from the server
         ReferenceItem::class,
-        DeviceConfigEntry::class
+        DeviceConfigEntry::class,
+
+        // Sync history shown on Home and in My activity
+        SyncRunEntity::class
     ],
     version = BeefTechDatabase.VERSION,
     exportSchema = true
@@ -176,7 +181,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
     // =========================================================================
     // Abstract DAO Getters
     // =========================================================================
-    
+
     abstract fun animalDao(): AnimalDao
     abstract fun animalCostDao(): AnimalCostDao
     abstract fun animalGroupMembershipDao(): AnimalGroupMembershipDao
@@ -227,6 +232,9 @@ abstract class BeefTechDatabase : RoomDatabase() {
     // Phase 4 (Admin) reference data and server-provided settings
     abstract fun referenceDataDao(): ReferenceDataDao
 
+    // Sync history
+    abstract fun syncRunDao(): SyncRunDao
+
 
     // =========================================================================
     // Migration Configurations
@@ -234,7 +242,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
     companion object {
 
         /** Current Room schema version. Bump here when adding a migration. */
-        const val VERSION = 39
+        const val VERSION = 46
 
         /**
          * Phase 3 Migration (Version 9 -> 10):
@@ -3490,25 +3498,6 @@ abstract class BeefTechDatabase : RoomDatabase() {
          *
          * Every operation is idempotent.
          */
-        val MIGRATION_38_39 = object : Migration(38, 39) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("""CREATE TABLE IF NOT EXISTS `farmer_animal_links` (
-                    `link_id` TEXT NOT NULL PRIMARY KEY,
-                    `farmer_id` TEXT NOT NULL,
-                    `animal_id` TEXT NOT NULL,
-                    `record_guid` TEXT NOT NULL,
-                    `effective_from` INTEGER NOT NULL,
-                    `effective_to` INTEGER,
-                    `sync_status` TEXT NOT NULL,
-                    FOREIGN KEY(`farmer_id`) REFERENCES `farmers`(`farmer_id`) ON UPDATE NO ACTION ON DELETE RESTRICT,
-                    FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE RESTRICT
-                )""".trimIndent())
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farmer_animal_links_farmer_id` ON `farmer_animal_links` (`farmer_id`)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farmer_animal_links_animal_id` ON `farmer_animal_links` (`animal_id`)")
-                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_farmer_animal_links_record_guid` ON `farmer_animal_links` (`record_guid`)")
-            }
-        }
-
         val MIGRATION_37_38 =
             object : Migration(37, 38) {
 
@@ -3805,6 +3794,252 @@ abstract class BeefTechDatabase : RoomDatabase() {
                 NecropsyCodeSeed.execute(db)
                 IdentifierTypeSeed.execute(db)
                 createLookupTriggers(db)
+            }
+        }
+
+        /**
+         * Migration (Version 38 -> 39): record the calf's age class, body
+         * condition and conformity captured in the registration wizard.
+         * Nullable, so existing registrations keep NULL. Idempotent.
+         */
+        val MIGRATION_38_39 =
+            object : Migration(38, 39) {
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+
+                    val existing = mutableSetOf<String>()
+
+                    db.query("PRAGMA table_info(`calf_registrations`)").use { cursor ->
+                        val nameIndex = cursor.getColumnIndex("name")
+                        while (cursor.moveToNext()) {
+                            existing += cursor.getString(nameIndex)
+                        }
+                    }
+
+                    listOf("age_class", "body_condition", "conformity")
+                        .filter { it !in existing }
+                        .forEach { column ->
+                            db.execSQL(
+                                "ALTER TABLE `calf_registrations` ADD COLUMN `$column` TEXT"
+                            )
+                        }
+                }
+            }
+
+        /**
+         * Migration (Version 39 -> 40): remember why the server rejected a calf
+         * registration and how many times, so a rejected record can stop retrying
+         * and tell the user. Existing rows get no error and zero attempts. Idempotent.
+         */
+        val MIGRATION_39_40 =
+            object : Migration(39, 40) {
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+
+                    val existing = mutableSetOf<String>()
+
+                    db.query("PRAGMA table_info(`calf_registrations`)").use { cursor ->
+                        val nameIndex = cursor.getColumnIndex("name")
+                        while (cursor.moveToNext()) {
+                            existing += cursor.getString(nameIndex)
+                        }
+                    }
+
+                    // v39 existed independently on the redesign branch. Its
+                    // calf table lacks these three columns from main's v39.
+                    listOf("age_class", "body_condition", "conformity")
+                        .filter { it !in existing }
+                        .forEach { column ->
+                            db.execSQL("ALTER TABLE `calf_registrations` ADD COLUMN `$column` TEXT")
+                        }
+
+                    if ("sync_error" !in existing) {
+                        db.execSQL("ALTER TABLE `calf_registrations` ADD COLUMN `sync_error` TEXT")
+                    }
+
+                    if ("sync_attempts" !in existing) {
+                        db.execSQL("ALTER TABLE `calf_registrations` ADD COLUMN `sync_attempts` INTEGER NOT NULL DEFAULT 0")
+                    }
+                }
+            }
+
+        /**
+         * Migration (Version 40 -> 41): track whether each animal photo has reached
+         * the server. Existing rows start PENDING with no error. Idempotent.
+         */
+        val MIGRATION_40_41 =
+            object : Migration(40, 41) {
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+
+                    val existing = mutableSetOf<String>()
+
+                    db.query("PRAGMA table_info(`animal_media`)").use { cursor ->
+                        val nameIndex = cursor.getColumnIndex("name")
+                        while (cursor.moveToNext()) {
+                            existing += cursor.getString(nameIndex)
+                        }
+                    }
+
+                    if ("upload_status" !in existing) {
+                        db.execSQL("ALTER TABLE `animal_media` ADD COLUMN `upload_status` TEXT NOT NULL DEFAULT 'PENDING'")
+                    }
+
+                    if ("upload_error" !in existing) {
+                        db.execSQL("ALTER TABLE `animal_media` ADD COLUMN `upload_error` TEXT")
+                    }
+                }
+            }
+
+        /**
+         * Migration (Version 41 -> 42): process proof and implant proof on calf
+         * registrations. Nullable, so existing rows keep NULL. Idempotent.
+         */
+        val MIGRATION_41_42 =
+            object : Migration(41, 42) {
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+
+                    val existing = mutableSetOf<String>()
+
+                    db.query("PRAGMA table_info(`calf_registrations`)").use { cursor ->
+                        val nameIndex = cursor.getColumnIndex("name")
+                        while (cursor.moveToNext()) {
+                            existing += cursor.getString(nameIndex)
+                        }
+                    }
+
+                    listOf("process_proof", "implant_proof")
+                        .filter { it !in existing }
+                        .forEach { column ->
+                            db.execSQL("ALTER TABLE `calf_registrations` ADD COLUMN `$column` TEXT")
+                        }
+                }
+            }
+
+        /**
+         * Migration (Version 42 -> 43): farmer herd capacity and sales interest
+         * status. Nullable, so existing farmers keep NULL. Idempotent.
+         */
+        val MIGRATION_42_43 =
+            object : Migration(42, 43) {
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+
+                    val existing = mutableSetOf<String>()
+
+                    db.query("PRAGMA table_info(`farmers`)").use { cursor ->
+                        val nameIndex = cursor.getColumnIndex("name")
+                        while (cursor.moveToNext()) {
+                            existing += cursor.getString(nameIndex)
+                        }
+                    }
+
+                    if ("herd_capacity" !in existing) {
+                        db.execSQL("ALTER TABLE `farmers` ADD COLUMN `herd_capacity` INTEGER")
+                    }
+
+                    if ("interest_status" !in existing) {
+                        db.execSQL("ALTER TABLE `farmers` ADD COLUMN `interest_status` TEXT")
+                    }
+                }
+            }
+
+        /**
+         * Migration (Version 43 -> 44): the sync run history. A new table only, so no existing data
+         * is touched. Idempotent.
+         */
+        val MIGRATION_43_44 =
+            object : Migration(43, 44) {
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+                    db.execSQL(
+                        "CREATE TABLE IF NOT EXISTS `sync_runs` (" +
+                            "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                            "`user_id` TEXT NOT NULL, " +
+                            "`module` TEXT NOT NULL, " +
+                            "`trigger` TEXT NOT NULL, " +
+                            "`started_at` INTEGER NOT NULL, " +
+                            "`finished_at` INTEGER NOT NULL, " +
+                            "`synced_count` INTEGER NOT NULL, " +
+                            "`failed_count` INTEGER NOT NULL, " +
+                            "`result` TEXT NOT NULL, " +
+                            "`message` TEXT, " +
+                            "`batch_name` TEXT)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_sync_runs_user_id_started_at` " +
+                            "ON `sync_runs` (`user_id`, `started_at`)"
+                    )
+                }
+            }
+
+        /**
+         * Migration (Version 44 -> 45): farmer contact name and number, farm size, head count and
+         * primary breed. Nullable, so existing farmers keep NULL. Idempotent.
+         */
+        val MIGRATION_44_45 =
+            object : Migration(44, 45) {
+
+                override fun migrate(
+                    db: SupportSQLiteDatabase
+                ) {
+
+                    val existing = mutableSetOf<String>()
+
+                    db.query("PRAGMA table_info(`farmers`)").use { cursor ->
+                        val nameIndex = cursor.getColumnIndex("name")
+                        while (cursor.moveToNext()) {
+                            existing += cursor.getString(nameIndex)
+                        }
+                    }
+
+                    listOf(
+                        "contact_name" to "TEXT",
+                        "contact_number" to "TEXT",
+                        "farm_size_ha" to "REAL",
+                        "head_count" to "INTEGER",
+                        "primary_breed" to "TEXT"
+                    )
+                        .filter { (column, _) -> column !in existing }
+                        .forEach { (column, type) ->
+                            db.execSQL("ALTER TABLE `farmers` ADD COLUMN `$column` $type")
+                        }
+                }
+            }
+
+        /**
+         * Unify the independently developed v39 schemas without data loss after main v45.
+         * Redesign devices already have this table; main devices acquire it in v46; v39 redesign rows are retained.
+         */
+        val MIGRATION_45_46 = object : Migration(45, 46) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""CREATE TABLE IF NOT EXISTS `farmer_animal_links` (
+                    `link_id` TEXT NOT NULL PRIMARY KEY,
+                    `farmer_id` TEXT NOT NULL,
+                    `animal_id` TEXT NOT NULL,
+                    `record_guid` TEXT NOT NULL,
+                    `effective_from` INTEGER NOT NULL,
+                    `effective_to` INTEGER,
+                    `sync_status` TEXT NOT NULL,
+                    FOREIGN KEY(`farmer_id`) REFERENCES `farmers`(`farmer_id`) ON UPDATE NO ACTION ON DELETE RESTRICT,
+                    FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE RESTRICT
+                )""".trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farmer_animal_links_farmer_id` ON `farmer_animal_links` (`farmer_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farmer_animal_links_animal_id` ON `farmer_animal_links` (`animal_id`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_farmer_animal_links_record_guid` ON `farmer_animal_links` (`record_guid`)")
             }
         }
     }

@@ -1,5 +1,9 @@
 package com.beeftech.demoapp
 
+import com.beeftech.database.entity.SyncRunTrigger
+import com.beeftech.database.repository.SyncRunRepository
+import com.beeftech.database.util.SyncRunDisplay
+import androidx.work.ExistingWorkPolicy
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -7,11 +11,11 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.work.Constraints
-import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
@@ -61,7 +65,7 @@ import com.beeftech.management.ui.RecordsReviewTab
 import com.beeftech.management.ui.MyActivityScreen
 import com.beeftech.management.ui.TeamTab
 import com.beeftech.demoapp.ui.theme.BeeftechTheme
-import com.beeftech.farmerregistration.ClientDetailsScreen
+import com.beeftech.farmerregistration.FarmerListScreen
 import com.beeftech.farmerregistration.FarmerSyncScheduler
 import com.beeftech.feedcrib.ui.FeedCribFlow
 import com.beeftech.farmtraceability.data.TreatmentApiClient
@@ -211,6 +215,12 @@ class MainActivity : ComponentActivity() {
                      */
                     val pendingSyncRepository =
                         PendingSyncRepository(
+                            database.pendingSyncDao()
+                        )
+
+                    val syncRunRepository =
+                        SyncRunRepository(
+                            database.syncRunDao(),
                             database.pendingSyncDao()
                         )
 
@@ -552,6 +562,16 @@ class MainActivity : ComponentActivity() {
 
                             val isOnline by rememberIsOnline()
 
+                            val syncHistory by
+                            remember(loggedInUser.userId) {
+                                syncRunRepository.observeRecent()
+                            }.collectAsState(initial = emptyList())
+
+                            val pendingByType by
+                            remember(loggedInUser.userId) {
+                                syncRunRepository.observePendingByType()
+                            }.collectAsState(initial = emptyMap())
+
                             val syncState =
                                 appSyncUiState(
                                     isOnline = isOnline,
@@ -811,6 +831,9 @@ class MainActivity : ComponentActivity() {
                                         Modifier
                                             .fillMaxSize()
                                             .padding(innerPadding)
+                                            // The header and bottom nav already handled the system bars and
+                                            // the keyboard; screens inside must not pad for them again.
+                                            .consumeWindowInsets(innerPadding)
                                 ) {
 
                                     if (showMyActivity) {
@@ -830,6 +853,9 @@ class MainActivity : ComponentActivity() {
 
                                             oldestPendingAt =
                                                 oldestPendingAt,
+
+                                            syncHistory =
+                                                syncHistory,
 
                                             onBack = {
                                                 showMyActivity =
@@ -851,6 +877,34 @@ class MainActivity : ComponentActivity() {
                                             localHistoryCount = localTransferHistoryCount,
                                             lastSuccessfulSyncAt = latestSyncBatch?.timestamp,
                                             onRetrySync = retrySyncAction,
+                                            pendingByModule =
+                                                SyncRunDisplay.pendingByModule(pendingByType),
+                                            lastRunLine =
+                                                SyncRunDisplay.lastRunLine(syncHistory.firstOrNull()),
+                                            canSyncNow = isOnline,
+                                            onSyncNow = {
+                                                lifecycleScope.launch {
+                                                    /*
+                                                     * Sync now is an explicit request, so farmer
+                                                     * registrations that hit the automatic retry cap
+                                                     * get another try, as with Retry Sync.
+                                                     */
+                                                    withContext(Dispatchers.IO) {
+                                                        pendingSyncRepository
+                                                            .getAllPendingOperations()
+                                                            .filter { it.entityType == "FARMER_REGISTRATION" }
+                                                            .forEach { pendingSyncRepository.resetRetryCount(it.id) }
+                                                    }
+
+                                                    SyncAllDispatcher.dispatch(
+                                                        applicationContext,
+                                                        SyncRunTrigger.MANUAL,
+                                                        ExistingWorkPolicy.REPLACE
+                                                    )
+
+                                                    showUiMessage("Sync started.")
+                                                }
+                                            },
                                             onRegisterCalf = {
                                                 selectedDemoTab = tabs.indexOf(AppTab.CALF_REGISTRATION)
                                             },
@@ -971,7 +1025,7 @@ class MainActivity : ComponentActivity() {
                                                 val intent =
                                                     Intent(
                                                         this@MainActivity,
-                                                        ClientDetailsScreen::class.java
+                                                        FarmerListScreen::class.java
                                                     )
 
                                                 startActivity(intent)

@@ -118,6 +118,59 @@ object FarmerTable : Table("farmers") {
         )
             .nullable()
 
+    val herdCapacity =
+        integer(
+            "herd_capacity"
+        )
+            .nullable()
+
+    val interestStatus =
+        varchar(
+            "interest_status",
+            64
+        )
+            .nullable()
+
+    val contactName =
+        varchar(
+            "contact_name",
+            255
+        )
+            .nullable()
+
+    val contactNumber =
+        varchar(
+            "contact_number",
+            32
+        )
+            .nullable()
+
+    val farmSizeHa =
+        double(
+            "farm_size_ha"
+        )
+            .nullable()
+
+    val headCount =
+        integer(
+            "head_count"
+        )
+            .nullable()
+
+    val primaryBreed =
+        varchar(
+            "primary_breed",
+            255
+        )
+            .nullable()
+
+    /* Set when the sales email for this farmer went out, so a re-sync or retry does not send it again. */
+    val salesNotifiedAt =
+        long(
+            "sales_notified_at"
+        )
+            .nullable()
+
     override val primaryKey =
         PrimaryKey(
             farmerId

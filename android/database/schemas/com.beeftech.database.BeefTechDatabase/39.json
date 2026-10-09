@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 39,
-    "identityHash": "86b5d3e8b1335bb10760a2e71b28a66b",
+    "identityHash": "0042ca62c42896ffbe31282786fb26a8",
     "entities": [
       {
         "tableName": "animals",
@@ -2445,112 +2445,6 @@
         ]
       },
       {
-        "tableName": "farmer_animal_links",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`link_id` TEXT NOT NULL, `farmer_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `record_guid` TEXT NOT NULL, `effective_from` INTEGER NOT NULL, `effective_to` INTEGER, `sync_status` TEXT NOT NULL, PRIMARY KEY(`link_id`), FOREIGN KEY(`farmer_id`) REFERENCES `farmers`(`farmer_id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
-        "fields": [
-          {
-            "fieldPath": "linkId",
-            "columnName": "link_id",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "farmerId",
-            "columnName": "farmer_id",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "animalId",
-            "columnName": "animal_id",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "recordGuid",
-            "columnName": "record_guid",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "effectiveFrom",
-            "columnName": "effective_from",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "effectiveTo",
-            "columnName": "effective_to",
-            "affinity": "INTEGER"
-          },
-          {
-            "fieldPath": "syncStatus",
-            "columnName": "sync_status",
-            "affinity": "TEXT",
-            "notNull": true
-          }
-        ],
-        "primaryKey": {
-          "autoGenerate": false,
-          "columnNames": [
-            "link_id"
-          ]
-        },
-        "indices": [
-          {
-            "name": "index_farmer_animal_links_farmer_id",
-            "unique": false,
-            "columnNames": [
-              "farmer_id"
-            ],
-            "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_farmer_animal_links_farmer_id` ON `${TABLE_NAME}` (`farmer_id`)"
-          },
-          {
-            "name": "index_farmer_animal_links_animal_id",
-            "unique": false,
-            "columnNames": [
-              "animal_id"
-            ],
-            "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_farmer_animal_links_animal_id` ON `${TABLE_NAME}` (`animal_id`)"
-          },
-          {
-            "name": "index_farmer_animal_links_record_guid",
-            "unique": true,
-            "columnNames": [
-              "record_guid"
-            ],
-            "orders": [],
-            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_farmer_animal_links_record_guid` ON `${TABLE_NAME}` (`record_guid`)"
-          }
-        ],
-        "foreignKeys": [
-          {
-            "table": "farmers",
-            "onDelete": "RESTRICT",
-            "onUpdate": "NO ACTION",
-            "columns": [
-              "farmer_id"
-            ],
-            "referencedColumns": [
-              "farmer_id"
-            ]
-          },
-          {
-            "table": "animals",
-            "onDelete": "RESTRICT",
-            "onUpdate": "NO ACTION",
-            "columns": [
-              "animal_id"
-            ],
-            "referencedColumns": [
-              "animalId"
-            ]
-          }
-        ]
-      },
-      {
         "tableName": "animal_purchases",
         "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`purchase_id` TEXT NOT NULL, `animal_id` TEXT NOT NULL, `purchase_price` REAL NOT NULL, `purchase_date` INTEGER NOT NULL, `seller_name` TEXT NOT NULL, `supplier_farmer_id` TEXT, `gln_number` TEXT, `purchase_batch_number` TEXT, `notes` TEXT, `record_guid` TEXT NOT NULL DEFAULT '', PRIMARY KEY(`purchase_id`), FOREIGN KEY(`animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
@@ -2681,7 +2575,7 @@
       },
       {
         "tableName": "calf_registrations",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`registration_id` TEXT NOT NULL, `registered_animal_id` TEXT NOT NULL, `dam_id` TEXT, `sire_id` TEXT, `birth_weight_kg` REAL, `calving_ease` TEXT, `registration_date` INTEGER NOT NULL, `record_guid` TEXT NOT NULL, `sync_status` TEXT NOT NULL DEFAULT 'PENDING', `synced_at` INTEGER, PRIMARY KEY(`registration_id`), FOREIGN KEY(`registered_animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`dam_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`sire_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`registration_id` TEXT NOT NULL, `registered_animal_id` TEXT NOT NULL, `dam_id` TEXT, `sire_id` TEXT, `birth_weight_kg` REAL, `calving_ease` TEXT, `age_class` TEXT, `body_condition` TEXT, `conformity` TEXT, `registration_date` INTEGER NOT NULL, `record_guid` TEXT NOT NULL, `sync_status` TEXT NOT NULL DEFAULT 'PENDING', `synced_at` INTEGER, PRIMARY KEY(`registration_id`), FOREIGN KEY(`registered_animal_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`dam_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`sire_id`) REFERENCES `animals`(`animalId`) ON UPDATE NO ACTION ON DELETE SET NULL )",
         "fields": [
           {
             "fieldPath": "registrationId",
@@ -2713,6 +2607,21 @@
           {
             "fieldPath": "calvingEase",
             "columnName": "calving_ease",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ageClass",
+            "columnName": "age_class",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "bodyCondition",
+            "columnName": "body_condition",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "conformity",
+            "columnName": "conformity",
             "affinity": "TEXT"
           },
           {
@@ -3294,7 +3203,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '86b5d3e8b1335bb10760a2e71b28a66b')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '0042ca62c42896ffbe31282786fb26a8')"
     ]
   }
 }

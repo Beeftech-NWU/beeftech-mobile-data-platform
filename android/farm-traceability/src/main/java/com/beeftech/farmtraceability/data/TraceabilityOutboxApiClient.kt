@@ -1,5 +1,7 @@
 package com.beeftech.farmtraceability.data
 
+import com.beeftech.database.util.BatchNaming
+import com.beeftech.database.util.ProjectCode
 import com.beeftech.database.security.TokenProvider
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -27,7 +29,9 @@ data class TraceabilityEventUpload(
 @Serializable
 data class TraceabilityEventSyncRequest(
     val records:
-        List<TraceabilityEventUpload>
+        List<TraceabilityEventUpload>,
+    /* [FarmCode]-[Project]-[YYYYMMDD]-[HHMMSS]-[DeviceID]; null until this device has the farm code. */
+    val batchName: String? = null
 )
 
 @Serializable
@@ -120,7 +124,9 @@ class TraceabilityOutboxApiClient(
                     setBody(
                         TraceabilityEventSyncRequest(
                             records =
-                                records
+                                records,
+                            batchName =
+                                BatchNaming.nameFor(ProjectCode.TRACE_EVENT)
                         )
                     )
                 }

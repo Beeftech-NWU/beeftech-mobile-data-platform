@@ -19,17 +19,57 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalContext
+import com.beeftech.calfregistration.util.CalfPhotoCapture
 import com.beeftech.tagscanner.ui.EarTagScannerDialog
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 
 @Composable
 fun CalfConditionStepScreen(
     formData: CalfRegistrationData,
+    damOptions: List<String>,
+    sireOptions: List<String>,
     onFormDataChange: (CalfRegistrationData) -> Unit,
     onNextClick: () -> Unit,
     onBackClick: () -> Unit
 ) {
     var activeLookupField by remember { mutableStateOf<String?>(null) }
     var scanField by remember { mutableStateOf<String?>(null) }
+
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val latestFormData by rememberUpdatedState(formData)
+    val latestOnFormDataChange by rememberUpdatedState(onFormDataChange)
+
+    // Survives the app being recreated while the camera is open.
+    var captureFilePath by rememberSaveable { mutableStateOf<String?>(null) }
+
+    val takePicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken ->
+        val capture = captureFilePath?.let { File(it) }
+        captureFilePath = null
+
+        if (taken && capture != null) {
+            coroutineScope.launch {
+                val saved = withContext(Dispatchers.IO) {
+                    CalfPhotoCapture.finalizeCapture(context, capture, latestFormData.tagNumber)
+                }
+                if (saved != null) {
+                    latestOnFormDataChange(latestFormData.copy(photoPath = saved))
+                } else {
+                    Toast.makeText(context, "Could not read the photo. Please try again.", Toast.LENGTH_LONG).show()
+                }
+            }
+        } else {
+            capture?.delete()
+        }
+    }
 
     scanField?.let { field ->
         EarTagScannerDialog(
@@ -44,35 +84,32 @@ fun CalfConditionStepScreen(
         )
     }
 
-    if (activeLookupField != null) {
+    if (activeLookupField == "DAM" || activeLookupField == "SIRE") {
+        val isDam = activeLookupField == "DAM"
+        ParentPickerDialog(
+            title = if (isDam) "Select Dam Tag" else "Select Sire Tag",
+            options = if (isDam) damOptions else sireOptions,
+            selected = if (isDam) formData.dameTagNumber else formData.sireTagNumber,
+            noneOption = if (isDam) CalfRegistrationLookups.DAME_PLACEHOLDER else CalfRegistrationLookups.SIRE_PLACEHOLDER,
+            emptyMessage = if (isDam) "No registered females found on this device yet."
+            else "No registered males found on this device yet.",
+            onSelect = { selected ->
+                onFormDataChange(
+                    if (isDam) formData.copy(dameTagNumber = selected)
+                    else formData.copy(sireTagNumber = selected)
+                )
+                activeLookupField = null
+            },
+            onDismiss = { activeLookupField = null }
+        )
+    } else if (activeLookupField != null) {
         val (title, options, currentVal, onSelect) = when (activeLookupField) {
-            "AGE" -> Quadruple(
+            else -> Quadruple(
                 "Select Age",
                 CalfRegistrationLookups.ages,
                 formData.age
             ) { selected: String ->
                 onFormDataChange(formData.copy(age = selected))
-            }
-            "CONDITION" -> Quadruple(
-                "Select Condition",
-                CalfRegistrationLookups.conditions,
-                formData.condition
-            ) { selected: String ->
-                onFormDataChange(formData.copy(condition = selected))
-            }
-            "DAM" -> Quadruple(
-                "Select Dam Tag",
-                CalfRegistrationLookups.dameTagList,
-                formData.dameTagNumber
-            ) { selected: String ->
-                onFormDataChange(formData.copy(dameTagNumber = selected))
-            }
-            else -> Quadruple(
-                "Select Sire Tag",
-                CalfRegistrationLookups.sireTagList,
-                formData.sireTagNumber
-            ) { selected: String ->
-                onFormDataChange(formData.copy(sireTagNumber = selected))
             }
         }
 
@@ -123,62 +160,11 @@ fun CalfConditionStepScreen(
 
     Scaffold(
         topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = BeeftechSurface,
-                shadowElevation = 1.dp
-            ) {
-                Column(
-                    modifier = Modifier
-                        .statusBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = onBackClick) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                                    contentDescription = "Back",
-                                    tint = BeeftechText
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = "Register calf",
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = BeeftechText
-                                )
-                                Text(
-                                    text = "Step 3 of 4: Age & parentage",
-                                    fontSize = 13.sp,
-                                    color = BeeftechMutedText
-                                )
-                            }
-                        }
-
-                        Surface(
-                            shape = RoundedCornerShape(99.dp),
-                            color = Color(0xFFDDEFE4)
-                        ) {
-                            Text(
-                                text = "Step 3",
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF17402D)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                    StepProgress(currentStep = 3, totalSteps = 4)
-                }
-            }
+            CalfStepTopBar(
+                step = 3,
+                title = "Age & parentage",
+                onBackClick = onBackClick
+            )
         },
         bottomBar = {
             BottomActionDock {
@@ -208,8 +194,8 @@ fun CalfConditionStepScreen(
                 .background(BeeftechBackground)
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
                 text = "Age, health and parentage",
@@ -227,11 +213,9 @@ fun CalfConditionStepScreen(
             )
 
             // Condition score
-            CalfLookupDropdownField(
-                label = "Condition / Vitality",
-                badgeLabel = "SELECT",
-                selectedValue = formData.condition.ifEmpty { "Good / Alert" },
-                onClick = { activeLookupField = "CONDITION" }
+            CalfConditionScale(
+                selected = formData.condition,
+                onSelected = { onFormDataChange(formData.copy(condition = it)) }
             )
 
             HorizontalDivider(color = BeeftechBorder, thickness = 1.dp)
@@ -303,15 +287,41 @@ fun CalfConditionStepScreen(
 
             HorizontalDivider(color = BeeftechBorder, thickness = 1.dp)
 
-            // Photo attachment button
+            // Verification (optional proof references)
+            CalfSectionTitle("Verification (optional)")
+            CalfCard {
+                CalfTextField(
+                    label = "Process proof",
+                    value = formData.processProof,
+                    onValueChange = { onFormDataChange(formData.copy(processProof = it.take(MAX_PROOF_LENGTH))) },
+                    placeholder = "Reference or note"
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                CalfTextField(
+                    label = "Implant proof",
+                    value = formData.implantProof,
+                    onValueChange = { onFormDataChange(formData.copy(implantProof = it.take(MAX_PROOF_LENGTH))) },
+                    placeholder = "Reference or note"
+                )
+            }
+
+            HorizontalDivider(color = BeeftechBorder, thickness = 1.dp)
+
+            // Photo attachment button: opens the camera, or removes the attached photo
             val hasPhoto = formData.photoPath != null
             OutlinedButton(
                 onClick = {
-                    // Toggle mock attached photo state for capture
                     if (hasPhoto) {
+                        CalfPhotoCapture.deleteSavedPhoto(context, formData.photoPath)
                         onFormDataChange(formData.copy(photoPath = null))
                     } else {
-                        onFormDataChange(formData.copy(photoPath = "captured_photo_uri"))
+                        try {
+                            val (file, uri) = CalfPhotoCapture.newCaptureTarget(context)
+                            captureFilePath = file.absolutePath
+                            takePicture.launch(uri)
+                        } catch (_: Exception) {
+                            Toast.makeText(context, "No camera app is available.", Toast.LENGTH_LONG).show()
+                        }
                     }
                 },
                 modifier = Modifier
@@ -331,7 +341,7 @@ fun CalfConditionStepScreen(
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = if (hasPhoto) "Calf photo attached (Tap to remove)" else "Attach calf photo",
+                    text = if (hasPhoto) "Calf photo attached (Tap to remove)" else "Take calf photo",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = if (hasPhoto) BeeftechPrimary else BeeftechText
@@ -340,3 +350,5 @@ fun CalfConditionStepScreen(
         }
     }
 }
+
+private const val MAX_PROOF_LENGTH = 200

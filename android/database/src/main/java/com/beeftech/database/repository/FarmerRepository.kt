@@ -4,6 +4,7 @@ import com.beeftech.database.dao.FarmerDao
 import com.beeftech.database.entity.FarmerAddressEntity
 import com.beeftech.database.entity.FarmerEntity
 import com.beeftech.database.entity.FarmerRoleEntity
+import kotlinx.coroutines.flow.Flow
 
 class FarmerRepository(
     private val farmerDao: FarmerDao
@@ -50,6 +51,10 @@ class FarmerRepository(
 
         return farmerDao.getAllFarmers()
     }
+
+    /* Emits again whenever a farmer is added or its sync status changes. Newest first. */
+    fun observeAllFarmers(): Flow<List<FarmerEntity>> =
+        farmerDao.observeAllFarmers()
 
     suspend fun getPendingFarmers():
             List<FarmerEntity> {

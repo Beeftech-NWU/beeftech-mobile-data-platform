@@ -1,5 +1,9 @@
 package com.beeftech.farmtraceability.worker
 
+import com.beeftech.database.entity.SyncRunModule
+import com.beeftech.database.entity.SyncRunTrigger
+import com.beeftech.database.repository.SyncRunRepository
+import com.beeftech.database.repository.SyncRunSummary
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -40,6 +44,16 @@ class TreatmentSyncWorker(
                     database.pendingSyncDao()
                 )
 
+            val syncRuns =
+                SyncRunRepository(
+                    database.syncRunDao(),
+                    database.pendingSyncDao()
+                )
+
+            val trigger =
+                inputData.getString(SyncRunSummary.TRIGGER_INPUT_KEY)
+                    ?: SyncRunTrigger.AUTO
+
             val repository =
                 TreatmentRepository(
                     treatmentDao =
@@ -60,7 +74,9 @@ class TreatmentSyncWorker(
              * Successful records are marked SYNCED by the repository.
              * Failed records remain stored locally for another attempt.
              */
-            repository.syncPending()
+            syncRuns.trackRun(SyncRunModule.TREATMENT, listOf(TreatmentRepository.ENTITY_TYPE), trigger) {
+                repository.syncPending()
+            }
 
             val remainingTreatmentOperations =
                 pendingSyncRepository

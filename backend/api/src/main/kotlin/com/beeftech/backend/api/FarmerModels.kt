@@ -38,6 +38,13 @@ data class FarmerDto(
     val landOwnership: String? = null,
     val faCodeRmis: String? = null,
     val glnNumber: String? = null,
+    val herdCapacity: Int? = null,
+    val interestStatus: String? = null,
+    val contactName: String? = null,
+    val contactNumber: String? = null,
+    val farmSizeHa: Double? = null,
+    val headCount: Int? = null,
+    val primaryBreed: String? = null,
     val addresses: List<FarmerAddressDto> = emptyList(),
     val roles: List<FarmerRoleDto> = emptyList()
 )
@@ -45,7 +52,9 @@ data class FarmerDto(
 @Serializable
 data class FarmerSyncRequest(
     val deviceId: String,
-    val records: List<FarmerDto>
+    val records: List<FarmerDto>,
+    /* [FarmCode]-[Project]-[YYYYMMDD]-[HHMMSS]-[DeviceID]; absent from app versions that predate it. */
+    val batchName: String? = null
 )
 
 @Serializable

@@ -10,6 +10,10 @@
     <application>
 
         <activity
+            android:name=".FarmerListScreen"
+            android:exported="false" />
+
+        <activity
             android:name=".ClientDetailsScreen"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />

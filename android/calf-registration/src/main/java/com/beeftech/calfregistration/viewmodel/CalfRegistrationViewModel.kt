@@ -11,6 +11,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.beeftech.calfregistration.data.CalfRegistrationRepository
+import com.beeftech.calfregistration.data.ParentOptions
 import com.beeftech.calfregistration.ui.CalfRegistrationData
 import com.beeftech.calfregistration.worker.CalfRegistrationSyncWorker
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,10 +31,16 @@ class CalfRegistrationViewModel(
     val registeredCalves: StateFlow<List<CalfRegistrationData>> =
         _registeredCalves.asStateFlow()
 
+    private val _parentOptions = MutableStateFlow(ParentOptions())
+
+    /** Registered females and males that can be picked as dam and sire. */
+    val parentOptions: StateFlow<ParentOptions> = _parentOptions.asStateFlow()
+
     init {
         loadCalves()
 
         // Backup periodic sync. This is not the primary sync mechanism.
+        schedulePeriodicSync()
 
         // Also queue an immediate network-constrained check. If the device
         // is offline, WorkManager keeps it waiting until connectivity returns.
@@ -47,6 +54,7 @@ class CalfRegistrationViewModel(
             } catch (_: Exception) {
                 _registeredCalves.value = emptyList()
             }
+            _parentOptions.value = repository.loadParentOptions()
         }
     }
 
@@ -68,12 +76,13 @@ class CalfRegistrationViewModel(
                  */
                 val outcome = repository.saveCalf(formData)
 
-                outcome.validationError?.let {
+                (outcome.validationError ?: outcome.saveError)?.let {
                     onResult(false, it)
                     return@launch
                 }
 
                 _registeredCalves.value = repository.loadAll()
+                _parentOptions.value = repository.loadParentOptions()
 
                 val warningSuffix =
                     outcome.warnings
@@ -82,9 +91,30 @@ class CalfRegistrationViewModel(
                         ?: ""
 
                 if (outcome.data.synced) {
+                    // The record is on the server; only its photo is still waiting.
+                    val photoSuffix =
+                        if (outcome.photoPending) {
+                            scheduleNetworkAvailableSync()
+                            " The photo will upload when internet is available."
+                        } else {
+                            ""
+                        }
+
                     onResult(
                         true,
-                        "Calf registration saved and synced successfully.$warningSuffix"
+                        "Calf registration saved and synced successfully.$photoSuffix$warningSuffix"
+                    )
+                } else if (outcome.needsAttention) {
+                    /*
+                     * The server answered and rejected the record, so waiting for
+                     * internet will not help. Tell the user why; the calf stays
+                     * saved locally and can be retried from its detail screen.
+                     */
+                    val reason = outcome.syncErrorMessage?.takeIf { it.isNotBlank() } ?: "no reason given"
+                    onResult(
+                        true,
+                        "Calf registration saved locally, but the server rejected it ($reason). " +
+                            "Open the calf to review and retry.$warningSuffix"
                     )
                 } else {
                     /*
@@ -121,12 +151,17 @@ class CalfRegistrationViewModel(
         }
     }
 
+    /**
+     * [retryRejected] is for the user's manual retry: records the server rejected too
+     * many times get a fresh set of attempts. Background syncs never pass it.
+     */
     fun retrySync(
+        retryRejected: Boolean = false,
         onResult: (Boolean, String) -> Unit = { _, _ -> }
     ) {
         viewModelScope.launch {
             try {
-                val outcome = repository.syncPending()
+                val outcome = repository.syncPending(retryRejected)
 
                 _registeredCalves.value = repository.loadAll()
 
@@ -134,10 +169,15 @@ class CalfRegistrationViewModel(
                     onResult(
                         true,
                         "${outcome.syncedCount} calf registration" +
-                                if (outcome.syncedCount == 1) {
+                                (if (outcome.syncedCount == 1) {
                                     " synced successfully."
                                 } else {
                                     "s synced successfully."
+                                }) +
+                                if (outcome.rejectedByTagNumber.isNotEmpty()) {
+                                    " ${outcome.rejectedByTagNumber.size} rejected by the server."
+                                } else {
+                                    ""
                                 }
                     )
                 } else if (outcome.errorMessagesByTagNumber.isNotEmpty()) {
@@ -153,6 +193,16 @@ class CalfRegistrationViewModel(
                             ?: "The pending calf registration could not be synced."
 
                     onResult(false, message)
+                } else if (outcome.photosUploaded > 0 && outcome.errorMessagesByTagNumber.isEmpty() && outcome.rejectedByTagNumber.isEmpty()) {
+                    onResult(
+                        true,
+                        "${outcome.photosUploaded} calf photo" +
+                            (if (outcome.photosUploaded == 1) " uploaded." else "s uploaded.")
+                    )
+                } else if (outcome.rejectedByTagNumber.isNotEmpty()) {
+                    // Retrying will not help until the record is corrected.
+                    val (tag, reason) = outcome.rejectedByTagNumber.entries.first()
+                    onResult(false, "The server rejected calf $tag: $reason")
                 } else {
                     onResult(
                         true,

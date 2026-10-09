@@ -170,6 +170,31 @@ interface PendingSyncDao {
         SELECT COUNT(*)
         FROM pending_sync
         WHERE user_id = :userId
+          AND entityType IN (:entityTypes)
+        """
+    )
+    suspend fun countForUserAndTypes(
+        userId: String,
+        entityTypes: List<String>
+    ): Int
+
+    @Query(
+        """
+        SELECT entityType AS entityType, COUNT(*) AS count
+        FROM pending_sync
+        WHERE user_id = :userId
+        GROUP BY entityType
+        """
+    )
+    fun observePendingCountsByType(
+        userId: String
+    ): Flow<List<PendingTypeCount>>
+
+    @Query(
+        """
+        SELECT COUNT(*)
+        FROM pending_sync
+        WHERE user_id = :userId
         """
     )
     fun observePendingCountForUser(
@@ -237,3 +262,9 @@ interface PendingSyncDao {
     ): Int
 
 }
+
+/** Waiting records of one entity type. */
+data class PendingTypeCount(
+    val entityType: String,
+    val count: Int
+)

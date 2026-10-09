@@ -6,6 +6,7 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.beeftech.authentication.domain.LoggedInUser
 import com.beeftech.database.security.CurrentUserIdRegistry
+import com.beeftech.database.security.SyncIdentityRegistry
 import com.beeftech.database.security.TokenProvider
 import com.beeftech.database.security.UnauthorizedReason
 import kotlinx.coroutines.flow.Flow
@@ -121,6 +122,16 @@ class EncryptedSessionStore(
             null
         }
 
+    init {
+        /* After an app restart the sync workers run before anyone signs in again. */
+        publishSyncIdentity()
+    }
+
+    /* Shares the farm code and device the batch names are built from with the feature modules. */
+    private fun publishSyncIdentity() {
+        val user = currentUser()
+        SyncIdentityRegistry.set(user?.farmCode, user?.deviceId)
+    }
 
     companion object {
 
@@ -161,6 +172,13 @@ class EncryptedSessionStore(
 
         private const val KEY_SITE_ID =
             "site_id"
+
+        /*
+         * The farm code of each site this device has signed in to, saved as farm_code:<siteId>.
+         * It is learned online and an offline sign-in needs it, so it survives clear().
+         */
+        private const val KEY_FARM_CODE_PREFIX =
+            "farm_code:"
 
         /*
          * Set when the server revokes a session, so the user's cached PIN stops working offline
@@ -264,6 +282,8 @@ class EncryptedSessionStore(
             )
             ?.apply()
 
+        rememberFarmCode(user)
+
         /* Signing in online proves the server accepts this user again. */
         if (prefs?.getString(KEY_REVOKED_USER_ID, null) == user.userId) {
             prefs?.edit()?.remove(KEY_REVOKED_USER_ID)?.apply()
@@ -277,6 +297,8 @@ class EncryptedSessionStore(
                     null
                 }
             )
+
+        publishSyncIdentity()
     }
 
 
@@ -386,6 +408,8 @@ class EncryptedSessionStore(
                     null
                 }
             )
+
+        publishSyncIdentity()
     }
 
 
@@ -423,6 +447,11 @@ class EncryptedSessionStore(
                     null
                 )
 
+        val farmCode =
+            siteId?.let {
+                prefs?.getString(KEY_FARM_CODE_PREFIX + it, null)
+            }
+
         val roleValue =
             prefs
                 ?.getInt(
@@ -443,8 +472,19 @@ class EncryptedSessionStore(
             username = username,
             role = role,
             deviceId = deviceId,
-            siteId = siteId
+            siteId = siteId,
+            farmCode = farmCode
         )
+    }
+
+    private fun rememberFarmCode(user: LoggedInUser) {
+        val siteId = user.siteId ?: return
+        val farmCode = user.farmCode ?: return
+
+        prefs
+            ?.edit()
+            ?.putString(KEY_FARM_CODE_PREFIX + siteId, farmCode)
+            ?.apply()
     }
 
 
@@ -473,10 +513,22 @@ class EncryptedSessionStore(
         val revokedUserId =
             prefs?.getString(KEY_REVOKED_USER_ID, null)
 
+        val farmCodes =
+            prefs?.all
+                ?.filterKeys { it.startsWith(KEY_FARM_CODE_PREFIX) }
+                ?.mapNotNull { (key, value) -> (value as? String)?.let { key to it } }
+                .orEmpty()
+
         prefs
             ?.edit()
             ?.clear()
             ?.apply()
+
+        if (farmCodes.isNotEmpty()) {
+            prefs?.edit()?.apply {
+                farmCodes.forEach { (key, value) -> putString(key, value) }
+            }?.apply()
+        }
 
         if (revokedUserId != null) {
             prefs
@@ -489,6 +541,8 @@ class EncryptedSessionStore(
             .setCurrentUserId(
                 null
             )
+
+        SyncIdentityRegistry.clear()
     }
 
 
