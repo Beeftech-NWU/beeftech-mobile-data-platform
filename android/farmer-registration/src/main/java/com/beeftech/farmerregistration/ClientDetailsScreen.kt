@@ -33,6 +33,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -48,6 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -968,11 +970,19 @@ private fun Text(
         TextUnit.Unspecified
 ) {
 
+    /* As material3 Text does: an unset colour follows the surrounding content colour (white on a primary button). */
+    val resolvedColor =
+        color.takeOrElse {
+            LocalTextStyle.current.color.takeOrElse {
+                LocalContentColor.current
+            }
+        }
+
     val style =
         LocalTextStyle.current.merge(
             TextStyle(
                 color =
-                    color,
+                    resolvedColor,
                 fontSize =
                     fontSize,
                 fontWeight =
