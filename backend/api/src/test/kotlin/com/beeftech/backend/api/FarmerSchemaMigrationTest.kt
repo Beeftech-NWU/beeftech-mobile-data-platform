@@ -62,7 +62,8 @@ class FarmerSchemaMigrationTest {
 
     private val expectedFarmerColumns =
         listOf("co_reg_id_no", "land_ownership", "fa_code_rmis", "gln_number", "herd_capacity", "interest_status",
-            "contact_name", "contact_number", "farm_size_ha", "head_count", "primary_breed")
+            "contact_name", "contact_number", "farm_size_ha", "head_count", "primary_breed",
+            "sales_notified_at")
 
     private val expectedAddressColumns =
         listOf("street_code", "postal_address", "country")

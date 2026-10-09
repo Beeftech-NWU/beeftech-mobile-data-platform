@@ -4,10 +4,12 @@ import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.isNull
 
 class FarmerRepository {
 
@@ -183,6 +185,53 @@ class FarmerRepository {
                 }
                 .singleOrNull()
                 ?.toFarmerDto()
+        }
+
+    /**
+     * Marks the farmer's sales email as sent before sending it. True only for the one caller that
+     * set it, so concurrent syncs of the same farmer cannot both email the rep.
+     */
+    fun claimSalesNotification(
+        farmerId: String,
+        claimedAt: Long
+    ): Boolean =
+        transaction(DatabaseFactory.getDatabase()) {
+            FarmerTable.update(
+                {
+                    (FarmerTable.farmerId eq farmerId) and
+                        FarmerTable.salesNotifiedAt.isNull()
+                }
+            ) {
+                it[salesNotifiedAt] = claimedAt
+            } == 1
+        }
+
+    /* Undoes a claim whose email did not go out, so the next sync tries again. */
+    fun releaseSalesNotification(
+        farmerId: String,
+        claimedAt: Long
+    ) {
+        transaction(DatabaseFactory.getDatabase()) {
+            FarmerTable.update(
+                {
+                    (FarmerTable.farmerId eq farmerId) and
+                        (FarmerTable.salesNotifiedAt eq claimedAt)
+                }
+            ) {
+                it[salesNotifiedAt] = null
+            }
+        }
+    }
+
+    fun salesNotifiedAt(
+        farmerId: String
+    ): Long? =
+        transaction(DatabaseFactory.getDatabase()) {
+            FarmerTable
+                .select(FarmerTable.salesNotifiedAt)
+                .where { FarmerTable.farmerId eq farmerId }
+                .singleOrNull()
+                ?.get(FarmerTable.salesNotifiedAt)
         }
 
     fun save(

@@ -164,6 +164,13 @@ object FarmerTable : Table("farmers") {
         )
             .nullable()
 
+    /* Set when the sales email for this farmer went out, so a re-sync or retry does not send it again. */
+    val salesNotifiedAt =
+        long(
+            "sales_notified_at"
+        )
+            .nullable()
+
     override val primaryKey =
         PrimaryKey(
             farmerId

@@ -43,6 +43,11 @@ class FarmerSalesNotificationTest {
                 vatNumber = "VAT-001",
                 herdCapacity = 450,
                 interestStatus = "Follow-up needed",
+                contactName = "Jan Botha",
+                contactNumber = "+27 82 555 0101",
+                farmSizeHa = 1250.5,
+                headCount = 380,
+                primaryBreed = "Bonsmara",
                 gpsLatitude = -26.2041,
                 gpsLongitude = 28.0473,
                 addresses =
@@ -67,6 +72,7 @@ class FarmerSalesNotificationTest {
                         )
                     ),
                 deviceId = "TEST-DEVICE",
+                assignedSalesmanEmail = "rep@example.com",
                 submittedByUserId = "USER-1",
                 submittedByUsername = "jvdm",
                 submittedByRole = 3,
@@ -96,6 +102,13 @@ class FarmerSalesNotificationTest {
         assertContains(json, "\"gpsLongitude\":28.0473")
         assertContains(json, "\"herdCapacity\":450")
         assertContains(json, "\"interestStatus\":\"Follow-up needed\"")
+        assertContains(json, "\"event\":\"NEW_FARMER_REGISTRATION\"")
+        assertContains(json, "\"assignedSalesmanEmail\":\"rep@example.com\"")
+        assertContains(json, "\"contactName\":\"Jan Botha\"")
+        assertContains(json, "\"contactNumber\":\"+27 82 555 0101\"")
+        assertContains(json, "\"farmSizeHa\":1250.5")
+        assertContains(json, "\"headCount\":380")
+        assertContains(json, "\"primaryBreed\":\"Bonsmara\"")
         assertContains(json, "\"addresses\"")
         assertContains(json, "\"roles\"")
     }

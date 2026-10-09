@@ -20,6 +20,7 @@ import java.util.Properties
 
 @Serializable
 data class FarmerSalesNotificationPayload(
+    val event: String = NEW_FARMER_REGISTRATION_EVENT,
     val farmerId: String,
     val clientCode: String? = null,
     val organisationName: String? = null,
@@ -31,6 +32,11 @@ data class FarmerSalesNotificationPayload(
     val glnNumber: String? = null,
     val herdCapacity: Int? = null,
     val interestStatus: String? = null,
+    val contactName: String? = null,
+    val contactNumber: String? = null,
+    val farmSizeHa: Double? = null,
+    val headCount: Int? = null,
+    val primaryBreed: String? = null,
     val gpsLatitude: Double? = null,
     val gpsLongitude: Double? = null,
     val addresses: List<FarmerAddressDto> = emptyList(),
@@ -47,11 +53,17 @@ data class FarmerSalesNotificationPayload(
     val serverSyncedAt: Long
 )
 
+const val NEW_FARMER_REGISTRATION_EVENT = "NEW_FARMER_REGISTRATION"
+
 interface FarmerSalesNotificationService {
 
+    /**
+     * True only when an email actually went out. False (nothing sent, e.g. no recipient or no
+     * SMTP) lets the farmer be notified on a later sync. A failed send throws.
+     */
     fun notifyRegistration(
         payload: FarmerSalesNotificationPayload
-    )
+    ): Boolean
 }
 
 enum class SmtpProvider {
@@ -278,7 +290,7 @@ class SmtpFarmerSalesNotificationService(
 
     override fun notifyRegistration(
         payload: FarmerSalesNotificationPayload
-    ) {
+    ): Boolean {
 
         val recipientAddress =
             salesRecipientFor(
@@ -294,7 +306,7 @@ class SmtpFarmerSalesNotificationService(
                     ": the site has none and BEEFTECH_SALES_REP_EMAIL is not set. Email skipped."
             )
 
-            return
+            return false
         }
 
         val summaryJson =
@@ -466,6 +478,26 @@ class SmtpFarmerSalesNotificationService(
                                 )
 
                                 appendLine(
+                                    "Contact person: ${payload.contactName ?: "N/A"}"
+                                )
+
+                                appendLine(
+                                    "Contact number: ${payload.contactNumber ?: "N/A"}"
+                                )
+
+                                appendLine(
+                                    "Farm size (ha): ${payload.farmSizeHa ?: "N/A"}"
+                                )
+
+                                appendLine(
+                                    "Head count: ${payload.headCount ?: "N/A"}"
+                                )
+
+                                appendLine(
+                                    "Primary breed: ${payload.primaryBreed ?: "N/A"}"
+                                )
+
+                                appendLine(
                                     "Country: ${
                                         (
                                             payload.addresses
@@ -538,6 +570,8 @@ class SmtpFarmerSalesNotificationService(
                 " for farmer " +
                 payload.farmerId
         )
+
+        return true
     }
 
     private fun safeFileName(
@@ -575,7 +609,7 @@ class LoggingFarmerSalesNotificationService :
 
     override fun notifyRegistration(
         payload: FarmerSalesNotificationPayload
-    ) {
+    ): Boolean {
 
         val summaryJson =
             json.encodeToString(
@@ -586,6 +620,9 @@ class LoggingFarmerSalesNotificationService :
             "Farmer registration sales notification prepared:\n" +
                 summaryJson
         )
+
+        /* Logged, not emailed: leave the farmer unnotified so a configured server can still email. */
+        return false
     }
 }
 
