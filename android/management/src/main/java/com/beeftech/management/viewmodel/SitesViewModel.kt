@@ -26,6 +26,11 @@ fun normaliseFarmCode(input: String): String = input.trim().uppercase()
 /* Four characters, A-Z and 0-9, as the server requires. */
 fun isValidFarmCode(input: String): Boolean = Regex("^[A-Z0-9]{4}$").matches(normaliseFarmCode(input))
 
+/* Blank means "no rep". Otherwise one plain address, the same check the server makes. */
+fun isValidSalesRepEmail(input: String): Boolean =
+    input.isBlank() ||
+        (input.trim().length <= 255 && Regex("^[^\\s@,;<>]+@[^\\s@,;<>]+\\.[^\\s@,;<>]+$").matches(input.trim()))
+
 class SitesViewModel(
     private val apiClient: ManagementApiClient
 ) : ViewModel() {
@@ -47,9 +52,13 @@ class SitesViewModel(
         }
     }
 
-    fun createSite(name: String, farmCode: String, onCreated: () -> Unit = {}) {
+    fun createSite(name: String, farmCode: String, salesRepEmail: String = "", onCreated: () -> Unit = {}) {
         viewModelScope.launch {
-            val result = apiClient.createSite(name.trim(), normaliseFarmCode(farmCode))
+            val result = apiClient.createSite(
+                name.trim(),
+                normaliseFarmCode(farmCode),
+                salesRepEmail.trim().ifBlank { null }
+            )
             if (result is ManagementResult.Success) {
                 _uiState.update {
                     it.copy(
@@ -78,6 +87,17 @@ class SitesViewModel(
             val code = normaliseFarmCode(farmCode)
             val result = apiClient.updateSite(site.siteId, farmCode = code)
             if (applySiteResult(result, "Farm code for ${site.name} is now $code")) onChanged()
+        }
+    }
+
+    /* A blank email removes the rep, so the site's farmers go to the server's default inbox. */
+    fun changeSalesRep(site: Site, salesRepEmail: String, onChanged: () -> Unit = {}) {
+        viewModelScope.launch {
+            val email = salesRepEmail.trim()
+            val result = apiClient.updateSite(site.siteId, salesRepEmail = email)
+            val notice =
+                if (email.isEmpty()) "${site.name} no longer has a sales rep" else "Sales rep for ${site.name} is now $email"
+            if (applySiteResult(result, notice)) onChanged()
         }
     }
 

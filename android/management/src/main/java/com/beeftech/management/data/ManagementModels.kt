@@ -147,6 +147,8 @@ data class Site(
     val updatedAt: Long? = null,
     /* Four characters, A-Z and 0-9. Starts every file and batch name from this site. */
     val farmCode: String? = null,
+    /* Gets the email for each farmer registered on this site. Null uses the server's default inbox. */
+    val salesRepEmail: String? = null,
     /* Active users of any role on this site. */
     val activeUserCount: Long = 0
 )
@@ -154,15 +156,17 @@ data class Site(
 @Serializable
 data class CreateSiteBody(
     val name: String,
-    val farmCode: String
+    val farmCode: String,
+    val salesRepEmail: String? = null
 )
 
-/* A null field is left out of the request and means "leave unchanged". */
+/* A null field is left out of the request and means "leave unchanged". A blank salesRepEmail removes the rep. */
 @Serializable
 data class UpdateSiteBody(
     val name: String? = null,
     val active: Boolean? = null,
-    val farmCode: String? = null
+    val farmCode: String? = null,
+    val salesRepEmail: String? = null
 )
 
 @Serializable

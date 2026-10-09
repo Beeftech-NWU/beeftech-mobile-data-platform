@@ -2,12 +2,15 @@ package com.beeftech.management.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -25,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.beeftech.management.data.ManagementApiClient
@@ -32,6 +36,7 @@ import com.beeftech.management.data.Site
 import com.beeftech.management.viewmodel.SitesViewModel
 import com.beeftech.management.viewmodel.SitesViewModelFactory
 import com.beeftech.management.viewmodel.isValidFarmCode
+import com.beeftech.management.viewmodel.isValidSalesRepEmail
 import com.beeftech.management.viewmodel.normaliseFarmCode
 
 const val MAX_SITE_NAME_LENGTH = 100
@@ -61,13 +66,25 @@ fun SitesScreen(
     var showCreate by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf<Site?>(null) }
     var changingCode by remember { mutableStateOf<Site?>(null) }
+    var changingRep by remember { mutableStateOf<Site?>(null) }
 
     LaunchedEffect(Unit) { viewModel.refresh() }
 
     if (showCreate) {
         NewSiteDialog(
             onDismiss = { showCreate = false },
-            onConfirm = { name, farmCode -> viewModel.createSite(name, farmCode) { showCreate = false } }
+            onConfirm = { name, farmCode, salesRepEmail ->
+                viewModel.createSite(name, farmCode, salesRepEmail) { showCreate = false }
+            }
+        )
+    }
+
+    changingRep?.let { site ->
+        SalesRepDialog(
+            title = "Sales rep for ${site.name}",
+            initial = site.salesRepEmail.orEmpty(),
+            onDismiss = { changingRep = null },
+            onConfirm = { email -> viewModel.changeSalesRep(site, email) { changingRep = null } }
         )
     }
 
@@ -126,6 +143,7 @@ fun SitesScreen(
                     site = site,
                     onRename = { renaming = site },
                     onChangeFarmCode = { changingCode = site },
+                    onChangeSalesRep = { changingRep = site },
                     onToggleActive = { viewModel.setActive(site, !site.active) }
                 )
             }
@@ -133,11 +151,13 @@ fun SitesScreen(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SiteCard(
     site: Site,
     onRename: () -> Unit,
     onChangeFarmCode: () -> Unit,
+    onChangeSalesRep: () -> Unit,
     onToggleActive: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -152,9 +172,14 @@ private fun SiteCard(
                 },
                 style = MaterialTheme.typography.bodySmall
             )
-            Row {
+            Text(
+                site.salesRepEmail?.let { "Sales rep: $it" } ?: "No sales rep. Farmer emails go to the default inbox.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            FlowRow {
                 TextButton(onClick = onRename) { Text("Rename") }
                 TextButton(onClick = onChangeFarmCode) { Text("Farm code") }
+                TextButton(onClick = onChangeSalesRep) { Text("Sales rep") }
                 TextButton(onClick = onToggleActive) { Text(if (site.active) "Deactivate" else "Reactivate") }
             }
         }
@@ -206,13 +231,33 @@ private fun FarmCodeField(value: String, onValueChange: (String) -> Unit) {
 }
 
 @Composable
+private fun SalesRepEmailField(value: String, onValueChange: (String) -> Unit) {
+    val valid = isValidSalesRepEmail(value)
+    OutlinedTextField(
+        value = value,
+        onValueChange = { entered -> onValueChange(entered.take(MAX_EMAIL_LENGTH)) },
+        label = { Text("Sales rep email") },
+        supportingText = {
+            Text(
+                if (valid) "Optional. Gets an email for every farmer registered on this site."
+                else "Enter one email address"
+            )
+        },
+        isError = !valid,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+        singleLine = true
+    )
+}
+
+@Composable
 private fun NewSiteDialog(
     onDismiss: () -> Unit,
-    onConfirm: (name: String, farmCode: String) -> Unit
+    onConfirm: (name: String, farmCode: String, salesRepEmail: String) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var farmCode by remember { mutableStateOf("") }
-    val valid = name.trim().isNotEmpty() && isValidFarmCode(farmCode)
+    var salesRepEmail by remember { mutableStateOf("") }
+    val valid = name.trim().isNotEmpty() && isValidFarmCode(farmCode) && isValidSalesRepEmail(salesRepEmail)
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -226,10 +271,11 @@ private fun NewSiteDialog(
                     singleLine = true
                 )
                 FarmCodeField(farmCode) { farmCode = it }
+                SalesRepEmailField(salesRepEmail) { salesRepEmail = it }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(name, farmCode) }, enabled = valid) { Text("Add") }
+            TextButton(onClick = { onConfirm(name, farmCode, salesRepEmail) }, enabled = valid) { Text("Add") }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel") }
@@ -260,4 +306,31 @@ private fun FarmCodeDialog(
     )
 }
 
+/* Blank removes the rep, so Save is allowed on an emptied field. */
+@Composable
+private fun SalesRepDialog(
+    title: String,
+    initial: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var email by remember { mutableStateOf(initial) }
+    val valid = isValidSalesRepEmail(email) && email.trim() != initial
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { SalesRepEmailField(email) { email = it } },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(email) }, enabled = valid) {
+                Text(if (email.isBlank() && initial.isNotEmpty()) "Remove" else "Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
 private const val FARM_CODE_LENGTH = 4
+private const val MAX_EMAIL_LENGTH = 255
