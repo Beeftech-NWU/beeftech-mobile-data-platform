@@ -49,6 +49,8 @@ class FileNamingUtilsTest {
     @Test
     fun `validate accepts only the agreed pattern`() {
         assertTrue(FileNamingUtils.validate("BF01-MORTALITY-20261008-140509-MOB_DEV_1"))
+        assertTrue(FileNamingUtils.validate("BF01-BREED_2026-20261008-140509-MOB_DEV_1"))
+        assertFalse(FileNamingUtils.validate("BF01-breed_2026-20261008-140509-MOB_DEV_1"))
         assertFalse(FileNamingUtils.validate("bf01-MORTALITY-20261008-140509-MOB_DEV_1"))
         assertFalse(FileNamingUtils.validate("BF01-MORTALITY-2026108-140509-MOB_DEV_1"))
         assertFalse(FileNamingUtils.validate("BF01-MORTALITY-20261008-140509"))

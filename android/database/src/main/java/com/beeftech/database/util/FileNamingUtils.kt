@@ -17,7 +17,7 @@ enum class ProjectCode {
  */
 object FileNamingUtils {
 
-    val REGEX = Regex("^[A-Z0-9]{4}-[A-Z_]+-\\d{8}-\\d{6}-[A-Za-z0-9_]+(\\.[a-z]+)?$")
+    val REGEX = Regex("^[A-Z0-9]{4}-[A-Z0-9_]+-\\d{8}-\\d{6}-[A-Za-z0-9_]+(\\.[a-z]+)?$")
 
     private val FARM_CODE = Regex("^[A-Z0-9]{4}$")
 

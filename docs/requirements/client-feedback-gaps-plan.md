@@ -71,7 +71,7 @@ Shared patterns:
 **Shared generator.** Add `android/database/.../util/FileNamingUtils.kt`, modelled on `TagNamingUtils`:
 - `enum class ProjectCode { CALF_REG, FARMER_REG, TREATMENT, MOVEMENT, MORTALITY, COST, TRACE_EVENT, REPORT }`.
 - `build(farmCode, project, instant, deviceId, ext?)`: uses the device's local time and `yyyyMMdd-HHmmss`, cleans `deviceId` to `[A-Z0-9_]`, and calls `require` on the farm code.
-- `REGEX = ^[A-Z0-9]{4}-[A-Z_]+-\d{8}-\d{6}-[A-Za-z0-9_]+(\.[a-z]+)?$`, plus `validate()` and `parse()`.
+- `REGEX = ^[A-Z0-9]{4}-[A-Z0-9_]+-\d{8}-\d{6}-[A-Za-z0-9_]+(\.[a-z]+)?$`, plus `validate()` and `parse()`.
 - Add a JVM test in `android/database/src/test`.
 - Mirror it in the backend as `common/FileNaming.kt`, with the same regex and a test.
 
