@@ -1,6 +1,7 @@
 package com.beeftech.backend.api
 
 import com.beeftech.backend.api.auth.JwtService
+import com.beeftech.backend.api.auth.Role
 import com.beeftech.backend.api.common.ApiResponse
 import io.ktor.http.ContentDisposition
 import io.ktor.http.ContentType
@@ -13,6 +14,9 @@ import io.ktor.server.response.respondBytes
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
+import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.transactions.transaction
 
 fun Route.calfRegistrationRoutes(
     jwtService: JwtService,
@@ -34,6 +38,38 @@ fun Route.calfRegistrationRoutes(
                 data = response
             )
         )
+    }
+
+    // Unlike the admin review list, this endpoint is limited to the current manager's
+    // assigned site AND verifies that the selected farmer belongs to that same site.
+    // It is safe to offer these records for *local* farmer-animal assignment.
+    get("/api/calf-registrations/assignment-candidates") {
+        val principal = call.requireAuthPrincipal(jwtService) ?: return@get
+        if (principal.roleEnum != Role.MANAGER || principal.siteId.isNullOrBlank()) {
+            call.respond(HttpStatusCode.Forbidden, ApiResponse<String>(false, "A site-assigned farm manager is required"))
+            return@get
+        }
+        val farmerId = call.request.queryParameters["farmerId"].orEmpty()
+        if (farmerId.isBlank()) {
+            call.respond(HttpStatusCode.BadRequest, ApiResponse<String>(false, "Missing farmerId"))
+            return@get
+        }
+        val accessibleFarmer = transaction {
+            FarmerTable.selectAll().where {
+                (FarmerTable.farmerId eq farmerId) and
+                    principal.recordScope().predicate(
+                        FarmerTable.submittedByUserId, FarmerTable.siteId, FarmerTable.voidedAt
+                    )
+            }.any()
+        }
+        if (!accessibleFarmer) {
+            call.respond(HttpStatusCode.NotFound, ApiResponse<String>(false, "Farmer unavailable on your site"))
+            return@get
+        }
+        call.respond(ApiResponse(
+            success = true, message = "Site calves loaded",
+            data = service.listAll(principal.recordScope())
+        ))
     }
 
     get("/api/calf-registrations") {
@@ -79,7 +115,7 @@ fun Route.calfRegistrationRoutes(
 
     post("/api/calf-registrations/{tagNumber}/media") {
 
-        call.requireBearerToken(jwtService) ?: return@post
+        val principal = call.requireAuthPrincipal(jwtService) ?: return@post
 
         val tagNumber = call.parameters["tagNumber"]
         if (tagNumber.isNullOrBlank()) {
@@ -90,8 +126,10 @@ fun Route.calfRegistrationRoutes(
             return@post
         }
 
-        val photoPath = "/media/photos/calf_${tagNumber}.jpg"
-        val updated = service.updateMedia(tagNumber, photoPath)
+        // Never interpolate untrusted tag text into a server filesystem-style path.
+        val safeTag = tagNumber.replace(Regex("[^A-Za-z0-9._-]"), "_")
+        val photoPath = "/media/photos/calf_${safeTag}.jpg"
+        val updated = service.updateMedia(tagNumber, photoPath, principal.recordScope())
 
         if (updated) {
             call.respond(
@@ -114,7 +152,7 @@ fun Route.calfRegistrationRoutes(
 
     get("/api/calf-registrations/{tagNumber}/certificate") {
 
-        call.requireBearerToken(jwtService) ?: return@get
+        val principal = call.requireAuthPrincipal(jwtService) ?: return@get
 
         val tagNumber = call.parameters["tagNumber"]
         if (tagNumber.isNullOrBlank()) {
@@ -125,7 +163,7 @@ fun Route.calfRegistrationRoutes(
             return@get
         }
 
-        val pdfBytes = service.generateCertificatePdf(tagNumber)
+        val pdfBytes = service.generateCertificatePdf(tagNumber, principal.recordScope())
         if (pdfBytes == null) {
             call.respond(
                 HttpStatusCode.NotFound,
@@ -141,7 +179,7 @@ fun Route.calfRegistrationRoutes(
             HttpHeaders.ContentDisposition,
             ContentDisposition.Inline.withParameter(
                 ContentDisposition.Parameters.FileName,
-                "birth_certificate_${tagNumber}.pdf"
+                "birth_certificate_${tagNumber.replace(Regex("[^A-Za-z0-9._-]"), "_")}.pdf"
             ).toString()
         )
 

@@ -14,6 +14,7 @@ import androidx.work.WorkerParameters
 import com.beeftech.calfregistration.worker.CalfRegistrationSyncWorker
 import com.beeftech.farmerregistration.worker.FarmerSyncWorker
 import com.beeftech.farmtraceability.worker.AnimalMovementSyncWorker
+import com.beeftech.farmtraceability.worker.FarmerAnimalLinkSyncWorker
 import com.beeftech.farmtraceability.worker.CostSyncWorker
 import com.beeftech.farmtraceability.worker.MortalitySyncWorker
 import com.beeftech.farmtraceability.worker.TreatmentSyncWorker
@@ -58,6 +59,12 @@ class ScheduledBatchSyncWorker(
                 connectedWorkRequest<
                     CalfRegistrationSyncWorker
                 >()
+            )
+
+            workManager.enqueueUniqueWork(
+                FARMER_ANIMAL_SYNC_WORK_NAME,
+                ExistingWorkPolicy.KEEP,
+                connectedWorkRequest<FarmerAnimalLinkSyncWorker>()
             )
 
             workManager.enqueueUniqueWork(
@@ -152,6 +159,9 @@ class ScheduledBatchSyncWorker(
 
         private const val CALF_SYNC_WORK_NAME =
             "calf-registration-network-available-sync"
+
+        private const val FARMER_ANIMAL_SYNC_WORK_NAME =
+            "farmer-animal-link-sync"
 
         private const val TREATMENT_SYNC_WORK_NAME =
             "treatment_network_available_sync"

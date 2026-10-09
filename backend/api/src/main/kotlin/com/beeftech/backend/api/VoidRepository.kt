@@ -11,6 +11,7 @@ import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.sql.update
 
@@ -79,6 +80,12 @@ val VOID_TARGETS: List<VoidTarget> = listOf(
     )
 )
 
+sealed interface AssignRecordSiteOutcome {
+    data object Assigned : AssignRecordSiteOutcome
+    data object NotFound : AssignRecordSiteOutcome
+    data object Conflict : AssignRecordSiteOutcome
+}
+
 sealed interface VoidOutcome {
     data class Voided(val voidedAt: Long) : VoidOutcome
     data object NotFound : VoidOutcome
@@ -86,6 +93,32 @@ sealed interface VoidOutcome {
 }
 
 class VoidRepository {
+    /** Only previously unassigned, active farmers/calves can be assigned; audited atomically. */
+    suspend fun assignUnassignedSite(
+        target: VoidTarget, id: String, siteId: String, reason: String,
+        actorUserId: String, actorUsername: String, actorRole: Int
+    ): AssignRecordSiteOutcome =
+        newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
+            val current = target.table.select(target.siteId, target.voidedAt)
+                .where { target.idColumn eq id }.singleOrNull()
+                ?: return@newSuspendedTransaction AssignRecordSiteOutcome.NotFound
+            if (current[target.siteId] != null || current[target.voidedAt] != null) {
+                return@newSuspendedTransaction AssignRecordSiteOutcome.Conflict
+            }
+            val changed = target.table.update({
+                (target.idColumn eq id) and target.siteId.isNull() and target.voidedAt.isNull()
+            }) { it[target.siteId] = siteId }
+            if (changed != 1) return@newSuspendedTransaction AssignRecordSiteOutcome.Conflict
+            insertAuditRow(AuditEntry(
+                action = AuditActions.RECORD_SITE_ASSIGN,
+                entityType = target.entityType, entityId = id,
+                actorUserId = actorUserId, actorUsername = actorUsername,
+                actorRole = actorRole, siteId = siteId, reason = reason,
+                details = auditDetails("siteId" to "unassigned->$siteId")
+            ))
+            AssignRecordSiteOutcome.Assigned
+        }
+
 
     /*
      * Marks the record voided and writes the audit row in one transaction, so a void

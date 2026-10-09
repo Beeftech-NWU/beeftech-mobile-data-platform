@@ -56,6 +56,7 @@ object DatabaseFactory {
                 DiseaseTable,
                 TreatmentTypeTable,
                 FarmerTable,
+                FarmerAnimalLinksTable,
                 FarmerAddressTable,
                 FarmerRoleTable,
                 UsersTable,

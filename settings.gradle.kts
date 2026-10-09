@@ -20,6 +20,7 @@ rootProject.name = "BeefTech"
 
 // Include Android modules
 include(":demoapp")
+include(":android")
 include(":android:authentication")
 include(":android:calf-registration")
 include(":android:database")
@@ -28,3 +29,4 @@ include(":android:farm-traceability")
 include(":android:management")
 include(":android:feed-crib")
 include(":android:tag-scanner")
+include(":backend:api")

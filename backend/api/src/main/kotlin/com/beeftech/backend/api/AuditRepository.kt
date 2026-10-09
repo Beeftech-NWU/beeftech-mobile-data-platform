@@ -18,6 +18,7 @@ import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransacti
 /* The values of audit_log.action. */
 object AuditActions {
     const val VOID = "VOID"
+    const val RECORD_SITE_ASSIGN = "RECORD_SITE_ASSIGN"
     const val USER_CREATE = "USER_CREATE"
     const val USER_UPDATE = "USER_UPDATE"
     const val USER_RESET_PIN = "USER_RESET_PIN"

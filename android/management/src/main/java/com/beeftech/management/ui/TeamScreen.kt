@@ -927,6 +927,12 @@ fun TeamScreen(
                             member =
                                 member,
 
+                            canChangeSite = isAdmin && member.role != 1 && member.userId != currentUserId,
+                            sites = state.sites.filter { it.active },
+                            onChangeSite = { siteId, onSaved ->
+                                viewModel.changeSite(member, siteId, onSaved)
+                            },
+
                             siteName =
                                 state.sites
                                     .firstOrNull {
@@ -1029,11 +1035,51 @@ private fun MemberCard(
     member: TeamMember,
     siteName: String?,
     isSelf: Boolean,
+    canChangeSite: Boolean,
+    sites: List<Site>,
+    onChangeSite: (String, () -> Unit) -> Unit,
     onToggleActive: () -> Unit,
     onResetPin: () -> Unit,
     onUnlockLogin: () -> Unit,
     onUnbind: () -> Unit
 ) {
+    var showChangeSite by remember { mutableStateOf(false) }
+    var chosenSiteId by remember(member.userId, member.siteId) { mutableStateOf(member.siteId.orEmpty()) }
+
+    if (showChangeSite) {
+        AlertDialog(
+            onDismissRequest = { showChangeSite = false },
+            title = { Text("Assign site to ${member.username}") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Only active sites are available.")
+                    if (sites.isEmpty()) {
+                        Text("No active sites. Create one in Sites first.")
+                    } else {
+                        LazyColumn(modifier = Modifier.height(240.dp)) {
+                            items(sites, key = { it.siteId }) { site ->
+                                FilterChip(
+                                    selected = chosenSiteId == site.siteId,
+                                    onClick = { chosenSiteId = site.siteId },
+                                    label = { Text(site.name) },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    enabled = sites.any { it.siteId == chosenSiteId } && chosenSiteId != member.siteId,
+                    onClick = {
+                        onChangeSite(chosenSiteId) { showChangeSite = false }
+                    }
+                ) { Text("Save site") }
+            },
+            dismissButton = { TextButton(onClick = { showChangeSite = false }) { Text("Cancel") } }
+        )
+    }
 
     Card(
         modifier =
@@ -1194,6 +1240,18 @@ private fun MemberCard(
                 }
             }
 
+
+            if (canChangeSite) {
+                OutlinedButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        chosenSiteId = member.siteId.orEmpty()
+                        showChangeSite = true
+                    }
+                ) {
+                    Text(if (member.siteId.isNullOrBlank()) "Assign site" else "Change site")
+                }
+            }
 
             Row(
                 modifier =

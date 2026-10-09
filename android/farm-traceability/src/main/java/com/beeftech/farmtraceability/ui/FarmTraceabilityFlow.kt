@@ -11,6 +11,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import com.beeftech.farmtraceability.repository.AnimalMassEditorRepository
+import com.beeftech.farmtraceability.data.SiteCalfDownloadClient
+import com.beeftech.farmtraceability.data.PendingAssignmentDiagnosticsClient
+import com.beeftech.farmtraceability.data.PendingAssignmentDiagnosis
+import com.beeftech.farmtraceability.data.MissingParentRestoreClient
+import com.beeftech.database.dao.VerifiedCalfImportResult
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.platform.LocalContext
@@ -55,6 +60,8 @@ private enum class TraceabilityScreen {
 
 @Composable
 fun FarmTraceabilityFlow(
+    newlyRegisteredCalfTag: String? = null,
+    onAssignmentEntryConsumed: () -> Unit = {},
     onExitTraceability: () -> Unit = {},
 
     onFarmerRegistrationClick: () -> Unit = {},
@@ -242,6 +249,23 @@ fun FarmTraceabilityFlow(
         mutableStateOf<String?>(null)
     }
 
+    // Reuse the registered-farmer picker for both profile viewing and animal assignment.
+    var selectingFarmerForAssignment by remember { mutableStateOf(false) }
+    var preselectedCalfTag by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(newlyRegisteredCalfTag) {
+        if (!newlyRegisteredCalfTag.isNullOrBlank()) {
+            preselectedCalfTag = newlyRegisteredCalfTag
+            selectingFarmerForAssignment = true
+            selectedFarmerId = null
+            navigationHistory.clear()
+            navigationHistory.add(TraceabilityScreen.HOME)
+            currentScreen = TraceabilityScreen.REGISTERED_FARMERS
+            onAssignmentEntryConsumed()
+        }
+    }
+
+
     var findAnimalDestination by remember {
         mutableStateOf(
             TraceabilityScreen.ANIMAL_RECORD
@@ -326,12 +350,19 @@ fun FarmTraceabilityFlow(
                     },
 
                     onFarmerFarmProfileClick = {
+                        selectingFarmerForAssignment = false
                         selectedFarmerId = null
 
                         navigateTo(
                             TraceabilityScreen
                                 .REGISTERED_FARMERS
                         )
+                    },
+
+                    onAssignAnimalClick = {
+                        selectingFarmerForAssignment = true
+                        selectedFarmerId = null
+                        navigateTo(TraceabilityScreen.REGISTERED_FARMERS)
                     },
 
                     onFarmerRegistrationClick =
@@ -491,12 +522,19 @@ fun FarmTraceabilityFlow(
                     },
 
                     onFarmerFarmProfileClick = {
+                        selectingFarmerForAssignment = false
                         selectedFarmerId = null
 
                         navigateTo(
                             TraceabilityScreen
                                 .REGISTERED_FARMERS
                         )
+                    },
+
+                    onAssignAnimalClick = {
+                        selectingFarmerForAssignment = true
+                        selectedFarmerId = null
+                        navigateTo(TraceabilityScreen.REGISTERED_FARMERS)
                     },
 
                     onFarmerRegistrationClick =
@@ -666,6 +704,7 @@ fun FarmTraceabilityFlow(
 
             RegisteredFarmersScreen(
                 farmers = farmers,
+                selectingForAssignment = selectingFarmerForAssignment,
 
                 isLoading =
                     isLoadingFarmers,
@@ -680,8 +719,11 @@ fun FarmTraceabilityFlow(
                         farmerId
 
                     navigateTo(
-                        TraceabilityScreen
-                            .FARMER_FARM_PROFILE
+                        if (selectingFarmerForAssignment) {
+                            TraceabilityScreen.FARMER_ANIMAL_ASSIGNMENT
+                        } else {
+                            TraceabilityScreen.FARMER_FARM_PROFILE
+                        }
                     )
                 },
 
@@ -695,9 +737,18 @@ fun FarmTraceabilityFlow(
             val database = DatabaseProvider.getDatabase()
             val farmerId = selectedFarmerId.orEmpty()
             var animals by remember(farmerId) { mutableStateOf(emptyList<com.beeftech.database.entity.Animal>()) }
+            var animalTags by remember(farmerId) { mutableStateOf(emptyMap<String, String>()) }
             var links by remember(farmerId) { mutableStateOf(emptyList<com.beeftech.database.entity.FarmerAnimalLink>()) }
+            var preselectedAnimalId by remember(farmerId, preselectedCalfTag) { mutableStateOf<String?>(null) }
             var farmerName by remember(farmerId) { mutableStateOf("") }
             var busy by remember(farmerId) { mutableStateOf(false) }
+            var downloading by remember(farmerId) { mutableStateOf(false) }
+            var checkingPending by remember(farmerId) { mutableStateOf(false) }
+            var restoringParent by remember(farmerId) { mutableStateOf(false) }
+            var farmerLabels by remember(farmerId) { mutableStateOf(emptyMap<String, String>()) }
+            var pendingDiagnostics by remember(farmerId) { mutableStateOf(emptyList<PendingAssignmentDiagnosis>()) }
+            var pendingHistoricalRecordGuids by remember(farmerId) { mutableStateOf(emptySet<String>()) }
+            var pendingDiagnosisMessage by remember(farmerId) { mutableStateOf("") }
             var message by remember(farmerId) { mutableStateOf("") }
             val scope = rememberCoroutineScope()
 
@@ -705,9 +756,18 @@ fun FarmTraceabilityFlow(
                 try {
                     val activeDatabase = database ?: error("Local database is unavailable")
                     animals = activeDatabase.animalDao().getAll()
+                    animalTags = activeDatabase.calfRegistrationDao().getAllRegistrationViews()
+                        .firstOrNull().orEmpty().associate { it.animalId to it.tagNumber }
+                    preselectedAnimalId = preselectedCalfTag?.let { tag ->
+                        activeDatabase.calfRegistrationDao().findAnimalIdByTag(tag)
+                    }
                     links = activeDatabase.farmerAnimalLinkDao().allActive()
-                    farmerName = activeDatabase.farmerDao().getAllFarmers()
-                        .firstOrNull { it.farmer_id == farmerId }?.organisation_name.orEmpty()
+                    val knownFarmers = activeDatabase.farmerDao().getAllFarmers()
+                    farmerName = knownFarmers.firstOrNull { it.farmer_id == farmerId }
+                        ?.organisation_name.orEmpty()
+                    farmerLabels = knownFarmers.associate { farmer ->
+                        farmer.farmer_id to (farmer.organisation_name ?: farmer.client_code ?: farmer.farmer_id)
+                    }
                 } catch (exception: Exception) {
                     message = "Unable to load assignments: ${exception.message}"
                 }
@@ -715,28 +775,175 @@ fun FarmTraceabilityFlow(
             FarmerAnimalAssignmentScreen(
                 farmerName = farmerName.ifBlank { "Registered farmer" },
                 farmerId = farmerId,
+                preselectedAnimalId = preselectedAnimalId,
                 animals = animals,
+                animalTags = animalTags,
+                farmerLabels = farmerLabels,
                 activeLinks = links,
                 isBusy = busy,
-                message = message,
-                onAssign = { selected ->
-                    if (!busy && farmerId.isNotBlank()) {
-                        busy = true
+                isDownloading = downloading,
+                checkingPending = checkingPending,
+                restoringParent = restoringParent,
+                pendingDiagnostics = pendingDiagnostics,
+                pendingHistoricalRecordGuids = pendingHistoricalRecordGuids,
+                pendingDiagnosisMessage = pendingDiagnosisMessage,
+                onCheckPending = {
+                    if (!checkingPending) {
+                        checkingPending = true
+                        pendingDiagnostics = emptyList()
+                        pendingHistoricalRecordGuids = emptySet()
+                        pendingDiagnosisMessage = ""
                         scope.launch {
                             try {
-                                val activeDatabase = database ?: error("Local database is unavailable")
-                                var saved = 0
-                                selected.forEach { animalId ->
-                                    if (activeDatabase.farmerAnimalLinkDao().assign(farmerId, animalId)) saved++
+                                val db = database ?: error("Local database unavailable")
+                                val pending = db.farmerAnimalLinkDao().pendingUploads()
+                                // A closure is history, not another current ownership claim.
+                                pendingHistoricalRecordGuids = pending.asSequence()
+                                    .filter { it.effectiveTo != null }
+                                    .map { it.recordGuid }.toSet()
+                                farmerLabels = db.farmerDao().getAllFarmers()
+                                    .associate { it.farmer_id to (it.organisation_name ?: "Unnamed farmer") }
+                                pendingDiagnostics = PendingAssignmentDiagnosticsClient.check(pending)
+                                if (pending.size > 50) {
+                                    pendingDiagnosisMessage = "Showing first 50 of ${pending.size} pending assignments."
                                 }
-                                links = activeDatabase.farmerAnimalLinkDao().allActive()
-                                message = "$saved animal assignment(s) saved offline; server sync not yet available."
-                            } catch (exception: Exception) {
-                                message = "Unable to save: ${exception.message}"
-                            } finally { busy = false }
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                pendingDiagnosisMessage = "Unable to check pending assignments: ${e.message}"
+                            } finally {
+                                checkingPending = false
+                            }
                         }
                     }
                 },
+                onEndTestAssignment = { recordGuid ->
+                    if (!busy && !checkingPending && !restoringParent) {
+                        busy = true
+                        scope.launch {
+                            try {
+                                val db = database ?: error("Local database unavailable")
+                                val dao = db.farmerAnimalLinkDao()
+                                val current = dao.pendingUploads()
+                                    .singleOrNull { it.recordGuid == recordGuid && it.effectiveTo == null }
+                                    ?: error("This assignment is no longer pending and active")
+                                val ended = dao.endExactActiveAssignment(
+                                    current.recordGuid,
+                                    current.farmerId,
+                                    current.animalId,
+                                    System.currentTimeMillis()
+                                )
+                                check(ended == 1) {
+                                    "The assignment changed before the confirmation. Refresh the report."
+                                }
+                                links = dao.allActive()
+                                val pending = dao.pendingUploads()
+                                pendingHistoricalRecordGuids = pending.asSequence()
+                                    .filter { it.effectiveTo != null }
+                                    .map { it.recordGuid }.toSet()
+                                pendingDiagnostics = PendingAssignmentDiagnosticsClient.check(pending)
+                                pendingDiagnosisMessage =
+                                    "Test assignment ended locally. Sync will verify the closure; " +
+                                        "it is not marked as uploaded yet."
+                                message = "Assignment ended. Animal is unassigned; original records preserved."
+                                TraceabilitySyncScheduler.kick()
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                pendingDiagnosisMessage = "Unable to end assignment: ${e.message}"
+                            } finally {
+                                busy = false
+                            }
+                        }
+                    }
+                },
+                onRestoreMissing = { recordGuid, kind, reason ->
+                    if (!restoringParent && !checkingPending) {
+                        restoringParent = true
+                        pendingDiagnosisMessage = ""
+                        scope.launch {
+                            try {
+                                val db = database ?: error("Local database unavailable")
+                                val pending = db.farmerAnimalLinkDao().pendingUploads()
+                                val link = pending.singleOrNull { it.recordGuid == recordGuid }
+                                    ?: error("The original pending assignment is no longer on this device")
+                                check(link.effectiveTo == null) {
+                                    "This is an ended historical link. Do not restore its former farmer to clear history."
+                                }
+                                val restored = MissingParentRestoreClient.restore(db, link, kind, reason)
+                                // Refresh the read-only report, not the assignment queue.
+                                pendingDiagnostics = PendingAssignmentDiagnosticsClient.check(pending)
+                                pendingDiagnosisMessage = "$restored. Review the remaining issues before retrying sync."
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                pendingDiagnosisMessage = "Recovery was not completed: ${e.message}"
+                            } finally {
+                                restoringParent = false
+                            }
+                        }
+                    }
+                },
+                message = message,
+                onDownloadSiteCalves = {
+                    if (!busy && !downloading) {
+                        downloading = true
+                        scope.launch {
+                            try {
+                                val db = database ?: error("Local database unavailable")
+                                val candidates = SiteCalfDownloadClient.fetch(farmerId)
+                                var imported = 0
+                                var skipped = 0
+                                for (candidate in candidates) {
+                                    when (db.calfRegistrationDao().importVerifiedServerCalf(candidate)) {
+                                        VerifiedCalfImportResult.IMPORTED -> imported++
+                                        VerifiedCalfImportResult.ALREADY_PRESENT -> Unit
+                                        VerifiedCalfImportResult.CONFLICT,
+                                        VerifiedCalfImportResult.INVALID -> skipped++
+                                    }
+                                }
+                                animals = db.animalDao().getAll()
+                                animalTags = db.calfRegistrationDao().getAllRegistrationViews()
+                                    .firstOrNull().orEmpty().associate { it.animalId to it.tagNumber }
+                                message = "$imported farm calf/calves downloaded; $skipped skipped " +
+                                    "(missing server UUID, invalid data or local conflict). " +
+                                    "Existing local animals were not modified."
+                            } catch (e: Exception) {
+                                message = "Unable to download farm calves: ${e.message}"
+                            } finally {
+                                downloading = false
+                            }
+                        }
+                    }
+                },
+                onAssign = { selected, onSaved ->
+                    if (!busy && farmerId.isNotBlank()) {
+                        busy = true
+                        scope.launch {
+                            val savedIds = mutableListOf<String>()
+                            try {
+                                val activeDatabase = database ?: error("Local database is unavailable")
+                                selected.forEach { animalId ->
+                                    if (activeDatabase.farmerAnimalLinkDao().assign(farmerId, animalId)) {
+                                        savedIds.add(animalId)
+                                    }
+                                }
+                                links = activeDatabase.farmerAnimalLinkDao().allActive()
+                                if (savedIds.isNotEmpty()) {
+                                    preselectedCalfTag = null
+                                    TraceabilitySyncScheduler.kick()
+                                }
+                                message = "${savedIds.size} animal assignment(s) saved on this device."
+                            } catch (exception: Exception) {
+                                message = "Unable to save: ${exception.message}"
+                            } finally {
+                                onSaved(savedIds)
+                                busy = false
+                            }
+                        }
+                    }
+                },
+                onRegisterCalf = onCalfRegistrationClick,
                 onBack = { navigateBack() }
             )
         }
@@ -797,6 +1004,10 @@ fun FarmTraceabilityFlow(
                     mutableStateOf("")
                 }
 
+            var assignedAnimals by remember(database, farmerId) {
+                mutableStateOf(emptyList<com.beeftech.database.entity.Animal>())
+            }
+
             LaunchedEffect(
                 database,
                 farmerId
@@ -809,6 +1020,7 @@ fun FarmTraceabilityFlow(
                 address = null
                 businessRoleNames =
                     emptyList()
+                assignedAnimals = emptyList()
 
                 when {
 
@@ -851,6 +1063,11 @@ fun FarmTraceabilityFlow(
 
                                 farmer =
                                     loadedFarmer
+                                val assignedIds = database.farmerAnimalLinkDao()
+                                    .activeForFarmer(farmerId)
+                                    .map { it.animalId }.toSet()
+                                assignedAnimals = database.animalDao().getAll()
+                                    .filter { it.animalId in assignedIds }
 
                                 val addresses =
                                     repository
@@ -1034,7 +1251,9 @@ fun FarmTraceabilityFlow(
                 errorMessage =
                     profileError,
 
+                assignedAnimals = assignedAnimals,
                 onAssignAnimals = { navigateTo(TraceabilityScreen.FARMER_ANIMAL_ASSIGNMENT) },
+                onRegisterCalf = onCalfRegistrationClick,
                 onBackClick = {
                     navigateBack()
                 }

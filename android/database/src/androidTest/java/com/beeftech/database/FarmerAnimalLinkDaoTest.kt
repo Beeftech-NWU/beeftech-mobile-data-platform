@@ -75,6 +75,76 @@ class FarmerAnimalLinkDaoTest {
         assertEquals(1, dao.allActive().size)
     }
 
+    @Test fun confirmedLocalHistoryIsNotCountedAsPendingOrCurrent() = runBlocking {
+        val db = openSeededDatabase()
+        val dao = db.farmerAnimalLinkDao()
+        assertTrue(dao.assign("FARMER-A", "ANIMAL-LINK-1"))
+        assertTrue(dao.assign("FARMER-B", "ANIMAL-LINK-1"))
+        val records = dao.pendingUploads()
+        assertEquals(2, records.size)
+        val old = records.first { it.effectiveTo != null }
+        assertEquals(1, dao.markLocalHistoryIfUnchanged(
+            old.linkId, old.recordGuid, old.effectiveFrom, old.effectiveTo!!
+        ))
+        assertEquals(0, dao.markLocalHistoryIfUnchanged(
+            old.linkId, old.recordGuid, old.effectiveFrom, old.effectiveTo!!
+        ))
+        assertEquals(1, dao.pendingUploads().size)
+        assertEquals("FARMER-B", dao.activeForAnimal("ANIMAL-LINK-1")?.farmerId)
+    }
+
+    @Test fun acknowledgedClosureIsNotReopenedByLateSnapshot() = runBlocking {
+        val db = openSeededDatabase()
+        val dao = db.farmerAnimalLinkDao()
+        assertTrue(dao.assign("FARMER-A", "ANIMAL-LINK-1"))
+        val active = dao.activeForAnimal("ANIMAL-LINK-1")!!
+        assertEquals(1, dao.markSyncedIfUnchanged(active.linkId, active.recordGuid, active.effectiveFrom, null))
+        assertTrue(dao.assign("FARMER-B", "ANIMAL-LINK-1"))
+        val closure = dao.pendingUploads().first { it.farmerId == "FARMER-A" }
+        assertEquals(0, dao.markSyncedIfUnchanged(active.linkId, active.recordGuid, active.effectiveFrom, null))
+        assertEquals(1, dao.markSyncedIfUnchanged(
+            closure.linkId, closure.recordGuid, closure.effectiveFrom, closure.effectiveTo
+        ))
+        assertEquals("FARMER-B", dao.activeForAnimal("ANIMAL-LINK-1")?.farmerId)
+    }
+
+    @Test fun endInvalidTestAssignmentPreservesHistoryAndMakesAnimalUnassigned() = runBlocking {
+        val db = openSeededDatabase()
+        val dao = db.farmerAnimalLinkDao()
+        assertTrue(dao.assign("FARMER-A", "ANIMAL-LINK-1"))
+        val active = dao.activeForAnimal("ANIMAL-LINK-1")!!
+        val endedAt = active.effectiveFrom + 1000L
+        assertEquals(1, dao.endExactActiveAssignment(
+            active.recordGuid, active.farmerId, active.animalId, endedAt
+        ))
+        assertNull(dao.activeForAnimal("ANIMAL-LINK-1"))
+        val ended = dao.pendingUploads().single()
+        assertEquals(active.recordGuid, ended.recordGuid)
+        assertEquals(active.farmerId, ended.farmerId)
+        assertEquals(endedAt, ended.effectiveTo)
+        assertEquals("PENDING", ended.syncStatus)
+        assertEquals(0, dao.endExactActiveAssignment(
+            active.recordGuid, active.farmerId, active.animalId, endedAt + 1
+        ))
+        assertEquals(1, dao.markLocalHistoryIfUnchanged(
+            ended.linkId, ended.recordGuid, ended.effectiveFrom, endedAt
+        ))
+        assertTrue(dao.pendingUploads().isEmpty())
+        assertTrue(dao.allActive().isEmpty())
+    }
+
+    @Test fun staleEndCannotCancelNewOwner() = runBlocking {
+        val db = openSeededDatabase()
+        val dao = db.farmerAnimalLinkDao()
+        assertTrue(dao.assign("FARMER-A", "ANIMAL-LINK-1"))
+        val original = dao.activeForAnimal("ANIMAL-LINK-1")!!
+        assertTrue(dao.assign("FARMER-B", "ANIMAL-LINK-1"))
+        assertEquals(0, dao.endExactActiveAssignment(
+            original.recordGuid, original.farmerId, original.animalId, System.currentTimeMillis()
+        ))
+        assertEquals("FARMER-B", dao.activeForAnimal("ANIMAL-LINK-1")?.farmerId)
+    }
+
     @Test fun assignmentSurvivesDatabaseReopen() = runBlocking {
         val db = openSeededDatabase()
         assertTrue(db.farmerAnimalLinkDao().assign("FARMER-A", "ANIMAL-LINK-1"))

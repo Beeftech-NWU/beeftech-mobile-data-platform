@@ -7,7 +7,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.UUID
 
-/** Local, durable association. Backend synchronization is not yet available. */
+/** Local, durable association. Historical links retain their identity across transfers. */
 @Entity(
     tableName = "farmer_animal_links",
     foreignKeys = [

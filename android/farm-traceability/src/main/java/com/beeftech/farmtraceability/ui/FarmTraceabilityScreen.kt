@@ -55,6 +55,7 @@ fun FarmTraceabilityScreen(
     onBackClick: () -> Unit = {},
     onRetrySyncClick: () -> Unit = {},
     onFarmerFarmProfileClick: () -> Unit = {},
+    onAssignAnimalClick: () -> Unit = {},
     onFarmerRegistrationClick: () -> Unit = {},
     onFindAnimalClick: () -> Unit = {},
     onAnimalRecordClick: () -> Unit = {},
@@ -214,6 +215,14 @@ fun FarmTraceabilityScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            TraceabilityMenuCard(
+                title = "Assign Animal to Farmer",
+                subtitle = "Choose a farmer, then select a registered animal",
+                icon = Icons.AutoMirrored.Outlined.Assignment,
+                onClick = onAssignAnimalClick
+            )
+
+            MenuSpacer()
             TraceabilityMenuCard(
                 title = "Farmer & Farm Profile",
                 subtitle = "View farmer, farm and location details",

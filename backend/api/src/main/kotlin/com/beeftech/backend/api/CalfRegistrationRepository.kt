@@ -16,6 +16,8 @@ import org.jetbrains.exposed.sql.update
  * version pinned in this project (0.56.0). `selectAll().where { ... }` is
  * the current, supported replacement.
  */
+data class CalfUpsertResult(val record: CalfRegistrationDto, val created: Boolean)
+
 class CalfRegistrationRepository {
 
     private fun ResultRow.toDto(): CalfRegistrationDto {
@@ -46,7 +48,7 @@ class CalfRegistrationRepository {
         serverSyncedAt: Long,
         submittedBy: String? = null,
         submitterSiteId: String? = null
-    ): CalfRegistrationDto = newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
+    ): CalfUpsertResult = newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
 
         val existing = CalfRegistrationTable
             .selectAll()
@@ -54,7 +56,12 @@ class CalfRegistrationRepository {
             .singleOrNull()
 
         if (existing != null) {
-
+            require(existing[CalfRegistrationTable.voidedAt] == null &&
+                existing[CalfRegistrationTable.siteId] == submitterSiteId &&
+                (submitterSiteId != null || existing[CalfRegistrationTable.submittedByUserId] == submittedBy) &&
+                existing[CalfRegistrationTable.animalUuid] == dto.animalUuid) {
+                "Calf registration is voided or belongs to another account/site"
+            }
             CalfRegistrationTable.update(
                 { CalfRegistrationTable.recordguid eq dto.recordguid }
             ) {
@@ -74,8 +81,7 @@ class CalfRegistrationRepository {
                 it[deviceId] = dto.deviceId
                 it[syncStatus] = "SYNCED"
                 it[syncedAt] = serverSyncedAt
-                it[submittedByUserId] = submittedBy
-                it[siteId] = submitterSiteId
+                // Do not replace existing registration ownership on replay.
             }
 
         } else {
@@ -103,9 +109,9 @@ class CalfRegistrationRepository {
             }
         }
 
-        dto.copy(
-            syncStatus = "SYNCED",
-            syncedAt = serverSyncedAt
+        CalfUpsertResult(
+            record = dto.copy(syncStatus = "SYNCED", syncedAt = serverSyncedAt),
+            created = existing == null
         )
     }
 
@@ -134,11 +140,13 @@ class CalfRegistrationRepository {
 
     suspend fun updatePhotoPath(
         tagNumber: String,
-        photoPath: String
+        photoPath: String,
+        scope: RecordScope = RecordScope.All
     ): Boolean = newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
 
         val updatedCount = CalfRegistrationTable.update(
-            { CalfRegistrationTable.tagNumber eq tagNumber }
+            { (CalfRegistrationTable.tagNumber eq tagNumber) and
+                scope.predicate(CalfRegistrationTable.submittedByUserId, CalfRegistrationTable.siteId, CalfRegistrationTable.voidedAt) }
         ) {
             it[CalfRegistrationTable.photoPath] = photoPath
         }

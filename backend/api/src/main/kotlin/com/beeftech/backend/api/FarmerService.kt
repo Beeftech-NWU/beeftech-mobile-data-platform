@@ -20,7 +20,7 @@ class FarmerService(
                     val serverSyncedAt =
                         System.currentTimeMillis()
 
-                    repository.save(
+                    val created = repository.save(
                         dto = farmer,
                         serverSyncedAt = serverSyncedAt,
                         submittedBy = principal.userId,
@@ -33,7 +33,7 @@ class FarmerService(
                      * Notification failure must therefore never
                      * change the farmer back to FAILED/PENDING.
                      */
-                    try {
+                    if (created) try {
                         salesNotificationService
                             .notifyRegistration(
                                 FarmerSalesNotificationPayload(
@@ -92,18 +92,15 @@ class FarmerService(
                                         "REGISTERED",
 
                                     serverSyncedAt =
-                                        serverSyncedAt
+                                        serverSyncedAt,
+                                    siteId = principal.siteId
                                 )
                             )
                     } catch (notificationException: Exception) {
 
                         System.err.println(
                             "Farmer ${farmer.farmerId} synchronized, " +
-                                "but sales notification failed: " +
-                                (
-                                    notificationException.message
-                                        ?: "Unknown notification error"
-                                )
+                                "but JSON notification delivery failed (check SMTP configuration)."
                         )
                     }
 
