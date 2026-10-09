@@ -63,6 +63,11 @@ data class FarmerPayload(
     val glnNumber: String? = null,
     val herdCapacity: Int? = null,
     val interestStatus: String? = null,
+    val contactName: String? = null,
+    val contactNumber: String? = null,
+    val farmSizeHa: Double? = null,
+    val headCount: Int? = null,
+    val primaryBreed: String? = null,
     val addresses: List<FarmerAddressPayload> = emptyList(),
     val roles: List<FarmerRolePayload> = emptyList()
 )
@@ -171,6 +176,11 @@ class FarmerApiClient(
         glnNumber = gln_number,
         herdCapacity = herd_capacity,
         interestStatus = interest_status,
+        contactName = contact_name,
+        contactNumber = contact_number,
+        farmSizeHa = farm_size_ha,
+        headCount = head_count,
+        primaryBreed = primary_breed,
         addresses = addresses.map { it.toPayload() },
         roles = roles.map { it.toPayload() }
     )

@@ -117,7 +117,8 @@ object FarmerSyncScheduler {
 data class CoordinatesSaveData(
     val latitude: String = "",
     val longitude: String = "",
-    val organisationName: String = ""
+    val organisationName: String = "",
+    val reviewLines: List<String> = emptyList()
 )
 
 class CoordinatesAndSaveScreen : ComponentActivity() {
@@ -135,7 +136,12 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
                             organisationName =
                                 FarmerRegistrationSession.clientDetails
                                     ?.organisationName
-                                    ?: "Farmer"
+                                    ?: "Farmer",
+                            reviewLines =
+                                FarmerFieldRules.reviewLines(
+                                    FarmerRegistrationSession.clientDetails,
+                                    FarmerRegistrationSession.addressDetails
+                                )
                         )
                     )
                 }
@@ -481,6 +487,32 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
 
                                                 interest_status =
                                                     addressData.interestStatus
+                                                        .trim()
+                                                        .ifBlank { null },
+
+                                                contact_name =
+                                                    clientData.contactName
+                                                        .trim()
+                                                        .ifBlank { null },
+
+                                                contact_number =
+                                                    clientData.contactNumber
+                                                        .trim()
+                                                        .ifBlank { null },
+
+                                                farm_size_ha =
+                                                    FarmerFieldRules
+                                                        .parseFarmSizeHa(
+                                                            addressData.farmSizeHa
+                                                        ),
+
+                                                head_count =
+                                                    addressData.headCount
+                                                        .trim()
+                                                        .toIntOrNull(),
+
+                                                primary_breed =
+                                                    addressData.primaryBreed
                                                         .trim()
                                                         .ifBlank { null }
                                             )
@@ -1310,6 +1342,25 @@ fun CoordinatesAndSaveContent(
                     color =
                         BeeftechPrimaryDeep
                 )
+
+                formData.reviewLines.forEach { line ->
+
+                    Spacer(
+                        modifier =
+                            Modifier.height(
+                                4.dp
+                            )
+                    )
+
+                    Text(
+                        text =
+                            line,
+                        fontSize =
+                            12.sp,
+                        color =
+                            BeeftechText
+                    )
+                }
 
                 Spacer(
                     modifier =

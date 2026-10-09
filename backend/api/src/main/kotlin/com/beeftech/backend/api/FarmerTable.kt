@@ -131,6 +131,39 @@ object FarmerTable : Table("farmers") {
         )
             .nullable()
 
+    val contactName =
+        varchar(
+            "contact_name",
+            255
+        )
+            .nullable()
+
+    val contactNumber =
+        varchar(
+            "contact_number",
+            32
+        )
+            .nullable()
+
+    val farmSizeHa =
+        double(
+            "farm_size_ha"
+        )
+            .nullable()
+
+    val headCount =
+        integer(
+            "head_count"
+        )
+            .nullable()
+
+    val primaryBreed =
+        varchar(
+            "primary_breed",
+            255
+        )
+            .nullable()
+
     override val primaryKey =
         PrimaryKey(
             farmerId

@@ -123,6 +123,21 @@ class FarmerRepository {
             interestStatus =
                 this[FarmerTable.interestStatus],
 
+            contactName =
+                this[FarmerTable.contactName],
+
+            contactNumber =
+                this[FarmerTable.contactNumber],
+
+            farmSizeHa =
+                this[FarmerTable.farmSizeHa],
+
+            headCount =
+                this[FarmerTable.headCount],
+
+            primaryBreed =
+                this[FarmerTable.primaryBreed],
+
             addresses =
                 addresses,
 
@@ -241,6 +256,21 @@ class FarmerRepository {
 
                     it[interestStatus] =
                         dto.interestStatus
+
+                    it[contactName] =
+                        dto.contactName
+
+                    it[contactNumber] =
+                        dto.contactNumber
+
+                    it[farmSizeHa] =
+                        dto.farmSizeHa
+
+                    it[headCount] =
+                        dto.headCount
+
+                    it[primaryBreed] =
+                        dto.primaryBreed
                 }
 
             } else {
@@ -297,6 +327,21 @@ class FarmerRepository {
 
                     it[interestStatus] =
                         dto.interestStatus
+
+                    it[contactName] =
+                        dto.contactName
+
+                    it[contactNumber] =
+                        dto.contactNumber
+
+                    it[farmSizeHa] =
+                        dto.farmSizeHa
+
+                    it[headCount] =
+                        dto.headCount
+
+                    it[primaryBreed] =
+                        dto.primaryBreed
                 }
             }
 
