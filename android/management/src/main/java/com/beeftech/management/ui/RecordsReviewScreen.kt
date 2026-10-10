@@ -109,6 +109,7 @@ private data class AnimalListItem(
 fun RecordsReviewTab(
     apiClient: ManagementApiClient,
     currentUserId: String,
+    isAdmin: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val viewModel: RecordsReviewViewModel = viewModel(
@@ -118,6 +119,7 @@ fun RecordsReviewTab(
 
     RecordsReviewScreen(
         viewModel = viewModel,
+        isAdmin = isAdmin,
         modifier = modifier
     )
 }
@@ -133,12 +135,15 @@ fun RecordsReviewTab(
 @Composable
 fun RecordsReviewScreen(
     viewModel: RecordsReviewViewModel,
+    isAdmin: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
 
     var selectedSection by remember { mutableStateOf(RecordsSection.ANIMALS) }
     var voidTarget by remember { mutableStateOf<ReviewRecord?>(null) }
+    var siteTarget by remember { mutableStateOf<ReviewRecord?>(null) }
+    LaunchedEffect(isAdmin) { if (isAdmin) viewModel.loadSites() }
     var reviewSearchQuery by remember { mutableStateOf("") }
     var animalSearchQuery by remember { mutableStateOf("") }
     var animalFilter by remember { mutableStateOf(AnimalFilter.ALL) }
@@ -379,6 +384,17 @@ fun RecordsReviewScreen(
             }
         }
 
+    siteTarget?.let { record ->
+        AssignSiteDialog(
+            record = record,
+            sites = state.sites.filter { it.active },
+            onDismiss = { siteTarget = null },
+            onAssign = { siteId, reason ->
+                viewModel.assignSite(record, siteId, reason) { siteTarget = null }
+            }
+        )
+    }
+
     voidTarget?.let { record ->
         VoidDialog(
             record = record,
@@ -493,7 +509,9 @@ fun RecordsReviewScreen(
                         viewModel::setShowVoided,
                     onVoid = {
                         voidTarget = it
-                    }
+                    },
+                    canAssignSite = isAdmin,
+                    onAssignSite = { siteTarget = it }
                 )
         }
     }
@@ -1299,7 +1317,9 @@ private fun ColumnScope.RecordsReviewContent(
     onRefresh: () -> Unit,
     onTypeSelected: (String) -> Unit,
     onShowVoidedChange: (Boolean) -> Unit,
-    onVoid: (ReviewRecord) -> Unit
+    onVoid: (ReviewRecord) -> Unit,
+    canAssignSite: Boolean,
+    onAssignSite: (ReviewRecord) -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -1403,7 +1423,11 @@ private fun ColumnScope.RecordsReviewContent(
         ) { record ->
             RecordCard(
                 record = record,
-                onVoid = { onVoid(record) }
+                onVoid = { onVoid(record) },
+                onAssignSite = if (canAssignSite && record.siteId == null && !record.isVoided &&
+                    (record.type == "farmers" || record.type == "calf-registrations")) {
+                    { onAssignSite(record) }
+                } else null
             )
         }
     }
@@ -1412,7 +1436,8 @@ private fun ColumnScope.RecordsReviewContent(
 @Composable
 private fun RecordCard(
     record: ReviewRecord,
-    onVoid: () -> Unit
+    onVoid: () -> Unit,
+    onAssignSite: (() -> Unit)? = null
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1453,12 +1478,56 @@ private fun RecordCard(
                     style = MaterialTheme.typography.bodySmall
                 )
             } else {
+                onAssignSite?.let { action ->
+                    TextButton(onClick = action) { Text("Assign site") }
+                }
                 TextButton(onClick = onVoid) {
                     Text("Void")
                 }
             }
         }
     }
+}
+
+@Composable
+private fun AssignSiteDialog(
+    record: ReviewRecord,
+    sites: List<com.beeftech.management.data.Site>,
+    onDismiss: () -> Unit,
+    onAssign: (String, String) -> Unit
+) {
+    var selectedId by remember(record.id) { mutableStateOf("") }
+    var reason by remember(record.id) { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Assign ${record.label} to a site") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Assign only after verifying the record belongs to the selected site. This is audited and cannot transfer records already assigned elsewhere.")
+                if (sites.isEmpty()) Text("No active sites available")
+                sites.forEach { site ->
+                    FilterChip(
+                        selected = selectedId == site.siteId,
+                        onClick = { selectedId = site.siteId },
+                        label = { Text(site.name) }
+                    )
+                }
+                OutlinedTextField(
+                    value = reason,
+                    onValueChange = { if (it.length <= MAX_VOID_REASON_LENGTH) reason = it },
+                    label = { Text("Verification reason (required)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = selectedId.isNotBlank() && reason.isNotBlank(),
+                onClick = { onAssign(selectedId, reason) }
+            ) { Text("Confirm assignment") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }
 
 @Composable

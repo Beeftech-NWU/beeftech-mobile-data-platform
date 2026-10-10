@@ -179,6 +179,21 @@ class ManagementApiClient(
             }
         }
 
+    /** Admin-only verified legacy assignment, never a silent transfer. */
+    suspend fun assignRecordSite(
+        type: String, id: String, siteId: String, reason: String
+    ): ManagementResult<AssignRecordSiteResult> =
+        call(decode = {
+            JSON.decodeFromString<Envelope<AssignRecordSiteResult>>(it).data
+                ?: error("Missing site assignment result")
+        }) { token ->
+            httpClient.post("${baseUrl}api/records/$type/$id/assign-site") {
+                bearerAuth(token)
+                contentType(ContentType.Application.Json)
+                setBody(AssignRecordSiteBody(siteId, reason))
+            }
+        }
+
     /* Corrections are void-only: a worker re-captures the record. The reason is required. */
     suspend fun voidRecord(type: String, id: String, reason: String): ManagementResult<VoidResult> =
         call(

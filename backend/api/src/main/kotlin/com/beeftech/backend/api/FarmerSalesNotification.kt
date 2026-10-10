@@ -53,6 +53,24 @@ data class FarmerSalesNotificationPayload(
     val serverSyncedAt: Long
 )
 
+/** Calf receipt is separate from the later ownership/transfer events. */
+@Serializable
+data class CalfRegistrationNotificationPayload(
+    val schemaVersion: Int = 1,
+    val eventType: String = "CALF_REGISTERED",
+    val recordGuid: String,
+    val animalUuid: String? = null,
+    val tagNumber: String,
+    val breed: String,
+    val birthdate: Long,
+    val captureAt: Long,
+    val deviceId: String,
+    val siteId: String? = null,
+    val submittedByUserId: String? = null,
+    val serverSyncedAt: Long,
+    val assignedSalesmanEmail: String? = null
+)
+
 const val NEW_FARMER_REGISTRATION_EVENT = "NEW_FARMER_REGISTRATION"
 
 interface FarmerSalesNotificationService {
@@ -64,6 +82,9 @@ interface FarmerSalesNotificationService {
     fun notifyRegistration(
         payload: FarmerSalesNotificationPayload
     ): Boolean
+
+    /** A default no-op keeps existing farmer-only implementations compatible. */
+    fun notifyCalfRegistration(payload: CalfRegistrationNotificationPayload) = Unit
 }
 
 enum class SmtpProvider {
@@ -574,6 +595,73 @@ class SmtpFarmerSalesNotificationService(
         return true
     }
 
+    override fun notifyCalfRegistration(payload: CalfRegistrationNotificationPayload) {
+        val recipient = payload.assignedSalesmanEmail?.trim()?.takeIf { it.isNotEmpty() }
+            ?: config.recipientAddress?.trim()?.takeIf { it.isNotEmpty() }
+        if (recipient == null) {
+            println("Calf registration email skipped: no site sales rep or fallback recipient")
+            return
+        }
+
+        val properties = Properties().apply {
+            put("mail.smtp.host", config.host)
+            put("mail.smtp.port", config.port.toString())
+            put("mail.smtp.auth", (config.username != null && config.password != null).toString())
+            put("mail.smtp.connectiontimeout", "10000")
+            put("mail.smtp.timeout", "10000")
+            put("mail.smtp.writetimeout", "10000")
+            when (config.security) {
+                SmtpSecurity.STARTTLS -> {
+                    put("mail.smtp.starttls.enable", "true")
+                    put("mail.smtp.starttls.required", "true")
+                    put("mail.smtp.ssl.enable", "false")
+                }
+                SmtpSecurity.SSL -> {
+                    put("mail.smtp.starttls.enable", "false")
+                    put("mail.smtp.ssl.enable", "true")
+                }
+                SmtpSecurity.NONE -> {
+                    put("mail.smtp.starttls.enable", "false")
+                    put("mail.smtp.ssl.enable", "false")
+                }
+            }
+        }
+        val authenticator = if (config.username != null && config.password != null) {
+            object : Authenticator() {
+                override fun getPasswordAuthentication(): PasswordAuthentication =
+                    PasswordAuthentication(config.username, config.password)
+            }
+        } else null
+        val message = MimeMessage(Session.getInstance(properties, authenticator)).apply {
+            setFrom(InternetAddress(config.fromAddress))
+            setRecipient(Message.RecipientType.TO, InternetAddress(recipient))
+            setSubject("BeefTech Calf Registration - ${payload.tagNumber}", StandardCharsets.UTF_8.name())
+            val body = MimeBodyPart().apply {
+                setText(
+                    "Calf registration confirmed by BeefTech server.\n" +
+                        "Animal tag: ${payload.tagNumber}\n" +
+                        "Registration: ${payload.recordGuid}\n" +
+                        "Farmer assignment is a separate record.\n" +
+                        "Full JSON receipt attached.",
+                    StandardCharsets.UTF_8.name()
+                )
+            }
+            val attachment = MimeBodyPart().apply {
+                dataHandler = DataHandler(ByteArrayDataSource(
+                    json.encodeToString(payload).toByteArray(StandardCharsets.UTF_8),
+                    "application/json; charset=UTF-8"
+                ))
+                fileName = "calf-registration-${safeFileName(payload.recordGuid)}.json"
+            }
+            setContent(MimeMultipart().apply {
+                addBodyPart(body)
+                addBodyPart(attachment)
+            })
+        }
+        Transport.send(message)
+        println("Calf registration JSON receipt sent for ${payload.recordGuid}")
+    }
+
     private fun safeFileName(
         value: String
     ): String {
@@ -611,18 +699,14 @@ class LoggingFarmerSalesNotificationService :
         payload: FarmerSalesNotificationPayload
     ): Boolean {
 
-        val summaryJson =
-            json.encodeToString(
-                payload
-            )
-
-        println(
-            "Farmer registration sales notification prepared:\n" +
-                summaryJson
-        )
+        println("Farmer registration receipt not emailed: SMTP is not configured")
 
         /* Logged, not emailed: leave the farmer unnotified so a configured server can still email. */
         return false
+    }
+
+    override fun notifyCalfRegistration(payload: CalfRegistrationNotificationPayload) {
+        println("Calf registration receipt not emailed: SMTP is not configured")
     }
 }
 

@@ -86,7 +86,7 @@ class RecordScopeRoutesTest {
 
     private fun calfBody(tag: String, guid: String, breed: String = "Angus") =
         """
-        {"deviceId":"d","records":[{"tagNumber":"$tag","animalUuid":"${java.util.UUID.randomUUID()}",
+        {"deviceId":"d","records":[{"tagNumber":"$tag","animalUuid":"${java.util.UUID.nameUUIDFromBytes(guid.toByteArray(java.nio.charset.StandardCharsets.UTF_8))}",
         "birthdate":1700000000000,"breed":"$breed","gpsLat":-26.1,"gpsLng":27.9,
         "captureAt":1700000100000,"deviceId":"d","recordguid":"$guid"}]}
         """.trimIndent()

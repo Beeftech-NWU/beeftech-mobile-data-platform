@@ -20,6 +20,8 @@ import org.jetbrains.exposed.sql.update
  * photo_path is set only by a real photo upload. The sync payload's photoPath is the
  * phone's local file path, which means nothing to the server, so it is ignored.
  */
+data class CalfUpsertResult(val record: CalfRegistrationDto, val created: Boolean)
+
 class CalfRegistrationRepository {
 
     private fun ResultRow.toDto(): CalfRegistrationDto {
@@ -62,7 +64,7 @@ class CalfRegistrationRepository {
         submittedBy: String? = null,
         submitterSiteId: String? = null,
         scope: RecordScope = RecordScope.User(submittedBy.orEmpty())
-    ): CalfRegistrationDto = newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
+    ): CalfUpsertResult = newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
 
         val existing = CalfRegistrationTable
             .selectAll()
@@ -91,6 +93,13 @@ class CalfRegistrationRepository {
                 throw RecordOwnershipException(
                     "Record ${dto.recordguid} belongs to another user or site and cannot be overwritten."
                 )
+            }
+
+            if (existing[CalfRegistrationTable.voidedAt] != null ||
+                existing[CalfRegistrationTable.animalUuid] != dto.animalUuid ||
+                (!unowned && existing[CalfRegistrationTable.siteId] != submitterSiteId)
+            ) {
+                throw RecordOwnershipException("Cannot overwrite a voided, reassigned, or mismatched calf record")
             }
 
             CalfRegistrationTable.update(
@@ -163,9 +172,9 @@ class CalfRegistrationRepository {
             }
         }
 
-        dto.copy(
-            syncStatus = "SYNCED",
-            syncedAt = serverSyncedAt
+        CalfUpsertResult(
+            record = dto.copy(syncStatus = "SYNCED", syncedAt = serverSyncedAt),
+            created = existing == null
         )
     }
 

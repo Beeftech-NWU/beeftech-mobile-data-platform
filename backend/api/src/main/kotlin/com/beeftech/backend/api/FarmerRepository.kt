@@ -239,18 +239,20 @@ class FarmerRepository {
         serverSyncedAt: Long,
         submittedBy: String? = null,
         submitterSiteId: String? = null
-    ) {
-        transaction(DatabaseFactory.getDatabase()) {
-
-            val exists =
-                FarmerTable
-                    .selectAll()
-                    .where {
-                        FarmerTable.farmerId eq dto.farmerId
-                    }
-                    .any()
-
-            if (exists) {
+    ): Boolean = transaction(DatabaseFactory.getDatabase()) {
+            val existing = FarmerTable.selectAll().where {
+                FarmerTable.farmerId eq dto.farmerId
+            }.singleOrNull()
+            if (existing != null) {
+                // Sync retries cannot transfer a record into a different site's ownership.
+                // Legacy site-less records must be reconciled through Admin Records Review.
+                require(existing[FarmerTable.voidedAt] == null &&
+                    existing[FarmerTable.siteId] == submitterSiteId &&
+                    (submitterSiteId != null || existing[FarmerTable.submittedByUserId] == submittedBy)) {
+                    "Farmer record is voided or belongs to another account/site"
+                }
+            }
+            if (existing != null) {
 
                 FarmerTable.update(
                     {
@@ -282,12 +284,7 @@ class FarmerRepository {
                     it[syncedAt] =
                         serverSyncedAt
 
-                    it[submittedByUserId] =
-                        submittedBy
-
-                    it[siteId] =
-                        submitterSiteId
-
+                    // Preserve the original submitter and site on updates.
                     it[coRegIdNo] =
                         dto.coRegIdNo
 
@@ -460,6 +457,6 @@ class FarmerRepository {
                         role.roleId
                 }
             }
-        }
+            existing == null
     }
 }

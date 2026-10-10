@@ -9,9 +9,10 @@ class SyncAllDispatcherTest {
 
     @Test
     fun `every module has its own work name, including the traceability outbox`() {
-        assertEquals(7, SyncAllDispatcher.WORK_NAMES.size)
+        assertEquals(8, SyncAllDispatcher.WORK_NAMES.size)
         assertEquals(SyncAllDispatcher.WORK_NAMES.size, SyncAllDispatcher.WORK_NAMES.toSet().size)
         assertEquals(true, "traceability-outbox-scheduled-sync" in SyncAllDispatcher.WORK_NAMES)
+        assertEquals(true, "farmer-animal-link-sync" in SyncAllDispatcher.WORK_NAMES)
     }
 
     @Test

@@ -24,6 +24,38 @@ class VoidService(
     private val repository: VoidRepository
 ) {
 
+    /** Admin-only reconciliation of verified historical records; never transfers existing site ownership. */
+    suspend fun assignSite(
+        principal: AuthPrincipal, slug: String, id: String,
+        request: AssignRecordSiteRequest
+    ): VoidResult<AssignRecordSiteResponse> {
+        val actor = resolveActor(principal) ?: return VoidResult.Forbidden("Forbidden")
+        if (actor.role != Role.ADMIN) return VoidResult.Forbidden("Only administrators can assign record sites")
+        val target = VOID_TARGETS.firstOrNull {
+            it.slug == slug && (slug == "farmers" || slug == "calf-registrations")
+        } ?: return VoidResult.NotFound
+        val reason = request.reason.trim()
+        if (reason.isBlank() || reason.length > MAX_REASON_LENGTH) {
+            return VoidResult.Invalid("A reason of 1-$MAX_REASON_LENGTH characters is required")
+        }
+        val siteId = request.siteId.trim()
+        if (siteId.isBlank()) return VoidResult.Invalid("Select an active site")
+        val site = com.beeftech.backend.api.auth.SiteRepository().find(siteId)
+            ?: return VoidResult.Invalid("Unknown site")
+        if (!site.active) return VoidResult.Invalid("Site is inactive")
+        return when (repository.assignUnassignedSite(
+            target, id, siteId, reason, actor.userId, actor.username, actor.role.id
+        )) {
+            AssignRecordSiteOutcome.Assigned -> VoidResult.Ok(
+                AssignRecordSiteResponse(target.entityType, id, siteId)
+            )
+            AssignRecordSiteOutcome.NotFound -> VoidResult.NotFound
+            AssignRecordSiteOutcome.Conflict -> VoidResult.Conflict(
+                "Record is voided or already belongs to a site. No change made."
+            )
+        }
+    }
+
     suspend fun void(
         principal: AuthPrincipal,
         slug: String,
