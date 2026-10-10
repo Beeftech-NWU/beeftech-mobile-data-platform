@@ -53,6 +53,7 @@ fun CribDetailScreen(
     detail: CribDetailState,
     codes: List<CribReadingCodeEntity>,
     nowMillis: Long,
+    saving: Boolean,
     onSelectCode: (Int) -> Unit,
     onAdjustAdi: (Int) -> Unit,
     onDiscard: () -> Unit,
@@ -147,12 +148,12 @@ fun CribDetailScreen(
             }
             Button(
                 onClick = onSave,
-                enabled = detail.draft.changed,
+                enabled = detail.draft.changed && !saving,
                 modifier = Modifier.weight(1f).height(52.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = FeedCribColors.Rust)
             ) {
-                Text("Save", fontWeight = FontWeight.Bold, color = Color.White)
+                Text(if (saving) "Saving…" else "Save", fontWeight = FontWeight.Bold, color = Color.White)
             }
         }
     }

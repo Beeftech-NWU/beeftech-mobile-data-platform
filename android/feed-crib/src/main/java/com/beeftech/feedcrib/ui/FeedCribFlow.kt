@@ -35,6 +35,7 @@ fun FeedCribFlow(
     val refreshing by viewModel.refreshing.collectAsState()
     val sessions by viewModel.sessions.collectAsState()
     val detail by viewModel.detail.collectAsState()
+    val saving by viewModel.saving.collectAsState()
 
     var screen by remember { mutableStateOf(FeedCribScreen.HOME) }
     var openError by remember { mutableStateOf<String?>(null) }
@@ -89,6 +90,7 @@ fun FeedCribFlow(
                     detail = state,
                     codes = codes,
                     nowMillis = System.currentTimeMillis(),
+                    saving = saving,
                     onSelectCode = viewModel::selectCode,
                     onAdjustAdi = viewModel::adjustAdi,
                     onDiscard = {

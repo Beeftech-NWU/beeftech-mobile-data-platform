@@ -292,6 +292,30 @@ class FeedCribViewModelTest {
     }
 
     @Test
+    fun `a second Save tap while the first is still sending stores one reading`() = runBlocking {
+        val gate = CompletableDeferred<Unit>()
+        server.gate = gate
+        val vm = viewModel()
+        vm.open("A01")
+        vm.selectCode(1)
+        vm.awaitDetail { it?.draft?.code == 1 }
+
+        val first = CompletableDeferred<Pair<Boolean, String>>()
+        vm.save { ok, message -> first.complete(ok to message) }
+        assertTrue(vm.saving.value)
+
+        var secondAnswered = false
+        vm.save { _, _ -> secondAnswered = true }
+
+        gate.complete(Unit)
+        withTimeout(5_000) { first.await() }
+
+        assertEquals(1, dao.entries.value.size)
+        assertEquals(false, secondAnswered)
+        assertEquals(false, vm.saving.value)
+    }
+
+    @Test
     fun `a saved reading appears in today's session`() = runBlocking {
         val vm = viewModel()
         vm.open("A01")
