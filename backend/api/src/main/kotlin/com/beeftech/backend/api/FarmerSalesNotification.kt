@@ -50,7 +50,9 @@ data class FarmerSalesNotificationPayload(
     val submittedByUsername: String,
     val submittedByRole: Int? = null,
     val registrationStatus: String = "REGISTERED",
-    val serverSyncedAt: Long
+    val serverSyncedAt: Long,
+    /* Non-null only for an administrator-requested resend; original registration time is unchanged. */
+    val resentAt: Long? = null
 )
 
 /** Calf receipt is separate from the later ownership/transfer events. */
@@ -68,7 +70,8 @@ data class CalfRegistrationNotificationPayload(
     val siteId: String? = null,
     val submittedByUserId: String? = null,
     val serverSyncedAt: Long,
-    val assignedSalesmanEmail: String? = null
+    val assignedSalesmanEmail: String? = null,
+    val resentAt: Long? = null
 )
 
 const val NEW_FARMER_REGISTRATION_EVENT = "NEW_FARMER_REGISTRATION"
@@ -85,6 +88,9 @@ interface FarmerSalesNotificationService {
 
     /** A default no-op keeps existing farmer-only implementations compatible. */
     fun notifyCalfRegistration(payload: CalfRegistrationNotificationPayload) = Unit
+
+    /** A manual resend must report whether an SMTP message actually went out. */
+    fun resendCalfRegistration(payload: CalfRegistrationNotificationPayload): Boolean = false
 }
 
 enum class SmtpProvider {
@@ -354,6 +360,10 @@ class SmtpFarmerSalesNotificationService(
                     ).toString()
                 )
 
+                put("mail.smtp.connectiontimeout", "10000")
+                put("mail.smtp.timeout", "10000")
+                put("mail.smtp.writetimeout", "10000")
+
                 when (config.security) {
 
                     SmtpSecurity.STARTTLS -> {
@@ -440,7 +450,7 @@ class SmtpFarmerSalesNotificationService(
                 )
 
                 subject =
-                    "BeefTech Farmer Registration - " +
+                    (if (payload.resentAt != null) "BeefTech Farmer Registration (Resent) - " else "BeefTech Farmer Registration - ") +
                         (
                             payload.organisationName
                                 ?: payload.farmerId
@@ -595,6 +605,14 @@ class SmtpFarmerSalesNotificationService(
         return true
     }
 
+    override fun resendCalfRegistration(payload: CalfRegistrationNotificationPayload): Boolean {
+        val recipient = payload.assignedSalesmanEmail?.trim()?.takeIf { it.isNotEmpty() }
+            ?: config.recipientAddress?.trim()?.takeIf { it.isNotEmpty() }
+            ?: return false
+        notifyCalfRegistration(payload)
+        return true
+    }
+
     override fun notifyCalfRegistration(payload: CalfRegistrationNotificationPayload) {
         val recipient = payload.assignedSalesmanEmail?.trim()?.takeIf { it.isNotEmpty() }
             ?: config.recipientAddress?.trim()?.takeIf { it.isNotEmpty() }
@@ -635,7 +653,11 @@ class SmtpFarmerSalesNotificationService(
         val message = MimeMessage(Session.getInstance(properties, authenticator)).apply {
             setFrom(InternetAddress(config.fromAddress))
             setRecipient(Message.RecipientType.TO, InternetAddress(recipient))
-            setSubject("BeefTech Calf Registration - ${payload.tagNumber}", StandardCharsets.UTF_8.name())
+            setSubject(
+                (if (payload.resentAt != null) "BeefTech Calf Registration (Resent) - "
+                 else "BeefTech Calf Registration - ") + payload.tagNumber,
+                StandardCharsets.UTF_8.name()
+            )
             val body = MimeBodyPart().apply {
                 setText(
                     "Calf registration confirmed by BeefTech server.\n" +
