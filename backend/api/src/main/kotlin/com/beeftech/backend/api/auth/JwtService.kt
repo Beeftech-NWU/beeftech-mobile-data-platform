@@ -3,6 +3,9 @@ package com.beeftech.backend.api.auth
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import java.util.Date
+import org.slf4j.LoggerFactory
+
+private val log = LoggerFactory.getLogger("com.beeftech.backend.api.auth.JwtService")
 
 data class AuthPrincipal(
     val username: String,
@@ -24,7 +27,7 @@ data class AuthPrincipal(
 class JwtService {
 
     private val secret: String = System.getenv("BEEFTECH_JWT_SECRET") ?: run {
-        println("WARNING: BEEFTECH_JWT_SECRET environment variable not set. Falling back to dev secret.")
+        log.warn("BEEFTECH_JWT_SECRET environment variable not set. Falling back to dev secret.")
         "beeftech-secret"
     }
 
@@ -64,24 +67,6 @@ class JwtService {
         }
 
         return builder.sign(Algorithm.HMAC256(secret))
-    }
-
-    fun validateToken(token: String): String? {
-
-        return try {
-
-            val verifier = JWT
-                .require(Algorithm.HMAC256(secret))
-                .withIssuer("beeftech")
-                .build()
-
-            val decodedJwt = verifier.verify(token)
-
-            decodedJwt.subject
-
-        } catch (e: Exception) {
-            null
-        }
     }
 
     fun decode(token: String): AuthPrincipal? {

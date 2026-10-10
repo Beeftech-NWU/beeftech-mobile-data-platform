@@ -8,7 +8,6 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
 import kotlinx.serialization.Serializable
-import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.insert
@@ -134,15 +133,6 @@ fun Route.traceabilityEventRoutes(
 
         val response =
             transaction {
-
-                /*
-                 * Creates the table automatically on an existing
-                 * deployment the first time traceability sync runs.
-                 */
-                SchemaUtils.create(
-                    TraceabilityEventTable
-                )
-
 
                 val results =
                     request.records.map {

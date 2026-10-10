@@ -22,15 +22,6 @@ interface SyncBatchDao {
     )
     fun observeLatest(): Flow<SyncBatchEntity?>
 
-    @Query(
-        """
-        SELECT * FROM sync_batches
-        ORDER BY timestamp DESC
-        LIMIT 1
-        """
-    )
-    suspend fun getLatest(): SyncBatchEntity?
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(batch: SyncBatchEntity)
 }

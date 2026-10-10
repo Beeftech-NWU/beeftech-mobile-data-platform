@@ -30,8 +30,7 @@ jobs:
       - name: Run unit tests
         # testDebugUnitTest covers the Android library/app modules,
         # test covers the plain-Kotlin backend modules. Gradle runs a
-        # task in every subproject that defines it and skips the rest,
-        # so this is safe even for the empty backend stub modules.
+        # task in every subproject that defines it and skips the rest.
         run: ./gradlew testDebugUnitTest test --continue
 
       - name: Upload test reports

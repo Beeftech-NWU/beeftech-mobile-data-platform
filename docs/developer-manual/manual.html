@@ -294,7 +294,6 @@
     <tr><td><code>:backend:api</code></td><td><code>com.beeftech.backend.api</code></td><td>—</td><td>The Ktor server</td></tr>
   </tbody>
 </table>
-<div class="note"><b class="label">Note</b><code>:backend:authentication</code> and <code>:backend:sync</code> are empty placeholders declared in <code>settings.gradle.kts</code>. They configure but build nothing.</div>
 
 <h2 id="arch-layers">Layers inside a feature</h2>
 <p>Feature modules follow the same shape. <code>:android:feed-crib</code> is the newest and cleanest example; use it as your template.</p>
@@ -361,7 +360,7 @@
     <tr><td><code>DatabaseFactory.kt</code></td><td>Migrations <code>1→2</code> to <code>8→9</code>, the <code>guarded(…)</code> wrapper and the <code>.addMigrations(…)</code> list</td></tr>
     <tr><td><code>entity/</code></td><td>45 entities: animals and identifiers, calf registrations, treatments, movements, mortalities, costs, farmers, locations and pens, feed cribs and entries, users and roles, lookups, and sync bookkeeping</td></tr>
     <tr><td><code>dao/</code></td><td>DAOs, mostly one per file; lookup DAOs share <code>LookupDaos.kt</code></td></tr>
-    <tr><td><code>repository/</code></td><td>Shared repositories: <code>PendingSyncRepository</code>, <code>SyncRunRepository</code>, <code>SyncPolicyEnforcer</code>, <code>SyncWarningPolicy</code>, <code>FarmerRepository</code>, <code>AnimalHistoryRepository</code> and others</td></tr>
+    <tr><td><code>repository/</code></td><td>Shared repositories: <code>PendingSyncRepository</code>, <code>SyncRunRepository</code>, <code>SyncPolicyEnforcer</code>, <code>SyncWarningPolicy</code>, <code>FarmerRepository</code> and others</td></tr>
     <tr><td><code>security/</code></td><td>KeyStore and passphrase providers, <code>CredentialHasher</code>, <code>PinLockoutManager</code>, <code>TokenProvider</code> and its registries, <code>UnauthorizedReason</code></td></tr>
     <tr><td><code>util/</code></td><td><code>FileNamingUtils</code> / <code>BatchNaming</code> (batch names), <code>TagNamingUtils</code>, <code>SyncRunDisplay</code></td></tr>
     <tr><td><code>*Seed.kt</code></td><td>Lookup seeds: roles, cost types, farmer business roles, rations, other lookups</td></tr>
@@ -457,7 +456,7 @@
   <tbody>
     <tr><td><code>queueOperation(type, id, op, payload)</code></td><td>Queue a record right after saving it</td></tr>
     <tr><td><code>getPendingOperations()</code> / <code>getAllPendingOperations()</code></td><td>Find what is waiting (the first respects the retry limit)</td></tr>
-    <tr><td><code>markSyncSuccessful(id)</code> / <code>markEntitySyncSuccessful(…)</code></td><td>Clear the queue row once the server said <code>SYNCED</code></td></tr>
+    <tr><td><code>markSyncSuccessful(id)</code></td><td>Clear the queue row once the server said <code>SYNCED</code></td></tr>
     <tr><td><code>markSyncFailed(id, …)</code> / <code>resetRetryCount(…)</code></td><td>Count a failed attempt, or give a manual retry fresh attempts</td></tr>
     <tr><td><code>observePendingCount(userId)</code> / <code>observeOldestPendingAt(userId)</code></td><td>Drive the Home counts and the Day-7 policy</td></tr>
   </tbody>
@@ -696,7 +695,6 @@
 <h2 id="api-conv">Conventions</h2>
 <p class="lead">Base URL <code>https://beeftech-backend.onrender.com</code> (hosted) or <code>http://&lt;host&gt;:8081</code> (local). Every route except the public ones needs <code>Authorization: Bearer &lt;jwt&gt;</code>.</p>
 <p><strong>Role:</strong> <em>any</em> — any signed-in user; <em>mgr</em> — manager or admin (managers limited to their own site); <em>admin</em> — admin only (<code>403</code> otherwise). Responses are <code>ApiResponse</code> JSON unless stated.</p>
-<div class="note"><b class="label">Note</b><code>backend/api/requests.http</code> is out of date (it sends <code>password</code> and calls the removed <code>/api/auth/register</code>). Use the <code>curl</code> examples in Chapter 2 or the route tests instead.</div>
 
 <h2 id="api-public">Public</h2>
 <table class="api compact">
@@ -955,8 +953,7 @@ docs/developer-manual/  manual.html · cover.html · developer.css · build.sh</
   <li>The Render deployment has no persistent disk and seeds the dev users.</li>
   <li><code>CalfRegistrationViewModel</code> and <code>TreatmentViewModel</code> re-enqueue the legacy 15-minute periodic jobs that <code>ScheduledSyncScheduler</code> cancels.</li>
   <li>The biometric prompt code in <code>:android:authentication</code> is unused.</li>
-  <li><code>backend/authentication</code>, <code>backend/sync</code>, <code>docs/architecture/</code> and <code>docs/testing/</code> are empty.</li>
-  <li><code>backend/api/requests.http</code> is stale; stale standalone Gradle files remain under <code>android/</code>.</li>
+  <li><code>docs/architecture/</code> and <code>docs/testing/</code> are empty.</li>
   <li>Dependency declarations are mixed between the version catalog and hard-coded coordinates; Compose BOM versions differ between modules.</li>
   <li>CI jobs are not required checks; <code>:backend:api:test</code> is flaky.</li>
 </ul>

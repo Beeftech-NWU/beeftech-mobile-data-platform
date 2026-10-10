@@ -84,19 +84,6 @@ class SyncRepository(
             .observeLatest()
     }
 
-    suspend fun getPendingRecords():
-            List<PendingSync> {
-
-        val userId =
-            currentUserId()
-                ?: return emptyList()
-
-        return pendingSyncDao
-            .getAllForUser(
-                userId
-            )
-    }
-
     suspend fun getPendingForRetry(
         maxRetries: Int = 3
     ): List<PendingSync> {
@@ -121,16 +108,6 @@ class SyncRepository(
 
         pendingSyncDao
             .incrementRetryCount(
-                id
-            )
-    }
-
-    suspend fun deletePendingRecord(
-        id: Long
-    ) {
-
-        pendingSyncDao
-            .deleteById(
                 id
             )
     }

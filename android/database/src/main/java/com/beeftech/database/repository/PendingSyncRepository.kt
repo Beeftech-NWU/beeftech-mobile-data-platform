@@ -87,28 +87,6 @@ class PendingSyncRepository(
             )
     }
 
-    suspend fun getOperationsForEntity(
-        entityType: String,
-        entityId: String
-    ): List<PendingSync> {
-
-        val userId =
-            currentUserId()
-                ?: return emptyList()
-
-        return pendingSyncDao
-            .getByEntityForUser(
-                userId =
-                    userId,
-
-                entityType =
-                    entityType,
-
-                entityId =
-                    entityId
-            )
-    }
-
     suspend fun resetRetryCount(
         id: Long
     ) {
@@ -139,31 +117,6 @@ class PendingSyncRepository(
             .deleteById(
                 id
             )
-    }
-
-    suspend fun markEntitySyncSuccessful(
-        entityType: String,
-        entityId: String
-    ) {
-
-        /*
-         * Do not use the old device-wide deleteByEntity here.
-         * Delete only rows owned by the active account.
-         */
-        getOperationsForEntity(
-            entityType =
-                entityType,
-
-            entityId =
-                entityId
-        ).forEach {
-                pending ->
-
-            pendingSyncDao
-                .deleteById(
-                    pending.id
-                )
-        }
     }
 
     /* For the "My activity" screen: the backlog for one user, as it changes. */

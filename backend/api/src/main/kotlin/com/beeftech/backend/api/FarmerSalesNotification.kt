@@ -17,6 +17,9 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.nio.charset.StandardCharsets
 import java.util.Properties
+import org.slf4j.LoggerFactory
+
+private val log = LoggerFactory.getLogger("com.beeftech.backend.api.FarmerSalesNotification")
 
 @Serializable
 data class FarmerSalesNotificationPayload(
@@ -327,10 +330,9 @@ class SmtpFarmerSalesNotificationService(
 
         if (recipientAddress == null) {
 
-            println(
-                "No sales rep email for farmer " +
-                    payload.farmerId +
-                    ": the site has none and BEEFTECH_SALES_REP_EMAIL is not set. Email skipped."
+            log.warn(
+                "No sales rep email for farmer {}: the site has none and BEEFTECH_SALES_REP_EMAIL is not set. Email skipped.",
+                payload.farmerId
             )
 
             return false
@@ -593,13 +595,10 @@ class SmtpFarmerSalesNotificationService(
             message
         )
 
-        println(
-            "Farmer registration notification sent using " +
-                config.provider +
-                " to " +
-                recipientAddress +
-                " for farmer " +
-                payload.farmerId
+        log.info(
+            "Farmer registration notification sent using {} for farmer {}",
+            config.provider,
+            payload.farmerId
         )
 
         return true
@@ -617,7 +616,7 @@ class SmtpFarmerSalesNotificationService(
         val recipient = payload.assignedSalesmanEmail?.trim()?.takeIf { it.isNotEmpty() }
             ?: config.recipientAddress?.trim()?.takeIf { it.isNotEmpty() }
         if (recipient == null) {
-            println("Calf registration email skipped: no site sales rep or fallback recipient")
+            log.warn("Calf registration email skipped: no site sales rep or fallback recipient")
             return
         }
 
@@ -681,7 +680,7 @@ class SmtpFarmerSalesNotificationService(
             })
         }
         Transport.send(message)
-        println("Calf registration JSON receipt sent for ${payload.recordGuid}")
+        log.info("Calf registration JSON receipt sent for {}", payload.recordGuid)
     }
 
     private fun safeFileName(
@@ -710,25 +709,18 @@ fun salesRecipientFor(
 class LoggingFarmerSalesNotificationService :
     FarmerSalesNotificationService {
 
-    private val json =
-        Json {
-            prettyPrint = true
-            explicitNulls = false
-            encodeDefaults = true
-        }
-
     override fun notifyRegistration(
         payload: FarmerSalesNotificationPayload
     ): Boolean {
 
-        println("Farmer registration receipt not emailed: SMTP is not configured")
+        log.warn("Farmer registration receipt not emailed: SMTP is not configured")
 
         /* Logged, not emailed: leave the farmer unnotified so a configured server can still email. */
         return false
     }
 
     override fun notifyCalfRegistration(payload: CalfRegistrationNotificationPayload) {
-        println("Calf registration receipt not emailed: SMTP is not configured")
+        log.warn("Calf registration receipt not emailed: SMTP is not configured")
     }
 }
 
@@ -741,7 +733,7 @@ fun createFarmerSalesNotificationServiceFromEnvironment():
 
     return if (config == null) {
 
-        println(
+        log.warn(
             "SMTP configuration is incomplete. " +
                 "Farmer sales notifications will be logged instead of emailed."
         )
@@ -750,13 +742,11 @@ fun createFarmerSalesNotificationServiceFromEnvironment():
 
     } else {
 
-        println(
-            "Farmer sales email notifications enabled using " +
-                config.provider +
-                " via " +
-                config.host +
-                ":" +
-                config.port
+        log.info(
+            "Farmer sales email notifications enabled using {} via {}:{}",
+            config.provider,
+            config.host,
+            config.port
         )
 
         SmtpFarmerSalesNotificationService(

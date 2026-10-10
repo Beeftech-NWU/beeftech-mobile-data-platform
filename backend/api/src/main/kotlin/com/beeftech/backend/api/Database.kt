@@ -18,12 +18,13 @@ import java.io.File
 
 object DatabaseFactory {
 
+    const val DEFAULT_JDBC_URL = "jdbc:sqlite:./data/beeftech-backend.db"
+
     @Volatile
     private var db: Database? = null
 
     fun init(
-        jdbcUrl: String =
-            "jdbc:sqlite:./data/beeftech-backend.db"
+        jdbcUrl: String = DEFAULT_JDBC_URL
     ): Database {
 
         val filePath =
@@ -77,7 +78,8 @@ object DatabaseFactory {
                 CostTypeTable,
                 AppSettingsTable,
                 SyncSecurityEventsTable,
-                SyncUploadLogTable
+                SyncUploadLogTable,
+                TraceabilityEventTable
             )
         }
 

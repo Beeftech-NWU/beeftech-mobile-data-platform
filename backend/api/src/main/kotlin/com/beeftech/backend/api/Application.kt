@@ -62,7 +62,7 @@ fun Application.module() {
             ?: System.getProperty(
                 "beeftech.db.url"
             )
-            ?: "jdbc:sqlite:./data/beeftech-backend.db"
+            ?: DatabaseFactory.DEFAULT_JDBC_URL
 
     DatabaseFactory.init(
         jdbcUrl
@@ -220,12 +220,12 @@ fun Application.module() {
 
         voidRoutes(
             jwtService,
-            VoidService(UserRepository(), VoidRepository())
+            VoidService(userRepository, VoidRepository())
         )
 
         auditRoutes(
             jwtService,
-            AuditService(UserRepository(), AuditRepository())
+            AuditService(userRepository, AuditRepository())
         )
 
         costRoutes(
@@ -235,12 +235,12 @@ fun Application.module() {
 
         dashboardRoutes(
             jwtService,
-            DashboardService()
+            DashboardService(userRepository = userRepository)
         )
 
         reportRoutes(
             jwtService,
-            ReportService()
+            ReportService(userRepository = userRepository)
         )
 
         /*
