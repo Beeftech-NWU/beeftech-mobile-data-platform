@@ -274,6 +274,14 @@ fun Application.module() {
             farmerService
         )
 
+        /* Admin-only resend for already synchronized registration JSON receipts. */
+        registrationReceiptResendRoutes(
+            jwtService,
+            farmerService,
+            calfRegistrationService,
+            farmerSalesNotificationService
+        )
+
         /*
          * Feed Crib routes
          */
