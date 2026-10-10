@@ -15,6 +15,7 @@ import com.beeftech.backend.api.auth.deviceAdminRoutes
 import com.beeftech.backend.api.auth.siteRoutes
 import com.beeftech.backend.api.auth.userAdminRoutes
 import com.beeftech.backend.api.feedcrib.FeedCribRepository
+import com.beeftech.backend.api.feedcrib.FeedCribSeeder
 import com.beeftech.backend.api.feedcrib.FeedCribService
 import com.beeftech.backend.api.feedcrib.feedCribRoutes
 import io.ktor.serialization.kotlinx.json.json
@@ -97,6 +98,7 @@ fun Application.module() {
     if (seedDevUsers) {
         runBlocking {
             DevUserSeeder.seed(userRepository)
+            FeedCribSeeder.seedDevCribs(DevUserSeeder.DEV_SITE_ID)
         }
     }
 
