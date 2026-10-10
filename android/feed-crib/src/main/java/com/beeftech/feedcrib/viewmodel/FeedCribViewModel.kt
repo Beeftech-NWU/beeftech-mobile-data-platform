@@ -239,14 +239,17 @@ class FeedCribViewModel(
     fun refresh(onResult: (Boolean, String) -> Unit = { _, _ -> }) {
         viewModelScope.launch {
             _refreshing.value = true
-            try {
-                repository.refreshCribs().fold(
-                    onSuccess = { count -> onResult(true, if (count == 1) "1 crib loaded." else "$count cribs loaded.") },
-                    onFailure = { onResult(false, it.message ?: "Could not load the cribs.") }
-                )
+            val outcome = try {
+                repository.refreshCribs()
             } finally {
+                /* Before the callback, so the spinner is already gone when the message shows. */
                 _refreshing.value = false
             }
+
+            outcome.fold(
+                onSuccess = { count -> onResult(true, if (count == 1) "1 crib loaded." else "$count cribs loaded.") },
+                onFailure = { onResult(false, it.message ?: "Could not load the cribs.") }
+            )
         }
     }
 
