@@ -37,9 +37,9 @@ object DevUserSeeder {
                     siteId = user.siteId
                 )
                 log.info("Seeded user: {}", user.username)
-            } else if (existing.siteId != user.siteId) {
-                /* A dev DB seeded before sites existed: attach the dev users to the dev site. */
-                userRepository.updateSite(existing.userId, user.siteId)
+            } else {
+                // Existing site assignments belong to admins, not the dev seeder.
+                log.info("Existing dev user retained: {}", user.username)
             }
         }
     }
