@@ -52,7 +52,7 @@
         <li><a href="#treatment">Treatments</a></li>
         <li><a href="#costs">Costs</a></li>
         <li><a href="#mortality">Mortality Records</a></li>
-        <li><a href="#feed">Feed tab (preview)</a></li>
+        <li><a href="#feed">Feed tab</a></li>
         <li><a href="#activity">My activity</a></li>
       </ol>
     </li>
@@ -132,7 +132,7 @@
     <tr><td><b>Home</b></td><td>Welcome, quick actions (Register calf, Traceability, Feed; Dashboard and Reports for managers) and the Sync card.</td></tr>
     <tr><td><b>Calves</b></td><td>Register a calf or look up calves registered on this phone.</td></tr>
     <tr><td><b>Traceability</b></td><td>Farmers, animal assignment and every per-animal record: movements, supplier, location &amp; feed, treatments, costs and mortality.</td></tr>
-    <tr><td><b>Feed</b></td><td>Feed crib readings — a preview only, see <a href="#feed">Feed tab</a>.</td></tr>
+    <tr><td><b>Feed</b></td><td>Feed crib readings: pick a crib, enter a reading code and the A.D.I. See <a href="#feed">Feed tab</a>.</td></tr>
     <tr><td><b>More</b></td><td>My activity and Log out. Managers and admins also find their management tools here.</td></tr>
   </tbody>
 </table>
@@ -578,13 +578,31 @@
   <figure><img src="screenshots/48-mortality-filled.png" alt=""><figcaption>Mortality Records</figcaption></figure>
 </div>
 
-<h2 id="feed">Feed tab (preview)</h2>
+<h2 id="feed">Feed tab</h2>
+<p>Use the <span class="ui">Feed</span> tab to take crib readings: how much feed is left in a crib, and the A.D.I (average daily intake) for its pen. Readings are saved on the phone, so you can work without a signal. They are sent to the server when the phone is online.</p>
+<ol>
+  <li><b>Open a crib.</b> Type the crib number (for example <span class="ui">A06</span>) and tap <span class="ui">Go</span>, or tap a crib in the list. The list can be searched. When the tab opens the phone downloads your site's cribs; tap the refresh arrow to download them again.</li>
+  <li><b>Check the details.</b> The crib shows its pen, ration, method, required feed and A.D.I, the animal counts (Begin, In, Out, Close) and a grid of the last three days. Rows are days; columns are <b>M</b> (Morning), <b>D</b> (Mid-Day) and <b>E</b> (Evening). The outlined block is where a reading saved now will go.</li>
+  <li><b>Pick a reading code.</b> Tap one of the codes <b>0</b> to <b>5</b> (Empty to Full). Under the codes the app says where it will be filed, for example <i>Goes to: Evening (from 14h00)</i>. Readings before 11h00 go to Morning, before 14h00 to Mid-Day, and later ones to Evening.</li>
+  <li><b>Adjust the A.D.I.</b> Tap <span class="ui">+</span> or <span class="ui">&minus;</span>. Each tap changes it by 0.1 kg.</li>
+  <li>Tap <span class="ui">Save</span>. The app shows <i>Saved A06 &middot; Evening 3</i> and returns to the crib number, ready for the next crib. Tap <span class="ui">Discard</span> to leave without saving; the app asks first if you changed something.</li>
+</ol>
+
+<div class="shots">
+  <figure><img src="screenshots/49-feed-home.png" alt=""><figcaption>Crib number and list</figcaption></figure>
+  <figure><img src="screenshots/49-feed-crib.png" alt=""><figcaption>Crib details</figcaption></figure>
+  <figure><img src="screenshots/49-feed-entry.png" alt=""><figcaption>Code and A.D.I</figcaption></figure>
+</div>
+
+<div class="note"><b class="label">Note</b>If you save a second reading in the same block on the same day, the newer code is the one shown in the grid. Earlier readings are kept.</div>
+
 <div class="split">
   <div class="text">
-    <p>The <span class="ui">Feed</span> tab shows the planned feed crib screens: a list of pens and a reading screen per crib.</p>
-    <div class="warn"><b class="label">Preview only</b>In this version the Feed tab uses example data. <b>Nothing entered here is saved or synced.</b> Record feed against animals with <a href="#locfeed">Location &amp; Feed</a> instead.</div>
+    <p><b>Today's session.</b> On the Feed tab, tap <span class="ui">Today's session</span> to see every crib you read today: its crib number, the codes for Morning, Mid-Day and Evening, and the A.D.I. A green <span class="ui">Synced</span> pill means the reading is on the server; <span class="ui">Waiting</span> means it will be sent when the phone is online. Tap a crib to see each reading with its time, block, code and A.D.I.</p>
+    <p><b>Sync.</b> Tap <span class="ui">Sync</span> on the Feed tab to send waiting readings now. They are also included in <span class="ui">Sync now</span> on the Home screen. See <a href="#sync">Working offline and syncing</a>.</p>
+    <div class="warn"><b class="label">No site, no cribs</b>Cribs belong to a site. A user who has no site (an administrator, for example) cannot download cribs.</div>
   </div>
-  <figure><img src="screenshots/49-feed-preview.png" alt=""><figcaption>Feed Crib (preview)</figcaption></figure>
+  <figure><img src="screenshots/49-feed-session.png" alt=""><figcaption>Today's session</figcaption></figure>
 </div>
 
 <h2 id="activity">My activity</h2>

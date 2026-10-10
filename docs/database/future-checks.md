@@ -105,14 +105,13 @@ Last revised 2026-10-09 on `feature/farmer-sales-email` (PR #121).
 31. **Dashboard stale-sync alerts use `users.device_last_sync`, which login sets.** It moves on login,
     not on every sync, so a worker who stays logged in and syncs can still look stale. Stamp it from
     the sync routes if the alert proves noisy. **Update (Phase 4c):** any authenticated request now refreshes it (at most every 15 minutes), so it means "last contact", not "last sync" or "last login".
-33. **Feed Crib `POST` is not idempotent.** `FeedCribRequest` has no record GUID, so a retried request
-    inserts a duplicate reading. The app does not post Feed Crib at all yet (`:android:feed-crib` is
-    UI only, in memory), so nothing is duplicated today. Add a `recordguid` and an upsert when the
-    device gets a Feed Crib sync worker.
-    **Out of scope for now (decided 2026-10-04):** the Feed Crib screens are in-memory (mock sessions, a readings
-    list, and a Save button that only shows a toast), so there is nothing on the device to sync. Leave Feed Crib
-    sync until the Feed Crib team has implemented the feature properly; then do the GUID, upsert, Room table,
-    worker and Day-7 wipe entry together.
+33. **Feed Crib `POST` is not idempotent.** **Resolved (schema 47, PRs #129–#131).** The old flat
+    `POST /api/feed-crib` was retired. Feed crib readings now follow the calf-registration pattern: the device
+    stamps a `record_guid` on each `feed_crib_entries` row, queues it as `FEED_CRIB_ENTRY`, and
+    `POST /api/feed-crib-entries/sync` upserts by `recordguid`, so a retry cannot duplicate a reading. `FeedCribSyncWorker`
+    sends the queue, and `FEED_CRIB_ENTRY` is in the Day-7 wipe. Saves are append-only: the latest `captured_at` in a
+    date and block is the one shown, on the phone and on the server. The old `feed_crib_readings` table on the
+    server is left untouched.
 35. **Legacy mortalities belong to whoever syncs first.** Mortalities recorded before v34 were never
     queued (the queue is user-scoped and they have no owner). `MortalityRepository.syncPending` queues
     them for the signed-in user, so on a shared device the first user to sync owns them on the server.

@@ -84,7 +84,7 @@ beeftech-mobile-data-platform/
 │   ├── database/                 # Room + SQLCipher: entities, DAOs, repositories, security, BackendConfig
 │   ├── farm-traceability/        # Animal records, movements, treatments, mortalities, costs, purchases, feed location
 │   ├── farmer-registration/      # Farmer onboarding Activities, farmer list with sync pills
-│   ├── feed-crib/                # Feed bunk reading screens (UI only, in-memory)
+│   ├── feed-crib/                # Feed crib readings: crib entry, readings grid, session list; Room-backed, syncs
 │   ├── management/               # Manager/admin screens: dashboard, reports, records review/void, team, admin
 │   └── tag-scanner/              # CameraX + ML Kit ear-tag scanning, colour detection, tag parsing
 ├── backend/
@@ -130,7 +130,7 @@ declared in `settings.gradle.kts` — they configure but build nothing.
 | `:android:calf-registration` | library | `com.beeftech.calfregistration` | `database`, `tag-scanner` | Room-backed; authenticated sync incl. photo upload |
 | `:android:farm-traceability` | library | `com.beeftech.farmtraceability` | `database`, `tag-scanner` | Room-backed; authenticated sync (movements, treatments, mortalities, costs, outbox, farmer–animal assignments) |
 | `:android:farmer-registration` | library | `com.beeftech.farmerregistration` | `database` | Room-backed; farmer list, authenticated sync (triggers the sales email) |
-| `:android:feed-crib` | library | `com.beeftech.feedcrib` | `database` (declared, unused) | UI only; hard-coded pens, readings live in Compose state |
+| `:android:feed-crib` | library | `com.beeftech.feedcrib` | `database` | Room-backed; crib list and reading codes downloaded from the server, readings saved offline and synced (`FeedCribSyncWorker`) |
 | `:android:management` | library | `com.beeftech.management` | `database` | Online-only manager/admin screens over `ManagementApiClient` |
 | `:android:tag-scanner` | library | `com.beeftech.tagscanner` | `database` | Ear-tag scanner screen/dialog, text parser, colour classifier |
 | `:backend:api` | JVM app | `com.beeftech.backend.api` | — | Runnable Ktor server |
@@ -140,18 +140,18 @@ declared in `settings.gradle.kts` — they configure but build nothing.
 
 Everything persistent lives here:
 
-- `BeefTechDatabase` — Room database, **schema version 46** (`BeefTechDatabase.VERSION`; see
+- `BeefTechDatabase` — Room database, **schema version 47** (`BeefTechDatabase.VERSION`; see
   [Database & migrations](#database--migrations))
 - `entity/` — 45 Room entities: animals and their identifiers, media, weights,
   ownership, purchases, groups and memberships, farmer–animal links; calf registrations, treatments,
   mortalities, movements, costs; farmers, addresses and roles; locations and pens;
-  feed cribs, readings and rations; users and roles; lookups (breeds, hide colours,
+  feed cribs, reading codes, feed crib entries and rations; users and roles; lookups (breeds, hide colours,
   diseases, medications and batches, necropsy codes, countries, provinces, devices,
   identifier types, reference items, device config); sync bookkeeping (pending sync,
   batches, backups, runs, policy state, security events)
-- `dao/` — 38 DAOs (most one per file; the lookup DAOs share `LookupDaos.kt`)
+- `dao/` — 37 DAOs (most one per file; the lookup DAOs share `LookupDaos.kt`)
 - `repository/` — `AnimalHistoryRepository`, `AnimalManagementRepository`,
-  `FarmerRepository`, `FeedingRepository`, `LocationRepository`,
+  `FarmerRepository`, `LocationRepository`,
   `PendingSyncRepository`, `SyncRepository`, `SyncRunRepository`, `SyncRunSummary`,
   `SyncPolicyEnforcer`, `SyncPolicyStore`, `SyncWarningPolicy`
 - `security/` — `AndroidKeyStoreSecurityProvider`, `DatabaseKeyProvider`,
@@ -229,7 +229,13 @@ Feed, More**:
   animals** (link registered animals to a farmer; assignments sync as
   `farmer_animal_links`), find animal, movements, purchases/suppliers, location & feed,
   treatments, costs, mortalities, and a sync status card with **Retry Sync**.
-- **Feed** — the feed crib screens (not persisted).
+- **Feed** — feed crib readings. Type or pick a crib number, see its details and the last
+  3 days of readings (Morning / Mid-Day / Evening), pick a reading code 0–5 (it is filed
+  in the block for the time of day: before 11h00 Morning, before 14h00 Mid-Day, otherwise
+  Evening), nudge the ADI in 0.1 kg steps, then Save or Discard. **Today's session** lists
+  every crib read today. Readings are saved on the phone, sent right away when online and
+  otherwise by the sync worker (`feed_crib_entries`); the crib list and codes download when
+  the tab opens.
 - **More** — My activity and Log out; managers also get Dashboard, Reports, Records and
   Team; admins additionally get Admin.
 
@@ -255,6 +261,8 @@ Feed, More**:
 | **`admin`** | `10001` | 1 — Administrator | none (sees all sites) |
 | **`fmanager`** | `20002` | 2 — Manager | `dev-site-1` "Dev Feedlot" (farm code `S001`) |
 | **`jvdm`** | `30003` | 3 — Worker | `dev-site-1` |
+
+The dev seed also adds feed cribs `A01`–`A08` to `dev-site-1`. The Feed tab only works for a user with a site (`fmanager`, `jvdm`); `admin` gets a 400 from `GET /api/feed-cribs` unless it names a site. The reading codes 0–5 are always seeded.
 
 - Override the database location with:
   ```bash
@@ -416,7 +424,7 @@ admin clears the lock (`POST /api/users/{id}/clear-sync-lock`) — the day is fi
 Where the tests live:
 
 ```text
-src/test/        → JVM unit tests: every Android module except feed-crib, plus demoapp
+src/test/        → JVM unit tests: every Android module, plus demoapp
                    and backend/api (~37 classes)
 src/androidTest/ → instrumented tests: database (the real suite), tag-scanner (sample
                    images), authentication (unused biometric manager), and template
@@ -498,16 +506,16 @@ scoped reads.
 
 ## Database & migrations
 
-- **Room schema version: 46** (`BeefTechDatabase.VERSION` is the source of truth)
+- **Room schema version: 47** (`BeefTechDatabase.VERSION` is the source of truth)
 - Migrations `1→2` … `8→9` are defined in
   `android/database/src/main/java/com/beeftech/database/DatabaseFactory.kt`.
-  Migrations `9→10` through `45→46` live in the `BeefTechDatabase` companion object in
+  Migrations `9→10` through `46→47` live in the `BeefTechDatabase` companion object in
   `BeefTechDatabase.kt`. Every migration is registered in `DatabaseFactory.kt`
   `.addMigrations(...)` wrapped in `guarded(...)`.
   Version 15 is deliberately unused (see the comment above `MIGRATION_14_16`).
 - Exported schema JSON is committed under
   `android/database/schemas/com.beeftech.database.BeefTechDatabase/` for versions 14
-  and 16–46.
+  and 16–47.
 - Encryption: SQLCipher for Android 4.17.0, key material via Android KeyStore
   (`AndroidKeyStoreSecurityProvider`)
 
@@ -592,8 +600,8 @@ request. **Role** below means: *any* — any logged-in user; *mgr* — manager o
 | `POST` | `/api/farmer-animal-links/sync` | any | Upload one farmer–animal assignment (`recordGuid`, `linkId`, `farmerId`, `animalId`, `effectiveFrom`, `effectiveTo?`); checked against the caller's site and the saved link |
 | `POST` | `/api/farmer-animal-links/diagnose` | any | Explain why pending assignments (max 50) are not syncing; only reveals records the caller can see |
 | `POST` | `/api/traceability-events/sync` | any | Generic outbox (`entityType`, `recordGuid`, `payload`, …), upsert by `recordGuid` |
-| `POST` | `/api/feed-crib` | any | Submit one feed crib reading |
-| `GET` | `/api/feed-crib` · `/api/feed-crib/{penName}` | any | List / per pen |
+| `GET` | `/api/feed-cribs` | any | The caller's site: its cribs, the reading-code table and each crib's entries from the last `days` days (default 3, capped at 14). Admins have no site and name one with `?siteId=` |
+| `POST` | `/api/feed-crib-entries/sync` | any | Batch upsert of feed crib readings by `recordguid`; submitter and site come from the token. Each record comes back `SYNCED` or `ERROR` (unknown crib or code, wrong site, bad block). The newest entry for a crib also sets `feed_cribs.current_adi` |
 
 ### Reference data, sync policy and sync security
 
@@ -646,7 +654,7 @@ request. **Role** below means: *any* — any logged-in user; *mgr* — manager o
 | Compose BOM | 2024.02.00 (hard-coded in most modules) / 2026.02.01 (catalog: `farmer-registration`, `management`) |
 | Room | 2.8.4 |
 | SQLCipher for Android | 4.17.0 |
-| Ktor client | 3.0.3 (2.3.8 in `feed-crib`) |
+| Ktor client | 3.0.3 |
 | Ktor server | 3.0.3 |
 | Exposed | 0.56.0 |
 | SQLite JDBC | 3.46.1.3 |
@@ -741,8 +749,6 @@ backend database.
 - The Render deployment has no persistent disk (data resets on redeploy) and seeds the
   dev users.
 - The login response includes the user's `pin_hash` (used for offline login).
-- `:android:feed-crib` is not persisted or synced; the backend `/api/feed-crib` routes
-  are unused by the app.
 - The biometric prompt code in `:android:authentication` is not used by the app.
 - `backend/api/requests.http` is stale (sends `password`, calls `/api/auth/register`).
 - Some `docs/database/*.md` files cite an `AGENT.md` that does not exist; the database
