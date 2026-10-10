@@ -329,9 +329,6 @@ To use the hosted backend from a debug build, pass
 by `android:usesCleartextTraffic="true"` in the `demoapp` and `calf-registration`
 manifests.
 
-> `TraceabilityOutboxApiClient` (generic traceability events) does **not** use
-> `BackendConfig` yet and always posts to the hosted backend — see [Known gaps](#known-gaps).
-
 API clients obtain their JWT from the logged-in session (`SessionStore` via
 `TokenProviderRegistry`). A `401` from the server ends the session and returns the user
 to the login screen.
@@ -728,8 +725,6 @@ backend database.
 - `:backend:api:test` is flaky: a different single test fails on each run, probably
   because tests share state (N5 in `docs/database/future-checks.md`). Re-run before
   assuming a regression.
-- `TraceabilityOutboxApiClient` ignores `BackendConfig` and always posts to the hosted
-  backend, even from debug builds.
 - `CalfRegistrationViewModel` and `TreatmentViewModel` re-enqueue the legacy 15-minute
   periodic sync jobs that `ScheduledSyncScheduler` cancels.
 - `usesCleartextTraffic="true"` is set in the main manifests, so release builds allow
