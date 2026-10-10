@@ -49,7 +49,7 @@ fun CalfHeader(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(BeeftechPrimaryDeep)
+            .background(BeeftechHeaderBackground)
             .padding(start = 14.dp, end = 22.dp, top = 22.dp, bottom = 20.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -68,10 +68,10 @@ fun CalfHeader(
             Box(
                 modifier = Modifier
                     .size(42.dp)
-                    .background(BeeftechPrimary.copy(alpha = 0.18f), RoundedCornerShape(11.dp)),
+                    .background(BeeftechHeaderAccent.copy(alpha = 0.18f), RoundedCornerShape(11.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, contentDescription = null, tint = BeeftechPrimary, modifier = Modifier.size(22.dp))
+                Icon(icon, contentDescription = null, tint = BeeftechHeaderAccent, modifier = Modifier.size(22.dp))
             }
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -82,7 +82,7 @@ fun CalfHeader(
                     fontSize = 10.sp,
                     letterSpacing = 1.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = BeeftechPrimary
+                    color = BeeftechHeaderAccent
                 )
                 Spacer(modifier = Modifier.height(3.dp))
                 Text(text = title, fontSize = 25.sp, fontWeight = FontWeight.Bold, color = BeeftechWhite)
@@ -90,9 +90,9 @@ fun CalfHeader(
         }
 
         Spacer(modifier = Modifier.height(9.dp))
-        Text(text = subtitle, fontSize = 12.sp, lineHeight = 17.sp, color = BeeftechSoftAccent)
+        Text(text = subtitle, fontSize = 12.sp, lineHeight = 17.sp, color = BeeftechHeaderSubtitle)
         Spacer(modifier = Modifier.height(17.dp))
-        HorizontalDivider(thickness = 2.dp, color = BeeftechPrimary)
+        HorizontalDivider(thickness = 2.dp, color = BeeftechHeaderAccent)
     }
 }
 

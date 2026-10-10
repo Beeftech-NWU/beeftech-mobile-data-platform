@@ -176,11 +176,7 @@ class DashboardRoutesTest {
         sync("/api/costs/sync", worker, """{"animalId":"A-1","costType":"TRANSPORT","amount":200.0,"timestamp":$now,"recordguid":"c-1"}""")
         sync("/api/costs/sync", worker, """{"animalId":"A-1","costType":"TREATMENT","amount":50.0,"timestamp":$now,"sourceEntity":"TREATMENT","sourceRecordId":"t-1","recordguid":"c-derived"}""")
         sync("/api/costs/sync", other, """{"animalId":"A-3","costType":"FEED","amount":1000.0,"timestamp":$now,"recordguid":"c-other"}""")
-        client.post("/api/feed-crib") {
-            header("Authorization", "Bearer $worker")
-            contentType(ContentType.Application.Json)
-            setBody("""{"penName":"P1","adiValue":1.5,"morning":"1","midDay":"2","evening":"3","timestamp":$now}""")
-        }
+        sync("/api/feed-crib-entries/sync", worker, """{"recordguid":"f-1","cribNumber":"A01","readingDate":"2026-01-05","slot":"MORNING","code":2,"adi":11.5,"capturedAt":$now}""")
 
         val managerSummary = client.summary(manager).second!!
         assertEquals(2.0, managerSummary.count("mortalities", "total"))

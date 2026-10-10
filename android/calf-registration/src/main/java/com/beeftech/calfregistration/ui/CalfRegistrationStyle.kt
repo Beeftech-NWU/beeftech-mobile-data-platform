@@ -15,4 +15,9 @@ val BeeftechMutedText = Color(0xFF56625B)
 val BeeftechBorder = Color(0xFFD9DED6)
 val BeeftechSoftAccent = Color(0xFFDDEFE4)
 
+// CalfHeader banner: same sage green as the app top bar and the traceability headers.
+val BeeftechHeaderBackground = Color(0xFF4F6256)
+val BeeftechHeaderAccent = Color(0xFFA8B8AD)
+val BeeftechHeaderSubtitle = Color(0xFFE3E8E2)
+
 val BeeftechWhite = Color(0xFFFFFFFF)
