@@ -55,6 +55,17 @@ data class FarmerSalesNotificationPayload(
     val resentAt: Long? = null
 )
 
+/** A durable animal-to-farmer assignment, distinct from the earlier calf registration. */
+@Serializable
+data class CalfFarmerAssignmentDetails(
+    val assignmentRecordGuid: String,
+    val farmerId: String,
+    val farmerClientCode: String? = null,
+    val farmerOrganisationName: String? = null,
+    val effectiveFrom: Long,
+    val assignedAtServer: Long
+)
+
 /** Calf receipt is separate from the later ownership/transfer events. */
 @Serializable
 data class CalfRegistrationNotificationPayload(
@@ -71,7 +82,15 @@ data class CalfRegistrationNotificationPayload(
     val submittedByUserId: String? = null,
     val serverSyncedAt: Long,
     val assignedSalesmanEmail: String? = null,
-    val resentAt: Long? = null
+    val resentAt: Long? = null,
+    val damTagNumber: String? = null,
+    val sireTagNumber: String? = null,
+    val gpsLatitude: Double? = null,
+    val gpsLongitude: Double? = null,
+    val siteName: String? = null,
+    val assignment: CalfFarmerAssignmentDetails? = null,
+    /** Complete saved calf snapshot, including condition, gender, parentage, GPS and proof fields. */
+    val calfDetails: CalfRegistrationDto? = null
 )
 
 const val NEW_FARMER_REGISTRATION_EVENT = "NEW_FARMER_REGISTRATION"
@@ -650,21 +669,31 @@ class SmtpFarmerSalesNotificationService(
                     PasswordAuthentication(config.username, config.password)
             }
         } else null
+        val isAssignment = payload.eventType == "CALF_ASSIGNED_TO_FARMER" && payload.assignment != null
         val message = MimeMessage(Session.getInstance(properties, authenticator)).apply {
             setFrom(InternetAddress(config.fromAddress))
             setRecipient(Message.RecipientType.TO, InternetAddress(recipient))
             setSubject(
-                (if (payload.resentAt != null) "BeefTech Calf Registration (Resent) - "
-                 else "BeefTech Calf Registration - ") + payload.tagNumber,
+                if (isAssignment) "BeefTech Calf Assigned to Farmer - ${payload.tagNumber}"
+                else (if (payload.resentAt != null) "BeefTech Calf Registration (Resent) - "
+                      else "BeefTech Calf Registration - ") + payload.tagNumber,
                 StandardCharsets.UTF_8.name()
             )
             val body = MimeBodyPart().apply {
                 setText(
-                    "Calf registration confirmed by BeefTech server.\n" +
-                        "Animal tag: ${payload.tagNumber}\n" +
-                        "Registration: ${payload.recordGuid}\n" +
-                        "Farmer assignment is a separate record.\n" +
-                        "Full JSON receipt attached.",
+                    if (isAssignment) {
+                        "BeefTech calf assignment confirmed by the server.\n" +
+                            "Animal tag: ${payload.tagNumber}\n" +
+                            "Farmer: ${payload.assignment!!.farmerOrganisationName ?: payload.assignment!!.farmerId}\n" +
+                            "Site: ${payload.siteName ?: payload.siteId ?: "N/A"}\n" +
+                            "Full calf and farmer assignment JSON receipt attached."
+                    } else {
+                        "Calf registration confirmed by BeefTech server.\n" +
+                            "Animal tag: ${payload.tagNumber}\n" +
+                            "Registration: ${payload.recordGuid}\n" +
+                            "Farmer assignment is a separate record.\n" +
+                            "Full JSON receipt attached."
+                    },
                     StandardCharsets.UTF_8.name()
                 )
             }
@@ -673,7 +702,11 @@ class SmtpFarmerSalesNotificationService(
                     json.encodeToString(payload).toByteArray(StandardCharsets.UTF_8),
                     "application/json; charset=UTF-8"
                 ))
-                fileName = "calf-registration-${safeFileName(payload.recordGuid)}.json"
+                fileName = if (isAssignment) {
+                    "calf-farmer-assignment-${safeFileName(payload.assignment!!.assignmentRecordGuid)}.json"
+                } else {
+                    "calf-registration-${safeFileName(payload.recordGuid)}.json"
+                }
             }
             setContent(MimeMultipart().apply {
                 addBodyPart(body)
@@ -681,7 +714,8 @@ class SmtpFarmerSalesNotificationService(
             })
         }
         Transport.send(message)
-        println("Calf registration JSON receipt sent for ${payload.recordGuid}")
+        println(if (isAssignment) "Calf assignment JSON receipt sent for ${payload.assignment!!.assignmentRecordGuid}"
+                else "Calf registration JSON receipt sent for ${payload.recordGuid}")
     }
 
     private fun safeFileName(

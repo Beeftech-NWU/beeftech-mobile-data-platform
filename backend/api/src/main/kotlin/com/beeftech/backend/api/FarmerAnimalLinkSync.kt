@@ -3,6 +3,7 @@
 import com.beeftech.backend.api.auth.JwtService
 import com.beeftech.backend.api.common.ApiResponse
 import com.beeftech.backend.api.auth.Role
+import com.beeftech.backend.api.auth.SitesTable
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
@@ -64,7 +65,10 @@ data class PendingAssignmentDiagnosis(
  * Upload individual versioned link records, not just the current owner. Replays are safe.
  * The Android client must await an acknowledgement before marking the local row SYNCED.
  */
-fun Route.farmerAnimalLinkRoutes(jwtService: JwtService) {
+fun Route.farmerAnimalLinkRoutes(
+    jwtService: JwtService,
+    notificationService: FarmerSalesNotificationService? = null
+) {
     missingParentRestoreRoutes(jwtService)
     post("/api/farmer-animal-links/diagnose") {
         val principal = call.requireAuthPrincipal(jwtService) ?: return@post
@@ -222,9 +226,81 @@ fun Route.farmerAnimalLinkRoutes(jwtService: JwtService) {
                 it[submittedByUserId] = principal.userId
                 it[siteId] = principal.siteId
             }
-            "OK"
+            if (link.effectiveTo == null) "CREATED" else "OK"
         }
         when (result) {
+            "CREATED" -> {
+                // The assignment transaction has committed. Send a single complete receipt for
+                // this newly accepted, active assignment. Replays get OK and do not send twice.
+                try {
+                    val receipt = transaction {
+                        val calf = CalfRegistrationTable.selectAll().where {
+                            CalfRegistrationTable.animalUuid eq link.animalId
+                        }.singleOrNull() ?: return@transaction null
+                        val farmer = FarmerTable.selectAll().where {
+                            FarmerTable.farmerId eq link.farmerId
+                        }.singleOrNull() ?: return@transaction null
+                        if (calf[CalfRegistrationTable.voidedAt] != null ||
+                            farmer[FarmerTable.voidedAt] != null ||
+                            calf[CalfRegistrationTable.siteId] != farmer[FarmerTable.siteId]) {
+                            // Never send a cross-site or voided farmer's details in an email.
+                            return@transaction null
+                        }
+                        val siteId = calf[CalfRegistrationTable.siteId]
+                        val site = siteId?.let { id ->
+                            SitesTable.selectAll().where { SitesTable.siteId eq id }.singleOrNull()
+                        }
+                        CalfRegistrationNotificationPayload(
+                            eventType = "CALF_ASSIGNED_TO_FARMER",
+                            recordGuid = calf[CalfRegistrationTable.recordguid],
+                            animalUuid = calf[CalfRegistrationTable.animalUuid],
+                            tagNumber = calf[CalfRegistrationTable.tagNumber],
+                            breed = calf[CalfRegistrationTable.breed],
+                            birthdate = calf[CalfRegistrationTable.birthdate],
+                            captureAt = calf[CalfRegistrationTable.captureAt],
+                            deviceId = calf[CalfRegistrationTable.deviceId],
+                            siteId = siteId,
+                            siteName = site?.get(SitesTable.name),
+                            submittedByUserId = calf[CalfRegistrationTable.submittedByUserId],
+                            serverSyncedAt = calf[CalfRegistrationTable.syncedAt] ?: System.currentTimeMillis(),
+                            assignedSalesmanEmail = site?.get(SitesTable.salesRepEmail),
+                            damTagNumber = calf[CalfRegistrationTable.damTagNumber],
+                            sireTagNumber = calf[CalfRegistrationTable.sireTagNumber],
+                            gpsLatitude = calf[CalfRegistrationTable.gpsLat],
+                            gpsLongitude = calf[CalfRegistrationTable.gpsLng],
+                            assignment = CalfFarmerAssignmentDetails(
+                                assignmentRecordGuid = link.recordGuid,
+                                farmerId = farmer[FarmerTable.farmerId],
+                                farmerClientCode = farmer[FarmerTable.clientCode],
+                                farmerOrganisationName = farmer[FarmerTable.organisationName],
+                                effectiveFrom = link.effectiveFrom,
+                                assignedAtServer = System.currentTimeMillis()
+                            )
+                        )
+                    }
+                    if (receipt == null) {
+                        System.err.println("Calf assignment stored; JSON email skipped due to site/record mismatch")
+                    } else {
+                        // Fetch the complete saved registration, not just the summary fields.
+                        val fullCalf = CalfRegistrationRepository().findByTagNumber(
+                            receipt.tagNumber, RecordScope.All
+                        )
+                        if (fullCalf != null) {
+                            notificationService?.notifyCalfRegistration(receipt.copy(calfDetails = fullCalf))
+                        } else {
+                            System.err.println("Calf assignment stored; JSON email skipped because calf details are unavailable")
+                        }
+                    }
+                } catch (_: Exception) {
+                    // Email errors must not turn a persisted assignment back into pending.
+                    System.err.println("Calf assignment stored; JSON email delivery failed")
+                }
+                call.respond(HttpStatusCode.OK, ApiResponse(
+                    success = true,
+                    data = FarmerAnimalLinkAcknowledgement(link.recordGuid, true),
+                    message = "Assignment stored"
+                ))
+            }
             "OK" -> call.respond(HttpStatusCode.OK, ApiResponse(success = true, data = FarmerAnimalLinkAcknowledgement(link.recordGuid, true), message = "Assignment stored"))
             "LOCAL_HISTORY" -> call.respond(HttpStatusCode.OK, ApiResponse(success = true, data = FarmerAnimalLinkAcknowledgement(link.recordGuid, false, localHistory = true), message = "Ended assignment absent on this server; retain local history"))
             "MISSING" -> call.respond(HttpStatusCode.UnprocessableEntity, ApiResponse<String>(success = false, message = "Farmer or calf is not synchronized or not accessible"))

@@ -46,7 +46,12 @@ class CalfRegistrationService(
                                 siteId = siteId,
                                 submittedByUserId = submittedBy,
                                 serverSyncedAt = persisted.record.syncedAt ?: System.currentTimeMillis(),
-                                assignedSalesmanEmail = siteId?.let { salesRepEmailOfSite(it) }
+                                assignedSalesmanEmail = siteId?.let { salesRepEmailOfSite(it) },
+                                damTagNumber = persisted.record.damTagNumber,
+                                sireTagNumber = persisted.record.sireTagNumber,
+                                gpsLatitude = persisted.record.gpsLat,
+                                gpsLongitude = persisted.record.gpsLng,
+                                calfDetails = persisted.record
                             )
                         )
                     } catch (_: Exception) {

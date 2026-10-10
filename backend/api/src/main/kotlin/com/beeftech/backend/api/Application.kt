@@ -167,7 +167,7 @@ fun Application.module() {
 
         /* Offline-first Farm Traceability outbox. */
         traceabilityEventRoutes(jwtService)
-        farmerAnimalLinkRoutes(jwtService)
+        farmerAnimalLinkRoutes(jwtService, farmerSalesNotificationService)
 
         get("/health") {
             call.respondText("OK")
