@@ -1,5 +1,6 @@
 package com.beeftech.farmtraceability.data
 
+import com.beeftech.database.BackendConfig
 import com.beeftech.database.util.BatchNaming
 import com.beeftech.database.util.ProjectCode
 import com.beeftech.database.security.TokenProvider
@@ -60,7 +61,7 @@ class TraceabilityOutboxApiClient(
         TokenProvider,
 
     private val baseUrl: String =
-        DEFAULT_BASE_URL,
+        BackendConfig.baseUrl,
 
     private val httpClient:
         HttpClient =
@@ -173,11 +174,5 @@ class TraceabilityOutboxApiClient(
                 exception
             )
         }
-    }
-
-    companion object {
-
-        const val DEFAULT_BASE_URL =
-            "https://beeftech-backend.onrender.com/"
     }
 }
