@@ -2,10 +2,20 @@ package com.beeftech.demoapp
 
 import com.beeftech.authentication.domain.Role
 
+/**
+ * Five permanent bottom-navigation destinations.
+ *
+ * Management-only destinations live under More so the main navigation stays
+ * predictable for workers, managers and administrators.
+ */
 enum class AppTab(val label: String) {
-    TRACEABILITY("Farm Traceability"),
-    CALF_REGISTRATION("Calf Registration"),
-    FEED_CRIB("Feed Crib"),
+    HOME("Home"),
+    CALF_REGISTRATION("Calves"),
+    TRACEABILITY("Traceability"),
+    FEED_CRIB("Feed"),
+    MORE("More"),
+
+    // Secondary destinations opened from More.
     DASHBOARD("Dashboard"),
     REPORTS("Reports"),
     RECORDS("Records"),
@@ -13,18 +23,33 @@ enum class AppTab(val label: String) {
     ADMIN("Admin")
 }
 
-/* ADMIN is the manager's tabs plus Admin; Admin holds the screens only admins get. */
-fun tabsFor(role: Role?): List<AppTab> {
-    val capture = listOf(
-        AppTab.TRACEABILITY,
+fun tabsFor(role: Role?): List<AppTab> =
+    listOf(
+        AppTab.HOME,
         AppTab.CALF_REGISTRATION,
-        AppTab.FEED_CRIB
+        AppTab.TRACEABILITY,
+        AppTab.FEED_CRIB,
+        AppTab.MORE
     )
 
-    /* An unknown or missing role gets the least privilege. */
-    return when (role) {
-        Role.ADMIN -> capture + listOf(AppTab.DASHBOARD, AppTab.REPORTS, AppTab.RECORDS, AppTab.TEAM, AppTab.ADMIN)
-        Role.MANAGER -> capture + listOf(AppTab.DASHBOARD, AppTab.REPORTS, AppTab.RECORDS, AppTab.TEAM)
-        else -> capture
+fun moreTabsFor(role: Role?): List<AppTab> =
+    when (role) {
+        Role.ADMIN ->
+            listOf(
+                AppTab.DASHBOARD,
+                AppTab.REPORTS,
+                AppTab.RECORDS,
+                AppTab.TEAM,
+                AppTab.ADMIN
+            )
+
+        Role.MANAGER ->
+            listOf(
+                AppTab.DASHBOARD,
+                AppTab.REPORTS,
+                AppTab.RECORDS,
+                AppTab.TEAM
+            )
+
+        else -> emptyList()
     }
-}

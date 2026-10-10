@@ -1,5 +1,9 @@
 package com.beeftech.farmtraceability.worker
 
+import com.beeftech.database.entity.SyncRunModule
+import com.beeftech.database.entity.SyncRunTrigger
+import com.beeftech.database.repository.SyncRunRepository
+import com.beeftech.database.repository.SyncRunSummary
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -39,11 +43,23 @@ class MortalitySyncWorker(
                     database.pendingSyncDao()
                 )
 
-            MortalityRepository(
-                mortalityDao = database.mortalityDao(),
-                pendingSyncRepository = pendingSyncRepository,
-                apiClient = MortalityApiClient(tokenProvider = tokenProvider)
-            ).syncPending()
+            val syncRuns =
+                SyncRunRepository(
+                    database.syncRunDao(),
+                    database.pendingSyncDao()
+                )
+
+            val trigger =
+                inputData.getString(SyncRunSummary.TRIGGER_INPUT_KEY)
+                    ?: SyncRunTrigger.AUTO
+
+            syncRuns.trackRun(SyncRunModule.MORTALITY, listOf(MortalityRepository.ENTITY_TYPE), trigger) {
+                MortalityRepository(
+                    mortalityDao = database.mortalityDao(),
+                    pendingSyncRepository = pendingSyncRepository,
+                    apiClient = MortalityApiClient(tokenProvider = tokenProvider)
+                ).syncPending()
+            }
 
             val remaining =
                 pendingSyncRepository

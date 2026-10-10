@@ -8,7 +8,7 @@ complete without them.
 Don't delete entries, and never reuse or change a number. When an entry is resolved or no
 longer applies, move it to the Archive at the end as a one-liner with its number and the PR
 or reason. Entries that describe intended behaviour rather than a task are under "By design".
-Last revised 2026-10-06 against `main` @ `78550dc`.
+Last revised 2026-10-09 on `feature/farmer-sales-email` (PR #121).
 
 ## Already tracked elsewhere
 
@@ -302,6 +302,32 @@ Last revised 2026-10-06 against `main` @ `78550dc`.
 95. **`animal_purchases` has no `sync_status`.** The queue row is the only marker of an unsynced purchase, so the
     Day-7 wipe (#92) deletes a purchase that was edited after it synced (the server keeps it). A `sync_status`
     column (Room v39) would make the wipe exact.
+
+## Found during Req 6 (farmer sales email, PR #121)
+
+96. **The farmer email attachment name doesn't match the batch names (from PR #117).** In
+    `<FarmCode>-FARMER_REG-<YYYYMMDD>-<HHMMSS>-<DeviceID>.json` the device part is the farmer sync request's
+    `deviceId` (the raw Android ID, e.g. `990ab44a92de0bbb`), not the `MOB_DEV_<hex>` id that batch names and the
+    devices table use. The time is the server's UTC time (`194841` for a 21:48 SAST sync), while names built on the
+    phone use the device's local time. Both still pass `FileNaming.REGEX`. Decide on one device id and one time zone
+    for every name, and line up `attachmentFileName` in `FarmerSalesNotification.kt` with it.
+97. **The farmer list's Processing pill has not been seen on a device.** In the run in 99, `FarmerSyncWorker`
+    went from `PENDING` to `SYNCED` faster than a UI dump (about 1 s) could catch, so only Pending Sync and
+    Registered were observed. The mapping is covered by `FarmerSyncPillTest` and the live list by
+    `FarmerDaoObserveTest`. Check it on a slow connection, or with a delayed backend response.
+98. **The Land card mixes two field styles.** Primary Breed uses `FarmerTextField` (with the leading icon), while
+    Farm Size, Head Count and the older Herd Capacity use `FarmerIdentifierTextField` (no icon). Cosmetic only; pick
+    one style for the card.
+99. **The Req 6 flow was run on a device (API 24 emulator, local backend, local SMTP sink, 2026-10-09).** As
+    `jvdm` on S001, with S001's sales rep set and `BEEFTECH_SALES_REP_EMAIL` set to a different fallback address.
+    Passed: the farmer list opened from Farmer Registration; offline registration with phone validation (an
+    invalid number blocks Continue), farm size cleaning (`1,250.559` saved as `1250.55`) and the five fields on
+    the save summary; a Pending Sync pill after saving with no email sent; Registered after going online; exactly
+    one email, sent to the site rep and not the fallback, whose attachment carried `event`,
+    `assignedSalesmanEmail` and the five fields; no second email after Sync now and after two direct re-uploads of
+    the same farmer (the second re-upload updated the head count). The first upload after re-enabling the network
+    timed out and the WorkManager retry succeeded about 20 s later. Not covered: the Processing pill (97), the
+    management Sites dialogs, and a site with no rep (covered by `SmtpFarmerSalesNotificationConfigTest`).
 
 ## By design (no action, kept for reference)
 

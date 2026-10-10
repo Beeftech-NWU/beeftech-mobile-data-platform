@@ -2,6 +2,8 @@ package com.beeftech.calfregistration.fakes
 
 import com.beeftech.database.dao.CalfRegistrationDao
 import com.beeftech.database.dao.CalfRegistrationView
+import com.beeftech.database.dao.ParentCandidate
+import com.beeftech.database.dao.PhotoUpload
 import com.beeftech.database.entity.Animal
 import com.beeftech.database.entity.AnimalIdentifierEntity
 import com.beeftech.database.entity.AnimalMediaEntity
@@ -39,8 +41,18 @@ class FakeCalfRegistrationDao : CalfRegistrationDao() {
         registrations += registration
     }
 
-    override suspend fun findAnimalIdByTag(tagNumber: String): String? =
-        activeTag { it == tagNumber }
+    /** When set, [findAnimalIdByTag] throws, simulating a database failure before the write. */
+    var lookupFailure: Exception? = null
+
+    override suspend fun findAnimalIdByTag(tagNumber: String): String? {
+        lookupFailure?.let { throw it }
+        return activeTag { it == tagNumber }
+    }
+
+    override suspend fun getParentCandidates(gender: String): List<ParentCandidate> =
+        animals.filter { it.gender == gender }
+            .mapNotNull { animal -> tagOf(animal.animalId)?.let { ParentCandidate(it, animal.breed) } }
+            .sortedBy { it.tagNumber }
 
     private fun activeTag(match: (String) -> Boolean): String? =
         identifiers.firstOrNull {
@@ -52,6 +64,11 @@ class FakeCalfRegistrationDao : CalfRegistrationDao() {
             it.animalId == animalId && it.identifierType == IdentifierTypes.TAG && it.validTo == null
         }?.identifierValue
 
+    private fun identifierOf(animalId: String, type: String): String? =
+        identifiers.firstOrNull {
+            it.animalId == animalId && it.identifierType == type && it.validTo == null
+        }?.identifierValue
+
     private fun view(registration: CalfRegistrationEntity): CalfRegistrationView? {
         val animal = animals.firstOrNull { it.animalId == registration.registeredAnimalId } ?: return null
         val tag = tagOf(animal.animalId) ?: return null
@@ -61,6 +78,8 @@ class FakeCalfRegistrationDao : CalfRegistrationDao() {
             tagNumber = tag,
             breed = animal.breed,
             gender = animal.gender,
+            hideColour = animal.hideColour,
+            brandMark = animal.brandMark,
             birthdate = animal.birthdate,
             damAnimalId = registration.damId,
             damTagNumber = tagOf(registration.damId),
@@ -68,6 +87,13 @@ class FakeCalfRegistrationDao : CalfRegistrationDao() {
             sireTagNumber = tagOf(registration.sireId),
             birthWeightKg = registration.birthWeightKg,
             calvingEase = registration.calvingEase,
+            ageClass = registration.ageClass,
+            bodyCondition = registration.bodyCondition,
+            conformity = registration.conformity,
+            processProof = registration.processProof,
+            implantProof = registration.implantProof,
+            oldTagNumber = identifierOf(animal.animalId, IdentifierTypes.OLD_TAG),
+            referenceNumber = identifierOf(animal.animalId, IdentifierTypes.REFERENCE),
             registrationDate = registration.registrationDate,
             gpsLat = animal.gpsLat,
             gpsLng = animal.gpsLng,
@@ -76,7 +102,8 @@ class FakeCalfRegistrationDao : CalfRegistrationDao() {
             photoPath = media.lastOrNull { it.animalId == animal.animalId && it.mediaType == "PHOTO" }?.filePath,
             recordGuid = registration.recordGuid,
             syncStatus = registration.syncStatus,
-            syncedAt = registration.syncedAt
+            syncedAt = registration.syncedAt,
+            syncError = registration.syncError
         )
     }
 
@@ -87,11 +114,52 @@ class FakeCalfRegistrationDao : CalfRegistrationDao() {
         flowOf(registrations.mapNotNull { view(it) }.sortedByDescending { it.captureAt })
 
     override suspend fun getPendingRegistrationViews(): List<CalfRegistrationView> =
-        registrations.filter { it.syncStatus != "SYNCED" }.mapNotNull { view(it) }
+        registrations.filter { it.syncStatus == "PENDING" }.mapNotNull { view(it) }
 
     override suspend fun markSynced(recordGuids: List<String>, syncedAt: Long) {
         registrations.replaceAll {
-            if (it.recordGuid in recordGuids) it.copy(syncStatus = "SYNCED", syncedAt = syncedAt) else it
+            if (it.recordGuid in recordGuids) {
+                it.copy(syncStatus = "SYNCED", syncedAt = syncedAt, syncError = null, syncAttempts = 0)
+            } else {
+                it
+            }
+        }
+    }
+
+    override suspend fun recordRejection(recordGuid: String, message: String, maxAttempts: Int) {
+        registrations.replaceAll {
+            if (it.recordGuid == recordGuid && it.syncStatus == "PENDING") {
+                val attempts = it.syncAttempts + 1
+                it.copy(
+                    syncError = message,
+                    syncAttempts = attempts,
+                    syncStatus = if (attempts >= maxAttempts) "REJECTED" else it.syncStatus
+                )
+            } else {
+                it
+            }
+        }
+    }
+
+    override suspend fun getPhotosAwaitingUpload(): List<PhotoUpload> =
+        media.filter { it.mediaType == "PHOTO" && it.uploadStatus == "PENDING" }
+            .mapNotNull { m ->
+                val synced = registrations.any { it.registeredAnimalId == m.animalId && it.syncStatus == "SYNCED" }
+                val tag = tagOf(m.animalId)
+                if (synced && tag != null) PhotoUpload(m.mediaId, tag, m.filePath) else null
+            }
+
+    override suspend fun markPhotoUploaded(mediaId: String) {
+        media.replaceAll { if (it.mediaId == mediaId) it.copy(uploadStatus = "UPLOADED", uploadError = null) else it }
+    }
+
+    override suspend fun markPhotoUploadFailed(mediaId: String, error: String) {
+        media.replaceAll { if (it.mediaId == mediaId) it.copy(uploadStatus = "FAILED", uploadError = error) else it }
+    }
+
+    override suspend fun requeueRejected() {
+        registrations.replaceAll {
+            if (it.syncStatus == "REJECTED") it.copy(syncStatus = "PENDING", syncAttempts = 0, syncError = null) else it
         }
     }
 

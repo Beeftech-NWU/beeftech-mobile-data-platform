@@ -1,5 +1,9 @@
 package com.beeftech.farmerregistration.worker
 
+import com.beeftech.database.entity.SyncRunModule
+import com.beeftech.database.entity.SyncRunTrigger
+import com.beeftech.database.repository.SyncRunRepository
+import com.beeftech.database.repository.SyncRunSummary
 import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
@@ -77,6 +81,17 @@ class FarmerSyncWorker(
                         "An online sign-in is required before synchronization."
                 )
 
+                SyncRunRepository(
+                    database.syncRunDao(),
+                    database.pendingSyncDao()
+                ).recordOffline(
+                    module = SyncRunModule.FARMER,
+                    trigger =
+                        inputData.getString(SyncRunSummary.TRIGGER_INPUT_KEY)
+                            ?: SyncRunTrigger.AUTO,
+                    firstAttempt = runAttemptCount == 0
+                )
+
                 return Result.retry()
             }
 
@@ -111,6 +126,18 @@ class FarmerSyncWorker(
                     context = applicationContext,
                     tokenProvider = tokenProvider
                 )
+
+            val syncRuns =
+                SyncRunRepository(
+                    database.syncRunDao(),
+                    database.pendingSyncDao()
+                )
+
+            val trigger =
+                inputData.getString(SyncRunSummary.TRIGGER_INPUT_KEY)
+                    ?: SyncRunTrigger.AUTO
+
+            val startedAt = System.currentTimeMillis()
 
             /*
              * pending_sync is the ownership boundary.
@@ -253,6 +280,8 @@ class FarmerSyncWorker(
 
             var hasFailure = false
             var hasSuccessfulSync = false
+            var syncedCount = 0
+            var failedCount = 0
 
             pendingFarmers.forEach { farmer ->
 
@@ -341,6 +370,8 @@ class FarmerSyncWorker(
 
                         hasSuccessfulSync = true
 
+                        syncedCount++
+
                         farmerRepository
                             .markAsSynced(
                                 farmerId
@@ -393,6 +424,8 @@ class FarmerSyncWorker(
                         )
 
                         hasFailure = true
+
+                        failedCount++
                     }
 
                 } catch (exception: Exception) {
@@ -422,6 +455,8 @@ class FarmerSyncWorker(
                     )
 
                     hasFailure = true
+
+                    failedCount++
                 }
             }
 
@@ -439,6 +474,24 @@ class FarmerSyncWorker(
                     "FarmerSyncWorker",
                     "Successful Farmer synchronization recorded " +
                         "for Farm Traceability Last Sync."
+                )
+            }
+
+            if (SyncRunSummary.worthRecording(trigger, syncedCount + failedCount, failedCount, null)) {
+                val summary =
+                    SyncRunSummary.of(
+                        before = syncedCount + failedCount,
+                        after = failedCount
+                    )
+
+                syncRuns.recordRun(
+                    module = SyncRunModule.FARMER,
+                    trigger = trigger,
+                    startedAt = startedAt,
+                    syncedCount = syncedCount,
+                    failedCount = failedCount,
+                    result = summary.result,
+                    message = if (failedCount > 0) "$failedCount farmer registration(s) could not be sent." else null
                 )
             }
 

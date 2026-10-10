@@ -55,7 +55,7 @@ class CostSummaryViewModel(
                 val transportCost = totals[COST_TRANSPORT] ?: 0.0
                 val processingCost = totals[COST_PROCESSING] ?: 0.0
                 val treatmentCost = totals[COST_TREATMENT] ?: 0.0
-                // TODO: feed rows will be derived from LocationFeed in a later phase.
+                // FEED costs are derived automatically from Location & Feed.
                 val feedCost = totals[COST_FEED] ?: 0.0
                 val handlingCost = totals[COST_HANDLING] ?: 0.0
                 val interestCost = totals[COST_INTEREST] ?: 0.0
@@ -98,6 +98,8 @@ class CostSummaryViewModel(
         description: String = "",
         gpsLat: Double,
         gpsLng: Double,
+        timestamp: Long = System.currentTimeMillis(),
+        submissionId: String = "",
         onResult: (
             Boolean,
             String
@@ -117,7 +119,7 @@ class CostSummaryViewModel(
 
         val amount = cleanedAmount.toDoubleOrNull()
 
-        if (amount == null || amount < 0) {
+        if (amount == null || !amount.isFinite() || amount < 0) {
             onResult(false, "Please enter a valid cost amount.")
             return
         }
@@ -128,7 +130,10 @@ class CostSummaryViewModel(
 
                 val allowedTypes = costTypeDao.getActive().map { it.code }
 
-                if (costType !in allowedTypes) {
+                if (
+                    costType !in allowedTypes ||
+                    costType !in setOf(COST_TRANSPORT, COST_PROCESSING, COST_HANDLING, COST_INTEREST)
+                ) {
                     onResult(false, "Invalid cost type.")
                     return@launch
                 }
@@ -139,7 +144,9 @@ class CostSummaryViewModel(
                     amount = amount,
                     description = description,
                     gpsLat = gpsLat,
-                    gpsLng = gpsLng
+                    gpsLng = gpsLng,
+                    timestamp = timestamp,
+                    submissionId = submissionId
                 )
 
                 loadCostSummary(animalId)

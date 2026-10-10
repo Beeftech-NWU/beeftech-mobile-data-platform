@@ -1,5 +1,7 @@
 package com.beeftech.farmtraceability.data
 
+import com.beeftech.database.util.BatchNaming
+import com.beeftech.database.util.ProjectCode
 import com.beeftech.database.BackendConfig
 import com.beeftech.database.entity.AnimalMovementEntity
 import com.beeftech.database.security.TokenProvider
@@ -38,7 +40,9 @@ data class AnimalMovementDto(
 @Serializable
 data class AnimalMovementSyncRequest(
     val deviceId: String,
-    val records: List<AnimalMovementDto>
+    val records: List<AnimalMovementDto>,
+    /* [FarmCode]-[Project]-[YYYYMMDD]-[HHMMSS]-[DeviceID]; null until this device has the farm code. */
+    val batchName: String? = null
 )
 
 @Serializable
@@ -201,7 +205,8 @@ class AnimalMovementApiClient(
             setBody(
                 AnimalMovementSyncRequest(
                     deviceId = deviceId,
-                    records = records
+                    records = records,
+                    batchName = BatchNaming.nameFor(ProjectCode.MOVEMENT)
                 )
             )
         }

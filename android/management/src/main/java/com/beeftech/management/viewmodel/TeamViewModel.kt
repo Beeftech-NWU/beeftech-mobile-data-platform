@@ -95,6 +95,24 @@ class TeamViewModel(
         }
     }
 
+    /** Reassign an existing user to a verified active site; backend enforces admin permissions. */
+    fun changeSite(member: TeamMember, siteId: String, onChanged: () -> Unit = {}) {
+        viewModelScope.launch {
+            val site = _uiState.value.sites.firstOrNull { it.siteId == siteId && it.active }
+            if (site == null) {
+                _uiState.update { it.copy(error = "Choose an active site before saving.") }
+                return@launch
+            }
+            if (member.siteId == siteId) {
+                onChanged()
+                return@launch
+            }
+            val result = apiClient.updateUser(member.userId, UpdateUserBody(siteId = siteId))
+            applyMemberResult(result, "${member.username} assigned to ${site.name}")
+            if (result is ManagementResult.Success) onChanged()
+        }
+    }
+
     fun setActive(member: TeamMember, active: Boolean) {
         viewModelScope.launch {
             val result = apiClient.updateUser(member.userId, UpdateUserBody(active = active))

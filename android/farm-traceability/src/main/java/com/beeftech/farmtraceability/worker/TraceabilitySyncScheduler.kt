@@ -75,6 +75,14 @@ object TraceabilitySyncScheduler {
 
 
         manager.enqueueUniqueWork(
+            "farmer-animal-link-sync",
+            ExistingWorkPolicy.KEEP,
+            OneTimeWorkRequestBuilder<FarmerAnimalLinkSyncWorker>()
+                .setConstraints(constraints)
+                .build()
+        )
+
+        manager.enqueueUniqueWork(
             "traceability-movement-network-sync",
             ExistingWorkPolicy.REPLACE,
             OneTimeWorkRequestBuilder<
@@ -150,6 +158,14 @@ object TraceabilitySyncScheduler {
                 .build()
         )
 
+
+        manager.enqueueUniquePeriodicWork(
+            "farmer-animal-link-periodic-sync",
+            ExistingPeriodicWorkPolicy.KEEP,
+            PeriodicWorkRequestBuilder<FarmerAnimalLinkSyncWorker>(15, TimeUnit.MINUTES)
+                .setConstraints(constraints)
+                .build()
+        )
 
         manager.enqueueUniquePeriodicWork(
             "traceability-treatment-periodic-sync",

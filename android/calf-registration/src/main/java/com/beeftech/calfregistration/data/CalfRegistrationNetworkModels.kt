@@ -23,6 +23,17 @@ data class CalfRegistrationDto(
     val animalUuid: String? = null,
     val birthdate: Long,
     val breed: String,
+    val gender: String? = null,
+    val hideColour: String? = null,
+    val brandMark: String? = null,
+    val birthWeightKg: Double? = null,
+    val ageClass: String? = null,
+    val bodyCondition: String? = null,
+    val conformity: String? = null,
+    val oldTagNumber: String? = null,
+    val referenceNumber: String? = null,
+    val processProof: String? = null,
+    val implantProof: String? = null,
     val damTagNumber: String? = null,
     val sireTagNumber: String? = null,
     val damAnimalUuid: String? = null,
@@ -41,7 +52,9 @@ data class CalfRegistrationDto(
 @Serializable
 data class CalfRegistrationSyncRequest(
     val deviceId: String,
-    val records: List<CalfRegistrationDto>
+    val records: List<CalfRegistrationDto>,
+    /* [FarmCode]-[Project]-[YYYYMMDD]-[HHMMSS]-[DeviceID]; null until this device has the farm code. */
+    val batchName: String? = null
 )
 
 @Serializable

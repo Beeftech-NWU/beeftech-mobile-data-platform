@@ -117,7 +117,8 @@ object FarmerSyncScheduler {
 data class CoordinatesSaveData(
     val latitude: String = "",
     val longitude: String = "",
-    val organisationName: String = ""
+    val organisationName: String = "",
+    val reviewLines: List<String> = emptyList()
 )
 
 class CoordinatesAndSaveScreen : ComponentActivity() {
@@ -135,7 +136,12 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
                             organisationName =
                                 FarmerRegistrationSession.clientDetails
                                     ?.organisationName
-                                    ?: "Farmer"
+                                    ?: "Farmer",
+                            reviewLines =
+                                FarmerFieldRules.reviewLines(
+                                    FarmerRegistrationSession.clientDetails,
+                                    FarmerRegistrationSession.addressDetails
+                                )
                         )
                     )
                 }
@@ -472,6 +478,42 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
                                                 gln_number =
                                                     addressData.glnNumber
                                                         .trim()
+                                                        .ifBlank { null },
+
+                                                herd_capacity =
+                                                    addressData.herdCapacity
+                                                        .trim()
+                                                        .toIntOrNull(),
+
+                                                interest_status =
+                                                    addressData.interestStatus
+                                                        .trim()
+                                                        .ifBlank { null },
+
+                                                contact_name =
+                                                    clientData.contactName
+                                                        .trim()
+                                                        .ifBlank { null },
+
+                                                contact_number =
+                                                    clientData.contactNumber
+                                                        .trim()
+                                                        .ifBlank { null },
+
+                                                farm_size_ha =
+                                                    FarmerFieldRules
+                                                        .parseFarmSizeHa(
+                                                            addressData.farmSizeHa
+                                                        ),
+
+                                                head_count =
+                                                    addressData.headCount
+                                                        .trim()
+                                                        .toIntOrNull(),
+
+                                                primary_breed =
+                                                    addressData.primaryBreed
+                                                        .trim()
                                                         .ifBlank { null }
                                             )
 
@@ -627,15 +669,15 @@ class CoordinatesAndSaveScreen : ComponentActivity() {
                                     ).show()
 
                                     /*
-                                     * Return to MainActivity.
+                                     * Return to the farmer list, closing the
+                                     * registration steps above it, so the new
+                                     * farmer shows with its Pending Sync pill.
                                      */
                                     val intent =
-                                        Intent().apply {
-
-                                            setClassName(
-                                                this@CoordinatesAndSaveScreen,
-                                                "com.beeftech.demoapp.MainActivity"
-                                            )
+                                        Intent(
+                                            this@CoordinatesAndSaveScreen,
+                                            FarmerListScreen::class.java
+                                        ).apply {
 
                                             flags =
                                                 Intent.FLAG_ACTIVITY_CLEAR_TOP or
@@ -1300,6 +1342,25 @@ fun CoordinatesAndSaveContent(
                     color =
                         BeeftechPrimaryDeep
                 )
+
+                formData.reviewLines.forEach { line ->
+
+                    Spacer(
+                        modifier =
+                            Modifier.height(
+                                4.dp
+                            )
+                    )
+
+                    Text(
+                        text =
+                            line,
+                        fontSize =
+                            12.sp,
+                        color =
+                            BeeftechText
+                    )
+                }
 
                 Spacer(
                     modifier =

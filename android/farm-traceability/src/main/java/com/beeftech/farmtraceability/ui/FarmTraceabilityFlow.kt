@@ -8,6 +8,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import com.beeftech.farmtraceability.repository.AnimalMassEditorRepository
+import com.beeftech.farmtraceability.data.SiteCalfDownloadClient
+import com.beeftech.farmtraceability.data.PendingAssignmentDiagnosticsClient
+import com.beeftech.farmtraceability.data.PendingAssignmentDiagnosis
+import com.beeftech.farmtraceability.data.MissingParentRestoreClient
+import com.beeftech.database.dao.VerifiedCalfImportResult
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.platform.LocalContext
@@ -30,11 +38,16 @@ import com.beeftech.farmtraceability.viewmodel.FindAnimalViewModelFactory
 import com.beeftech.farmtraceability.viewmodel.SyncStatusViewModel
 import com.beeftech.farmtraceability.viewmodel.SyncStatusViewModelFactory
 import com.beeftech.farmtraceability.worker.TraceabilitySyncScheduler
+import kotlinx.coroutines.flow.firstOrNull
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 private enum class TraceabilityScreen {
     HOME,
     REGISTERED_FARMERS,
     FARMER_FARM_PROFILE,
+    FARMER_ANIMAL_ASSIGNMENT,
     FIND_ANIMAL,
     ANIMAL_RECORD,
     ANIMAL_MOVEMENT,
@@ -47,9 +60,14 @@ private enum class TraceabilityScreen {
 
 @Composable
 fun FarmTraceabilityFlow(
+    newlyRegisteredCalfTag: String? = null,
+    onAssignmentEntryConsumed: () -> Unit = {},
     onExitTraceability: () -> Unit = {},
 
     onFarmerRegistrationClick: () -> Unit = {},
+
+    // One editing location for animal mass: Calf Registration.
+    onCalfRegistrationClick: () -> Unit = {},
 
     movementRecords: List<AnimalMovementEntity> = emptyList(),
 
@@ -59,11 +77,12 @@ fun FarmTraceabilityFlow(
         animalId: String,
         movementInformation: String,
         responsibleWorker: String,
+        movementDate: Long,
         onCompleted: (
             Boolean,
             String
         ) -> Unit
-    ) -> Unit = { _, _, _, onCompleted ->
+    ) -> Unit = { _, _, _, _, onCompleted ->
         onCompleted(
             false,
             "Movement save is unavailable."
@@ -125,6 +144,24 @@ fun FarmTraceabilityFlow(
     totalAnimalCost: Double = 0.0,
 
     onLoadCostSummary: (String) -> Unit = {},
+
+    onSaveCost: (
+        animalId: String,
+        costType: String,
+        amount: String,
+        description: String,
+        costDate: Long,
+        submissionId: String,
+        onCompleted: (
+            Boolean,
+            String
+        ) -> Unit
+    ) -> Unit = { _, _, _, _, _, _, onCompleted ->
+        onCompleted(
+            false,
+            "Cost save is unavailable."
+        )
+    },
 
     supplierRecords: List<AnimalPurchaseEntity> = emptyList(),
 
@@ -212,6 +249,23 @@ fun FarmTraceabilityFlow(
         mutableStateOf<String?>(null)
     }
 
+    // Reuse the registered-farmer picker for both profile viewing and animal assignment.
+    var selectingFarmerForAssignment by remember { mutableStateOf(false) }
+    var preselectedCalfTag by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(newlyRegisteredCalfTag) {
+        if (!newlyRegisteredCalfTag.isNullOrBlank()) {
+            preselectedCalfTag = newlyRegisteredCalfTag
+            selectingFarmerForAssignment = true
+            selectedFarmerId = null
+            navigationHistory.clear()
+            navigationHistory.add(TraceabilityScreen.HOME)
+            currentScreen = TraceabilityScreen.REGISTERED_FARMERS
+            onAssignmentEntryConsumed()
+        }
+    }
+
+
     var findAnimalDestination by remember {
         mutableStateOf(
             TraceabilityScreen.ANIMAL_RECORD
@@ -296,12 +350,19 @@ fun FarmTraceabilityFlow(
                     },
 
                     onFarmerFarmProfileClick = {
+                        selectingFarmerForAssignment = false
                         selectedFarmerId = null
 
                         navigateTo(
                             TraceabilityScreen
                                 .REGISTERED_FARMERS
                         )
+                    },
+
+                    onAssignAnimalClick = {
+                        selectingFarmerForAssignment = true
+                        selectedFarmerId = null
+                        navigateTo(TraceabilityScreen.REGISTERED_FARMERS)
                     },
 
                     onFarmerRegistrationClick =
@@ -461,12 +522,19 @@ fun FarmTraceabilityFlow(
                     },
 
                     onFarmerFarmProfileClick = {
+                        selectingFarmerForAssignment = false
                         selectedFarmerId = null
 
                         navigateTo(
                             TraceabilityScreen
                                 .REGISTERED_FARMERS
                         )
+                    },
+
+                    onAssignAnimalClick = {
+                        selectingFarmerForAssignment = true
+                        selectedFarmerId = null
+                        navigateTo(TraceabilityScreen.REGISTERED_FARMERS)
                     },
 
                     onFarmerRegistrationClick =
@@ -636,6 +704,7 @@ fun FarmTraceabilityFlow(
 
             RegisteredFarmersScreen(
                 farmers = farmers,
+                selectingForAssignment = selectingFarmerForAssignment,
 
                 isLoading =
                     isLoadingFarmers,
@@ -650,14 +719,232 @@ fun FarmTraceabilityFlow(
                         farmerId
 
                     navigateTo(
-                        TraceabilityScreen
-                            .FARMER_FARM_PROFILE
+                        if (selectingFarmerForAssignment) {
+                            TraceabilityScreen.FARMER_ANIMAL_ASSIGNMENT
+                        } else {
+                            TraceabilityScreen.FARMER_FARM_PROFILE
+                        }
                     )
                 },
 
                 onBackClick = {
                     navigateBack()
                 }
+            )
+        }
+
+        TraceabilityScreen.FARMER_ANIMAL_ASSIGNMENT -> {
+            val database = DatabaseProvider.getDatabase()
+            val farmerId = selectedFarmerId.orEmpty()
+            var animals by remember(farmerId) { mutableStateOf(emptyList<com.beeftech.database.entity.Animal>()) }
+            var animalTags by remember(farmerId) { mutableStateOf(emptyMap<String, String>()) }
+            var links by remember(farmerId) { mutableStateOf(emptyList<com.beeftech.database.entity.FarmerAnimalLink>()) }
+            var preselectedAnimalId by remember(farmerId, preselectedCalfTag) { mutableStateOf<String?>(null) }
+            var farmerName by remember(farmerId) { mutableStateOf("") }
+            var busy by remember(farmerId) { mutableStateOf(false) }
+            var downloading by remember(farmerId) { mutableStateOf(false) }
+            var checkingPending by remember(farmerId) { mutableStateOf(false) }
+            var restoringParent by remember(farmerId) { mutableStateOf(false) }
+            var farmerLabels by remember(farmerId) { mutableStateOf(emptyMap<String, String>()) }
+            var pendingDiagnostics by remember(farmerId) { mutableStateOf(emptyList<PendingAssignmentDiagnosis>()) }
+            var pendingHistoricalRecordGuids by remember(farmerId) { mutableStateOf(emptySet<String>()) }
+            var pendingDiagnosisMessage by remember(farmerId) { mutableStateOf("") }
+            var message by remember(farmerId) { mutableStateOf("") }
+            val scope = rememberCoroutineScope()
+
+            LaunchedEffect(database, farmerId) {
+                try {
+                    val activeDatabase = database ?: error("Local database is unavailable")
+                    animals = activeDatabase.animalDao().getAll()
+                    animalTags = activeDatabase.calfRegistrationDao().getAllRegistrationViews()
+                        .firstOrNull().orEmpty().associate { it.animalId to it.tagNumber }
+                    preselectedAnimalId = preselectedCalfTag?.let { tag ->
+                        activeDatabase.calfRegistrationDao().findAnimalIdByTag(tag)
+                    }
+                    links = activeDatabase.farmerAnimalLinkDao().allActive()
+                    val knownFarmers = activeDatabase.farmerDao().getAllFarmers()
+                    farmerName = knownFarmers.firstOrNull { it.farmer_id == farmerId }
+                        ?.organisation_name.orEmpty()
+                    farmerLabels = knownFarmers.associate { farmer ->
+                        farmer.farmer_id to (farmer.organisation_name ?: farmer.client_code ?: farmer.farmer_id)
+                    }
+                } catch (exception: Exception) {
+                    message = "Unable to load assignments: ${exception.message}"
+                }
+            }
+            FarmerAnimalAssignmentScreen(
+                farmerName = farmerName.ifBlank { "Registered farmer" },
+                farmerId = farmerId,
+                preselectedAnimalId = preselectedAnimalId,
+                animals = animals,
+                animalTags = animalTags,
+                farmerLabels = farmerLabels,
+                activeLinks = links,
+                isBusy = busy,
+                isDownloading = downloading,
+                checkingPending = checkingPending,
+                restoringParent = restoringParent,
+                pendingDiagnostics = pendingDiagnostics,
+                pendingHistoricalRecordGuids = pendingHistoricalRecordGuids,
+                pendingDiagnosisMessage = pendingDiagnosisMessage,
+                onCheckPending = {
+                    if (!checkingPending) {
+                        checkingPending = true
+                        pendingDiagnostics = emptyList()
+                        pendingHistoricalRecordGuids = emptySet()
+                        pendingDiagnosisMessage = ""
+                        scope.launch {
+                            try {
+                                val db = database ?: error("Local database unavailable")
+                                val pending = db.farmerAnimalLinkDao().pendingUploads()
+                                // A closure is history, not another current ownership claim.
+                                pendingHistoricalRecordGuids = pending.asSequence()
+                                    .filter { it.effectiveTo != null }
+                                    .map { it.recordGuid }.toSet()
+                                farmerLabels = db.farmerDao().getAllFarmers()
+                                    .associate { it.farmer_id to (it.organisation_name ?: "Unnamed farmer") }
+                                pendingDiagnostics = PendingAssignmentDiagnosticsClient.check(pending)
+                                if (pending.size > 50) {
+                                    pendingDiagnosisMessage = "Showing first 50 of ${pending.size} pending assignments."
+                                }
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                pendingDiagnosisMessage = "Unable to check pending assignments: ${e.message}"
+                            } finally {
+                                checkingPending = false
+                            }
+                        }
+                    }
+                },
+                onEndTestAssignment = { recordGuid ->
+                    if (!busy && !checkingPending && !restoringParent) {
+                        busy = true
+                        scope.launch {
+                            try {
+                                val db = database ?: error("Local database unavailable")
+                                val dao = db.farmerAnimalLinkDao()
+                                val current = dao.pendingUploads()
+                                    .singleOrNull { it.recordGuid == recordGuid && it.effectiveTo == null }
+                                    ?: error("This assignment is no longer pending and active")
+                                val ended = dao.endExactActiveAssignment(
+                                    current.recordGuid,
+                                    current.farmerId,
+                                    current.animalId,
+                                    System.currentTimeMillis()
+                                )
+                                check(ended == 1) {
+                                    "The assignment changed before the confirmation. Refresh the report."
+                                }
+                                links = dao.allActive()
+                                val pending = dao.pendingUploads()
+                                pendingHistoricalRecordGuids = pending.asSequence()
+                                    .filter { it.effectiveTo != null }
+                                    .map { it.recordGuid }.toSet()
+                                pendingDiagnostics = PendingAssignmentDiagnosticsClient.check(pending)
+                                pendingDiagnosisMessage =
+                                    "Test assignment ended locally. Sync will verify the closure; " +
+                                        "it is not marked as uploaded yet."
+                                message = "Assignment ended. Animal is unassigned; original records preserved."
+                                TraceabilitySyncScheduler.kick()
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                pendingDiagnosisMessage = "Unable to end assignment: ${e.message}"
+                            } finally {
+                                busy = false
+                            }
+                        }
+                    }
+                },
+                onRestoreMissing = { recordGuid, kind, reason ->
+                    if (!restoringParent && !checkingPending) {
+                        restoringParent = true
+                        pendingDiagnosisMessage = ""
+                        scope.launch {
+                            try {
+                                val db = database ?: error("Local database unavailable")
+                                val pending = db.farmerAnimalLinkDao().pendingUploads()
+                                val link = pending.singleOrNull { it.recordGuid == recordGuid }
+                                    ?: error("The original pending assignment is no longer on this device")
+                                check(link.effectiveTo == null) {
+                                    "This is an ended historical link. Do not restore its former farmer to clear history."
+                                }
+                                val restored = MissingParentRestoreClient.restore(db, link, kind, reason)
+                                // Refresh the read-only report, not the assignment queue.
+                                pendingDiagnostics = PendingAssignmentDiagnosticsClient.check(pending)
+                                pendingDiagnosisMessage = "$restored. Review the remaining issues before retrying sync."
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                pendingDiagnosisMessage = "Recovery was not completed: ${e.message}"
+                            } finally {
+                                restoringParent = false
+                            }
+                        }
+                    }
+                },
+                message = message,
+                onDownloadSiteCalves = {
+                    if (!busy && !downloading) {
+                        downloading = true
+                        scope.launch {
+                            try {
+                                val db = database ?: error("Local database unavailable")
+                                val candidates = SiteCalfDownloadClient.fetch(farmerId)
+                                var imported = 0
+                                var skipped = 0
+                                for (candidate in candidates) {
+                                    when (db.calfRegistrationDao().importVerifiedServerCalf(candidate)) {
+                                        VerifiedCalfImportResult.IMPORTED -> imported++
+                                        VerifiedCalfImportResult.ALREADY_PRESENT -> Unit
+                                        VerifiedCalfImportResult.CONFLICT,
+                                        VerifiedCalfImportResult.INVALID -> skipped++
+                                    }
+                                }
+                                animals = db.animalDao().getAll()
+                                animalTags = db.calfRegistrationDao().getAllRegistrationViews()
+                                    .firstOrNull().orEmpty().associate { it.animalId to it.tagNumber }
+                                message = "$imported farm calf/calves downloaded; $skipped skipped " +
+                                    "(missing server UUID, invalid data or local conflict). " +
+                                    "Existing local animals were not modified."
+                            } catch (e: Exception) {
+                                message = "Unable to download farm calves: ${e.message}"
+                            } finally {
+                                downloading = false
+                            }
+                        }
+                    }
+                },
+                onAssign = { selected, onSaved ->
+                    if (!busy && farmerId.isNotBlank()) {
+                        busy = true
+                        scope.launch {
+                            val savedIds = mutableListOf<String>()
+                            try {
+                                val activeDatabase = database ?: error("Local database is unavailable")
+                                selected.forEach { animalId ->
+                                    if (activeDatabase.farmerAnimalLinkDao().assign(farmerId, animalId)) {
+                                        savedIds.add(animalId)
+                                    }
+                                }
+                                links = activeDatabase.farmerAnimalLinkDao().allActive()
+                                if (savedIds.isNotEmpty()) {
+                                    preselectedCalfTag = null
+                                    TraceabilitySyncScheduler.kick()
+                                }
+                                message = "${savedIds.size} animal assignment(s) saved on this device."
+                            } catch (exception: Exception) {
+                                message = "Unable to save: ${exception.message}"
+                            } finally {
+                                onSaved(savedIds)
+                                busy = false
+                            }
+                        }
+                    }
+                },
+                onRegisterCalf = onCalfRegistrationClick,
+                onBack = { navigateBack() }
             )
         }
 
@@ -717,6 +1004,10 @@ fun FarmTraceabilityFlow(
                     mutableStateOf("")
                 }
 
+            var assignedAnimals by remember(database, farmerId) {
+                mutableStateOf(emptyList<com.beeftech.database.entity.Animal>())
+            }
+
             LaunchedEffect(
                 database,
                 farmerId
@@ -729,6 +1020,7 @@ fun FarmTraceabilityFlow(
                 address = null
                 businessRoleNames =
                     emptyList()
+                assignedAnimals = emptyList()
 
                 when {
 
@@ -771,6 +1063,11 @@ fun FarmTraceabilityFlow(
 
                                 farmer =
                                     loadedFarmer
+                                val assignedIds = database.farmerAnimalLinkDao()
+                                    .activeForFarmer(farmerId)
+                                    .map { it.animalId }.toSet()
+                                assignedAnimals = database.animalDao().getAll()
+                                    .filter { it.animalId in assignedIds }
 
                                 val addresses =
                                     repository
@@ -908,6 +1205,17 @@ fun FarmTraceabilityFlow(
                         ?.land_ownership
                         .orEmpty(),
 
+                herdCapacity =
+                    loadedFarmer
+                        ?.herd_capacity
+                        ?.toString()
+                        .orEmpty(),
+
+                interestStatus =
+                    loadedFarmer
+                        ?.interest_status
+                        .orEmpty(),
+
                 faCodeRmis =
                     loadedFarmer
                         ?.fa_code_rmis
@@ -954,6 +1262,9 @@ fun FarmTraceabilityFlow(
                 errorMessage =
                     profileError,
 
+                assignedAnimals = assignedAnimals,
+                onAssignAnimals = { navigateTo(TraceabilityScreen.FARMER_ANIMAL_ASSIGNMENT) },
+                onRegisterCalf = onCalfRegistrationClick,
                 onBackClick = {
                     navigateBack()
                 }
@@ -1005,6 +1316,11 @@ fun FarmTraceabilityFlow(
                 val uiState by
                 findAnimalViewModel
                     .uiState
+                    .collectAsState()
+
+                val animals by
+                findAnimalViewModel
+                    .animals
                     .collectAsState()
 
                 LaunchedEffect(
@@ -1070,6 +1386,9 @@ fun FarmTraceabilityFlow(
                     }
 
                 FindAnimalScreen(
+                    animals =
+                        animals,
+
                     isLoading =
                         uiState is
                                 FindAnimalUiState
@@ -1092,6 +1411,15 @@ fun FarmTraceabilityFlow(
                             .findAnimal(
                                 reference
                             )
+                    },
+
+                    onAnimalSelected = {
+                            animal ->
+
+                        findAnimalViewModel
+                            .selectAnimal(
+                                animal
+                            )
                     }
                 )
             }
@@ -1104,6 +1432,9 @@ fun FarmTraceabilityFlow(
                 DatabaseProvider
                     .getDatabase()
 
+
+            val massSaveScope = rememberCoroutineScope()
+            var massRevision by remember(selectedAnimalReference) { mutableStateOf(0) }
 
             var summary by
                 remember(
@@ -1121,8 +1452,47 @@ fun FarmTraceabilityFlow(
             LaunchedEffect(
                 database,
                 selectedAnimalReference,
-                selectedTagNumber
+                selectedTagNumber,
+                massRevision
             ) {
+
+                if (
+                    selectedAnimalReference
+                        .isNotBlank()
+                ) {
+
+                    /*
+                     * Animal Record is an overview screen.
+                     *
+                     * Load every linked record source for the selected
+                     * animal so the cards show current database values
+                     * instead of UI defaults or sample values.
+                     */
+                    onLoadMovements(
+                        selectedAnimalReference
+                    )
+
+                    onLoadLocationFeed(
+                        selectedAnimalReference
+                    )
+
+                    onLoadTreatments(
+                        selectedAnimalReference
+                    )
+
+                    onLoadMortalities(
+                        selectedAnimalReference
+                    )
+
+                    onLoadSuppliers(
+                        selectedAnimalReference
+                    )
+
+                    onLoadCostSummary(
+                        selectedAnimalReference
+                    )
+                }
+
 
                 summary =
                     if (
@@ -1158,6 +1528,102 @@ fun FarmTraceabilityFlow(
             }
 
 
+            val currentLocation =
+                locationFeedRecords
+                    .filter {
+                        !it.feedLocationType
+                            .isNullOrBlank()
+                    }
+                    .maxByOrNull {
+                        it.movementDate
+                    }
+                    ?.destinationFarmId
+                    ?.trim()
+                    .orEmpty()
+
+
+            val supplierName =
+                supplierRecords
+                    .maxByOrNull {
+                        it.purchaseDate
+                    }
+                    ?.sellerName
+                    ?.trim()
+                    .orEmpty()
+
+
+            val latestMovement =
+                movementRecords
+                    .filter {
+                        it.feedLocationType
+                            .isNullOrBlank()
+                    }
+                    .maxByOrNull {
+                        it.movementDate
+                    }
+
+
+            val status =
+                when {
+
+                    mortalityRecords
+                        .isNotEmpty() -> {
+
+                        "Deceased"
+                    }
+
+                    latestMovement
+                        ?.destinationFarmId
+                        ?.trim()
+                        ?.equals(
+                            "Sold",
+                            ignoreCase = true
+                        ) == true -> {
+
+                        "Sold"
+                    }
+
+                    latestMovement != null -> {
+
+                        "Moved"
+                    }
+
+                    else -> {
+                        ""
+                    }
+                }
+
+
+            val movementCount =
+                movementRecords
+                    .count {
+                        it.feedLocationType
+                            .isNullOrBlank()
+                    }
+
+
+            val feedCount =
+                locationFeedRecords
+                    .count {
+                        !it.feedLocationType
+                            .isNullOrBlank()
+                    }
+
+
+            val totalCostText =
+                totalAnimalCost
+                    .takeIf {
+                        it > 0.0
+                    }
+                    ?.let {
+                        "R %.2f".format(
+                            Locale.US,
+                            it
+                        )
+                    }
+                    .orEmpty()
+
+
             AnimalRecordScreen(
                 tagNumber =
                     selectedTagNumber,
@@ -1168,8 +1634,29 @@ fun FarmTraceabilityFlow(
                 gender =
                     summary.gender,
 
+                birthDate =
+                    summary.birthDate,
+
+                age =
+                    summary.age,
+
+                photoPath =
+                    summary.photoPath,
+
+                currentLocation =
+                    currentLocation,
+
+                supplierName =
+                    supplierName,
+
+                status =
+                    status,
+
                 entryMass =
                     summary.entryMass,
+
+                registeredBirthMass =
+                    summary.registeredBirthMass,
 
                 lastMass =
                     summary.lastMass,
@@ -1179,6 +1666,23 @@ fun FarmTraceabilityFlow(
 
                 averageDailyGain =
                     summary.averageDailyGain,
+                hasCalfRegistration = summary.hasCalfRegistration,
+                massHistory = summary.massHistory,
+
+                movementCount =
+                    movementCount,
+
+                feedCount =
+                    feedCount,
+
+                treatmentCount =
+                    treatmentRecords.size,
+
+                mortalityCount =
+                    mortalityRecords.size,
+
+                totalCost =
+                    totalCostText,
 
                 onBackClick = {
                     navigateBack()
@@ -1219,6 +1723,44 @@ fun FarmTraceabilityFlow(
                     )
                 },
 
+                onSaveRegisteredMass = { massText, done ->
+                    val massValue = massText.replace(",", ".").trim().toDoubleOrNull()
+                    if (database == null || massValue == null) {
+                        done(false, "A valid mass and database connection are required.")
+                    } else {
+                        massSaveScope.launch {
+                            try {
+                                AnimalMassEditorRepository(database).correctRegisteredMass(
+                                    selectedAnimalReference, massValue
+                                )
+                                massRevision++
+                                done(true, "Registered mass corrected.")
+                            } catch (error: Exception) {
+                                done(false, error.message ?: "Unable to correct registered mass.")
+                            }
+                        }
+                    }
+                },
+                onSaveWeighing = { massText, dateText, note, done ->
+                    val massValue = massText.replace(",", ".").trim().toDoubleOrNull()
+                    val weighDate = parseTraceabilityDate(dateText)
+                    if (database == null || massValue == null || weighDate == null) {
+                        done(false, "Enter a valid mass and weighing date.")
+                    } else {
+                        massSaveScope.launch {
+                            try {
+                                AnimalMassEditorRepository(database).recordWeighing(
+                                    selectedAnimalReference, massValue, weighDate, note
+                                )
+                                massRevision++
+                                done(true, "Weighing recorded locally.")
+                            } catch (error: Exception) {
+                                done(false, error.message ?: "Unable to record weighing.")
+                            }
+                        }
+                    }
+                },
+
                 onMortalityClick = {
                     navigateTo(
                         TraceabilityScreen
@@ -1227,7 +1769,6 @@ fun FarmTraceabilityFlow(
                 }
             )
         }
-
 
         TraceabilityScreen
             .ANIMAL_MOVEMENT -> {
@@ -1528,21 +2069,33 @@ fun FarmTraceabilityFlow(
 
                 onSaveClick = {
                         movementInformation,
-                        responsibleWorker ->
+                        responsibleWorker,
+                        movementDateText ->
 
-                    onSaveMovement(
-                        selectedAnimalReference,
-                        movementInformation,
-                        responsibleWorker
+                    val parsedMovementDate =
+                        parseTraceabilityDate(
+                            movementDateText
+                        )
+
+                    if (
+                        parsedMovementDate != null
                     ) {
-                            success,
-                            _ ->
 
-                        if (
-                            success
+                        onSaveMovement(
+                            selectedAnimalReference,
+                            movementInformation,
+                            responsibleWorker,
+                            parsedMovementDate
                         ) {
+                                success,
+                                _ ->
 
-                            returnToAnimalRecordAfterSave()
+                            if (
+                                success
+                            ) {
+
+                                returnToAnimalRecordAfterSave()
+                            }
                         }
                     }
                 }
@@ -1573,6 +2126,161 @@ fun FarmTraceabilityFlow(
 
                     mutableStateOf("")
                 }
+
+            var batchHeadCount by
+                remember(
+                    selectedAnimalReference
+                ) {
+                    mutableStateOf("")
+                }
+
+            var batchAverageEntryMass by
+                remember(
+                    selectedAnimalReference
+                ) {
+                    mutableStateOf("")
+                }
+
+            var batchMassCoverage by
+                remember(
+                    selectedAnimalReference
+                ) {
+                    mutableStateOf("")
+                }
+
+            val activePurchaseBatch =
+                supplierRecords
+                    .firstOrNull {
+                        !it.purchaseBatchNumber
+                            .isNullOrBlank()
+                    }
+                    ?.purchaseBatchNumber
+                    .orEmpty()
+
+            LaunchedEffect(
+                database,
+                activePurchaseBatch,
+                supplierRecords
+            ) {
+
+                if (
+                    database == null ||
+                    activePurchaseBatch
+                        .isBlank()
+                ) {
+
+                    batchHeadCount = ""
+                    batchAverageEntryMass = ""
+                    batchMassCoverage = ""
+
+                } else {
+
+                    try {
+
+                        database
+                            .openHelper
+                            .readableDatabase
+                            .query(
+                                """
+                                SELECT
+                                    COUNT(*) AS head_count,
+                                    SUM(CASE WHEN entry_mass > 0 THEN 1 ELSE 0 END) AS mass_count,
+                                    AVG(CASE WHEN entry_mass > 0 THEN entry_mass END) AS avg_mass
+                                FROM (
+                                    SELECT
+                                        ap.animal_id,
+                                        MAX(cr.birth_weight_kg) AS entry_mass
+                                    FROM animal_purchases ap
+                                    LEFT JOIN calf_registrations cr
+                                        ON cr.registered_animal_id = ap.animal_id
+                                    WHERE LOWER(TRIM(IFNULL(ap.purchase_batch_number, '')))
+                                        = LOWER(TRIM(?))
+                                    GROUP BY ap.animal_id
+                                )
+                                """.trimIndent(),
+                                arrayOf<Any?>(
+                                    activePurchaseBatch
+                                )
+                            )
+                            .use {
+                                    cursor ->
+
+                                if (
+                                    cursor.moveToFirst()
+                                ) {
+
+                                    val head =
+                                        cursor.getInt(
+                                            cursor.getColumnIndexOrThrow(
+                                                "head_count"
+                                            )
+                                        )
+
+                                    val massCount =
+                                        cursor.getInt(
+                                            cursor.getColumnIndexOrThrow(
+                                                "mass_count"
+                                            )
+                                        )
+
+                                    val averageIndex =
+                                        cursor.getColumnIndexOrThrow(
+                                            "avg_mass"
+                                        )
+
+                                    val average =
+                                        if (
+                                            cursor.isNull(
+                                                averageIndex
+                                            )
+                                        ) {
+                                            null
+                                        } else {
+                                            cursor.getDouble(
+                                                averageIndex
+                                            )
+                                        }
+
+                                    batchHeadCount =
+                                        head
+                                            .takeIf {
+                                                it > 0
+                                            }
+                                            ?.toString()
+                                            .orEmpty()
+
+                                    batchAverageEntryMass =
+                                        average
+                                            ?.let {
+                                                "%.1f kg".format(
+                                                    Locale.US,
+                                                    it
+                                                )
+                                            }
+                                            .orEmpty()
+
+                                    batchMassCoverage =
+                                        if (
+                                            head > 0 &&
+                                            massCount > 0
+                                        ) {
+                                            "$massCount of $head animals with recorded entry mass"
+                                        } else {
+                                            ""
+                                        }
+                                }
+                            }
+
+                    } catch (
+                        _: Exception
+                    ) {
+
+                        batchHeadCount = ""
+                        batchAverageEntryMass = ""
+                        batchMassCoverage = ""
+                    }
+                }
+            }
 
 
             LaunchedEffect(
@@ -1703,6 +2411,15 @@ fun FarmTraceabilityFlow(
                         ?.gln_number
                         .orEmpty(),
 
+                headInBatch =
+                    batchHeadCount,
+
+                averageEntryMass =
+                    batchAverageEntryMass,
+
+                entryMassCoverage =
+                    batchMassCoverage,
+
                 linkedFarm =
                     linkedFarm,
 
@@ -1718,6 +2435,8 @@ fun FarmTraceabilityFlow(
                     selectedSupplierName =
                         value
                 },
+
+                onRecordMassClick = onCalfRegistrationClick,
 
                 onViewFarmClick = {
 
@@ -1974,18 +2693,77 @@ fun FarmTraceabilityFlow(
         TraceabilityScreen
             .COST_SUMMARY -> {
 
+            val database =
+                DatabaseProvider
+                    .getDatabase()
+
+            var registrationMassKg by
+                remember(selectedAnimalReference) {
+                    mutableStateOf<Double?>(null)
+                }
+
+            var registeredBirthDate by
+                remember(selectedAnimalReference) {
+                    mutableStateOf<Long?>(null)
+                }
+
             LaunchedEffect(
-                selectedAnimalReference
+                selectedAnimalReference,
+                database
             ) {
-                if (
-                    selectedAnimalReference
-                        .isNotBlank()
-                ) {
-                    onLoadCostSummary(
-                        selectedAnimalReference
-                    )
+                if (selectedAnimalReference.isNotBlank()) {
+                    onLoadCostSummary(selectedAnimalReference)
+                    val registration = try {
+                        database
+                            ?.calfRegistrationDao()
+                            ?.getAllRegistrationViews()
+                            ?.firstOrNull()
+                            ?.firstOrNull {
+                                it.animalId == selectedAnimalReference
+                            }
+                    } catch (_: Exception) {
+                        null
+                    }
+                    registrationMassKg = registration?.birthWeightKg
+                    registeredBirthDate = registration?.birthdate
+                } else {
+                    registrationMassKg = null
+                    registeredBirthDate = null
                 }
             }
+
+            val costPerKgText =
+                registrationMassKg
+                    ?.takeIf {
+                        it > 0.0
+                    }
+                    ?.let {
+                            mass ->
+
+                        "%.2f".format(
+                            Locale.US,
+                            totalAnimalCost /
+                                mass
+                        )
+                    }
+                    .orEmpty()
+
+            val lastMassDateText =
+                registeredBirthDate
+                    ?.takeIf {
+                        it > 0L
+                    }
+                    ?.let {
+                            timestamp ->
+
+                        SimpleDateFormat(
+                            "dd MMM yyyy",
+                            Locale.getDefault()
+                        ).format(
+                            Date(timestamp)
+                        )
+                    }
+                    .orEmpty()
 
             CostSummaryScreen(
                 animalReference =
@@ -2034,11 +2812,69 @@ fun FarmTraceabilityFlow(
                         totalAnimalCost
                     ),
 
+                costPerKg =
+                    costPerKgText,
+
+                lastMassDate =
+                    lastMassDateText,
+
+                onSaveCost = {
+                        costType,
+                        amount,
+                        description,
+                        costDateText,
+                        submissionId,
+                        onCompleted ->
+
+                    val parsedCostDate =
+                        parseTraceabilityDate(
+                            costDateText
+                        )
+
+                    if (
+                        parsedCostDate == null
+                    ) {
+
+                        onCompleted(
+                            false,
+                            "Choose a valid cost date."
+                        )
+
+                    } else {
+
+                        onSaveCost(
+                            selectedAnimalReference,
+                            costType,
+                            amount,
+                            description,
+                            parsedCostDate,
+                            submissionId
+                        ) {
+                                success,
+                                message ->
+
+                            if (
+                                success
+                            ) {
+                                onLoadCostSummary(
+                                    selectedAnimalReference
+                                )
+                            }
+
+                            onCompleted(
+                                success,
+                                message
+                            )
+                        }
+                    }
+                },
+
                 onBackClick = {
                     navigateBack()
                 }
             )
         }
+
 
         TraceabilityScreen
             .MORTALITY -> {
@@ -2157,6 +2993,27 @@ fun FarmTraceabilityFlow(
                 }
             )
         }
+    }
+}
+
+private fun parseTraceabilityDate(
+    value: String
+): Long? {
+    if (value.isBlank()) {
+        return null
+    }
+
+    return try {
+        SimpleDateFormat(
+            "dd/MM/yyyy",
+            Locale.getDefault()
+        ).apply {
+            isLenient = false
+        }
+            .parse(value)
+            ?.time
+    } catch (_: Exception) {
+        null
     }
 }
 

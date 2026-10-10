@@ -71,6 +71,10 @@ fun MortalityScreen(
         mutableStateOf(responsibleWorker)
     }
 
+    var validationMessage by remember {
+        mutableStateOf("")
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -109,7 +113,11 @@ fun MortalityScreen(
                         animalReferenceState = it
                         onAnimalReferenceChange(it)
                     },
-                    icon = Icons.Outlined.Pets
+                    icon = Icons.Outlined.Pets,
+                    placeholder = "Selected animal tag",
+                    helperText = "This mortality record will be saved against the selected animal.",
+                    required = true,
+                    readOnly = true
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -119,11 +127,15 @@ fun MortalityScreen(
                     value = reasonState,
                     onValueChange = {
                         reasonState = it
+                        validationMessage = ""
                         onMortalityReasonChange(it)
                     },
                     icon = Icons.Outlined.EditNote,
                     singleLine = false,
-                    minLines = 3
+                    minLines = 3,
+                    placeholder = "e.g. Illness, injury or unknown cause",
+                    helperText = "Record the known cause or the circumstances observed.",
+                    required = true
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -133,22 +145,47 @@ fun MortalityScreen(
                     value = workerState,
                     options = workerOptions,
                     icon = Icons.Outlined.Person,
+                    placeholder = "Search or enter worker",
+                    helperText = "Choose an existing worker or enter the responsible person's name.",
+                    required = true,
+                    allowCustomEntry = true,
                     onValueChange = {
                         workerState = it
+                        validationMessage = ""
                         onResponsibleWorkerChange(it)
                     }
                 )
             }
 
 
+            TraceabilityFormMessage(
+                message = validationMessage
+            )
+
+            if (validationMessage.isNotBlank()) {
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
             TraceabilityPrimaryButton(
                 text = "Save Mortality",
                 icon = Icons.Outlined.Save,
                 onClick = {
-                    onSaveClick(
-                        reasonState,
-                        workerState
-                    )
+                    validationMessage = when {
+                        animalReferenceState.isBlank() ->
+                            "Select an animal before saving this mortality record."
+                        reasonState.trim().isBlank() ->
+                            "Enter the mortality reason."
+                        workerState.trim().isBlank() ->
+                            "Select or enter the responsible worker."
+                        else -> ""
+                    }
+
+                    if (validationMessage.isBlank()) {
+                        onSaveClick(
+                            reasonState.trim(),
+                            workerState.trim()
+                        )
+                    }
                 }
             )
 
@@ -163,7 +200,7 @@ fun MortalityScreen(
             if (mortalityRecords.isEmpty()) {
                 TraceabilityCard {
                     Text(
-                        text = "No mortality records found.",
+                        text = "No mortality records. Mortality events recorded for this animal will appear here.",
                         color = BeeftechMutedText
                     )
                 }

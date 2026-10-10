@@ -16,6 +16,18 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Group
+import androidx.compose.material.icons.outlined.LocalDining
+import androidx.compose.material.icons.outlined.Medication
+import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.Pets
+import androidx.compose.material.icons.outlined.Route
+import androidx.compose.material.icons.outlined.Warning
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -31,6 +43,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -78,7 +91,11 @@ private val DashboardDanger =
 fun DashboardTab(
     apiClient: ManagementApiClient,
     currentUserId: String,
+    currentUsername: String = "Manager",
     isAdmin: Boolean = false,
+    syncLabel: String = "Synced",
+    syncDetail: String = "Everything synced",
+    isOnline: Boolean = true,
     modifier: Modifier = Modifier
 ) {
 
@@ -98,10 +115,12 @@ fun DashboardTab(
 
 
     DashboardScreen(
-        viewModel =
-            viewModel,
-        modifier =
-            modifier
+        viewModel = viewModel,
+        currentUsername = currentUsername,
+        syncLabel = syncLabel,
+        syncDetail = syncDetail,
+        isOnline = isOnline,
+        modifier = modifier
     )
 }
 
@@ -109,6 +128,10 @@ fun DashboardTab(
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel,
+    currentUsername: String = "Manager",
+    syncLabel: String = "Synced",
+    syncDetail: String = "Everything synced",
+    isOnline: Boolean = true,
     modifier: Modifier = Modifier
 ) {
 
@@ -163,6 +186,13 @@ fun DashboardScreen(
                         14.dp
                     )
             ) {
+
+                DashboardWelcomeCard(
+                    username = currentUsername,
+                    syncLabel = syncLabel,
+                    syncDetail = syncDetail,
+                    isOnline = isOnline
+                )
 
                 if (
                     state.sites
@@ -262,7 +292,17 @@ fun DashboardScreen(
                                 "Dashboard unavailable",
 
                             message =
-                                error,
+                                if (
+                                    error.contains(
+                                        "not assigned to a site",
+                                        ignoreCase = true
+                                    )
+                                ) {
+                                    "This manager account still needs a farm assignment. " +
+                                        "Ask an administrator to assign the account to a site, then refresh the dashboard."
+                                } else {
+                                    error
+                                },
 
                             background =
                                 Color(
@@ -373,7 +413,7 @@ fun DashboardScreen(
 
 
                             Text(
-                                "Loading dashboard?"
+                                "Loading dashboard..."
                             )
                         }
                     }
@@ -386,6 +426,65 @@ fun DashboardScreen(
                             14.dp
                         )
                 )
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun DashboardWelcomeCard(
+    username: String,
+    syncLabel: String,
+    syncDetail: String,
+    isOnline: Boolean
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = DashboardCard)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Good morning, $username",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Here’s what’s happening on your farm today.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = if (isOnline) DashboardSoftGreen else Color(0xFFFFE6E3)
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = if (isOnline) Icons.Outlined.CheckCircle else Icons.Outlined.CloudOff,
+                        contentDescription = null,
+                        tint = if (isOnline) Color(0xFF2C7A4F) else DashboardDanger,
+                        modifier = Modifier.size(26.dp)
+                    )
+                    Spacer(modifier = Modifier.size(10.dp))
+                    Column {
+                        Text(
+                            text = syncLabel,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = syncDetail,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
             }
         }
     }
@@ -535,7 +634,7 @@ private fun DashboardHeader(
                         loading
                     ) {
 
-                        "Refreshing?"
+                        "Refreshing..."
 
                     } else {
 
@@ -552,7 +651,9 @@ private fun DashboardHeader(
 private data class DashboardMetric(
     val title: String,
     val headline: String,
-    val detail: String
+    val detail: String,
+    val icon: ImageVector,
+    val accent: Color
 )
 
 
@@ -571,7 +672,9 @@ private fun MetricGrid(
                     headline =
                         "${summary.farmers.total}",
                     detail =
-                        "${summary.farmers.last7Days} recent"
+                        "${summary.farmers.last7Days} recent",
+                    icon = Icons.Outlined.Person,
+                    accent = Color(0xFF2F6FAE)
                 )
             )
 
@@ -583,7 +686,9 @@ private fun MetricGrid(
                     headline =
                         "${summary.calves.total}",
                     detail =
-                        "${summary.calves.last7Days} in 7 days"
+                        "${summary.calves.last7Days} in 7 days",
+                    icon = Icons.Outlined.Pets,
+                    accent = Color(0xFF2B6F68)
                 )
             )
 
@@ -595,7 +700,9 @@ private fun MetricGrid(
                     headline =
                         "${summary.treatments.total}",
                     detail =
-                        "${summary.treatments.last7Days} in 7 days"
+                        "${summary.treatments.last7Days} in 7 days",
+                    icon = Icons.Outlined.Medication,
+                    accent = Color(0xFF2E6DA4)
                 )
             )
 
@@ -607,7 +714,9 @@ private fun MetricGrid(
                     headline =
                         "${summary.team.activeWorkers}",
                     detail =
-                        "${summary.team.inactiveWorkers} inactive"
+                        "${summary.team.inactiveWorkers} inactive",
+                    icon = Icons.Outlined.Group,
+                    accent = Color(0xFFE58E2A)
                 )
             )
 
@@ -623,7 +732,9 @@ private fun MetricGrid(
                             headline =
                                 "${value.total}",
                             detail =
-                                "${value.last7Days} in 7 days"
+                                "${value.last7Days} in 7 days",
+                            icon = Icons.Outlined.Warning,
+                            accent = Color(0xFFE35B62)
                         )
                     )
                 }
@@ -640,7 +751,9 @@ private fun MetricGrid(
                             headline =
                                 "${value.total}",
                             detail =
-                                "${value.last7Days} in 7 days"
+                                "${value.last7Days} in 7 days",
+                            icon = Icons.Outlined.Route,
+                            accent = Color(0xFF2E6DA4)
                         )
                     )
                 }
@@ -655,9 +768,11 @@ private fun MetricGrid(
                             title =
                                 "Other costs",
                             headline =
-                                "${value.total}",
+                                "R ${formatMoney(value.totalAmount)}",
                             detail =
-                                "R ${formatMoney(value.totalAmount)}"
+                                "${value.total} records",
+                            icon = Icons.Outlined.Payments,
+                            accent = Color(0xFF1E805A)
                         )
                     )
                 }
@@ -674,7 +789,9 @@ private fun MetricGrid(
                             headline =
                                 "${value.total}",
                             detail =
-                                "${value.last7Days} in 7 days"
+                                "${value.last7Days} in 7 days",
+                            icon = Icons.Outlined.LocalDining,
+                            accent = Color(0xFF1E805A)
                         )
                     )
                 }
@@ -744,69 +861,51 @@ private fun MetricCard(
 ) {
 
     Card(
-        modifier =
-            modifier,
-        shape =
-            RoundedCornerShape(
-                16.dp
-            ),
-        colors =
-            CardDefaults
-                .cardColors(
-                    containerColor =
-                        DashboardCard
-                )
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = DashboardCard)
     ) {
-
-        Column(
-            modifier =
-                Modifier.padding(
-                    15.dp
-                ),
-            verticalArrangement =
-                Arrangement.spacedBy(
-                    4.dp
-                )
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.Top
         ) {
+            Surface(
+                shape = RoundedCornerShape(11.dp),
+                color = metric.accent.copy(alpha = 0.12f)
+            ) {
+                Icon(
+                    imageVector = metric.icon,
+                    contentDescription = null,
+                    tint = metric.accent,
+                    modifier = Modifier.padding(9.dp).size(22.dp)
+                )
+            }
 
-            Text(
-                text =
-                    metric.title,
-                style =
-                    MaterialTheme
-                        .typography
-                        .labelMedium,
-                color =
-                    DashboardAccent
-            )
+            Spacer(modifier = Modifier.size(9.dp))
 
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Text(
+                    text = metric.title,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
 
-            Text(
-                text =
-                    metric.headline,
-                style =
-                    MaterialTheme
-                        .typography
-                        .headlineSmall,
-                fontWeight =
-                    FontWeight.Bold,
-                color =
-                    DashboardSage
-            )
+                Text(
+                    text = metric.headline,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = DashboardSage
+                )
 
-
-            Text(
-                text =
-                    metric.detail,
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodySmall,
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .onSurfaceVariant
-            )
+                Text(
+                    text = metric.detail,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }

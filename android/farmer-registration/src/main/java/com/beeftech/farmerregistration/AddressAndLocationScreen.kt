@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -31,10 +32,12 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,12 +45,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.beeftech.database.DatabaseProvider
 import com.beeftech.farmerregistration.ui.theme.BeeftechTheme
 
 data class AddressAndLocationData(
@@ -59,10 +65,27 @@ data class AddressAndLocationData(
     val country: String = "",
     val landOwnership: String = "",
     val faCodeRmis: String = "",
-    val glnNumber: String = ""
+    val glnNumber: String = "",
+    val herdCapacity: String = "",
+    val interestStatus: String = "",
+    val farmSizeHa: String = "",
+    val headCount: String = "",
+    val primaryBreed: String = ""
 )
 
 object AddressAndLocationLookups {
+
+    const val MAX_HERD_CAPACITY = 100_000
+
+    const val MAX_FARM_SIZE_HA = 1_000_000.0
+
+    val interestStatuses =
+        listOf(
+            "Interested",
+            "Follow-up needed",
+            "Not interested",
+            "Already a client"
+        )
 
     val provinces =
         listOf(
@@ -96,14 +119,6 @@ object AddressAndLocationLookups {
             "State-owned",
             "Trust"
         )
-
-    val faCodes =
-        listOf(
-            "FA-RMIS-01",
-            "FA-RMIS-02",
-            "FA-RMIS-03",
-            "FA-RMIS-04"
-        )
 }
 
 class AddressAndLocationScreen : ComponentActivity() {
@@ -123,9 +138,46 @@ class AddressAndLocationScreen : ComponentActivity() {
                     )
                 }
 
+                var faCodeOptions by remember {
+                    mutableStateOf(
+                        emptyList<String>()
+                    )
+                }
+
+                LaunchedEffect(Unit) {
+                    faCodeOptions =
+                        try {
+                            DatabaseProvider
+                                .getDatabase()
+                                ?.farmerDao()
+                                ?.getAllFarmers()
+                                .orEmpty()
+                                .map {
+                                    it.fa_code_rmis
+                                        .orEmpty()
+                                        .trim()
+                                }
+                                .filter {
+                                    it.isNotBlank()
+                                }
+                                .distinctBy {
+                                    it.lowercase()
+                                }
+                                .sortedBy {
+                                    it.lowercase()
+                                }
+                        } catch (
+                            _: Exception
+                        ) {
+                            emptyList()
+                        }
+                }
+
                 AddressAndLocationContent(
 
                     formData = formData,
+
+                    faCodeOptions = faCodeOptions,
 
                     onFormDataChange = { updatedData ->
 
@@ -175,11 +227,16 @@ class AddressAndLocationScreen : ComponentActivity() {
 @Composable
 fun AddressAndLocationContent(
     formData: AddressAndLocationData,
+    faCodeOptions: List<String> = emptyList(),
     onFormDataChange: (AddressAndLocationData) -> Unit,
     onBackClick: () -> Unit,
     onDiscardClick: () -> Unit,
     onContinueClick: () -> Unit
 ) {
+
+    var glnValidationMessage by remember {
+        mutableStateOf("")
+    }
 
     Column(
         modifier =
@@ -464,15 +521,101 @@ fun AddressAndLocationContent(
                     modifier = Modifier.height(16.dp)
                 )
 
-                FarmerDropdownField(
-                    label = "FA Code (RMIS)",
-                    selectedOption =
-                        formData.faCodeRmis,
-                    options =
-                        AddressAndLocationLookups
-                            .faCodes,
-                    onOptionSelected = {
+                FarmerIdentifierTextField(
+                    label = "Herd Capacity",
+                    value = formData.herdCapacity,
+                    onValueChange = { entered ->
+                        val capacity = entered.toIntOrNull()
+                        if (capacity == null || capacity <= AddressAndLocationLookups.MAX_HERD_CAPACITY) {
+                            onFormDataChange(formData.copy(herdCapacity = entered))
+                        }
+                    },
+                    placeholder = "Number of animals the farm can hold",
+                    helperText = "Optional. Whole number from 0 to 100000.",
+                    maxLength = 6
+                )
 
+                Spacer(
+                    modifier = Modifier.height(16.dp)
+                )
+
+                FarmerIdentifierTextField(
+                    label = "Farm Size (ha)",
+                    value = formData.farmSizeHa,
+                    onValueChange = { entered ->
+                        val hectares = FarmerFieldRules.parseFarmSizeHa(entered)
+                        if (hectares == null || hectares <= AddressAndLocationLookups.MAX_FARM_SIZE_HA) {
+                            onFormDataChange(formData.copy(farmSizeHa = entered))
+                        }
+                    },
+                    placeholder = "e.g. 1250.5",
+                    helperText = "Optional. Hectares, up to 2 decimals.",
+                    maxLength = 10,
+                    allowDecimal = true
+                )
+
+                Spacer(
+                    modifier = Modifier.height(16.dp)
+                )
+
+                FarmerIdentifierTextField(
+                    label = "Head Count",
+                    value = formData.headCount,
+                    onValueChange = { entered ->
+                        val count = entered.toIntOrNull()
+                        if (count == null || count <= AddressAndLocationLookups.MAX_HERD_CAPACITY) {
+                            onFormDataChange(formData.copy(headCount = entered))
+                        }
+                    },
+                    placeholder = "Animals on the farm today",
+                    helperText = "Optional. Whole number from 0 to 100000.",
+                    maxLength = 6
+                )
+
+                Spacer(
+                    modifier = Modifier.height(16.dp)
+                )
+
+                FarmerTextField(
+                    label = "Primary Breed",
+                    value = formData.primaryBreed,
+                    onValueChange = {
+                        onFormDataChange(formData.copy(primaryBreed = it))
+                    },
+                    placeholder = "e.g. Bonsmara",
+                    supportingText = "Optional"
+                )
+
+                Spacer(
+                    modifier = Modifier.height(16.dp)
+                )
+
+                FarmerDropdownField(
+                    label = "Interest Status",
+                    selectedOption = formData.interestStatus,
+                    options = AddressAndLocationLookups.interestStatuses,
+                    onOptionSelected = {
+                        onFormDataChange(formData.copy(interestStatus = it))
+                    },
+                    placeholder = "Select interest status (optional)"
+                )
+
+                Spacer(
+                    modifier = Modifier.height(16.dp)
+                )
+
+                FarmerEditableLookupField(
+                    label = "FA Code (RMIS)",
+                    value = formData.faCodeRmis,
+                    options = faCodeOptions,
+                    placeholder = "Select, search or enter FA Code",
+                    helperText =
+                        if (faCodeOptions.isEmpty()) {
+                            "No saved FA Codes yet. Enter the RMIS FA Code manually."
+                        } else {
+                            "${faCodeOptions.size} saved FA Code option${if (faCodeOptions.size == 1) "" else "s"} available. Select one or type a new code."
+                        },
+                    onValueChange = {
                         onFormDataChange(
                             formData.copy(
                                 faCodeRmis = it
@@ -485,19 +628,21 @@ fun AddressAndLocationContent(
                     modifier = Modifier.height(16.dp)
                 )
 
-                FarmerTextField(
-                    label =
-                        "GLN Number (global land parcel ID)",
-                    value =
-                        formData.glnNumber,
-                    onValueChange = {
-
+                FarmerIdentifierTextField(
+                    label = "GLN Number",
+                    value = formData.glnNumber,
+                    onValueChange = { value ->
+                        glnValidationMessage = ""
                         onFormDataChange(
                             formData.copy(
-                                glnNumber = it
+                                glnNumber = value
                             )
                         )
-                    }
+                    },
+                    placeholder = "e.g. 6001234567894",
+                    helperText =
+                        "Enter the 13-digit Global Location Number for this farm. Leave blank if no GLN has been assigned.",
+                    errorMessage = glnValidationMessage
                 )
             }
 
@@ -533,8 +678,26 @@ fun AddressAndLocationContent(
 
                     FarmerPrimaryButton(
                         text = "Continue",
-                        onClick =
-                            onContinueClick
+                        onClick = {
+                            val gln =
+                                formData.glnNumber.trim()
+
+                            glnValidationMessage =
+                                if (
+                                    gln.isNotBlank() &&
+                                    gln.length != 13
+                                ) {
+                                    "GLN must contain exactly 13 digits."
+                                } else {
+                                    ""
+                                }
+
+                            if (
+                                glnValidationMessage.isBlank()
+                            ) {
+                                onContinueClick()
+                            }
+                        }
                     )
                 }
             }
@@ -552,7 +715,7 @@ fun FarmerMultilineTextField(
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
-    placeholder: String = "-”",
+    placeholder: String = "—",
     maxLines: Int = 5
 ) {
 
@@ -608,6 +771,298 @@ fun FarmerMultilineTextField(
         )
     }
 }
+
+@Composable
+fun FarmerEditableLookupField(
+    label: String,
+    value: String,
+    options: List<String>,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    helperText: String
+) {
+
+    var expanded by remember {
+        mutableStateOf(false)
+    }
+
+    val filteredOptions =
+        options
+            .filter {
+                value.isBlank() ||
+                    it.contains(
+                        value.trim(),
+                        ignoreCase = true
+                    )
+            }
+
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+
+        Text(
+            text = label.uppercase(),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.6.sp,
+            color = BeeftechPrimaryDark
+        )
+
+        Spacer(
+            modifier = Modifier.height(7.dp)
+        )
+
+        Box(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+
+            OutlinedTextField(
+                value = value,
+                onValueChange = {
+                    onValueChange(it)
+                    expanded = true
+                },
+                placeholder = {
+                    Text(
+                        text = placeholder,
+                        color = BeeftechMutedText,
+                        fontSize = 14.sp
+                    )
+                },
+                singleLine = true,
+                trailingIcon = {
+                    Icon(
+                        imageVector =
+                            if (expanded) {
+                                Icons.Filled.ArrowDropUp
+                            } else {
+                                Icons.Filled.ArrowDropDown
+                            },
+                        contentDescription =
+                            "Show saved FA Codes",
+                        tint = BeeftechPrimaryDark,
+                        modifier =
+                            Modifier.clickable {
+                                expanded =
+                                    !expanded
+                            }
+                    )
+                },
+                modifier =
+                    Modifier.fillMaxWidth(),
+                shape =
+                    RoundedCornerShape(11.dp),
+                colors =
+                    OutlinedTextFieldDefaults
+                        .colors(
+                            focusedBorderColor =
+                                BeeftechPrimaryDark,
+                            unfocusedBorderColor =
+                                BeeftechBorder,
+                            cursorColor =
+                                BeeftechPrimaryDark,
+                            focusedContainerColor =
+                                BeeftechWhite,
+                            unfocusedContainerColor =
+                                BeeftechWhite
+                        )
+            )
+
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = {
+                    expanded = false
+                },
+                modifier =
+                    Modifier.fillMaxWidth()
+            ) {
+
+                if (
+                    filteredOptions.isEmpty()
+                ) {
+
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text =
+                                    if (options.isEmpty()) {
+                                        "No saved FA Codes"
+                                    } else {
+                                        "No matching FA Code"
+                                    },
+                                color =
+                                    BeeftechMutedText,
+                                fontSize = 14.sp
+                            )
+                        },
+                        onClick = {}
+                    )
+
+                } else {
+
+                    filteredOptions
+                        .forEach { option ->
+
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = option,
+                                        color =
+                                            BeeftechText,
+                                        fontSize = 14.sp
+                                    )
+                                },
+                                onClick = {
+                                    onValueChange(
+                                        option
+                                    )
+                                    expanded = false
+                                }
+                            )
+                        }
+                }
+
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = "+ Add new FA Code",
+                            color =
+                                BeeftechPrimaryDark,
+                            fontSize = 14.sp,
+                            fontWeight =
+                                FontWeight.SemiBold
+                        )
+                    },
+                    onClick = {
+                        onValueChange("")
+                        expanded = false
+                    }
+                )
+            }
+        }
+
+        Spacer(
+            modifier = Modifier.height(6.dp)
+        )
+
+        Text(
+            text = helperText,
+            fontSize = 11.sp,
+            lineHeight = 15.sp,
+            color = BeeftechMutedText
+        )
+    }
+}
+
+
+@Composable
+fun FarmerIdentifierTextField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    helperText: String,
+    errorMessage: String = "",
+    maxLength: Int = 13,
+    allowDecimal: Boolean = false
+) {
+
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+
+        Text(
+            text = label.uppercase(),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.6.sp,
+            color = BeeftechPrimaryDark
+        )
+
+        Spacer(
+            modifier = Modifier.height(7.dp)
+        )
+
+        OutlinedTextField(
+            value = value,
+            onValueChange = { rawValue ->
+
+                val cleaned =
+                    if (allowDecimal) {
+                        FarmerFieldRules.cleanDecimal(rawValue)
+                    } else {
+                        rawValue.filter {
+                            it.isDigit()
+                        }
+                    }
+
+                onValueChange(
+                    cleaned.take(maxLength)
+                )
+            },
+            placeholder = {
+                Text(
+                    text = placeholder,
+                    color = BeeftechMutedText,
+                    fontSize = 14.sp
+                )
+            },
+            singleLine = true,
+            isError =
+                errorMessage.isNotBlank(),
+            keyboardOptions =
+                KeyboardOptions(
+                    keyboardType =
+                        if (allowDecimal) {
+                            KeyboardType.Decimal
+                        } else {
+                            KeyboardType.Number
+                        }
+                ),
+            modifier =
+                Modifier.fillMaxWidth(),
+            shape =
+                RoundedCornerShape(11.dp),
+            colors =
+                OutlinedTextFieldDefaults
+                    .colors(
+                        focusedBorderColor =
+                            BeeftechPrimaryDark,
+                        unfocusedBorderColor =
+                            BeeftechBorder,
+                        cursorColor =
+                            BeeftechPrimaryDark,
+                        focusedContainerColor =
+                            BeeftechWhite,
+                        unfocusedContainerColor =
+                            BeeftechWhite
+                    )
+        )
+
+        Spacer(
+            modifier = Modifier.height(6.dp)
+        )
+
+        Text(
+            text =
+                errorMessage
+                    .ifBlank {
+                        helperText
+                    },
+            fontSize = 11.sp,
+            lineHeight = 15.sp,
+            color =
+                if (
+                    errorMessage.isNotBlank()
+                ) {
+                    Color(0xFFB3261E)
+                } else {
+                    BeeftechMutedText
+                }
+        )
+    }
+}
+
 
 @Composable
 fun FarmerDropdownField(
@@ -789,10 +1244,18 @@ private fun Text(
         TextUnit.Unspecified
 ) {
 
+    /* As material3 Text does: an unset colour follows the surrounding content colour (white on a primary button). */
+    val resolvedColor =
+        color.takeOrElse {
+            LocalTextStyle.current.color.takeOrElse {
+                LocalContentColor.current
+            }
+        }
+
     val style =
         LocalTextStyle.current.merge(
             TextStyle(
-                color = color,
+                color = resolvedColor,
                 fontSize = fontSize,
                 fontWeight = fontWeight,
                 letterSpacing =
@@ -808,5 +1271,3 @@ private fun Text(
         style = style
     )
 }
-
-

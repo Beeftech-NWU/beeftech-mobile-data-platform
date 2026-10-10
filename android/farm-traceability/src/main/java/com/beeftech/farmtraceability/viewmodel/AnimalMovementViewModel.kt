@@ -76,6 +76,8 @@ class AnimalMovementViewModel(
         animalId: String,
         movementInformation: String,
         responsibleWorker: String,
+        movementDate: Long =
+            System.currentTimeMillis(),
         onResult:
             (
                 Boolean,
@@ -201,8 +203,12 @@ class AnimalMovementViewModel(
                 }
 
 
-                val now =
-                    System.currentTimeMillis()
+                val effectiveMovementDate =
+                    movementDate
+                        .takeIf {
+                            it > 0L
+                        }
+                        ?: System.currentTimeMillis()
 
 
                 val movement =
@@ -217,7 +223,7 @@ class AnimalMovementViewModel(
                             "",
 
                         movementDate =
-                            now,
+                            effectiveMovementDate,
 
                         notes =
                             normalizedWorker

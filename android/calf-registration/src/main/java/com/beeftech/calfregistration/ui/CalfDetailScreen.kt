@@ -1,6 +1,22 @@
 package com.beeftech.calfregistration.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import com.beeftech.calfregistration.util.ImageCompressionUtils
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -17,7 +33,8 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun CalfDetailScreen(
     calf: CalfRegistrationData,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onRetryClick: (() -> Unit)? = null
 ) {
     fun parent(value: String) = if (value.startsWith("Select")) "" else value
 
@@ -36,14 +53,21 @@ fun CalfDetailScreen(
         Column(modifier = Modifier.fillMaxWidth().padding(18.dp)) {
             DetailSection(
                 "Identity",
-                "Tag number" to calf.tagNumber
+                "Tag number" to calf.tagNumber,
+                "Old tag number" to calf.oldTagNumber,
+                "Reference" to calf.referenceNumber
             )
+            if (!calf.photoPath.isNullOrBlank()) {
+                PhotoSection(tagNumber = calf.tagNumber, photoPath = calf.photoPath)
+            }
             DetailSection(
                 "Animal",
                 "Type" to calf.animalType,
                 "Gender" to calf.gender,
                 "Age" to calf.age,
-                "Condition" to calf.condition
+                "Condition" to CalfRegistrationLookups.conditionDisplay(calf.condition),
+                "Birth date" to calf.birthDate,
+                "Birth mass" to calf.birthWeightKg.takeIf { it.isNotBlank() }?.let { "$it kg" }.orEmpty()
             )
             DetailSection(
                 "Appearance",
@@ -57,13 +81,80 @@ fun CalfDetailScreen(
                 "Sire" to parent(calf.sireTagNumber)
             )
             DetailSection(
+                "Verification",
+                "Process proof" to calf.processProof,
+                "Implant proof" to calf.implantProof
+            )
+            DetailSection(
                 "Status",
                 "Date registered" to calf.dateRegistered,
-                "Synced" to if (calf.synced) "Yes" else "Pending"
+                "Sync status" to when {
+                    calf.needsAttention -> "Rejected by the server"
+                    calf.synced -> "Synced"
+                    else -> "Pending"
+                },
+                *listOfNotNull(
+                    calf.syncError?.takeIf { !calf.synced }?.let { "Server message" to it }
+                ).toTypedArray()
             )
+            if (calf.needsAttention && onRetryClick != null) {
+                CalfPrimaryButton(text = "Retry sync", onClick = onRetryClick)
+            }
             Spacer(modifier = Modifier.height(6.dp))
         }
     }
+}
+
+private sealed interface PhotoState {
+    data object Loading : PhotoState
+    data object Missing : PhotoState
+    data class Loaded(val image: ImageBitmap) : PhotoState
+}
+
+/** The calf's photo from this device, or a note when the file is not here. */
+@Composable
+private fun PhotoSection(tagNumber: String, photoPath: String) {
+    var state by remember(photoPath) { mutableStateOf<PhotoState>(PhotoState.Loading) }
+    LaunchedEffect(photoPath) {
+        state = withContext(Dispatchers.IO) {
+            ImageCompressionUtils.decodeForDisplay(photoPath)
+                ?.let { PhotoState.Loaded(it.asImageBitmap()) }
+                ?: PhotoState.Missing
+        }
+    }
+
+    CalfSectionTitle("Photo")
+    Spacer(modifier = Modifier.height(12.dp))
+    CalfCard {
+        when (val current = state) {
+            PhotoState.Loading ->
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(160.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = BeeftechPrimary)
+                }
+
+            PhotoState.Missing ->
+                Text(
+                    text = "The photo is not available on this device.",
+                    fontSize = 14.sp,
+                    color = BeeftechMutedText
+                )
+
+            is PhotoState.Loaded ->
+                Image(
+                    bitmap = current.image,
+                    contentDescription = "Photo of calf $tagNumber",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 360.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                )
+        }
+    }
+    Spacer(modifier = Modifier.height(24.dp))
 }
 
 @Composable

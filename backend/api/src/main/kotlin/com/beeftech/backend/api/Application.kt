@@ -100,6 +100,9 @@ fun Application.module() {
         }
     }
 
+    // One configured recipient receives first-sync JSON receipts for farmers and calves.
+    val farmerSalesNotificationService = createFarmerSalesNotificationServiceFromEnvironment()
+
     /*
      * Calf Registration
      */
@@ -108,7 +111,9 @@ fun Application.module() {
 
     val calfRegistrationService =
         CalfRegistrationService(
-            calfRegistrationRepository
+            calfRegistrationRepository,
+            CalfPhotoStore(CalfPhotoStore.configuredDirectory(jdbcUrl)),
+            farmerSalesNotificationService
         )
 
     /*
@@ -145,9 +150,6 @@ fun Application.module() {
     val farmerRepository =
         FarmerRepository()
 
-    val farmerSalesNotificationService =
-        createFarmerSalesNotificationServiceFromEnvironment()
-
     val farmerService =
         FarmerService(
             repository = farmerRepository,
@@ -165,6 +167,7 @@ fun Application.module() {
 
         /* Offline-first Farm Traceability outbox. */
         traceabilityEventRoutes(jwtService)
+        farmerAnimalLinkRoutes(jwtService)
 
         get("/health") {
             call.respondText("OK")

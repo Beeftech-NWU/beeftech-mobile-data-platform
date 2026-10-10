@@ -5,7 +5,9 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class MortalitySyncRequest(
     val deviceId: String,
-    val records: List<MortalitySyncRecord>
+    val records: List<MortalitySyncRecord>,
+    /* [FarmCode]-[Project]-[YYYYMMDD]-[HHMMSS]-[DeviceID]; absent from app versions that predate it. */
+    val batchName: String? = null
 )
 
 @Serializable

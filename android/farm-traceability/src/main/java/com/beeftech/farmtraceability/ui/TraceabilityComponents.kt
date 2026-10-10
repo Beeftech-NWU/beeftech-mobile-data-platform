@@ -14,10 +14,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -31,6 +34,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -177,18 +182,89 @@ fun TraceabilitySectionTitle(
     }
 }
 
+/**
+ * Compact, accessible help for every Traceability field. Existing explicitly
+ * supplied help text takes precedence over these defaults.
+ */
+private fun traceabilityDefaultFieldHelp(label: String): String {
+    val cleanLabel = label.trim().removeSuffix("*").trim()
+    return when (cleanLabel.lowercase()) {
+        "animal", "animal tag", "animal tag / reference", "animal reference" ->
+            "This record is linked to the selected animal. To use a different animal, select it before opening this form."
+        "disease / condition" ->
+            "Select or enter the condition being treated. Use a clear name so this treatment is easy to find later."
+        "treatment type" ->
+            "Choose the treatment administered to this animal from the list. Use Other if it is not listed."
+        "batch number" ->
+            "BeefTech generates this treatment record number after you choose the condition and treatment. It cannot be edited here."
+        "volume used" ->
+            "Enter the amount of treatment actually administered. Include the correct unit if it is needed (for example, 5 mL)."
+        "cost" ->
+            "Enter the expense for this animal in South African rand. Costs saved in their original workflow are counted automatically."
+        "movement type" ->
+            "Choose whether the animal moved within your site, to another site, was sold, or had another movement outcome."
+        "movement date" ->
+            "Choose the date on which the movement actually happened, using the calendar."
+        "from location" ->
+            "The origin is based on the animal's recorded location. Check it before recording the movement."
+        "to location", "destination site", "destination / outcome", "buyer / destination" ->
+            "Enter where the animal moved. For a sale, give the buyer or destination so the movement can be traced."
+        "responsible worker" ->
+            "Choose or enter the person responsible for this event so the record can be followed up."
+        "notes", "notes (optional)" ->
+            "Optional details about the event, such as the reason or anything that will help explain it later."
+        "supplier name" ->
+            "Select the supplier linked to this animal, or enter an external supplier who is not registered."
+        "gln number" ->
+            "Enter the supplier's 13-digit Global Location Number if available. Do not invent a number."
+        "date of purchase" ->
+            "Select the actual purchase date using the calendar."
+        "purchase batch number" ->
+            "Generated from the selected supplier and purchase date. Animals sharing this purchase batch are grouped together."
+        "cost type" ->
+            "Choose Transport, Processing, Handling or Interest. Treatment and Feed costs are recorded in their own workflows and included automatically."
+        "distance (km)" ->
+            "Enter the distance travelled in kilometres for one transport trip."
+        "rate per km (r)" ->
+            "Enter the transport rate charged in rand for each kilometre, for example 12.50 for R12.50/km."
+        "number of trips" ->
+            "Enter how many trips were needed for this transport expense. Use 1 for a single trip."
+        "animals sharing trip" ->
+            "Enter how many animals shared the transport expense. BeefTech divides the distance-based trip cost between them."
+        "extra charges (r)" ->
+            "Enter extra transport expenses allocated to this animal, such as its share of tolls or loading fees."
+        "annual interest rate (%)" ->
+            "Enter the annual percentage rate, for example 10 for 10% per year. The calculator uses simple interest."
+        "interest period (days)" ->
+            "Enter the number of days interest applies. The calculation uses the annual rate divided across 365 days."
+        "amount" ->
+            "Enter this animal's cost in rand, or calculate it using the calculator shown for the selected cost type."
+        "description" ->
+            "Briefly describe the expense, such as a transport journey, processing service or handling charge."
+        "cost date" ->
+            "Choose the date this expense was incurred using the calendar."
+        "destination" ->
+            "Choose the animal's real destination or enter it if it is not in the saved locations."
+        "days in destination", "days" ->
+            "Enter how many days the animal spent at this destination or on this feed ration."
+        "ration" ->
+            "Select the actual feed ration used for this animal, or enter a new ration where allowed."
+        "mortality reason" ->
+            "Choose or enter the reason for the animal's death using the information available."
+        "date of mortality", "mortality date" ->
+            "Choose the date the mortality occurred, not the date it was reported."
+        else ->
+            "Enter or select $cleanLabel for the selected animal. Use an accurate value from the farm record."
+    }
+}
+
 @Composable
-fun TraceabilityTextField(
-    label: String,
-    value: String,
-    onValueChange: (String) -> Unit,
-    icon: ImageVector,
-    singleLine: Boolean = true,
-    minLines: Int = 1
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth()
-    ) {
+fun TraceabilityHelpLabel(label: String, helperText: String = "") {
+    var showHelp by remember { mutableStateOf(false) }
+    val explanation = helperText.takeIf { it.isNotBlank() }
+        ?: traceabilityDefaultFieldHelp(label)
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = label.uppercase(),
             fontSize = 10.sp,
@@ -196,6 +272,64 @@ fun TraceabilityTextField(
             letterSpacing = 0.6.sp,
             color = BeeftechPrimaryDark
         )
+        IconButton(
+            onClick = { showHelp = true },
+            modifier = Modifier.size(40.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Info,
+                contentDescription = "Help for ${label.trim()}",
+                tint = BeeftechPrimaryDark,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+
+    if (showHelp) {
+        AlertDialog(
+            onDismissRequest = { showHelp = false },
+            title = { Text(label.trim()) },
+            text = { Text(explanation) },
+            confirmButton = {
+                TextButton(onClick = { showHelp = false }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun TraceabilityTextField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    icon: ImageVector,
+    singleLine: Boolean = true,
+    minLines: Int = 1,
+    placeholder: String = "",
+    helperText: String = "",
+    required: Boolean = false,
+    readOnly: Boolean = false,
+    numeric: Boolean = false,
+    decimal: Boolean = false,
+    isError: Boolean = false,
+    errorText: String = ""
+) {
+    val displayLabel =
+        if (required && !label.trimEnd().endsWith("*")) {
+            "$label *"
+        } else {
+            label
+        }
+
+    val supportingText =
+        if (isError && errorText.isNotBlank()) errorText else ""
+
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        TraceabilityHelpLabel(displayLabel, helperText)
 
         Spacer(modifier = Modifier.height(7.dp))
 
@@ -205,6 +339,23 @@ fun TraceabilityTextField(
             modifier = Modifier.fillMaxWidth(),
             singleLine = singleLine,
             minLines = minLines,
+            readOnly = readOnly,
+            isError = isError,
+            placeholder = {
+                if (placeholder.isNotBlank()) {
+                    Text(
+                        text = placeholder,
+                        color = BeeftechMutedText
+                    )
+                }
+            },
+            keyboardOptions = KeyboardOptions(
+                keyboardType = when {
+                    decimal -> KeyboardType.Decimal
+                    numeric -> KeyboardType.Number
+                    else -> KeyboardType.Text
+                }
+            ),
             leadingIcon = {
                 Box(
                     modifier = Modifier
@@ -225,13 +376,36 @@ fun TraceabilityTextField(
             },
             shape = RoundedCornerShape(11.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = BeeftechPrimaryDark,
-                unfocusedBorderColor = BeeftechBorder,
+                focusedBorderColor = if (isError) {
+                    Color(0xFFB3261E)
+                } else {
+                    BeeftechPrimaryDark
+                },
+                unfocusedBorderColor = if (isError) {
+                    Color(0xFFB3261E)
+                } else {
+                    BeeftechBorder
+                },
                 cursorColor = BeeftechPrimaryDark,
                 focusedContainerColor = BeeftechWhite,
                 unfocusedContainerColor = BeeftechWhite
             )
         )
+
+        if (supportingText.isNotBlank()) {
+            Spacer(modifier = Modifier.height(5.dp))
+
+            Text(
+                text = supportingText,
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+                color = if (isError) {
+                    Color(0xFFB3261E)
+                } else {
+                    BeeftechMutedText
+                }
+            )
+        }
     }
 }
 
@@ -241,20 +415,31 @@ fun TraceabilityDropdown(
     value: String,
     options: List<String>,
     icon: ImageVector,
-    onValueChange: (String) -> Unit
+    onValueChange: (String) -> Unit,
+    placeholder: String = "",
+    helperText: String = "",
+    required: Boolean = false
 ) {
     var expanded by remember { mutableStateOf(false) }
+
+    val cleanOptions = remember(options) {
+        options
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinctBy { it.lowercase() }
+    }
+
+    val displayLabel =
+        if (required && !label.trimEnd().endsWith("*")) {
+            "$label *"
+        } else {
+            label
+        }
 
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
-        Text(
-            text = label.uppercase(),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 0.6.sp,
-            color = BeeftechPrimaryDark
-        )
+        TraceabilityHelpLabel(displayLabel, helperText)
 
         Spacer(modifier = Modifier.height(7.dp))
 
@@ -267,7 +452,9 @@ fun TraceabilityDropdown(
                 readOnly = true,
                 placeholder = {
                     Text(
-                        text = "Select $label",
+                        text = placeholder.ifBlank {
+                            "Select ${label.lowercase()}"
+                        },
                         color = BeeftechMutedText
                     )
                 },
@@ -292,7 +479,7 @@ fun TraceabilityDropdown(
                 trailingIcon = {
                     Icon(
                         imageVector = Icons.Outlined.ArrowDropDown,
-                        contentDescription = "Open options",
+                        contentDescription = "Open $label options",
                         tint = BeeftechPrimaryDark
                     )
                 },
@@ -320,22 +507,37 @@ fun TraceabilityDropdown(
                 onDismissRequest = { expanded = false },
                 modifier = Modifier.fillMaxWidth(0.88f)
             ) {
-                options.forEach { option ->
+                if (cleanOptions.isEmpty()) {
                     DropdownMenuItem(
                         text = {
                             Text(
-                                text = option,
-                                color = BeeftechText
+                                text = "No options available",
+                                color = BeeftechMutedText
                             )
                         },
-                        onClick = {
-                            onValueChange(option)
-                            expanded = false
-                        }
+                        onClick = {},
+                        enabled = false
                     )
+                } else {
+                    cleanOptions.forEach { option ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = option,
+                                    color = BeeftechText
+                                )
+                            },
+                            onClick = {
+                                onValueChange(option)
+                                expanded = false
+                            }
+                        )
+                    }
                 }
             }
         }
+
+
     }
 }
 
@@ -345,7 +547,11 @@ fun TraceabilitySearchableDropdown(
     value: String,
     options: List<String>,
     icon: ImageVector,
-    onValueChange: (String) -> Unit
+    onValueChange: (String) -> Unit,
+    placeholder: String = "",
+    helperText: String = "",
+    required: Boolean = false,
+    allowCustomEntry: Boolean = true
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -353,11 +559,19 @@ fun TraceabilitySearchableDropdown(
         mutableStateOf(value)
     }
 
-    val filteredOptions = remember(searchText, options) {
+    val cleanOptions = remember(options) {
+        options
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinctBy { it.lowercase() }
+            .sortedBy { it.lowercase() }
+    }
+
+    val filteredOptions = remember(searchText, cleanOptions) {
         if (searchText.isBlank()) {
-            options
+            cleanOptions
         } else {
-            options.filter { option ->
+            cleanOptions.filter { option ->
                 option.contains(
                     other = searchText,
                     ignoreCase = true
@@ -366,16 +580,25 @@ fun TraceabilitySearchableDropdown(
         }
     }
 
+    val hasExactMatch =
+        cleanOptions.any {
+            it.equals(
+                searchText.trim(),
+                ignoreCase = true
+            )
+        }
+
+    val displayLabel =
+        if (required && !label.trimEnd().endsWith("*")) {
+            "$label *"
+        } else {
+            label
+        }
+
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
-        Text(
-            text = label.uppercase(),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 0.6.sp,
-            color = BeeftechPrimaryDark
-        )
+        TraceabilityHelpLabel(displayLabel, helperText)
 
         Spacer(modifier = Modifier.height(7.dp))
 
@@ -388,15 +611,21 @@ fun TraceabilitySearchableDropdown(
                     searchText = input
                     expanded = true
 
-                    // Keep the actual parent value synchronized with
-                    // exactly what the user types into this field.
-                    onValueChange(input)
+                    if (allowCustomEntry) {
+                        onValueChange(input)
+                    }
                 },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 placeholder = {
                     Text(
-                        text = "Select $label",
+                        text = placeholder.ifBlank {
+                            if (allowCustomEntry) {
+                                "Search, select or enter ${label.lowercase()}"
+                            } else {
+                                "Search or select ${label.lowercase()}"
+                            }
+                        },
                         color = BeeftechMutedText
                     )
                 },
@@ -426,7 +655,7 @@ fun TraceabilitySearchableDropdown(
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.ArrowDropDown,
-                            contentDescription = "Open options",
+                            contentDescription = "Open $label options",
                             tint = BeeftechPrimaryDark
                         )
                     }
@@ -442,13 +671,13 @@ fun TraceabilitySearchableDropdown(
             )
 
             DropdownMenu(
-                expanded = expanded && filteredOptions.isNotEmpty(),
+                expanded = expanded,
                 onDismissRequest = {
                     expanded = false
                 },
                 modifier = Modifier
                     .fillMaxWidth(0.88f)
-                    .heightIn(max = 280.dp)
+                    .heightIn(max = 300.dp)
             ) {
                 filteredOptions.forEach { option ->
                     DropdownMenuItem(
@@ -465,8 +694,48 @@ fun TraceabilitySearchableDropdown(
                         }
                     )
                 }
+
+                if (
+                    allowCustomEntry &&
+                    searchText.isNotBlank() &&
+                    !hasExactMatch
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "Use \"${searchText.trim()}\"",
+                                color = BeeftechPrimaryDark,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        },
+                        onClick = {
+                            val customValue = searchText.trim()
+                            searchText = customValue
+                            onValueChange(customValue)
+                            expanded = false
+                        }
+                    )
+                }
+
+                if (
+                    filteredOptions.isEmpty() &&
+                    !allowCustomEntry
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "No matching options",
+                                color = BeeftechMutedText
+                            )
+                        },
+                        onClick = {},
+                        enabled = false
+                    )
+                }
             }
         }
+
+
     }
 }
 
@@ -481,13 +750,7 @@ fun TraceabilityChoiceSelector(
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
-        Text(
-            text = label.uppercase(),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 0.6.sp,
-            color = BeeftechPrimaryDark
-        )
+        TraceabilityHelpLabel(label = label)
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -573,6 +836,36 @@ fun TraceabilityStatusBadge(
     }
 }
 
+@Composable
+fun TraceabilityFormMessage(
+    message: String
+) {
+    if (message.isBlank()) {
+        return
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = Color(0xFFFFEDEA),
+                shape = RoundedCornerShape(10.dp)
+            )
+            .padding(
+                horizontal = 12.dp,
+                vertical = 10.dp
+            )
+    ) {
+        Text(
+            text = message,
+            fontSize = 12.sp,
+            lineHeight = 17.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color(0xFFB3261E)
+        )
+    }
+}
+
 @Suppress("unused")
 @Composable
 fun TraceabilityReadOnlyField(
@@ -584,12 +877,9 @@ fun TraceabilityReadOnlyField(
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
-        Text(
-            text = label.uppercase(),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 0.6.sp,
-            color = BeeftechPrimaryDark
+        TraceabilityHelpLabel(
+            label = label,
+            helperText = "This value comes from the saved record or is generated automatically. Edit it in its original registration form if needed."
         )
 
         Spacer(modifier = Modifier.height(7.dp))
@@ -668,7 +958,7 @@ fun TraceabilityPrimaryButton(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .height(52.dp),
+            .height(56.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = BeeftechPrimaryDeep,
             contentColor = BeeftechWhite
@@ -701,7 +991,7 @@ fun TraceabilitySecondaryButton(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .height(50.dp),
+            .height(56.dp),
         shape = RoundedCornerShape(11.dp),
         colors = ButtonDefaults.outlinedButtonColors(
             contentColor = BeeftechPrimaryDeep

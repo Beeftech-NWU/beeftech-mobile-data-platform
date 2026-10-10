@@ -1,5 +1,9 @@
 package com.beeftech.farmtraceability.worker
 
+import com.beeftech.database.entity.SyncRunModule
+import com.beeftech.database.entity.SyncRunTrigger
+import com.beeftech.database.repository.SyncRunRepository
+import com.beeftech.database.repository.SyncRunSummary
 import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
@@ -9,6 +13,7 @@ import com.beeftech.database.DatabaseProvider
 import com.beeftech.database.dao.SyncSecurityDao
 import com.beeftech.database.entity.PendingSync
 import com.beeftech.database.repository.PendingSyncRepository
+import com.beeftech.database.security.TokenProvider
 import com.beeftech.database.security.TokenProviderRegistry
 import com.beeftech.farmtraceability.data.TraceabilityEventUpload
 import com.beeftech.farmtraceability.data.TraceabilityOutboxApiClient
@@ -35,6 +40,30 @@ class TraceabilityOutboxWorker(
             TokenProviderRegistry
                 .get()
                 ?: return Result.retry()
+
+        val syncRuns =
+            SyncRunRepository(
+                database.syncRunDao(),
+                database.pendingSyncDao()
+            )
+
+        val trigger =
+            inputData.getString(SyncRunSummary.TRIGGER_INPUT_KEY)
+                ?: SyncRunTrigger.AUTO
+
+        return syncRuns.trackRun(
+            SyncRunModule.TRACEABILITY,
+            SUPPORTED_ENTITY_TYPES.toList(),
+            trigger
+        ) {
+            sendOutbox(database, tokenProvider)
+        }
+    }
+
+    private suspend fun sendOutbox(
+        database: BeefTechDatabase,
+        tokenProvider: TokenProvider
+    ): Result {
 
         val pendingRepository =
             PendingSyncRepository(

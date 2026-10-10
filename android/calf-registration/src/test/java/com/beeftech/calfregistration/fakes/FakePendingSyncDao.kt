@@ -1,6 +1,7 @@
 package com.beeftech.calfregistration.fakes
 
 import com.beeftech.database.dao.PendingSyncDao
+import com.beeftech.database.dao.PendingTypeCount
 import com.beeftech.database.entity.PendingSync
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -95,6 +96,19 @@ class FakePendingSyncDao : PendingSyncDao {
             .sortedBy { it.createdAt }
     }
 
+    override suspend fun countForUserAndTypes(userId: String, entityTypes: List<String>): Int {
+        return items.count { it.userId == userId && it.entityType in entityTypes }
+    }
+
+    override fun observePendingCountsByType(userId: String): Flow<List<PendingTypeCount>> {
+        return flowOf(
+            items.filter { it.userId == userId }
+                .groupingBy { it.entityType }
+                .eachCount()
+                .map { PendingTypeCount(it.key, it.value) }
+        )
+    }
+
     override suspend fun getPendingCountForUser(userId: String): Int {
         return items.count { it.userId == userId }
     }
@@ -107,6 +121,16 @@ class FakePendingSyncDao : PendingSyncDao {
         return flowOf(items.filter { it.userId == userId }.minOfOrNull { it.createdAt })
     }
 
+    override fun observeRetryLimitCountForUser(
+        userId: String,
+        retryLimit: Int
+    ): Flow<Int> =
+        flowOf(
+            items.count {
+                it.userId == userId &&
+                    it.retryCount >= retryLimit
+            }
+        )
     override suspend fun resetRetryCount(id: Long) {
         val index = items.indexOfFirst { it.id == id }
         if (index >= 0) {

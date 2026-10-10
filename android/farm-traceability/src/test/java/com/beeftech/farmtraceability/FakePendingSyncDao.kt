@@ -1,6 +1,7 @@
 package com.beeftech.farmtraceability
 
 import com.beeftech.database.dao.PendingSyncDao
+import com.beeftech.database.dao.PendingTypeCount
 import com.beeftech.database.entity.PendingSync
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -54,6 +55,15 @@ internal class FakePendingSyncDao : PendingSyncDao {
     override suspend fun getByEntityForUser(userId: String, entityType: String, entityId: String) =
         items.filter { it.userId == userId && it.entityType == entityType && it.entityId == entityId }
 
+    override suspend fun countForUserAndTypes(userId: String, entityTypes: List<String>) =
+        items.count { it.userId == userId && it.entityType in entityTypes }
+    override fun observePendingCountsByType(userId: String): Flow<List<PendingTypeCount>> =
+        flowOf(
+            items.filter { it.userId == userId }
+                .groupingBy { it.entityType }
+                .eachCount()
+                .map { PendingTypeCount(it.key, it.value) }
+        )
     override suspend fun getPendingCountForUser(userId: String) = items.count { it.userId == userId }
     override fun observePendingCountForUser(userId: String): Flow<Int> =
         flowOf(items.count { it.userId == userId })
@@ -61,6 +71,16 @@ internal class FakePendingSyncDao : PendingSyncDao {
     override fun observeOldestPendingCreatedAtForUser(userId: String): Flow<Long?> =
         flowOf(items.filter { it.userId == userId }.minOfOrNull { it.createdAt })
 
+    override fun observeRetryLimitCountForUser(
+        userId: String,
+        retryLimit: Int
+    ): Flow<Int> =
+        flowOf(
+            items.count {
+                it.userId == userId &&
+                    it.retryCount >= retryLimit
+            }
+        )
     override suspend fun resetRetryCount(id: Long) {
         val i = items.indexOfFirst { it.id == id }
         if (i >= 0) items[i] = items[i].copy(retryCount = 0)

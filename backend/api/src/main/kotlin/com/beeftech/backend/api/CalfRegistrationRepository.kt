@@ -16,6 +16,12 @@ import org.jetbrains.exposed.sql.update
  * version pinned in this project (0.56.0). `selectAll().where { ... }` is
  * the current, supported replacement.
  */
+/*
+ * photo_path is set only by a real photo upload. The sync payload's photoPath is the
+ * phone's local file path, which means nothing to the server, so it is ignored.
+ */
+data class CalfUpsertResult(val record: CalfRegistrationDto, val created: Boolean)
+
 class CalfRegistrationRepository {
 
     private fun ResultRow.toDto(): CalfRegistrationDto {
@@ -25,6 +31,17 @@ class CalfRegistrationRepository {
             animalUuid = this[CalfRegistrationTable.animalUuid],
             birthdate = this[CalfRegistrationTable.birthdate],
             breed = this[CalfRegistrationTable.breed],
+            gender = this[CalfRegistrationTable.gender],
+            hideColour = this[CalfRegistrationTable.hideColour],
+            brandMark = this[CalfRegistrationTable.brandMark],
+            birthWeightKg = this[CalfRegistrationTable.birthWeightKg],
+            ageClass = this[CalfRegistrationTable.ageClass],
+            bodyCondition = this[CalfRegistrationTable.bodyCondition],
+            conformity = this[CalfRegistrationTable.conformity],
+            oldTagNumber = this[CalfRegistrationTable.oldTagNumber],
+            referenceNumber = this[CalfRegistrationTable.referenceNumber],
+            processProof = this[CalfRegistrationTable.processProof],
+            implantProof = this[CalfRegistrationTable.implantProof],
             damTagNumber = this[CalfRegistrationTable.damTagNumber],
             sireTagNumber = this[CalfRegistrationTable.sireTagNumber],
             damAnimalUuid = this[CalfRegistrationTable.damAnimalUuid],
@@ -45,8 +62,9 @@ class CalfRegistrationRepository {
         dto: CalfRegistrationDto,
         serverSyncedAt: Long,
         submittedBy: String? = null,
-        submitterSiteId: String? = null
-    ): CalfRegistrationDto = newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
+        submitterSiteId: String? = null,
+        scope: RecordScope = RecordScope.User(submittedBy.orEmpty())
+    ): CalfUpsertResult = newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
 
         val existing = CalfRegistrationTable
             .selectAll()
@@ -55,6 +73,35 @@ class CalfRegistrationRepository {
 
         if (existing != null) {
 
+            /*
+             * A caller may only update a record inside their own scope. A legacy row that
+             * predates ownership (no submitter and no site) is claimed by the first caller
+             * to sync it, so devices that registered calves before scoping keep syncing.
+             */
+            val unowned = existing[CalfRegistrationTable.submittedByUserId] == null &&
+                existing[CalfRegistrationTable.siteId] == null
+
+            val inScope = unowned || CalfRegistrationTable
+                .selectAll()
+                .where {
+                    (CalfRegistrationTable.recordguid eq dto.recordguid) and
+                        scope.predicate(CalfRegistrationTable.submittedByUserId, CalfRegistrationTable.siteId)
+                }
+                .any()
+
+            if (!inScope) {
+                throw RecordOwnershipException(
+                    "Record ${dto.recordguid} belongs to another user or site and cannot be overwritten."
+                )
+            }
+
+            if (existing[CalfRegistrationTable.voidedAt] != null ||
+                existing[CalfRegistrationTable.animalUuid] != dto.animalUuid ||
+                (!unowned && existing[CalfRegistrationTable.siteId] != submitterSiteId)
+            ) {
+                throw RecordOwnershipException("Cannot overwrite a voided, reassigned, or mismatched calf record")
+            }
+
             CalfRegistrationTable.update(
                 { CalfRegistrationTable.recordguid eq dto.recordguid }
             ) {
@@ -62,11 +109,21 @@ class CalfRegistrationRepository {
                 it[animalUuid] = dto.animalUuid
                 it[birthdate] = dto.birthdate
                 it[breed] = dto.breed
+                it[gender] = dto.gender
+                it[hideColour] = dto.hideColour
+                it[brandMark] = dto.brandMark
+                it[birthWeightKg] = dto.birthWeightKg
+                it[ageClass] = dto.ageClass
+                it[bodyCondition] = dto.bodyCondition
+                it[conformity] = dto.conformity
+                it[oldTagNumber] = dto.oldTagNumber
+                it[referenceNumber] = dto.referenceNumber
+                it[processProof] = dto.processProof
+                it[implantProof] = dto.implantProof
                 it[damTagNumber] = dto.damTagNumber
                 it[sireTagNumber] = dto.sireTagNumber
                 it[damAnimalUuid] = dto.damAnimalUuid
                 it[sireAnimalUuid] = dto.sireAnimalUuid
-                it[photoPath] = dto.photoPath
                 it[videoPath] = dto.videoPath
                 it[gpsLat] = dto.gpsLat
                 it[gpsLng] = dto.gpsLng
@@ -74,8 +131,10 @@ class CalfRegistrationRepository {
                 it[deviceId] = dto.deviceId
                 it[syncStatus] = "SYNCED"
                 it[syncedAt] = serverSyncedAt
-                it[submittedByUserId] = submittedBy
-                it[siteId] = submitterSiteId
+                if (unowned) {
+                    it[submittedByUserId] = submittedBy
+                    it[siteId] = submitterSiteId
+                }
             }
 
         } else {
@@ -85,11 +144,21 @@ class CalfRegistrationRepository {
                 it[animalUuid] = dto.animalUuid
                 it[birthdate] = dto.birthdate
                 it[breed] = dto.breed
+                it[gender] = dto.gender
+                it[hideColour] = dto.hideColour
+                it[brandMark] = dto.brandMark
+                it[birthWeightKg] = dto.birthWeightKg
+                it[ageClass] = dto.ageClass
+                it[bodyCondition] = dto.bodyCondition
+                it[conformity] = dto.conformity
+                it[oldTagNumber] = dto.oldTagNumber
+                it[referenceNumber] = dto.referenceNumber
+                it[processProof] = dto.processProof
+                it[implantProof] = dto.implantProof
                 it[damTagNumber] = dto.damTagNumber
                 it[sireTagNumber] = dto.sireTagNumber
                 it[damAnimalUuid] = dto.damAnimalUuid
                 it[sireAnimalUuid] = dto.sireAnimalUuid
-                it[photoPath] = dto.photoPath
                 it[videoPath] = dto.videoPath
                 it[gpsLat] = dto.gpsLat
                 it[gpsLng] = dto.gpsLng
@@ -103,9 +172,9 @@ class CalfRegistrationRepository {
             }
         }
 
-        dto.copy(
-            syncStatus = "SYNCED",
-            syncedAt = serverSyncedAt
+        CalfUpsertResult(
+            record = dto.copy(syncStatus = "SYNCED", syncedAt = serverSyncedAt),
+            created = existing == null
         )
     }
 
@@ -134,14 +203,21 @@ class CalfRegistrationRepository {
 
     suspend fun updatePhotoPath(
         tagNumber: String,
-        photoPath: String
+        photoPath: String,
+        scope: RecordScope = RecordScope.All
     ): Boolean = newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
 
         val updatedCount = CalfRegistrationTable.update(
-            { CalfRegistrationTable.tagNumber eq tagNumber }
+            {
+                (CalfRegistrationTable.tagNumber eq tagNumber) and
+                    scope.predicate(CalfRegistrationTable.submittedByUserId, CalfRegistrationTable.siteId, CalfRegistrationTable.voidedAt)
+            }
         ) {
             it[CalfRegistrationTable.photoPath] = photoPath
         }
         updatedCount > 0
     }
 }
+
+/** A sync tried to overwrite a record owned by another user or site. */
+class RecordOwnershipException(message: String) : RuntimeException(message)

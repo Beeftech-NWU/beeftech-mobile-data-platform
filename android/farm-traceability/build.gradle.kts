@@ -36,6 +36,8 @@ dependencies {
 
     // BeefTech encrypted database
     implementation(project(":android:database"))
+    implementation(project(":android:farmer-registration"))
+    implementation(project(":android:calf-registration"))
     implementation(project(":android:tag-scanner"))
 
     // Compose

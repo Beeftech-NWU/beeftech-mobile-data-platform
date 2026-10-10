@@ -75,8 +75,15 @@ class SiteRoutesTest {
 
     private fun JsonObject.str(key: String) = this[key]?.takeIf { it !is JsonNull }?.jsonPrimitive?.content
 
-    private suspend fun HttpClient.createSite(token: String, name: String): HttpResponse =
-        send("POST", "/api/sites", token, """{"name":"$name"}""")
+    private val nextCode = java.util.concurrent.atomic.AtomicInteger(100)
+
+    /* Each call gets its own code unless one is given, so tests that do not care about it never collide. */
+    private suspend fun HttpClient.createSite(
+        token: String,
+        name: String,
+        farmCode: String = "T" + nextCode.incrementAndGet().toString(36).uppercase().padStart(3, '0')
+    ): HttpResponse =
+        send("POST", "/api/sites", token, """{"name":"$name","farmCode":"$farmCode"}""")
 
     private suspend fun HttpClient.siteIdOf(response: HttpResponse) = dataOf(response.bodyAsText()).jsonObject.str("siteId")!!
 
@@ -135,6 +142,95 @@ class SiteRoutesTest {
         assertEquals(HttpStatusCode.Conflict, client.createSite(admin, "dev feedlot").status)
         assertEquals(HttpStatusCode.BadRequest, client.createSite(admin, "   ").status)
         assertEquals(HttpStatusCode.BadRequest, client.createSite(admin, "x".repeat(101)).status)
+    }
+
+    @Test
+    fun `a site needs a unique four character farm code that is stored upper case`() = testApplication {
+        startApp()
+        val client = createClient { }
+        val admin = client.login("admin", "10001")
+
+        val created = client.createSite(admin, "Coded", farmCode = " bf01 ")
+        assertEquals(HttpStatusCode.Created, created.status)
+        assertEquals("BF01", dataOf(created.bodyAsText()).jsonObject.str("farmCode"))
+
+        assertEquals(HttpStatusCode.Conflict, client.createSite(admin, "Other", farmCode = "BF01").status)
+        assertEquals(HttpStatusCode.BadRequest, client.createSite(admin, "Short", farmCode = "BF1").status)
+        assertEquals(HttpStatusCode.BadRequest, client.createSite(admin, "Long", farmCode = "BF012").status)
+        assertEquals(HttpStatusCode.BadRequest, client.createSite(admin, "Symbol", farmCode = "BF-1").status)
+        assertEquals(
+            HttpStatusCode.BadRequest,
+            client.send("POST", "/api/sites", admin, """{"name":"No code"}""").status
+        )
+        assertEquals("S001", client.sites(admin).first { it.str("siteId") == "dev-site-1" }.str("farmCode"))
+    }
+
+    @Test
+    fun `an admin can change a farm code but not to one another site has`() = testApplication {
+        startApp()
+        val client = createClient { }
+        val admin = client.login("admin", "10001")
+        val north = client.siteIdOf(client.createSite(admin, "North", farmCode = "NRTH"))
+
+        assertEquals(HttpStatusCode.Conflict, client.send("PATCH", "/api/sites/$north", admin, """{"farmCode":"S001"}""").status)
+        assertEquals(HttpStatusCode.BadRequest, client.send("PATCH", "/api/sites/$north", admin, """{"farmCode":"no"}""").status)
+        assertEquals(HttpStatusCode.OK, client.send("PATCH", "/api/sites/$north", admin, """{"farmCode":"NRTH"}""").status)
+
+        val changed = client.send("PATCH", "/api/sites/$north", admin, """{"farmCode":"nr02"}""")
+        assertEquals("NR02", dataOf(changed.bodyAsText()).jsonObject.str("farmCode"))
+    }
+
+    @Test
+    fun `a site can have a sales rep email that is checked, changed and removed`() = testApplication {
+        startApp()
+        val client = createClient { }
+        val admin = client.login("admin", "10001")
+
+        val created = client.send(
+            "POST",
+            "/api/sites",
+            admin,
+            """{"name":"Rep Farm","farmCode":"REP1","salesRepEmail":" rep@example.com "}"""
+        )
+        assertEquals(HttpStatusCode.Created, created.status)
+        val site = dataOf(created.bodyAsText()).jsonObject
+        assertEquals("rep@example.com", site.str("salesRepEmail"))
+        val siteId = site.str("siteId")!!
+
+        assertEquals(
+            HttpStatusCode.BadRequest,
+            client.send("POST", "/api/sites", admin, """{"name":"Bad Rep","farmCode":"BAD1","salesRepEmail":"not-an-email"}""").status
+        )
+        assertEquals(
+            HttpStatusCode.BadRequest,
+            client.send("PATCH", "/api/sites/$siteId", admin, """{"salesRepEmail":"a@example.com, b@example.com"}""").status
+        )
+
+        /* Leaving the field out keeps the rep. */
+        val renamed = client.send("PATCH", "/api/sites/$siteId", admin, """{"name":"Rep Farm North"}""")
+        assertEquals("rep@example.com", dataOf(renamed.bodyAsText()).jsonObject.str("salesRepEmail"))
+
+        val changed = client.send("PATCH", "/api/sites/$siteId", admin, """{"salesRepEmail":"north.rep@example.com"}""")
+        assertEquals("north.rep@example.com", dataOf(changed.bodyAsText()).jsonObject.str("salesRepEmail"))
+
+        val removed = client.send("PATCH", "/api/sites/$siteId", admin, """{"salesRepEmail":""}""")
+        assertEquals(HttpStatusCode.OK, removed.status)
+        assertEquals(null, dataOf(removed.bodyAsText()).jsonObject.str("salesRepEmail"))
+
+        assertTrue("rep@example.com->north.rep@example.com" in client.auditRows(admin)[1].str("details")!!)
+    }
+
+    @Test
+    fun `login returns the site's farm code`() = testApplication {
+        startApp()
+        val client = createClient { }
+        val text = client.post("/api/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"username":"jvdm","pin":"30003","device_id":"dev-jvdm"}""")
+        }.bodyAsText()
+
+        val user = Json.parseToJsonElement(text).jsonObject["data"]!!.jsonObject["user"]!!.jsonObject
+        assertEquals("S001", user.str("farm_code"))
     }
 
     @Test

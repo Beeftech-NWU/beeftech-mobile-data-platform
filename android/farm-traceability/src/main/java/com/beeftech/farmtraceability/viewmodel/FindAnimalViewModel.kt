@@ -5,8 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.beeftech.database.dao.CalfRegistrationView
 import com.beeftech.farmtraceability.repository.FindAnimalRepository
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 sealed interface FindAnimalUiState {
@@ -37,6 +40,16 @@ class FindAnimalViewModel(
 
     val uiState: StateFlow<FindAnimalUiState> =
         _uiState.asStateFlow()
+
+    /** Registered animals for the search list; null until the first load completes. */
+    val animals: StateFlow<List<CalfRegistrationView>?> =
+        repository.observeAnimals()
+            .catch { emit(emptyList()) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun selectAnimal(animal: CalfRegistrationView) {
+        _uiState.value = FindAnimalUiState.Found(animal)
+    }
 
     fun findAnimal(animalReference: String) {
 

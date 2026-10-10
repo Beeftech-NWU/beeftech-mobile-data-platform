@@ -20,12 +20,9 @@ dependencyResolutionManagement {
 
 rootProject.name = "beeftech"
 
-
-
-
-
 // Include Android modules
-include(":android:app")
+include(":demoapp")
+include(":android")
 include(":android:authentication")
 include(":android:calf-registration")
 include(":android:database")
@@ -39,4 +36,3 @@ include(":android:tag-scanner")
 include(":backend:api")
 include(":backend:authentication")
 include(":backend:sync")
-include(":demoapp")

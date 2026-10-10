@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.graphics.RectF
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.OptIn
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ExperimentalGetImage
@@ -120,7 +121,7 @@ private fun PermissionDenied(onEnterManually: () -> Unit, onTryAgain: () -> Unit
     }
 }
 
-@ExperimentalGetImage
+@OptIn(ExperimentalGetImage::class)
 @Composable
 private fun ScannerCameraContent(
     onTagScanned: (String) -> Unit,

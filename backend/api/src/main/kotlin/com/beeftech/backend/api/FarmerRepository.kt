@@ -4,10 +4,12 @@ import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.isNull
 
 class FarmerRepository {
 
@@ -117,6 +119,27 @@ class FarmerRepository {
             glnNumber =
                 this[FarmerTable.glnNumber],
 
+            herdCapacity =
+                this[FarmerTable.herdCapacity],
+
+            interestStatus =
+                this[FarmerTable.interestStatus],
+
+            contactName =
+                this[FarmerTable.contactName],
+
+            contactNumber =
+                this[FarmerTable.contactNumber],
+
+            farmSizeHa =
+                this[FarmerTable.farmSizeHa],
+
+            headCount =
+                this[FarmerTable.headCount],
+
+            primaryBreed =
+                this[FarmerTable.primaryBreed],
+
             addresses =
                 addresses,
 
@@ -164,23 +187,72 @@ class FarmerRepository {
                 ?.toFarmerDto()
         }
 
+    /**
+     * Marks the farmer's sales email as sent before sending it. True only for the one caller that
+     * set it, so concurrent syncs of the same farmer cannot both email the rep.
+     */
+    fun claimSalesNotification(
+        farmerId: String,
+        claimedAt: Long
+    ): Boolean =
+        transaction(DatabaseFactory.getDatabase()) {
+            FarmerTable.update(
+                {
+                    (FarmerTable.farmerId eq farmerId) and
+                        FarmerTable.salesNotifiedAt.isNull()
+                }
+            ) {
+                it[salesNotifiedAt] = claimedAt
+            } == 1
+        }
+
+    /* Undoes a claim whose email did not go out, so the next sync tries again. */
+    fun releaseSalesNotification(
+        farmerId: String,
+        claimedAt: Long
+    ) {
+        transaction(DatabaseFactory.getDatabase()) {
+            FarmerTable.update(
+                {
+                    (FarmerTable.farmerId eq farmerId) and
+                        (FarmerTable.salesNotifiedAt eq claimedAt)
+                }
+            ) {
+                it[salesNotifiedAt] = null
+            }
+        }
+    }
+
+    fun salesNotifiedAt(
+        farmerId: String
+    ): Long? =
+        transaction(DatabaseFactory.getDatabase()) {
+            FarmerTable
+                .select(FarmerTable.salesNotifiedAt)
+                .where { FarmerTable.farmerId eq farmerId }
+                .singleOrNull()
+                ?.get(FarmerTable.salesNotifiedAt)
+        }
+
     fun save(
         dto: FarmerDto,
         serverSyncedAt: Long,
         submittedBy: String? = null,
         submitterSiteId: String? = null
-    ) {
-        transaction(DatabaseFactory.getDatabase()) {
-
-            val exists =
-                FarmerTable
-                    .selectAll()
-                    .where {
-                        FarmerTable.farmerId eq dto.farmerId
-                    }
-                    .any()
-
-            if (exists) {
+    ): Boolean = transaction(DatabaseFactory.getDatabase()) {
+            val existing = FarmerTable.selectAll().where {
+                FarmerTable.farmerId eq dto.farmerId
+            }.singleOrNull()
+            if (existing != null) {
+                // Sync retries cannot transfer a record into a different site's ownership.
+                // Legacy site-less records must be reconciled through Admin Records Review.
+                require(existing[FarmerTable.voidedAt] == null &&
+                    existing[FarmerTable.siteId] == submitterSiteId &&
+                    (submitterSiteId != null || existing[FarmerTable.submittedByUserId] == submittedBy)) {
+                    "Farmer record is voided or belongs to another account/site"
+                }
+            }
+            if (existing != null) {
 
                 FarmerTable.update(
                     {
@@ -212,12 +284,7 @@ class FarmerRepository {
                     it[syncedAt] =
                         serverSyncedAt
 
-                    it[submittedByUserId] =
-                        submittedBy
-
-                    it[siteId] =
-                        submitterSiteId
-
+                    // Preserve the original submitter and site on updates.
                     it[coRegIdNo] =
                         dto.coRegIdNo
 
@@ -229,6 +296,27 @@ class FarmerRepository {
 
                     it[glnNumber] =
                         dto.glnNumber
+
+                    it[herdCapacity] =
+                        dto.herdCapacity
+
+                    it[interestStatus] =
+                        dto.interestStatus
+
+                    it[contactName] =
+                        dto.contactName
+
+                    it[contactNumber] =
+                        dto.contactNumber
+
+                    it[farmSizeHa] =
+                        dto.farmSizeHa
+
+                    it[headCount] =
+                        dto.headCount
+
+                    it[primaryBreed] =
+                        dto.primaryBreed
                 }
 
             } else {
@@ -279,6 +367,27 @@ class FarmerRepository {
 
                     it[glnNumber] =
                         dto.glnNumber
+
+                    it[herdCapacity] =
+                        dto.herdCapacity
+
+                    it[interestStatus] =
+                        dto.interestStatus
+
+                    it[contactName] =
+                        dto.contactName
+
+                    it[contactNumber] =
+                        dto.contactNumber
+
+                    it[farmSizeHa] =
+                        dto.farmSizeHa
+
+                    it[headCount] =
+                        dto.headCount
+
+                    it[primaryBreed] =
+                        dto.primaryBreed
                 }
             }
 
@@ -348,6 +457,6 @@ class FarmerRepository {
                         role.roleId
                 }
             }
-        }
+            existing == null
     }
 }

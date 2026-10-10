@@ -20,7 +20,9 @@ data class TreatmentDto(
 @Serializable
 data class TreatmentSyncRequest(
     val deviceId: String,
-    val records: List<TreatmentDto>
+    val records: List<TreatmentDto>,
+    /* [FarmCode]-[Project]-[YYYYMMDD]-[HHMMSS]-[DeviceID]; absent from app versions that predate it. */
+    val batchName: String? = null
 )
 
 @Serializable

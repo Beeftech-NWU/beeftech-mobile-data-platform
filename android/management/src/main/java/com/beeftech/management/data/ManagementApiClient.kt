@@ -16,7 +16,9 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.client.statement.readRawBytes
+import io.ktor.http.ContentDisposition
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
@@ -69,7 +71,7 @@ class ManagementApiClient(
             }
         }
 
-    /* The CSV or PDF as bytes. The name is built here so it doesn't depend on a header. */
+    /* The CSV or PDF as bytes, named as the server names it, or built here if the server sends no name. */
     suspend fun reportFile(
         kind: ReportKind,
         format: ReportFormat,
@@ -82,7 +84,8 @@ class ManagementApiClient(
             decode = { error("unused") },
             readSuccess = { response ->
                 ReportFile(
-                    name = "beeftech-${kind.path}-${fileDate(to)}.${format.extension}",
+                    name = serverFileName(response.headers[HttpHeaders.ContentDisposition])
+                        ?: "beeftech-${kind.path}-${fileDate(to)}.${format.extension}",
                     mimeType = format.mimeType,
                     bytes = response.readRawBytes()
                 )
@@ -173,6 +176,21 @@ class ManagementApiClient(
             httpClient.get("${baseUrl}api/records/$type") {
                 bearerAuth(token)
                 parameter("includeVoided", includeVoided)
+            }
+        }
+
+    /** Admin-only verified legacy assignment, never a silent transfer. */
+    suspend fun assignRecordSite(
+        type: String, id: String, siteId: String, reason: String
+    ): ManagementResult<AssignRecordSiteResult> =
+        call(decode = {
+            JSON.decodeFromString<Envelope<AssignRecordSiteResult>>(it).data
+                ?: error("Missing site assignment result")
+        }) { token ->
+            httpClient.post("${baseUrl}api/records/$type/$id/assign-site") {
+                bearerAuth(token)
+                contentType(ContentType.Application.Json)
+                setBody(AssignRecordSiteBody(siteId, reason))
             }
         }
 
@@ -364,22 +382,31 @@ class ManagementApiClient(
             httpClient.get("${baseUrl}api/sites") { bearerAuth(token) }
         }
 
-    suspend fun createSite(name: String): ManagementResult<Site> =
+    suspend fun createSite(name: String, farmCode: String, salesRepEmail: String? = null): ManagementResult<Site> =
         call(decode = { decodeSite(it) }) { token ->
             httpClient.post("${baseUrl}api/sites") {
                 bearerAuth(token)
                 contentType(ContentType.Application.Json)
-                setBody(CreateSiteBody(name))
+                setBody(CreateSiteBody(name, farmCode, salesRepEmail))
             }
         }
 
-    /* Leave a field null to keep it. Deactivating a site that still has active users is a 409. */
-    suspend fun updateSite(siteId: String, name: String? = null, active: Boolean? = null): ManagementResult<Site> =
+    /*
+     * Leave a field null to keep it, and pass "" as [salesRepEmail] to remove the rep.
+     * Deactivating a site that still has active users is a 409.
+     */
+    suspend fun updateSite(
+        siteId: String,
+        name: String? = null,
+        active: Boolean? = null,
+        farmCode: String? = null,
+        salesRepEmail: String? = null
+    ): ManagementResult<Site> =
         call(decode = { decodeSite(it) }) { token ->
             httpClient.patch("${baseUrl}api/sites/$siteId") {
                 bearerAuth(token)
                 contentType(ContentType.Application.Json)
-                setBody(UpdateSiteBody(name, active))
+                setBody(UpdateSiteBody(name, active, farmCode, salesRepEmail))
             }
         }
 
@@ -416,6 +443,12 @@ class ManagementApiClient(
     private fun decodeDevice(body: String): Device =
         JSON.decodeFromString<Envelope<Device>>(body).data
             ?: error("Missing device in response")
+
+    /* The server names a report [FarmCode]-REPORT-[date]-[time]-SERVER; older servers send no usable name. */
+    private fun serverFileName(contentDisposition: String?): String? =
+        contentDisposition
+            ?.let { runCatching { ContentDisposition.parse(it).parameter(ContentDisposition.Parameters.FileName) }.getOrNull() }
+            ?.takeIf { it.isNotBlank() && "/" !in it && "\\" !in it }
 
     private fun decodeSite(body: String): Site =
         JSON.decodeFromString<Envelope<Site>>(body).data

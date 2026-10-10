@@ -1,5 +1,7 @@
 package com.beeftech.farmtraceability.data
 
+import com.beeftech.database.util.BatchNaming
+import com.beeftech.database.util.ProjectCode
 import com.beeftech.database.BackendConfig
 import com.beeftech.database.entity.Mortality
 import com.beeftech.database.security.TokenProvider
@@ -35,7 +37,9 @@ data class MortalitySyncDto(
 @Serializable
 data class MortalitySyncRequest(
     val deviceId: String,
-    val records: List<MortalitySyncDto>
+    val records: List<MortalitySyncDto>,
+    /* [FarmCode]-[Project]-[YYYYMMDD]-[HHMMSS]-[DeviceID]; null until this device has the farm code. */
+    val batchName: String? = null
 )
 
 @Serializable
@@ -91,7 +95,8 @@ class MortalityApiClient(
                 setBody(
                     MortalitySyncRequest(
                         deviceId = deviceId,
-                        records = records.map { it.toDto(deviceId) }
+                        records = records.map { it.toDto(deviceId) },
+                        batchName = BatchNaming.nameFor(ProjectCode.MORTALITY)
                     )
                 )
             }

@@ -57,7 +57,8 @@ class AuthRepository(
                     username = dto.user.username,
                     role = dto.user.role,
                     deviceId = deviceId,
-                    siteId = dto.user.siteId
+                    siteId = dto.user.siteId,
+                    farmCode = dto.user.farmCode
                 )
 
                 /*

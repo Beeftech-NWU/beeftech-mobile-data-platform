@@ -35,6 +35,10 @@ android {
     }
 }
 
+tasks.withType<Test> {
+    jvmArgs("-XX:+EnableDynamicAgentLoading")
+}
+
 dependencies {
     // BeefTech encrypted database
     implementation(project(":android:database"))

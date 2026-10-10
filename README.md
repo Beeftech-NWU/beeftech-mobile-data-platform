@@ -125,7 +125,7 @@ nothing.
 | `:android:authentication` | library | `com.beeftech.authentication` | `database` | PIN auth, `AuthGate`, `SessionStore` (wired into demoapp) |
 | `:android:tag-scanner` | library | `com.beeftech.tagscanner` | `database` | Tag scanning, colour detection, tag parsing; used by `calf-registration` and `farm-traceability` (transitive for demoapp) |
 | `:backend:api` | JVM app | `com.beeftech.backend.api` | — | Runnable Ktor server |
-| `:android:app`, `:backend:authentication`, `:backend:sync` | — | — | — | Empty placeholders |
+| `:backend:authentication`, `:backend:sync` | — | — | — | Empty placeholders |
 
 ### `:android:database` — the core module
 
@@ -213,9 +213,10 @@ An environment variable wins over the matching `-D` system property.
 | `PORT` | — | `8081` |
 | `BEEFTECH_DB_URL` | `beeftech.db.url` | `jdbc:sqlite:./data/beeftech-backend.db` |
 | `BEEFTECH_SEED_DEV` | `beeftech.seed.dev` | Seed the dev users when `true` |
+| `BEEFTECH_MEDIA_DIR` | `beeftech.media.dir` | Where uploaded calf photos are stored; defaults to a `media` folder next to the SQLite database |
 | `BEEFTECH_JWT_SECRET` | — | Falls back to a dev secret with a warning; always set in production |
 | `BEEFTECH_SMTP_PROVIDER` / `_HOST` / `_PORT` / `_SECURITY` / `_USERNAME` / `_PASSWORD` / `_FROM` | — | SMTP settings for the farmer sales notification email |
-| `BEEFTECH_SALES_REP_EMAIL` | — | Recipient of the farmer sales notification |
+| `BEEFTECH_SALES_REP_EMAIL` | — | Fallback recipient of the farmer sales notification, used when the farmer's site has no sales rep email |
 
 Deployment: the `Dockerfile` (`:backend:api:installDist`) and `render.yaml` deploy the
 backend to Render.
@@ -424,7 +425,8 @@ require an `Authorization: Bearer <jwt>` header.
 | `POST` | `/api/calf-registrations/sync` | Batch upsert of calf registrations by GUID |
 | `GET` | `/api/calf-registrations` | List calf registrations |
 | `GET` | `/api/calf-registrations/{tagNumber}` | Single calf registration |
-| `POST` | `/api/calf-registrations/{tagNumber}/media` | Attach a photo/video |
+| `PUT` | `/api/calf-registrations/{tagNumber}/photo` | Upload the calf's photo (raw JPEG body, max 5 MB; record must be synced and in the caller's scope) |
+| `GET` | `/api/calf-registrations/{tagNumber}/photo` | Download the stored photo |
 | `GET` | `/api/calf-registrations/{tagNumber}/certificate` | Generated birth-certificate PDF (PDFBox) |
 | `POST` | `/api/farmers/sync` | Batch upsert of farmers |
 | `GET` | `/api/farmers` | List farmers |
@@ -447,7 +449,8 @@ require an `Authorization: Bearer <jwt>` header.
 | `POST` | `/api/calf-registrations/sync` | Batch upsert of calf registrations by GUID |
 | `GET` | `/api/calf-registrations` | List calf registrations |
 | `GET` | `/api/calf-registrations/{animalId}` | Single calf registration |
-| `POST` | `/api/calf-registrations/{animalId}/media` | Attach a photo/video |
+| `PUT` | `/api/calf-registrations/{animalId}/photo` | Upload the calf's photo (raw JPEG body, max 5 MB) |
+| `GET` | `/api/calf-registrations/{animalId}/photo` | Download the stored photo |
 | `GET` | `/api/calf-registrations/{animalId}/certificate` | Generated birth-certificate PDF (PDFBox) |
 | `POST` | `/api/feed-crib` | Submit a feed crib reading |
 | `GET` | `/api/feed-crib` | List feed crib readings |

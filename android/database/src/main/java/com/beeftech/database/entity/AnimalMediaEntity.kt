@@ -40,5 +40,12 @@ data class AnimalMediaEntity(
     val createdAt: Long,
 
     @ColumnInfo(name = "record_guid", defaultValue = "''")
-    val recordGuid: String = UUID.randomUUID().toString()
+    val recordGuid: String = UUID.randomUUID().toString(),
+
+    /** PENDING until the file reaches the server, then UPLOADED, or FAILED if the server refused it. */
+    @ColumnInfo(name = "upload_status", defaultValue = "'PENDING'")
+    val uploadStatus: String = "PENDING",
+
+    @ColumnInfo(name = "upload_error")
+    val uploadError: String? = null
 )

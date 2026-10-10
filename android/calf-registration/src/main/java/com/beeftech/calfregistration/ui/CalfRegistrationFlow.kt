@@ -1,23 +1,36 @@
 package com.beeftech.calfregistration.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
 import com.beeftech.calfregistration.viewmodel.CalfRegistrationViewModel
+import kotlinx.coroutines.launch
 
 private enum class CalfFlowStep {
     HOME,
-    TAG_IDENTITY,
-    APPEARANCE_PARENTAGE,
+    STEP_1_TAG,
+    STEP_2_DETAILS,
+    STEP_3_CONDITION,
+    STEP_4_REVIEW,
     REGISTERED_LIST,
     CALF_DETAIL
 }
 
 @Composable
 fun CalfRegistrationFlow(
-    viewModel: CalfRegistrationViewModel
+    viewModel: CalfRegistrationViewModel,
+    onCalfSaved: ((tagNumber: String) -> Unit)? = null,
+    onNavigateHome: (() -> Unit)? = null,
+    onAssignSavedCalf: ((tagNumber: String) -> Unit)? = null
 ) {
     var currentStep by remember {
         mutableStateOf(CalfFlowStep.HOME)
@@ -31,29 +44,23 @@ fun CalfRegistrationFlow(
         mutableStateOf<CalfRegistrationData?>(null)
     }
 
-    var confirmationSuccess by remember {
-        mutableStateOf(false)
-    }
-
     var formData by remember {
         mutableStateOf(CalfRegistrationData())
+    }
+
+    var isSaving by remember {
+        mutableStateOf(false)
     }
 
     val registeredCalves by
         viewModel.registeredCalves.collectAsState()
 
-    // Confirmation dialog state
-    var showConfirmationDialog by remember {
-        mutableStateOf(false)
-    }
+    var savedCalfForAssignment by remember { mutableStateOf<String?>(null) }
+    val parentOptions by
+        viewModel.parentOptions.collectAsState()
 
-    var confirmationTitle by remember {
-        mutableStateOf("")
-    }
-
-    var confirmationMessage by remember {
-        mutableStateOf("")
-    }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     fun createNextCalfForm(): CalfRegistrationData {
         return CalfRegistrationData()
@@ -77,7 +84,6 @@ fun CalfRegistrationFlow(
         navigateBack()
     }
 
-    // loadAll() is a one-shot read, so refresh when the list-bearing screens open.
     LaunchedEffect(currentStep) {
         if (
             currentStep == CalfFlowStep.HOME ||
@@ -87,167 +93,161 @@ fun CalfRegistrationFlow(
         }
     }
 
-    /*
-     * Confirmation shown after the save operation finishes.
-     *
-     * The ViewModel tells us whether the operation completed
-     * successfully and supplies the appropriate online/offline message.
-     */
-    if (showConfirmationDialog) {
+    savedCalfForAssignment?.let { tag ->
         AlertDialog(
-            onDismissRequest = {
-                // Require acknowledgement using the OK button.
-            },
-
-            title = {
-                Text(
-                    text = confirmationTitle
-                )
-            },
-
-            text = {
-                Text(
-                    text = confirmationMessage
-                )
-            },
-
+            onDismissRequest = { savedCalfForAssignment = null },
+            title = { Text("Calf saved successfully") },
+            text = { Text("Would you like to assign calf $tag to a registered farmer now? You can also do this later in Farm Traceability.") },
             confirmButton = {
-                Button(
-                    onClick = {
-                        showConfirmationDialog =
-                            false
-
-                        // On failure keep the form so the user can fix it.
-                        if (confirmationSuccess) {
-                            formData = createNextCalfForm()
-                            navigationHistory.clear()
-                            navigationHistory.add(CalfFlowStep.HOME)
-                            currentStep = CalfFlowStep.REGISTERED_LIST
-                        }
-                    }
-                ) {
-                    Text("OK")
-                }
+                TextButton(onClick = {
+                    savedCalfForAssignment = null
+                    onAssignSavedCalf?.invoke(tag)
+                }) { Text("Assign to farmer") }
+            },
+            dismissButton = {
+                TextButton(onClick = { savedCalfForAssignment = null }) { Text("Not now") }
             }
         )
     }
 
-    when (currentStep) {
-
-        CalfFlowStep.HOME -> {
-            CalfRegistrationHomeScreen(
-                registeredCount = registeredCalves.size,
-                onRegisterCalfClick = {
-                    formData = createNextCalfForm()
-                    navigateTo(CalfFlowStep.TAG_IDENTITY)
-                },
-                onViewRegisteredClick = {
-                    navigateTo(CalfFlowStep.REGISTERED_LIST)
-                }
-            )
-        }
-
-        CalfFlowStep.TAG_IDENTITY -> {
-            TagIdentityScreen(
-                formData = formData,
-                onFormDataChange = { updated -> formData = updated },
-                onCheckTagDuplicate = { tag -> viewModel.isTagRegistered(tag) },
-                onNextClick = { navigateTo(CalfFlowStep.APPEARANCE_PARENTAGE) },
-                onBackClick = { navigateBack() }
-            )
-        }
-
-        CalfFlowStep.APPEARANCE_PARENTAGE -> {
-            AppearanceParentageScreen(
-                formData = formData,
-                onFormDataChange = { updated -> formData = updated },
-                onBackClick = { navigateBack() },
-                onDiscardClick = {
-                    formData = CalfRegistrationData()
-                    navigationHistory.clear()
-                    currentStep = CalfFlowStep.HOME
-                },
-                onSaveAndNextClick = {
-
-                    /*
-                     * Keep the current tag number because the form
-                     * is reset only after the user presses OK.
-                     */
-                    val savedTagNumber =
-                        formData.tagNumber
-
-                    viewModel.saveCalf(
-                        formData
-                    ) { success, message ->
-
-                        confirmationSuccess = success
-
-                        if (success) {
-
-                            confirmationTitle =
-                                "Calf Registered Successfully"
-
-                            confirmationMessage =
-                                if (
-                                    message.contains(
-                                        "synced successfully",
-                                        ignoreCase = true
-                                    )
-                                ) {
-                                    "Calf $savedTagNumber has been saved " +
-                                        "and synced successfully."
-                                } else {
-                                    "Calf $savedTagNumber has been saved " +
-                                        "successfully on this device.\n\n" +
-                                        "It will sync automatically when " +
-                                        "internet is available."
-                                }
-
-                            showConfirmationDialog =
-                                true
-
-                        } else {
-
-                            confirmationTitle =
-                                "Unable to Register Calf"
-
-                            confirmationMessage =
-                                message.ifBlank {
-                                    "The calf registration could not be saved."
-                                }
-
-                            showConfirmationDialog =
-                                true
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { padding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            when (currentStep) {
+                CalfFlowStep.HOME -> {
+                    CalfRegistrationHomeScreen(
+                        registeredCount = registeredCalves.size,
+                        onRegisterCalfClick = {
+                            formData = createNextCalfForm()
+                            navigateTo(CalfFlowStep.STEP_1_TAG)
+                        },
+                        onViewRegisteredClick = {
+                            navigateTo(CalfFlowStep.REGISTERED_LIST)
                         }
+                    )
+                }
+
+                CalfFlowStep.STEP_1_TAG -> {
+                    TagIdentityScreen(
+                        formData = formData,
+                        onFormDataChange = { updated -> formData = updated },
+                        onCheckTagDuplicate = { tag -> viewModel.isTagRegistered(tag) },
+                        onNextClick = {
+                            navigateTo(CalfFlowStep.STEP_2_DETAILS)
+                        },
+                        onBackClick = { navigateBack() }
+                    )
+                }
+
+                CalfFlowStep.STEP_2_DETAILS -> {
+                    CalfDetailsStepScreen(
+                        formData = formData,
+                        onFormDataChange = { updated -> formData = updated },
+                        onNextClick = {
+                            navigateTo(CalfFlowStep.STEP_3_CONDITION)
+                        },
+                        onBackClick = { navigateBack() }
+                    )
+                }
+
+                CalfFlowStep.STEP_3_CONDITION -> {
+                    CalfConditionStepScreen(
+                        formData = formData,
+                        damOptions = parentOptions.dams,
+                        sireOptions = parentOptions.sires,
+                        onFormDataChange = { updated -> formData = updated },
+                        onNextClick = {
+                            navigateTo(CalfFlowStep.STEP_4_REVIEW)
+                        },
+                        onBackClick = { navigateBack() }
+                    )
+                }
+
+                CalfFlowStep.STEP_4_REVIEW -> {
+                    CalfReviewScreen(
+                        formData = formData,
+                        isSaving = isSaving,
+                        onJumpToStep = { stepNumber ->
+                            when (stepNumber) {
+                                1 -> navigateTo(CalfFlowStep.STEP_1_TAG)
+                                2 -> navigateTo(CalfFlowStep.STEP_2_DETAILS)
+                                3 -> navigateTo(CalfFlowStep.STEP_3_CONDITION)
+                            }
+                        },
+                        onSaveCalfClick = {
+                            val savedTagNumber = formData.tagNumber
+                            isSaving = true
+                            viewModel.saveCalf(formData) { success, message ->
+                                isSaving = false
+                                if (success) {
+                                    if (onCalfSaved != null) {
+                                        formData = createNextCalfForm()
+                                        navigationHistory.clear()
+                                        currentStep = CalfFlowStep.HOME
+                                        onCalfSaved(savedTagNumber)
+                                    } else {
+                                        formData = createNextCalfForm()
+                                        navigationHistory.clear()
+                                        currentStep = CalfFlowStep.HOME
+                                        if (onAssignSavedCalf != null) {
+                                            savedCalfForAssignment = savedTagNumber
+                                        } else {
+                                            scope.launch {
+                                                snackbarHostState.showSnackbar("Calf $savedTagNumber saved")
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            message.ifBlank { "Unable to save calf registration" }
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                        onBackClick = { navigateBack() }
+                    )
+                }
+
+                CalfFlowStep.REGISTERED_LIST -> {
+                    CalvesRegisteredScreen(
+                        registeredCalves = registeredCalves,
+                        onSelectCalf = { selected ->
+                            selectedCalf = selected
+                            navigateTo(CalfFlowStep.CALF_DETAIL)
+                        },
+                        onRegisterNewCalfClick = {
+                            formData = createNextCalfForm()
+                            navigateTo(CalfFlowStep.STEP_1_TAG)
+                        },
+                        onBackClick = { navigateBack() }
+                    )
+                }
+
+                CalfFlowStep.CALF_DETAIL -> {
+                    // Re-read from the live list so a retry shows the new status.
+                    val calf = registeredCalves.firstOrNull { it.tagNumber == selectedCalf?.tagNumber }
+                        ?: selectedCalf
+                    if (calf == null) {
+                        LaunchedEffect(Unit) { navigateBack() }
+                    } else {
+                        CalfDetailScreen(
+                            calf = calf,
+                            onBackClick = { navigateBack() },
+                            onRetryClick = {
+                                viewModel.retrySync(retryRejected = true) { _, message ->
+                                    scope.launch { snackbarHostState.showSnackbar(message) }
+                                }
+                            }
+                        )
                     }
                 }
-            )
-        }
-
-        CalfFlowStep.REGISTERED_LIST -> {
-            CalvesRegisteredScreen(
-                registeredCalves = registeredCalves,
-                onSelectCalf = { selected ->
-                    selectedCalf = selected
-                    navigateTo(CalfFlowStep.CALF_DETAIL)
-                },
-                onRegisterNewCalfClick = {
-                    formData = createNextCalfForm()
-                    navigateTo(CalfFlowStep.TAG_IDENTITY)
-                },
-                onBackClick = { navigateBack() }
-            )
-        }
-
-        CalfFlowStep.CALF_DETAIL -> {
-            val calf = selectedCalf
-            if (calf == null) {
-                LaunchedEffect(Unit) { navigateBack() }
-            } else {
-                CalfDetailScreen(
-                    calf = calf,
-                    onBackClick = { navigateBack() }
-                )
             }
         }
     }

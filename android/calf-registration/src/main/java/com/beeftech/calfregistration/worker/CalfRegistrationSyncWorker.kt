@@ -1,5 +1,9 @@
 package com.beeftech.calfregistration.worker
 
+import com.beeftech.database.entity.SyncRunModule
+import com.beeftech.database.entity.SyncRunTrigger
+import com.beeftech.database.repository.SyncRunRepository
+import com.beeftech.database.repository.SyncRunSummary
 import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
@@ -62,6 +66,18 @@ class CalfRegistrationSyncWorker(
                     database.pendingSyncDao()
                 )
 
+            val syncRuns =
+                SyncRunRepository(
+                    database.syncRunDao(),
+                    database.pendingSyncDao()
+                )
+
+            val trigger =
+                inputData.getString(SyncRunSummary.TRIGGER_INPUT_KEY)
+                    ?: SyncRunTrigger.AUTO
+
+            val startedAt = System.currentTimeMillis()
+
             val repository =
                 CalfRegistrationRepository(
                     calfRegistrationDao =
@@ -103,11 +119,43 @@ class CalfRegistrationSyncWorker(
                     .calfRegistrationDao()
                     .getPendingRegistrationViews()
 
+            val firstError =
+                outcome.errorMessagesByTagNumber.values.firstOrNull()
+
+            val waiting = remainingViews.size
+
+            if (
+                SyncRunSummary.worthRecording(
+                    trigger,
+                    outcome.syncedCount + waiting,
+                    waiting,
+                    firstError
+                )
+            ) {
+                val summary =
+                    SyncRunSummary.of(
+                        before = outcome.syncedCount + waiting,
+                        after = waiting,
+                        error = firstError
+                    )
+
+                syncRuns.recordRun(
+                    module = SyncRunModule.CALF,
+                    trigger = trigger,
+                    startedAt = startedAt,
+                    syncedCount = outcome.syncedCount,
+                    failedCount = maxOf(waiting, outcome.errorMessagesByTagNumber.size),
+                    result = summary.result,
+                    message = firstError
+                )
+            }
+
             if (
                 remainingViews.isNotEmpty() ||
                 outcome
                     .errorMessagesByTagNumber
-                    .isNotEmpty()
+                    .isNotEmpty() ||
+                outcome.photosPending > 0
             ) {
 
                 Log.w(

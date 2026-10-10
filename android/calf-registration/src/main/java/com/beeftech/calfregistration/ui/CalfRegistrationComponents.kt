@@ -1,5 +1,6 @@
 package com.beeftech.calfregistration.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -153,12 +155,21 @@ fun CalfTextField(
     icon: ImageVector = Icons.Outlined.EditNote,
     onFocusLost: (() -> Unit)? = null,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
-    keyboardActions: KeyboardActions = KeyboardActions.Default
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+    infoText: String? = null
 ) {
     // onFocusChanged also reports "unfocused" on first composition, so only react after real focus.
     var hadFocus by remember { mutableStateOf(false) }
     Column(modifier = modifier.fillMaxWidth()) {
-        Text(text = label.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.6.sp, color = BeeftechPrimaryDark)
+        if (infoText.isNullOrBlank()) {
+            Text(text = label.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.6.sp, color = BeeftechPrimaryDark)
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(text = label.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.6.sp, color = BeeftechPrimaryDark)
+                Spacer(modifier = Modifier.width(4.dp))
+                CalfBirthHelpIcon(title = label, message = infoText)
+            }
+        }
         Spacer(modifier = Modifier.height(7.dp))
         OutlinedTextField(
             value = value,
@@ -248,7 +259,7 @@ fun CalfPrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Mo
     Button(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.fillMaxWidth().height(52.dp),
+        modifier = modifier.fillMaxWidth().height(56.dp),
         colors = ButtonDefaults.buttonColors(containerColor = BeeftechPrimaryDeep, contentColor = BeeftechWhite),
         shape = RoundedCornerShape(11.dp)
     ) {
@@ -262,7 +273,7 @@ fun CalfPrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Mo
 fun CalfSecondaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     OutlinedButton(
         onClick = onClick,
-        modifier = modifier.fillMaxWidth().height(50.dp),
+        modifier = modifier.fillMaxWidth().height(56.dp),
         shape = RoundedCornerShape(11.dp),
         colors = ButtonDefaults.outlinedButtonColors(contentColor = BeeftechPrimaryDeep)
     ) {
@@ -274,7 +285,7 @@ fun CalfSecondaryButton(text: String, onClick: () -> Unit, modifier: Modifier = 
 fun CalfMenuCard(
     title: String,
     subtitle: String,
-    icon: ImageVector,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit
 ) {
     Card(
@@ -301,5 +312,257 @@ fun CalfMenuCard(
             }
             Text("›", fontSize = 26.sp, fontWeight = FontWeight.Medium, color = BeeftechPrimaryDark)
         }
+    }
+}
+
+/** One compact header for every wizard step: back arrow, "Step N of 4 · title", and the progress bar. */
+@Composable
+fun CalfStepTopBar(
+    step: Int,
+    title: String,
+    onBackClick: (() -> Unit)?,
+    totalSteps: Int = 4
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = BeeftechSurface,
+        shadowElevation = 1.dp
+    ) {
+        Column(modifier = Modifier.padding(start = 4.dp, end = 16.dp, bottom = 4.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (onBackClick != null) {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = "Back",
+                            tint = BeeftechText
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.width(12.dp))
+                }
+                Text(
+                    text = "Step $step of $totalSteps",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = BeeftechPrimaryDark
+                )
+                Text(
+                    text = "  ·  $title",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = BeeftechText
+                )
+            }
+            StepProgress(
+                currentStep = step,
+                totalSteps = totalSteps,
+                modifier = Modifier.padding(start = 12.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun StepProgress(
+    currentStep: Int,
+    totalSteps: Int = 4,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        for (i in 1..totalSteps) {
+            val isActive = i <= currentStep
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(6.dp)
+                    .background(
+                        color = if (isActive) BeeftechPrimary else BeeftechBorder,
+                        shape = RoundedCornerShape(3.dp)
+                    )
+            )
+        }
+    }
+}
+
+@Composable
+fun ReviewRow(
+    label: String,
+    value: String,
+    onChangeClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(BeeftechWhite, RoundedCornerShape(14.dp))
+            .border(1.dp, BeeftechBorder, RoundedCornerShape(14.dp))
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = BeeftechMutedText
+            )
+            Spacer(modifier = Modifier.height(3.dp))
+            Text(
+                text = value.ifEmpty { "Not set" },
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = BeeftechText
+            )
+        }
+
+        TextButton(
+            onClick = onChangeClick,
+            modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+        ) {
+            Text(
+                text = "Change",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = BeeftechPrimary
+            )
+        }
+    }
+}
+
+@Composable
+fun BottomActionDock(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = BeeftechSurface,
+        tonalElevation = 6.dp,
+        border = BorderStroke(1.dp, BeeftechBorder)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .imePadding()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            content = content
+        )
+    }
+}
+
+@Composable
+fun InlineValidationMessage(
+    message: String,
+    isError: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val color = if (isError) Color(0xFF8C1D18) else Color(0xFF17402D)
+    val background = if (isError) Color(0xFFF9DAD7) else Color(0xFFDDEFE4)
+
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = background,
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = if (isError) "⚠" else "✓",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = color
+            )
+            Text(
+                text = message,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = color
+            )
+        }
+    }
+}
+
+@Composable
+fun TagColorCard(
+    colour: com.beeftech.database.util.TagColour,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val bg = when (colour) {
+        com.beeftech.database.util.TagColour.BLUE -> Color(0xFF1D5FB8)
+        com.beeftech.database.util.TagColour.RED -> Color(0xFFC62828)
+        com.beeftech.database.util.TagColour.GREEN -> Color(0xFF2E7D32)
+        com.beeftech.database.util.TagColour.YELLOW -> Color(0xFFE0A800)
+    }
+
+    Column(
+        modifier = modifier
+            .clickable(onClick = onClick)
+            .padding(4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .background(
+                    color = bg,
+                    shape = RoundedCornerShape(
+                        topStart = 10.dp,
+                        topEnd = 10.dp,
+                        bottomStart = 24.dp,
+                        bottomEnd = 24.dp
+                    )
+                )
+                .then(
+                    if (isSelected) {
+                        Modifier.border(
+                            width = 3.dp,
+                            color = BeeftechText,
+                            shape = RoundedCornerShape(
+                                topStart = 10.dp,
+                                topEnd = 10.dp,
+                                bottomStart = 24.dp,
+                                bottomEnd = 24.dp
+                            )
+                        )
+                    } else Modifier
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isSelected) {
+                Text(
+                    text = "✓",
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = colour.name.lowercase().replaceFirstChar { it.uppercase() },
+            fontSize = 13.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+            color = if (isSelected) BeeftechText else BeeftechMutedText
+        )
     }
 }
