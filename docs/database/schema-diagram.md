@@ -1,6 +1,8 @@
 # Room database schema diagram
 
-This diagram shows the `:android:database` schema at **version 38**. It was drawn from
+This diagram shows the `:android:database` schema at **version 38**, except the feed crib section,
+which is updated to **version 47** (drawn from `47.json`: `feed_cribs`, `crib_reading_codes` and
+`feed_crib_entries` replace the old stub tables). The rest was drawn from
 `android/database/schemas/com.beeftech.database.BeefTechDatabase/38.json`, which lists 44 tables.
 
 How to read it:
@@ -258,17 +260,41 @@ erDiagram
 
     %% ---------- Feed crib ----------
     feed_cribs {
-        string id PK
-        string name
+        string crib_number PK
+        string site_id
+        string pen_description
+        string ration
+        string method
+        string description
+        real required_kg
+        int animals_begin
+        int animals_in
+        int animals_out
+        int animals_close
+        real current_adi
+        bool active
+        long updated_at
+        long last_downloaded_at
     }
-    feed_crib_readings {
-        string id PK
-        string cribId FK
+    crib_reading_codes {
+        int code PK
+        string label
+        string description
+        bool active
     }
-    feed_crib_reading_values {
-        string id PK
-        string readingId FK
-        real value
+    feed_crib_entries {
+        string record_guid PK
+        string crib_number "link, no FK"
+        string site_id
+        string reading_date
+        string slot "MORNING, MIDDAY, EVENING"
+        int code "link"
+        real adi
+        string device_id
+        string user_id
+        string origin "LOCAL or SERVER"
+        string sync_error
+        int sync_attempts
     }
 
     %% ---------- Users, devices, auth ----------
@@ -373,9 +399,6 @@ erDiagram
     farmers               ||--o{ farmer_roles     : "CASCADE"
     farmer_business_roles ||--o{ farmer_roles     : "RESTRICT"
 
-    feed_cribs         ||--o{ feed_crib_readings       : "CASCADE"
-    feed_crib_readings ||--o{ feed_crib_reading_values : "CASCADE"
-
     roles        |o--o{ users        : "SET NULL"
     sync_batches ||--o{ sync_backups : "CASCADE"
 
@@ -384,4 +407,6 @@ erDiagram
     users   |o..o{ pending_sync         : "user_id"
     users   |o..o| sync_policy_state    : "user_id"
     users   |o..o{ sync_security_events : "user_id"
+    feed_cribs         ||..o{ feed_crib_entries : "crib_number"
+    crib_reading_codes |o..o{ feed_crib_entries : "code"
 ```
