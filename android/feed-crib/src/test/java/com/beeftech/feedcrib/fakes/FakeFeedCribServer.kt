@@ -29,6 +29,9 @@ class FakeFeedCribServer {
     /** What the server says for a record with no verdict of its own. */
     var defaultVerdict: Pair<String, String?> = "SYNCED" to null
 
+    /** When set, every request waits here before it is answered, like a slow connection. */
+    var gate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
+
     var downloadJson: String = emptyDownload()
 
     val syncRequests = mutableListOf<FeedCribEntrySyncRequest>()
@@ -39,6 +42,7 @@ class FakeFeedCribServer {
     fun client(): FeedCribApiClient {
         val engine = MockEngine { request ->
             if (offline) throw java.io.IOException("No signal")
+            gate?.await()
 
             when {
                 request.method == HttpMethod.Post && request.url.encodedPath.endsWith("/api/feed-crib-entries/sync") -> {

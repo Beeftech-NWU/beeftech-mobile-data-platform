@@ -110,6 +110,11 @@ class FeedCribViewModel(
             }
         }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
+    private val _saving = MutableStateFlow(false)
+
+    /** True from the Save tap until the reading is stored and its first send attempt is over. */
+    val saving: StateFlow<Boolean> = _saving.asStateFlow()
+
     private val _refreshing = MutableStateFlow(false)
     val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
 
@@ -172,6 +177,12 @@ class FeedCribViewModel(
         val cribNumber = selectedCribNumber.value
         val currentDraft = draft.value
 
+        /*
+         * The first send attempt can take seconds when the phone is offline, and the crib stays open
+         * until it ends. A second tap in that time must not store the same reading twice.
+         */
+        if (_saving.value) return
+
         if (cribNumber == null) {
             onResult(false, "Open a crib first.")
             return
@@ -182,8 +193,14 @@ class FeedCribViewModel(
             return
         }
 
+        _saving.value = true
+
         viewModelScope.launch {
-            val outcome = repository.saveEntry(cribNumber, currentDraft.code, currentDraft.adi)
+            val outcome = try {
+                repository.saveEntry(cribNumber, currentDraft.code, currentDraft.adi)
+            } finally {
+                _saving.value = false
+            }
 
             (outcome.validationError ?: outcome.saveError)?.let {
                 onResult(false, it)
