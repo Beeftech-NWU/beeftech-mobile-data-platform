@@ -6,6 +6,9 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import java.util.UUID
+import org.slf4j.LoggerFactory
+
+private val log = LoggerFactory.getLogger("com.beeftech.backend.api.auth.DevUserSeeder")
 
 object DevUserSeeder {
 
@@ -13,7 +16,7 @@ object DevUserSeeder {
     private const val DEV_SITE_NAME = "Dev Feedlot"
 
     suspend fun seed(userRepository: UserRepository) {
-        println("Seeding dev users...")
+        log.info("Seeding dev users...")
 
         seedDevSite()
 
@@ -33,7 +36,7 @@ object DevUserSeeder {
                     role = user.role,
                     siteId = user.siteId
                 )
-                println("Seeded user: ${user.username}")
+                log.info("Seeded user: {}", user.username)
             } else if (existing.siteId != user.siteId) {
                 /* A dev DB seeded before sites existed: attach the dev users to the dev site. */
                 userRepository.updateSite(existing.userId, user.siteId)

@@ -15,6 +15,9 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.sql.update
+import org.slf4j.LoggerFactory
+
+private val log = LoggerFactory.getLogger("com.beeftech.backend.api.SyncUploadLog")
 
 /**
  * One row per sync upload, named by the phone as [FarmCode]-[Project]-[YYYYMMDD]-[HHMMSS]-[DeviceID].
@@ -110,7 +113,7 @@ object SyncUploadLog {
                 }
             }
         } catch (exception: Exception) {
-            System.err.println("Could not log sync upload ${batchName ?: "(no batch name)"}: ${exception.message}")
+            log.warn("Could not log sync upload {}: {}", batchName ?: "(no batch name)", exception.message)
         }
     }
 

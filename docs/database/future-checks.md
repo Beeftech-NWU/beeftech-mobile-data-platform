@@ -328,6 +328,31 @@ Last revised 2026-10-09 on `feature/farmer-sales-email` (PR #121).
     timed out and the WorkManager retry succeeded about 20 s later. Not covered: the Processing pill (97), the
     management Sites dialogs, and a site with no rep (covered by `SmtpFarmerSalesNotificationConfigTest`).
 
+## Found during the pre-deployment cleanup (2026-10-10)
+
+100. **Feature modules and `:demoapp` call DAOs directly.** About 45 main-source files bypass the repositories
+     in `:android:database`. The worst are `demoapp/.../MainActivity.kt` (about 20 DAOs),
+     `farm-traceability/.../ui/FarmTraceabilityFlow.kt`, `management/.../ui/RecordsReviewScreen.kt`, the
+     `farmer-registration` screens and every sync worker. Several repositories also live inside feature modules
+     (`calf-registration/data`, `feed-crib/data`, `authentication/data`, `farm-traceability/data` and
+     `farm-traceability/repository`) instead of in `:android:database`. Move them and route the UI, ViewModels
+     and workers through them, one module per PR.
+101. **Kotlin and KSP are on 2.0.21 / 1.0.28.** `feed-crib/build.gradle.kts` notes that Room DAO metadata
+     compiled at Kotlin 2.1 breaks its lint. Bump Kotlin and KSP together rather than excluding test sources.
+102. **Duplicated sync code.** On the backend, `MortalityRoutes`/`CostRoutes` and `MortalityService`/`CostService`
+     are the same code under different names, and Treatment and AnimalMovement follow the same pattern. On Android
+     the same is true of `MortalitySyncWorker`/`CostSyncWorker` and `MortalityApiClient`/`CostApiClient`, and
+     there are 14 separate `HttpClient(...)` setups. Merge them behind one generic implementation.
+103. **`RoleSeed.kt:19` crashes on a role id outside 1/2/3.** Decide how an unknown role should be handled.
+104. **Backend endpoints the app never calls.** About 15 authenticated routes have no Android caller: the `GET`
+     list and by-id routes for farmers, mortalities, costs, animal movements, treatments and calf registrations,
+     the calf certificate PDF, `/api/profile`, the `/api/farm-traceability` placeholder and the registration
+     receipt resend. Keep or remove each one on purpose.
+105. **Unused DAOs and tables.** `roleDao`, `identifierTypeDao`, `penDao`, `animalGroupDao`,
+     `animalGroupMembershipDao`, `locationDao`, `animalIdentifierDao`, `animalOwnershipDao` and all the lookup
+     DAOs in `LookupDaos.kt` have no main-code callers. Removing them changes the schema, so it needs a
+     migration. Don't remove them without one.
+
 ## By design (no action, kept for reference)
 
 51. **Site ids are server-generated (`site-<8 hex>`), and a site's name is not a key.** Rename is safe; an

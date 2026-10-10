@@ -34,5 +34,3 @@ include(":android:tag-scanner")
 
 // Include Backend modules
 include(":backend:api")
-include(":backend:authentication")
-include(":backend:sync")

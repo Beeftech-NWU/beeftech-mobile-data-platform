@@ -7,11 +7,7 @@ enum class ReportType(val path: String, val title: String) {
     TREATMENT_COST("treatment-cost", "Treatment cost report"),
     COST_PER_ANIMAL("cost-per-animal", "Cost per animal report"),
     CALF_REGISTRATIONS("calf-registrations", "Calf registrations report"),
-    WORKER_PRODUCTIVITY("worker-productivity", "Worker productivity report");
-
-    companion object {
-        fun fromPath(path: String?): ReportType? = entries.firstOrNull { it.path == path }
-    }
+    WORKER_PRODUCTIVITY("worker-productivity", "Worker productivity report")
 }
 
 @Serializable

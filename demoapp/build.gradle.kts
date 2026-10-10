@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -47,9 +49,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
 
     buildFeatures {
         buildConfig = true
@@ -64,6 +63,12 @@ android {
     }
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
+    }
+}
+
 dependencies {
 
     // BeefTech modules
@@ -75,38 +80,35 @@ dependencies {
     implementation(project(":android:authentication"))
     implementation(project(":android:management"))
 
-    // Ktor client
-    implementation("io.ktor:ktor-client-core:3.0.3")
-
-    // Room
-    implementation("androidx.room:room-runtime:2.8.4")
+    // Ktor client (HttpClient is passed to the feature modules' sync clients)
+    implementation(libs.ktor.client.core)
 
     // Compose BOM
-    implementation(platform("androidx.compose:compose-bom:2024.02.00"))
+    implementation(platform(libs.androidx.compose.bom))
 
     // Android / Activity
-    implementation("androidx.activity:activity-compose:1.9.0")
-    implementation("androidx.core:core-ktx:1.13.1")
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.core.ktx)
 
     // WorkManager - centralized scheduled synchronization
-    implementation("androidx.work:work-runtime-ktx:2.9.1")
+    implementation(libs.androidx.work.runtime.ktx)
 
     // Lifecycle / ViewModel
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.4")
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
 
     // Compose
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.ui:ui-graphics")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.material:material-icons-extended")
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.ui.graphics)
+    implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material.icons.extended)
 
     // Debug
-    debugImplementation("androidx.compose.ui:ui-tooling")
+    debugImplementation(libs.androidx.compose.ui.tooling)
 
     // Unit tests
-    testImplementation("junit:junit:4.13.2")
+    testImplementation(libs.junit)
 
     // Instrumented tests
     androidTestImplementation(libs.androidx.junit)

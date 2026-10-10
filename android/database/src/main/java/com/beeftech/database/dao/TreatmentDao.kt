@@ -167,18 +167,4 @@ interface TreatmentDao {
         """
     )
     suspend fun getPendingCount(): Int
-
-    /*
-     * Calculates the total treatment cost for one animal.
-     */
-    @Query(
-        """
-        SELECT COALESCE(SUM(cost), 0.0)
-        FROM treatments
-        WHERE animalId = :animalId
-        """
-    )
-    suspend fun getTotalCostByAnimalId(
-        animalId: String
-    ): Double
 }

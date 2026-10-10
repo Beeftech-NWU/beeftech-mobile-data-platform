@@ -5,8 +5,7 @@ livestock traceability and farm data capture for field operations with limited o
 connectivity, plus a Kotlin/Ktor backend that field devices sync into.
 
 This repository is a single Gradle build containing **eight Android library modules**,
-one installable **demo app** that wires them together, and a **Ktor backend**
-(plus two empty backend placeholder modules).
+one installable **demo app** that wires them together, and a **Ktor backend**.
 
 ---
 
@@ -110,9 +109,7 @@ beeftech-mobile-data-platform/
 ```
 
 **Only `:demoapp` is an Android application.** Everything under `android/` is a library
-module. `backend/authentication` and `backend/sync` are empty `.gitkeep` placeholders
-declared in `settings.gradle.kts` — they configure but build nothing.
-`docs/architecture/` and `docs/testing/` are still empty.
+module. `docs/architecture/` and `docs/testing/` are still empty.
 
 For a fuller guide to the architecture, sync, security, testing and common changes, see the
 [Developer Manual](docs/developer-manual/BeefTech-Developer-Manual.pdf). Rebuild it with
@@ -140,7 +137,6 @@ For a fuller guide to the architecture, sync, security, testing and common chang
 | `:android:management` | library | `com.beeftech.management` | `database` | Online-only manager/admin screens over `ManagementApiClient` |
 | `:android:tag-scanner` | library | `com.beeftech.tagscanner` | `database` | Ear-tag scanner screen/dialog, text parser, colour classifier |
 | `:backend:api` | JVM app | `com.beeftech.backend.api` | — | Runnable Ktor server |
-| `:backend:authentication`, `:backend:sync` | — | — | — | Empty placeholders |
 
 ### `:android:database` — the core module
 
@@ -156,8 +152,7 @@ Everything persistent lives here:
   identifier types, reference items, device config); sync bookkeeping (pending sync,
   batches, backups, runs, policy state, security events)
 - `dao/` — 37 DAOs (most one per file; the lookup DAOs share `LookupDaos.kt`)
-- `repository/` — `AnimalHistoryRepository`, `AnimalManagementRepository`,
-  `FarmerRepository`, `LocationRepository`,
+- `repository/` — `FarmerRepository`,
   `PendingSyncRepository`, `SyncRepository`, `SyncRunRepository`, `SyncRunSummary`,
   `SyncPolicyEnforcer`, `SyncPolicyStore`, `SyncWarningPolicy`
 - `security/` — `AndroidKeyStoreSecurityProvider`, `DatabaseKeyProvider`,
@@ -424,14 +419,14 @@ admin clears the lock (`POST /api/users/{id}/clear-sync-lock`) — the day is fi
 | `./gradlew :android:calf-registration:testDebugUnitTest` | Repository, mapper, ViewModel, API client, image and tag-naming tests | No |
 | `./gradlew lintDebug` | Android Lint (a CI job) | No |
 | `./gradlew connectedAndroidTest` | All instrumented tests | **Yes** |
-| `./gradlew :android:database:connectedAndroidTest` | SQLCipher, keystore, DAO, sync and migration tests (50 files) | **Yes** |
+| `./gradlew :android:database:connectedAndroidTest` | SQLCipher, keystore, DAO, sync and migration tests (54 files) | **Yes** |
 | `./gradlew :android:tag-scanner:connectedAndroidTest` | Ear-tag recognition over sample images | **Yes** |
 
 Where the tests live:
 
 ```text
 src/test/        → JVM unit tests: every Android module, plus demoapp
-                   and backend/api (~37 classes)
+                   and backend/api (~110 classes)
 src/androidTest/ → instrumented tests: database (the real suite), tag-scanner (sample
                    images), authentication (unused biometric manager), and template
                    tests in farmer-registration and demoapp
@@ -742,8 +737,7 @@ backend database.
 
 ## Known gaps
 
-- `backend/authentication` and `backend/sync` are empty placeholders;
-  `docs/architecture/` and `docs/testing/` are empty.
+- `docs/architecture/` and `docs/testing/` are empty.
 - CI runs (see [Testing](#testing)), but no job is a required check yet.
 - `:backend:api:test` is flaky: a different single test fails on each run, probably
   because tests share state (N5 in `docs/database/future-checks.md`). Re-run before
@@ -756,9 +750,9 @@ backend database.
   dev users.
 - The login response includes the user's `pin_hash` (used for offline login).
 - The biometric prompt code in `:android:authentication` is not used by the app.
-- `backend/api/requests.http` is stale (sends `password`, calls `/api/auth/register`).
-- Some `docs/database/*.md` files cite an `AGENT.md` that does not exist; the database
-  rules are summarised in [Database & migrations](#database--migrations).
+- Some `docs/database/*.md` files cite an `AGENT.md` and an `Instructions.md` that were
+  never committed; the database rules are in
+  [docs/database/database-rules.md](docs/database/database-rules.md).
 - Demo credentials, the JWT fallback secret and the demo SQLCipher passphrase are
   hard-coded for development.
 - Stale standalone Gradle files remain under `android/`.
