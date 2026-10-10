@@ -6,7 +6,10 @@ import com.beeftech.backend.api.auth.LoginEventsTable
 import com.beeftech.backend.api.auth.SitesSchemaMigration
 import com.beeftech.backend.api.auth.SitesTable
 import com.beeftech.backend.api.auth.UsersSchemaMigration
-import com.beeftech.backend.api.feedcrib.FeedCribTable
+import com.beeftech.backend.api.feedcrib.CribReadingCodesTable
+import com.beeftech.backend.api.feedcrib.FeedCribEntriesTable
+import com.beeftech.backend.api.feedcrib.FeedCribSeeder
+import com.beeftech.backend.api.feedcrib.FeedCribsTable
 import com.beeftech.backend.api.auth.UsersTable
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
@@ -62,7 +65,9 @@ object DatabaseFactory {
                 FarmerRoleTable,
                 UsersTable,
                 SitesTable,
-                FeedCribTable,
+                FeedCribsTable,
+                CribReadingCodesTable,
+                FeedCribEntriesTable,
                 MortalityTable,
                 CostTable,
                 AuditLogTable,
@@ -81,6 +86,7 @@ object DatabaseFactory {
          * after the reference tables exist.
          */
         ReferenceDataSeeder.seed()
+        FeedCribSeeder.seedCodes()
 
         return database
     }

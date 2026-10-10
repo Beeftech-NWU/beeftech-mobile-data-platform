@@ -2,9 +2,6 @@ package com.beeftech.backend.api
 
 import com.beeftech.backend.api.auth.PinHasher
 import com.beeftech.backend.api.auth.UserRepository
-import com.beeftech.backend.api.feedcrib.FeedCribRepository
-import com.beeftech.backend.api.feedcrib.FeedCribRequest
-import com.beeftech.backend.api.feedcrib.FeedCribService
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.header
@@ -16,7 +13,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -119,46 +115,5 @@ class SyncGapsRoutesTest {
 
         assertEquals(HttpStatusCode.Unauthorized, client.get("/api/animal-movements").status)
         assertEquals(HttpStatusCode.Unauthorized, client.get("/api/animal-movements/A-1").status)
-    }
-
-    @Test
-    fun `feed crib readings are stored in the database and survive a restart`() {
-        val url = newDbUrl()
-        System.setProperty("beeftech.db.url", url)
-
-        DatabaseFactory.init(url)
-        runBlocking {
-            FeedCribService(FeedCribRepository()).saveReading(
-                FeedCribRequest("Pen A", 1.5, "ok", "ok", "ok", 100),
-                submittedByUserId = "u1",
-                siteId = "s1"
-            )
-        }
-
-        /* A fresh connection and service, as after a backend restart. */
-        DatabaseFactory.init(url)
-        val readings = runBlocking { FeedCribService(FeedCribRepository()).getAll() }
-
-        assertEquals(listOf("Pen A"), readings.map { it.penName })
-        assertEquals(1.5, readings.single().adiValue, 0.0)
-    }
-
-    @Test
-    fun `feed crib filters by pen name ignoring case and keeps scope`() {
-        val url = newDbUrl()
-        DatabaseFactory.init(url)
-        val service = FeedCribService(FeedCribRepository())
-
-        runBlocking {
-            service.saveReading(FeedCribRequest("Pen A", 1.0, "a", "a", "a", 1), "u1", "s1")
-            service.saveReading(FeedCribRequest("Pen B", 2.0, "b", "b", "b", 2), "u1", "s1")
-            service.saveReading(FeedCribRequest("pen a", 3.0, "c", "c", "c", 3), "u2", "s2")
-
-            assertEquals(listOf(1.0, 3.0), service.getByPenName("PEN A").map { it.adiValue })
-            assertEquals(listOf(1.0), service.getByPenName("pen a", RecordScope.Site("s1")).map { it.adiValue })
-            assertEquals(listOf(3.0), service.getByPenName("pen a", RecordScope.User("u2")).map { it.adiValue })
-            assertTrue(service.getAll(RecordScope.Site(null)).isEmpty())
-            assertFalse(service.getAll(RecordScope.All).isEmpty())
-        }
     }
 }

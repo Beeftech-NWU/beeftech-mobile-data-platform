@@ -220,27 +220,6 @@ class RecordScopeRoutesTest {
     }
 
     @Test
-    fun `feed crib list is scoped to the submitter`() = testApplication {
-        startApp()
-        val client = createClient { }
-        client.insertOtherSiteWorker()
-
-        val worker = client.login("jvdm", "30003")
-        val other = client.login("other", "40004")
-        val admin = client.login("admin", "10001")
-
-        client.post("/api/feed-crib") {
-            header("Authorization", "Bearer $worker")
-            contentType(ContentType.Application.Json)
-            setBody("""{"penName":"PenMine","adiValue":1.0,"morning":"a","midDay":"b","evening":"c","timestamp":1}""")
-        }
-
-        assertTrue("PenMine" in client.get("/api/feed-crib") { header("Authorization", "Bearer $worker") }.bodyAsText())
-        assertFalse("PenMine" in client.get("/api/feed-crib") { header("Authorization", "Bearer $other") }.bodyAsText())
-        assertTrue("PenMine" in client.get("/api/feed-crib") { header("Authorization", "Bearer $admin") }.bodyAsText())
-    }
-
-    @Test
     fun `requireRole returns 403 for a worker and allows a manager`() = testApplication {
         startApp()
         val client = createClient { }

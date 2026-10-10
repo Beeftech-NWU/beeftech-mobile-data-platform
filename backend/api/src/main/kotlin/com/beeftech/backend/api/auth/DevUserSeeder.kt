@@ -9,7 +9,7 @@ import java.util.UUID
 
 object DevUserSeeder {
 
-    private const val DEV_SITE_ID = "dev-site-1"
+    const val DEV_SITE_ID = "dev-site-1"
     private const val DEV_SITE_NAME = "Dev Feedlot"
 
     suspend fun seed(userRepository: UserRepository) {

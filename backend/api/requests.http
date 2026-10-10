@@ -65,23 +65,33 @@ Authorization: Bearer {{token}}
 #Feed Crib Tests
 #################################################
 
-POST {{host}}/api/feed-crib
+GET {{host}}/api/feed-cribs
+Authorization: Bearer {{token}}
+
+###
+# Admins have no site, so add ?siteId=dev-site-1. ?days=3 is the default (max 14).
+GET {{host}}/api/feed-cribs?siteId=dev-site-1&days=3
+Authorization: Bearer {{token}}
+
+###
+# slot: MORNING | MIDDAY | EVENING. code: 0-5, or null for an ADI-only change.
+# Sending the same recordguid again updates the entry, it never duplicates.
+POST {{host}}/api/feed-crib-entries/sync
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-  "penName": "A06",
-  "adiValue": 11.06,
-  "morning": "123",
-  "midDay": "",
-  "evening": "",
-  "timestamp": 1726500000000
+  "deviceId": "MOB_DEV_a1b2c3d4",
+  "records": [
+    {
+      "recordguid": "11111111-2222-3333-4444-555555555555",
+      "cribNumber": "A06",
+      "readingDate": "2026-10-10",
+      "slot": "MIDDAY",
+      "code": 3,
+      "adi": 11.1,
+      "capturedAt": 1791634800000,
+      "deviceId": "MOB_DEV_a1b2c3d4"
+    }
+  ]
 }
-
-###
-GET {{host}}/api/feed-crib
-Authorization: Bearer {{token}}
-
-###
-GET {{host}}/api/feed-crib/A06
-Authorization: Bearer {{token}}
