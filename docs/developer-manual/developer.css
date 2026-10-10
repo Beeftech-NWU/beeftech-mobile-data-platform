@@ -1,0 +1,80 @@
+/*
+ * BeefTech developer manual — additions on top of ../user-manual/manual.css, which holds the
+ * shared brand (colours, page frame, headings, callouts, tables). Only what the developer
+ * manual needs on top of that lives here.
+ */
+
+@page {
+  @top-right { content: "Developer Manual"; }
+  @bottom-left { content: "BeefTech Mobile Data Collection Platform · Developer Manual v1.0"; }
+}
+
+/* Inline code reads as code here, not as a UI label. */
+code { white-space: normal; overflow-wrap: anywhere; }
+
+/* Code and command blocks */
+pre {
+  font-family: "JetBrains Mono", "DejaVu Sans Mono", monospace;
+  font-size: 8.2pt;
+  line-height: 1.45;
+  background: #1F2823;
+  color: #E3E8E2;
+  border-radius: 2mm;
+  padding: 3mm 4mm;
+  margin: 2mm 0 4mm;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  break-inside: avoid;
+}
+pre code { background: none; color: inherit; padding: 0; font-size: inherit; white-space: inherit; }
+pre .c { color: #9FB0A4; }          /* comment */
+pre .k { color: #F2D58A; }          /* keyword / command */
+pre.tree { background: var(--soft); color: var(--text); border: 0.3mm solid var(--border); }
+pre.tree .c { color: var(--muted); }
+
+/* Diagrams */
+figure.diagram { margin: 3mm 0 5mm; break-inside: avoid; text-align: center; }
+figure.diagram svg { width: 100%; height: auto; }
+figure.diagram figcaption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
+
+/* Checklists */
+ol.check { list-style: none; padding-left: 0; counter-reset: chk; }
+ol.check > li {
+  counter-increment: chk;
+  position: relative;
+  padding-left: 9mm;
+  margin-bottom: 1.8mm;
+}
+ol.check > li::before {
+  content: counter(chk);
+  position: absolute;
+  left: 0; top: 0.1mm;
+  width: 5.8mm; height: 5.8mm;
+  border: 0.4mm solid var(--primary);
+  border-radius: 1.2mm;
+  color: var(--primary-strong);
+  font-size: 8pt;
+  font-weight: 700;
+  text-align: center;
+  line-height: 5.2mm;
+}
+.where { font-size: 8pt; color: var(--muted); display: block; }
+
+/* Path / file column in tables */
+td.path, td code { white-space: normal; }
+table.api td:first-child { width: 22mm; }
+table.api td:first-child code { white-space: nowrap; }
+table.api td:nth-child(3) { white-space: nowrap; }
+
+/* Two-column card grid for module summaries */
+.cards { display: grid; grid-template-columns: 1fr 1fr; gap: 3.5mm; margin: 3mm 0 5mm; }
+.card {
+  border: 0.3mm solid var(--border);
+  border-radius: 2.5mm;
+  padding: 3mm 3.5mm;
+  background: var(--soft);
+  break-inside: avoid;
+}
+.card h4 { margin: 0 0 1mm; font-size: 10pt; }
+.card .path { font-family: "JetBrains Mono", "DejaVu Sans Mono", monospace; font-size: 7.5pt; color: var(--muted); display: block; margin-bottom: 1.5mm; }
+.card p { font-size: 8.8pt; margin: 0; }

@@ -1,0 +1,1072 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BeefTech Developer Manual</title>
+<link rel="stylesheet" href="../user-manual/manual.css">
+<link rel="stylesheet" href="developer.css">
+</head>
+<body>
+
+<!-- ============================ CONTENTS ============================ -->
+<section class="toc">
+  <h1>Contents</h1>
+  <ol>
+    <li><a href="#intro">1. Introduction</a><span class="audience">Everyone</span>
+      <ol>
+        <li><a href="#intro-what">What you are working on</a></li>
+        <li><a href="#intro-glance">The system at a glance</a></li>
+        <li><a href="#intro-repo">Repository map</a></li>
+        <li><a href="#intro-conventions">How to read this manual</a></li>
+      </ol>
+    </li>
+    <li><a href="#setup">2. Getting set up</a><span class="audience">Everyone</span>
+      <ol>
+        <li><a href="#setup-prereq">Prerequisites</a></li>
+        <li><a href="#setup-first">First build</a></li>
+        <li><a href="#setup-backend">Running the backend</a></li>
+        <li><a href="#setup-app">Running the app</a></li>
+        <li><a href="#setup-device">Using a physical phone</a></li>
+        <li><a href="#setup-accounts">Development accounts</a></li>
+      </ol>
+    </li>
+    <li><a href="#arch">3. Architecture</a><span class="audience">Everyone</span>
+      <ol>
+        <li><a href="#arch-overview">The big picture</a></li>
+        <li><a href="#arch-modules">Modules and dependencies</a></li>
+        <li><a href="#arch-layers">Layers inside a feature</a></li>
+        <li><a href="#arch-startup">App start-up</a></li>
+        <li><a href="#arch-nav">Navigation and roles</a></li>
+      </ol>
+    </li>
+    <li><a href="#db">4. The local database</a><span class="audience">Android</span>
+      <ol>
+        <li><a href="#db-stack">Room and SQLCipher</a></li>
+        <li><a href="#db-layout">Where things live</a></li>
+        <li><a href="#db-rules">The non-negotiable rules</a></li>
+        <li><a href="#db-change">Changing the schema</a></li>
+        <li><a href="#db-test">Testing a migration</a></li>
+      </ol>
+    </li>
+    <li><a href="#sync">5. Offline storage and sync</a><span class="audience">Android · Backend</span>
+      <ol>
+        <li><a href="#sync-life">Life of a record</a></li>
+        <li><a href="#sync-queue">The pending_sync queue</a></li>
+        <li><a href="#sync-workers">Workers and the dispatcher</a></li>
+        <li><a href="#sync-batch">Batch names</a></li>
+        <li><a href="#sync-server">What the server does with a batch</a></li>
+        <li><a href="#sync-policy">The 7-day policy</a></li>
+        <li><a href="#sync-checkin">Device check-in</a></li>
+      </ol>
+    </li>
+    <li><a href="#auth">6. Authentication and security</a><span class="audience">Android · Backend</span>
+      <ol>
+        <li><a href="#auth-login">Online sign-in</a></li>
+        <li><a href="#auth-offline">Offline sign-in</a></li>
+        <li><a href="#auth-session">Sessions and tokens on the phone</a></li>
+        <li><a href="#auth-server">Checking a request on the server</a></li>
+        <li><a href="#auth-scope">Record scope</a></li>
+        <li><a href="#auth-prod">Before production</a></li>
+      </ol>
+    </li>
+    <li><a href="#be">7. The backend</a><span class="audience">Backend</span>
+      <ol>
+        <li><a href="#be-layout">Code layout</a></li>
+        <li><a href="#be-startup">Start-up</a></li>
+        <li><a href="#be-config">Configuration</a></li>
+        <li><a href="#be-schema">Server schema changes</a></li>
+        <li><a href="#be-route">Anatomy of a route</a></li>
+        <li><a href="#be-side">Voiding, audit, email, reports</a></li>
+      </ol>
+    </li>
+    <li><a href="#api">8. API reference</a><span class="audience">Backend · Android</span>
+      <ol>
+        <li><a href="#api-conv">Conventions</a></li>
+        <li><a href="#api-public">Public</a></li>
+        <li><a href="#api-field">Field data</a></li>
+        <li><a href="#api-ref">Reference data and sync policy</a></li>
+        <li><a href="#api-admin">Administration</a></li>
+      </ol>
+    </li>
+    <li><a href="#test">9. Testing and CI</a><span class="audience">Everyone</span>
+      <ol>
+        <li><a href="#test-kinds">Kinds of test</a></li>
+        <li><a href="#test-android">Android unit tests</a></li>
+        <li><a href="#test-backend">Backend route tests</a></li>
+        <li><a href="#test-ci">Continuous integration</a></li>
+        <li><a href="#test-contrib">Contributing</a></li>
+      </ol>
+    </li>
+    <li><a href="#recipes">10. Recipes</a><span class="audience">Everyone</span>
+      <ol>
+        <li><a href="#recipe-record">Adding a new synced record type</a></li>
+        <li><a href="#recipe-endpoint">Adding an endpoint</a></li>
+        <li><a href="#recipe-mgmt">Adding a manager or admin screen</a></li>
+        <li><a href="#recipe-dep">Adding a dependency</a></li>
+      </ol>
+    </li>
+    <li><a href="#ship">11. Building, releasing and deploying</a><span class="audience">Maintainers</span>
+      <ol>
+        <li><a href="#ship-apk">Building the APK</a></li>
+        <li><a href="#ship-backend">Deploying the backend</a></li>
+        <li><a href="#ship-manuals">Rebuilding the manuals</a></li>
+      </ol>
+    </li>
+    <li><a href="#help">12. Troubleshooting and reference</a><span class="audience">Everyone</span>
+      <ol>
+        <li><a href="#help-trouble">Troubleshooting</a></li>
+        <li><a href="#help-gaps">Known gaps</a></li>
+        <li><a href="#help-versions">Toolchain and versions</a></li>
+        <li><a href="#help-docs">Other documents</a></li>
+        <li><a href="#help-glossary">Glossary</a></li>
+      </ol>
+    </li>
+  </ol>
+</section>
+
+<!-- ============================ 1. INTRODUCTION ============================ -->
+<h1 class="chapter" id="intro"><span class="num">Chapter 1</span>Introduction</h1>
+
+<h2 id="intro-what">What you are working on</h2>
+<p class="lead">BeefTech is an offline-first Android app for feedlot management, livestock traceability and farm data capture, plus a Kotlin/Ktor server that the phones sync into. Field teams often work for days without signal, so the phone is the system of record until the server has confirmed each record.</p>
+<p>This manual is for the people who build and maintain the platform. It explains how the code is organised, how data moves from a phone to the server, the rules that keep field data safe, and step-by-step recipes for the changes you will make most often. The <a href="../user-manual/BeefTech-User-Manual.pdf">User Manual</a> describes the same app from the point of view of the people who use it; read its Chapter 3 (working offline and syncing) for the user-facing view of what this manual describes in code.</p>
+
+<div class="roles">
+  <div class="role"><span class="who">Android</span><h4>App developers</h4><p>Feature modules, Compose screens, the encrypted Room database and the sync workers. Chapters 3–6, 9, 10.</p></div>
+  <div class="role"><span class="who">Backend</span><h4>Server developers</h4><p>The Ktor API, its SQLite schema, auth, scoping, email and reports. Chapters 5–10.</p></div>
+  <div class="role"><span class="who">Maintainers</span><h4>Release &amp; DevOps</h4><p>Builds, CI, the Render deployment and the manuals themselves. Chapters 2, 9, 11, 12.</p></div>
+</div>
+
+<h2 id="intro-glance">The system at a glance</h2>
+<table class="compact">
+  <thead><tr><th style="width:32%">Part</th><th>What it is</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Android app</strong> (<code>:demoapp</code>)</td><td>The one installable app. It wires eight Android library modules together behind a PIN login, a bottom navigation bar (Home, Calves, Traceability, Feed, More) and the Day-7 sync policy.</td></tr>
+    <tr><td><strong>Feature modules</strong> (<code>:android:*</code>)</td><td>Calf registration, farmer registration, farm traceability, feed crib, management (manager/admin screens), tag scanner and authentication. Each owns its screens, ViewModels, API client and sync worker.</td></tr>
+    <tr><td><strong>Local database</strong> (<code>:android:database</code>)</td><td>Room over SQLCipher-encrypted SQLite. Every entity, DAO, migration and the sync bookkeeping lives here. Schema version 47.</td></tr>
+    <tr><td><strong>Backend</strong> (<code>:backend:api</code>)</td><td>Ktor 3 on Netty, Exposed over SQLite. Accepts batch uploads, upserts by record GUID, scopes reads by role, sends notification emails, produces reports and PDFs.</td></tr>
+    <tr><td><strong>Hosting</strong></td><td>The backend is built by the <code>Dockerfile</code> and deployed to Render from <code>render.yaml</code>.</td></tr>
+  </tbody>
+</table>
+
+<h2 id="intro-repo">Repository map</h2>
+<p>Everything is one Gradle build. Always build from the repository root with the wrapper.</p>
+<pre class="tree">beeftech-mobile-data-platform/
+├── android/
+│   ├── authentication/       <span class="c"># PIN login, AuthGate, SessionStore, AuthApiClient</span>
+│   ├── calf-registration/    <span class="c"># 4-step calf capture, photos, sync client + worker</span>
+│   ├── database/             <span class="c"># Room + SQLCipher: entities, DAOs, migrations, security, BackendConfig</span>
+│   ├── farm-traceability/    <span class="c"># movements, treatments, mortalities, costs, purchases, assignments</span>
+│   ├── farmer-registration/  <span class="c"># farmer onboarding Activities, farmer list, sync worker</span>
+│   ├── feed-crib/            <span class="c"># crib readings: home, crib detail, today's session, sync worker</span>
+│   ├── management/           <span class="c"># online-only manager/admin screens over ManagementApiClient</span>
+│   └── tag-scanner/          <span class="c"># CameraX + ML Kit ear-tag scanning and colour detection</span>
+├── backend/
+│   ├── api/                  <span class="c"># the Ktor server</span>
+│   ├── authentication/       <span class="c"># empty placeholder</span>
+│   └── sync/                 <span class="c"># empty placeholder</span>
+├── demoapp/                  <span class="c"># the installable Android app</span>
+├── docs/                     <span class="c"># database notes, plans, user + developer manuals</span>
+├── gradle/libs.versions.toml <span class="c"># version catalog</span>
+├── .github/workflows/ci.yml  <span class="c"># unit tests, lint, database migration tests</span>
+├── Dockerfile · render.yaml  <span class="c"># backend deployment</span>
+└── settings.gradle.kts       <span class="c"># module list and repositories</span></pre>
+<div class="warn"><b class="label">Ignore</b><code>android/</code> still holds a leftover standalone Gradle setup (<code>android/gradlew</code>, <code>android/gradle/wrapper/</code>, <code>android/settings.gradle.kts.backup</code>, <code>android/gradle.properties</code>) from before the modules were merged into the root build. Never build from inside <code>android/</code>.</div>
+
+<h2 id="intro-conventions">How to read this manual</h2>
+<ul>
+  <li><code>monospace</code> marks code: class names, file paths, Gradle tasks, endpoints, columns.</li>
+  <li>Paths are relative to the repository root. Kotlin packages are shortened where obvious, e.g. <code>feedcrib/data/FeedCribRepository.kt</code> inside <code>android/feed-crib/src/main/java/com/beeftech/</code>.</li>
+  <li>Dark blocks are commands or code you can copy. Commands run from the repository root.</li>
+</ul>
+<div class="note"><b class="label">Note</b>Short notes add useful background.</div>
+<div class="tip"><b class="label">Tip</b>Tips make a task faster or easier.</div>
+<div class="warn"><b class="label">Important</b>Things that will break a build, a sync or a test if ignored.</div>
+<div class="danger"><b class="label">Danger</b>Mistakes that can lose field data or weaken security.</div>
+<p class="muted">The code is the source of truth. Where this manual and the code disagree, trust the code and fix the manual (see <a href="#ship-manuals">Rebuilding the manuals</a>).</p>
+
+<!-- ============================ 2. SETUP ============================ -->
+<h1 class="chapter" id="setup"><span class="num">Chapter 2</span>Getting set up</h1>
+
+<h2 id="setup-prereq">Prerequisites</h2>
+<table>
+  <thead><tr><th style="width:22%">Requirement</th><th style="width:22%">Version</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>JDK</td><td><strong>17</strong></td><td>The Gradle daemon is pinned to Java 17 in <code>gradle/gradle-daemon-jvm.properties</code>. A newer JDK on <code>PATH</code> is fine as long as a JDK 17 is installed; otherwise Gradle tries to download one and fails on restricted networks.</td></tr>
+    <tr><td>Android SDK</td><td>API 35, build-tools for AGP 8.13.2</td><td>Modules use <code>compileSdk</code> 34 or 35 and <code>minSdk</code> 24 (23 for <code>:android:database</code>).</td></tr>
+    <tr><td>Android Studio</td><td>Ladybug or newer</td><td>Optional if you only use the command line.</td></tr>
+    <tr><td>Gradle</td><td>Wrapper (8.13)</td><td>Always <code>./gradlew</code>, never a system <code>gradle</code>. On Windows use <code>gradlew.bat</code>.</td></tr>
+  </tbody>
+</table>
+
+<h2 id="setup-first">First build</h2>
+<ol class="steps">
+  <li>Clone the repository and open a terminal in its root.</li>
+  <li>Tell Gradle where the Android SDK is. <code>local.properties</code> is git-ignored, so every machine needs its own:
+<pre><span class="k">echo</span> "sdk.dir=$HOME/Android/Sdk" &gt; local.properties   <span class="c"># macOS: $HOME/Library/Android/sdk</span></pre></li>
+  <li>Check the toolchain. <em>Daemon JVM: Compatible with Java 17</em> means the pin was satisfied:
+<pre><span class="k">./gradlew</span> --version</pre></li>
+  <li>Run the same fast checks CI runs:
+<pre><span class="k">./gradlew</span> testDebugUnitTest test</pre></li>
+</ol>
+
+<h2 id="setup-backend">Running the backend</h2>
+<pre><span class="k">./gradlew</span> :backend:api:run -Dbeeftech.seed.dev=true
+<span class="k">curl</span> http://localhost:8081/          <span class="c"># BeefTech Backend API is running</span></pre>
+<ul>
+  <li>Listens on <code>0.0.0.0:8081</code> (or <code>$PORT</code>).</li>
+  <li>Creates its SQLite database at <code>./data/beeftech-backend.db</code>, relative to the working directory, and keeps calf photos in a <code>media/</code> folder next to it.</li>
+  <li>Seeds reference data (diseases, treatment types, cost types) and the feed crib reading codes on every start. Values an admin deactivated stay deactivated.</li>
+  <li><code>-Dbeeftech.seed.dev=true</code> also seeds a development site, three users and feed cribs <code>A01</code>–<code>A08</code> (see <a href="#setup-accounts">Development accounts</a>).</li>
+</ul>
+<p>To use a throw-away database, pass another JDBC URL. Any <code>beeftech.*</code> <code>-D</code> flag is forwarded to the <code>run</code> task:</p>
+<pre><span class="k">./gradlew</span> :backend:api:run -Dbeeftech.seed.dev=true -Dbeeftech.db.url="jdbc:sqlite:/tmp/beeftech.db"</pre>
+<p>Smoke-test a sign-in. <code>device_id</code> is required, and the first successful sign-in binds the user to that device:</p>
+<pre><span class="k">curl</span> -X POST http://localhost:8081/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"jvdm","pin":"30003","device_id":"TEST_DEV"}'</pre>
+
+<h2 id="setup-app">Running the app</h2>
+<p>Start an emulator, then in a second terminal:</p>
+<pre><span class="k">./gradlew</span> :demoapp:installDebug
+<span class="k">adb</span> shell am start -n com.beeftech.demoapp/.MainActivity</pre>
+<p>Or open the repository root in Android Studio and run the <strong>demoapp</strong> configuration. A debug build talks to <code>http://10.0.2.2:8081/</code>, which is how the emulator sees the backend running on your machine.</p>
+<table class="compact">
+  <thead><tr><th style="width:22%">Build type</th><th>Backend base URL (<code>BuildConfig.BACKEND_BASE_URL</code>)</th></tr></thead>
+  <tbody>
+    <tr><td><code>debug</code></td><td><code>http://10.0.2.2:8081/</code>, unless overridden with <code>-Pbeeftech.baseUrl</code></td></tr>
+    <tr><td><code>release</code></td><td><code>https://beeftech-backend.onrender.com/</code></td></tr>
+  </tbody>
+</table>
+<p>Both are set in <code>demoapp/build.gradle.kts</code>. At start-up <code>BeefTechApplication</code> copies the value into <code>BackendConfig</code>, and every API client defaults its <code>baseUrl</code> to <code>BackendConfig.baseUrl</code>.</p>
+
+<h2 id="setup-device">Using a physical phone</h2>
+<p><code>10.0.2.2</code> only exists inside the emulator. On a real phone, point a debug build at your workstation's LAN address (both on the same network), or at the hosted backend:</p>
+<pre><span class="k">./gradlew</span> :demoapp:installDebug -Pbeeftech.baseUrl=http://192.168.1.20:8081/
+<span class="k">./gradlew</span> :demoapp:installDebug -Pbeeftech.baseUrl=https://beeftech-backend.onrender.com/</pre>
+<div class="note"><b class="label">Note</b>Cleartext HTTP to a local backend works because <code>android:usesCleartextTraffic="true"</code> is set in the <code>demoapp</code> and <code>calf-registration</code> manifests. That also applies to release builds; see <a href="#help-gaps">Known gaps</a>.</div>
+
+<h2 id="setup-accounts">Development accounts</h2>
+<p>With the dev seed enabled, these users exist on site <code>dev-site-1</code> "Dev Feedlot" (farm code <code>S001</code>):</p>
+<table class="compact">
+  <thead><tr><th>Username</th><th>PIN</th><th>Role</th><th>Site</th><th>Good for testing</th></tr></thead>
+  <tbody>
+    <tr><td><code>admin</code></td><td><code>10001</code></td><td>1 — Administrator</td><td>none (sees all)</td><td>Admin area, cross-site reads</td></tr>
+    <tr><td><code>fmanager</code></td><td><code>20002</code></td><td>2 — Manager</td><td><code>dev-site-1</code></td><td>Dashboard, Reports, Records, Team, Feed</td></tr>
+    <tr><td><code>jvdm</code></td><td><code>30003</code></td><td>3 — Worker</td><td><code>dev-site-1</code></td><td>Field capture, offline sign-in, sync</td></tr>
+  </tbody>
+</table>
+<div class="tip"><b class="label">Tip</b>The Feed tab needs a user with a site. <code>admin</code> has none, so <code>GET /api/feed-cribs</code> returns 400 for it unless the request names a site with <code>?siteId=</code>.</div>
+<div class="warn"><b class="label">Device binding</b>Each user is bound to the first device that signs in. Signing in as the same user from a second emulator returns <code>409</code>. Unbind from More → Team as a manager, call <code>POST /api/users/{id}/unbind-device</code>, or delete your local backend database.</div>
+
+<!-- ============================ 3. ARCHITECTURE ============================ -->
+<h1 class="chapter" id="arch"><span class="num">Chapter 3</span>Architecture</h1>
+
+<h2 id="arch-overview">The big picture</h2>
+<p class="lead">Every record is written to the encrypted local database first and queued. Sync is a separate, retryable step that never deletes local data because a request failed.</p>
+<figure class="diagram">
+<svg viewBox="0 0 680 330" xmlns="http://www.w3.org/2000/svg" font-family="Inter, Roboto, Helvetica, Arial, sans-serif" font-size="11">
+  <defs>
+    <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#4F6256"/></marker>
+  </defs>
+  <rect x="4" y="4" width="672" height="182" rx="10" fill="#F4F3E8" stroke="#D9DDD8"/>
+  <text x="18" y="24" font-weight="700" fill="#35473D" font-size="11.5">Android phone (offline-capable)</text>
+  <g font-weight="600" fill="#1F2823">
+    <rect x="18" y="40" width="130" height="50" rx="6" fill="#fff" stroke="#4F6256"/>
+    <text x="83" y="61" text-anchor="middle">Compose screen</text>
+    <text x="83" y="77" text-anchor="middle" font-weight="400" fill="#6D756F" font-size="9.5">feature module</text>
+    <rect x="182" y="40" width="130" height="50" rx="6" fill="#fff" stroke="#4F6256"/>
+    <text x="247" y="61" text-anchor="middle">ViewModel</text>
+    <text x="247" y="77" text-anchor="middle" font-weight="400" fill="#6D756F" font-size="9.5">feature module</text>
+    <rect x="346" y="40" width="130" height="50" rx="6" fill="#fff" stroke="#4F6256"/>
+    <text x="411" y="61" text-anchor="middle">Repository</text>
+    <text x="411" y="77" text-anchor="middle" font-weight="400" fill="#6D756F" font-size="9.5">validates, saves, queues</text>
+    <rect x="510" y="40" width="152" height="50" rx="6" fill="#35473D"/>
+    <text x="586" y="61" text-anchor="middle" fill="#fff">Room + SQLCipher</text>
+    <text x="586" y="77" text-anchor="middle" font-weight="400" fill="#E3E8E2" font-size="9.5">:android:database</text>
+    <rect x="510" y="118" width="152" height="50" rx="6" fill="#fff" stroke="#4F6256"/>
+    <text x="586" y="139" text-anchor="middle">pending_sync</text>
+    <text x="586" y="155" text-anchor="middle" font-weight="400" fill="#6D756F" font-size="9.5">what still has to go</text>
+    <rect x="182" y="118" width="294" height="50" rx="6" fill="#fff" stroke="#4F6256"/>
+    <text x="329" y="139" text-anchor="middle">SyncAllDispatcher → per-module sync workers</text>
+    <text x="329" y="155" text-anchor="middle" font-weight="400" fill="#6D756F" font-size="9.5">WorkManager, needs a connection, retries</text>
+  </g>
+  <g stroke="#4F6256" stroke-width="1.6" fill="none" marker-end="url(#a1)">
+    <line x1="148" y1="65" x2="180" y2="65"/>
+    <line x1="312" y1="65" x2="344" y2="65"/>
+    <line x1="476" y1="65" x2="508" y2="65"/>
+    <line x1="586" y1="90" x2="586" y2="116"/>
+    <line x1="508" y1="143" x2="478" y2="143"/>
+    <line x1="329" y1="168" x2="329" y2="226"/>
+  </g>
+  <text x="338" y="204" fill="#35473D" font-size="10">HTTPS · JSON · Bearer JWT · batch name</text>
+  <rect x="4" y="228" width="672" height="96" rx="10" fill="#E3E8E2" stroke="#D9DDD8"/>
+  <text x="18" y="248" font-weight="700" fill="#35473D" font-size="11.5">backend:api (Ktor + Netty, port 8081)</text>
+  <g font-weight="600" fill="#1F2823">
+    <rect x="18" y="260" width="140" height="50" rx="6" fill="#fff" stroke="#4F6256"/>
+    <text x="88" y="281" text-anchor="middle">*Routes.kt</text>
+    <text x="88" y="297" text-anchor="middle" font-weight="400" fill="#6D756F" font-size="9.5">auth + live user check</text>
+    <rect x="190" y="260" width="140" height="50" rx="6" fill="#fff" stroke="#4F6256"/>
+    <text x="260" y="281" text-anchor="middle">*Service.kt</text>
+    <text x="260" y="297" text-anchor="middle" font-weight="400" fill="#6D756F" font-size="9.5">validation, per-record result</text>
+    <rect x="362" y="260" width="140" height="50" rx="6" fill="#fff" stroke="#4F6256"/>
+    <text x="432" y="281" text-anchor="middle">*Repository.kt</text>
+    <text x="432" y="297" text-anchor="middle" font-weight="400" fill="#6D756F" font-size="9.5">upsert by GUID</text>
+    <rect x="534" y="260" width="128" height="50" rx="6" fill="#35473D"/>
+    <text x="598" y="281" text-anchor="middle" fill="#fff">Exposed → SQLite</text>
+    <text x="598" y="297" text-anchor="middle" font-weight="400" fill="#E3E8E2" font-size="9.5">*Table.kt</text>
+  </g>
+  <g stroke="#4F6256" stroke-width="1.6" fill="none" marker-end="url(#a1)">
+    <line x1="158" y1="285" x2="188" y2="285"/>
+    <line x1="330" y1="285" x2="360" y2="285"/>
+    <line x1="502" y1="285" x2="532" y2="285"/>
+  </g>
+</svg>
+<figcaption>Figure 3.1 — From a screen on the phone to a row on the server</figcaption>
+</figure>
+<ol>
+  <li><strong>Capture.</strong> Compose screens validate at the point of entry.</li>
+  <li><strong>Encrypted local write.</strong> The repository writes the record to the SQLCipher database with its audit metadata (record GUID, capture time, device ID, GPS where available, user ID).</li>
+  <li><strong>Queue.</strong> A row in <code>pending_sync</code> (or the record's own <code>sync_status</code>) says it still has to be sent.</li>
+  <li><strong>Sync.</strong> A WorkManager worker posts the waiting records in a batch with the session's JWT.</li>
+  <li><strong>Acknowledge.</strong> The server upserts each record by GUID and stamps the submitter and site from the token. The phone marks the record <code>SYNCED</code> and clears its queue row.</li>
+  <li><strong>Check-in.</strong> Separately, <code>DeviceCheckInWorker</code> downloads reference data and the sync policy and uploads the phone's security events.</li>
+</ol>
+
+<h2 id="arch-modules">Modules and dependencies</h2>
+<p>Only <code>:demoapp</code> is an Android application. Every feature module depends on <code>:android:database</code>; nothing depends on <code>:demoapp</code>.</p>
+<table class="compact">
+  <thead><tr><th style="width:27%">Module</th><th style="width:25%">Package</th><th style="width:18%">Depends on</th><th>Holds</th></tr></thead>
+  <tbody>
+    <tr><td><code>:demoapp</code></td><td><code>com.beeftech.demoapp</code></td><td>all features</td><td>Application, MainActivity, navigation chrome, <code>SyncAllDispatcher</code>, scheduled sync, check-in, sync-policy gate and guard</td></tr>
+    <tr><td><code>:android:database</code></td><td><code>com.beeftech.database</code></td><td>—</td><td>Room database, 45 entities, DAOs, migrations, shared repositories, security, <code>BackendConfig</code>, naming utilities</td></tr>
+    <tr><td><code>:android:authentication</code></td><td><code>…authentication</code></td><td>database</td><td>Online and offline PIN login, <code>AuthGate</code>, <code>SessionStore</code> / <code>EncryptedSessionStore</code></td></tr>
+    <tr><td><code>:android:calf-registration</code></td><td><code>…calfregistration</code></td><td>database, tag-scanner</td><td>4-step calf capture, registered list, photos, <code>CalfRegistrationSyncWorker</code></td></tr>
+    <tr><td><code>:android:farm-traceability</code></td><td><code>…farmtraceability</code></td><td>database, tag-scanner</td><td>Animal record, movements, purchases, location &amp; feed, treatments, costs, mortalities, farmer–animal assignments and their workers</td></tr>
+    <tr><td><code>:android:farmer-registration</code></td><td><code>…farmerregistration</code></td><td>database</td><td>Farmer onboarding Activities, farmer list with sync pills, <code>FarmerSyncWorker</code></td></tr>
+    <tr><td><code>:android:feed-crib</code></td><td><code>…feedcrib</code></td><td>database</td><td>Feed tab: crib search, 3×3 readings grid, today's session, <code>FeedCribSyncWorker</code></td></tr>
+    <tr><td><code>:android:management</code></td><td><code>…management</code></td><td>database</td><td>Online-only Dashboard, Reports, Records, Team and Admin screens; reference data, sync policy and security event pulls</td></tr>
+    <tr><td><code>:android:tag-scanner</code></td><td><code>…tagscanner</code></td><td>database</td><td>CameraX + ML Kit ear-tag scanner, tag text parser, tag colour classifier</td></tr>
+    <tr><td><code>:backend:api</code></td><td><code>com.beeftech.backend.api</code></td><td>—</td><td>The Ktor server</td></tr>
+  </tbody>
+</table>
+<div class="note"><b class="label">Note</b><code>:backend:authentication</code> and <code>:backend:sync</code> are empty placeholders declared in <code>settings.gradle.kts</code>. They configure but build nothing.</div>
+
+<h2 id="arch-layers">Layers inside a feature</h2>
+<p>Feature modules follow the same shape. <code>:android:feed-crib</code> is the newest and cleanest example; use it as your template.</p>
+<pre class="tree">android/feed-crib/src/main/java/com/beeftech/feedcrib/
+├── data/
+│   ├── FeedCribApiClient.kt        <span class="c"># Ktor client: one method per endpoint, returns Result&lt;T&gt;</span>
+│   ├── FeedCribNetworkModels.kt    <span class="c"># @Serializable request/response DTOs</span>
+│   ├── FeedCribMappers.kt          <span class="c"># DTO ⇄ Room entity</span>
+│   ├── FeedCribRepository.kt       <span class="c"># save locally, queue, try to send, reconcile results</span>
+│   ├── FeedCribCaptureContext.kt   <span class="c"># device ID, capture time, GPS for a new record</span>
+│   └── SlotAllocator.kt            <span class="c"># pure domain logic, unit-tested on its own</span>
+├── ui/                             <span class="c"># Compose screens and components</span>
+├── viewmodel/                      <span class="c"># ViewModel + factory</span>
+└── worker/FeedCribSyncWorker.kt    <span class="c"># CoroutineWorker: retries until nothing is waiting</span></pre>
+<ul>
+  <li><strong>UI</strong> only talks to its ViewModel. It collects <code>StateFlow</code>/<code>Flow</code> and sends user intents.</li>
+  <li><strong>ViewModels</strong> talk to repositories, never to DAOs or HTTP clients.</li>
+  <li><strong>Repositories</strong> own the business rules: validation, the local write, queuing, calling the API client and applying per-record results. Their collaborators (DAO, API client, clock, user ID, time zone) are constructor parameters so tests can pass fakes.</li>
+  <li><strong>Entities and DAOs</strong> always live in <code>:android:database</code>, even when only one feature uses them, because there is one database and one migration chain.</li>
+  <li><strong>API clients</strong> take a <code>TokenProvider</code>, default their <code>baseUrl</code> to <code>BackendConfig.baseUrl</code>, and report a <code>401</code> with <code>tokenProvider.reportUnauthorized(…)</code>.</li>
+</ul>
+
+<h2 id="arch-startup">App start-up</h2>
+<p><code>BeefTechApplication.onCreate</code> runs before anything else, including when WorkManager starts the process in the background for a scheduled sync:</p>
+<ol class="steps">
+  <li>Configures <code>BackendConfig</code> from <code>BuildConfig.BACKEND_BASE_URL</code>. This must happen before any API client is built.</li>
+  <li>Creates <code>EncryptedSessionStore</code> and registers it with <code>TokenProviderRegistry</code> and <code>CurrentUserIdRegistry</code>, so background workers can get a token and the current user without an Activity.</li>
+  <li>Registers <code>SyncPolicyActivityGuard</code>, which enforces the Day-7 lock in every Activity, including the farmer registration Activities started outside <code>MainActivity</code>.</li>
+  <li>Calls <code>ScheduledSyncScheduler.schedule</code>: two daily periodic jobs at 05:00 and 18:00 that run <code>ScheduledBatchSyncWorker</code>. It also cancels the legacy 15-minute periodic jobs.</li>
+  <li>Starts <code>SunlightBrightnessController</code>, which raises screen brightness in strong sunlight.</li>
+</ol>
+<p><code>MainActivity</code> then opens the encrypted database on a background thread through <code>DatabaseProvider.initialize(context, passphrase)</code>, seeds one demo calf (tag <code>Blu0000001</code>) if it does not exist, and shows <code>PolicyAwareAuthGate</code>: the PIN login (<code>AuthGate</code>), a device check-in, then <code>SyncPolicyGate</code>, which re-evaluates the unsynced-data policy every 60 seconds.</p>
+<div class="danger"><b class="label">Demo passphrase</b><code>MainActivity</code> opens SQLCipher with the hard-coded passphrase <code>beeftech-demo-passphrase</code>. It must be replaced with the Android KeyStore–backed key (<code>DatabaseKeyProvider</code> / <code>SecureDatabaseInitializer</code> in <code>database/security/</code>) before production. Changing it on an existing install needs a re-key step, or the phone can no longer open its own data.</div>
+
+<h2 id="arch-nav">Navigation and roles</h2>
+<p><code>demoapp/AppTab.kt</code> defines the destinations. Every role gets the same five bottom tabs; the More menu grows with the role:</p>
+<table class="compact">
+  <thead><tr><th>Role (id)</th><th>Bottom tabs</th><th>Extra More entries</th></tr></thead>
+  <tbody>
+    <tr><td>Worker (3)</td><td>Home, Calves, Traceability, Feed, More</td><td>— (My activity, Log out only)</td></tr>
+    <tr><td>Manager (2)</td><td>same</td><td>Dashboard, Reports, Records, Team</td></tr>
+    <tr><td>Admin (1)</td><td>same</td><td>Dashboard, Reports, Records, Team, Admin</td></tr>
+  </tbody>
+</table>
+<p>Hiding a screen in the app is a convenience, not security. The server checks the role on every request (<a href="#auth-server">Chapter 6</a>).</p>
+
+<!-- ============================ 4. DATABASE ============================ -->
+<h1 class="chapter" id="db"><span class="num">Chapter 4</span>The local database</h1>
+
+<h2 id="db-stack">Room and SQLCipher</h2>
+<p class="lead">All persistent app data lives in one Room database, <code>BeefTechDatabase</code>, stored in a SQLCipher-encrypted SQLite file. Schema version <strong>47</strong>; <code>BeefTechDatabase.VERSION</code> is the source of truth.</p>
+<ul>
+  <li><code>DatabaseProvider.initialize(context, passphrase: ByteArray)</code> is the single entry point. It returns a <code>DatabaseResult</code> and keeps one open instance for the process.</li>
+  <li>Workers call <code>DatabaseProvider.getDatabase()</code>. It is <code>null</code> until <code>MainActivity</code> has unlocked the database, so every worker returns <code>Result.retry()</code> in that case instead of failing.</li>
+  <li><code>DatabaseFactory.create</code> builds the database with SQLCipher's <code>SupportOpenHelperFactory</code> and registers every migration.</li>
+  <li>Schemas are exported (<code>exportSchema = true</code>) to <code>android/database/schemas/com.beeftech.database.BeefTechDatabase/</code> and committed.</li>
+</ul>
+
+<h2 id="db-layout">Where things live</h2>
+<table class="compact">
+  <thead><tr><th style="width:32%">Path in <code>android/database/…/database/</code></th><th>Contents</th></tr></thead>
+  <tbody>
+    <tr><td><code>BeefTechDatabase.kt</code></td><td>The <code>@Database</code> class, its entity list, DAO accessors, <code>VERSION</code> and migrations <code>9→10</code> to <code>46→47</code> in the companion object</td></tr>
+    <tr><td><code>DatabaseFactory.kt</code></td><td>Migrations <code>1→2</code> to <code>8→9</code>, the <code>guarded(…)</code> wrapper and the <code>.addMigrations(…)</code> list</td></tr>
+    <tr><td><code>entity/</code></td><td>45 entities: animals and identifiers, calf registrations, treatments, movements, mortalities, costs, farmers, locations and pens, feed cribs and entries, users and roles, lookups, and sync bookkeeping</td></tr>
+    <tr><td><code>dao/</code></td><td>DAOs, mostly one per file; lookup DAOs share <code>LookupDaos.kt</code></td></tr>
+    <tr><td><code>repository/</code></td><td>Shared repositories: <code>PendingSyncRepository</code>, <code>SyncRunRepository</code>, <code>SyncPolicyEnforcer</code>, <code>SyncWarningPolicy</code>, <code>FarmerRepository</code>, <code>AnimalHistoryRepository</code> and others</td></tr>
+    <tr><td><code>security/</code></td><td>KeyStore and passphrase providers, <code>CredentialHasher</code>, <code>PinLockoutManager</code>, <code>TokenProvider</code> and its registries, <code>UnauthorizedReason</code></td></tr>
+    <tr><td><code>util/</code></td><td><code>FileNamingUtils</code> / <code>BatchNaming</code> (batch names), <code>TagNamingUtils</code>, <code>SyncRunDisplay</code></td></tr>
+    <tr><td><code>*Seed.kt</code></td><td>Lookup seeds: roles, cost types, farmer business roles, rations, other lookups</td></tr>
+  </tbody>
+</table>
+
+<h2 id="db-rules">The non-negotiable rules</h2>
+<p>Phones can hold unsynced data for days. Losing it is the worst failure this app can have; a real incident is written up in <code>docs/database/incident-2026-09-r0-migration-data-loss.md</code>.</p>
+<div class="danger"><b class="label">Never lose field data</b>
+<ul style="margin:0">
+  <li>Never use <code>fallbackToDestructiveMigration</code> or any other destructive fallback. Every version step needs an explicit migration that keeps the data.</li>
+  <li>Values that cannot be mapped go into quarantine or legacy tables. Never drop them.</li>
+  <li>Backfill GUIDs before adding a unique index on them.</li>
+  <li>Never delete a local record because a sync failed. Mark it, keep it, retry.</li>
+  <li>The only deliberate deletion of unsynced data is the audited Day-7 policy wipe in <code>SyncSecurityDao</code>.</li>
+</ul></div>
+<p>Keep DAO calls inside repository classes. ViewModels and UI never touch a DAO.</p>
+
+<h2 id="db-change">Changing the schema</h2>
+<p>Any change to an entity (new table, column, index, type) needs every one of these steps:</p>
+<ol class="check">
+  <li>Add or edit the entity in <code>entity/</code> and its DAO in <code>dao/</code>. Add a new entity to the <code>entities = [...]</code> list and a DAO accessor on <code>BeefTechDatabase</code>.</li>
+  <li>Bump <code>BeefTechDatabase.VERSION</code> by one.</li>
+  <li>Add <code>MIGRATION_n_n+1</code> to the <code>BeefTechDatabase</code> companion object. Write the SQL to match exactly what Room generates for the entity (column types, <code>NOT NULL</code>, defaults, index names); the exported schema JSON shows you the expected <code>createSql</code>.</li>
+  <li>Register it in <code>DatabaseFactory.kt</code>'s <code>.addMigrations(…)</code>, wrapped in <code>guarded(…)</code>, which turns any failure into a <code>MigrationExecutionException</code>.</li>
+  <li>Build once so Room exports the new schema JSON, and commit it under <code>android/database/schemas/…/</code>.</li>
+  <li>Add a migration test (next section).</li>
+  <li>Run <code>./gradlew :android:database:connectedAndroidTest</code> on an emulator.</li>
+</ol>
+<p>A typical additive migration looks like this:</p>
+<pre><span class="k">val</span> MIGRATION_47_48 = <span class="k">object</span> : Migration(47, 48) {
+    <span class="k">override fun</span> migrate(db: SupportSQLiteDatabase) {
+        <span class="c">// Additive and idempotent where possible; existing rows keep their data.</span>
+        db.execSQL("ALTER TABLE `feed_crib_entries` ADD COLUMN `note` TEXT")
+    }
+}</pre>
+<div class="warn"><b class="label">Version 15</b>Version 15 is deliberately unused; the chain goes <code>14→16</code>. See the comment above <code>MIGRATION_14_16</code>.</div>
+
+<h2 id="db-test">Testing a migration</h2>
+<p>Migration tests live in <code>android/database/src/androidTest/java/com/beeftech/database/</code> and use Room's <code>MigrationTestHelper</code> with the committed schema JSON. Copy <code>Migration30To31Test.kt</code> or <code>Migration16To17Test.kt</code>. A good migration test:</p>
+<ul>
+  <li>creates the database at the old version and inserts realistic rows, including unsynced ones;</li>
+  <li>runs the migration and validates the result against the new schema;</li>
+  <li>reads the rows back and checks that nothing was lost or changed by accident.</li>
+</ul>
+<p>These tests need a real SQLite implementation, so they cannot run as JVM unit tests. CI runs them on an API 30 emulator (<a href="#test-ci">Chapter 9</a>).</p>
+<p>Deferred database follow-ups are tracked in <code>docs/database/future-checks.md</code>; the schema is drawn in <code>docs/database/schema-diagram.svg</code>.</p>
+
+<!-- ============================ 5. SYNC ============================ -->
+<h1 class="chapter" id="sync"><span class="num">Chapter 5</span>Offline storage and sync</h1>
+
+<h2 id="sync-life">Life of a record</h2>
+<p class="lead">A record moves through a small set of states. Only the server's per-record answer moves it to <code>SYNCED</code>.</p>
+<figure class="diagram">
+<svg viewBox="0 0 700 170" xmlns="http://www.w3.org/2000/svg" font-family="Inter, Roboto, Helvetica, Arial, sans-serif" font-size="11">
+  <defs>
+    <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#4F6256"/></marker>
+  </defs>
+  <g font-weight="700">
+    <rect x="10" y="58" width="120" height="44" rx="22" fill="#E3E8E2" stroke="#4F6256"/>
+    <text x="70" y="85" text-anchor="middle" fill="#35473D">Saved on phone</text>
+    <rect x="200" y="58" width="120" height="44" rx="22" fill="#FBEBC8" stroke="#7A5A20"/>
+    <text x="260" y="85" text-anchor="middle" fill="#7A5A20">PENDING</text>
+    <rect x="460" y="14" width="130" height="44" rx="22" fill="#E1EEE5" stroke="#3F6A50"/>
+    <text x="525" y="41" text-anchor="middle" fill="#3F6A50">SYNCED</text>
+    <rect x="460" y="102" width="130" height="44" rx="22" fill="#F3DDDD" stroke="#8A4F4F"/>
+    <text x="525" y="129" text-anchor="middle" fill="#8A4F4F">ERROR / REJECTED</text>
+  </g>
+  <g stroke="#4F6256" stroke-width="1.6" fill="none" marker-end="url(#a2)">
+    <line x1="130" y1="80" x2="198" y2="80"/>
+    <path d="M320,72 C390,50 400,36 458,36"/>
+    <path d="M320,88 C390,110 400,124 458,124"/>
+    <path d="M470,146 C400,168 280,160 262,104"/>
+    <path d="M232,58 C216,22 300,22 288,56"/>
+  </g>
+  <g fill="#6D756F" font-size="9.5">
+    <text x="164" y="72" text-anchor="middle">queued</text>
+    <text x="372" y="40" text-anchor="middle">server: SYNCED</text>
+    <text x="372" y="128" text-anchor="middle">server: ERROR</text>
+    <text x="360" y="166" text-anchor="middle">manual retry / fix</text>
+    <text x="260" y="14" text-anchor="middle">no network: stays PENDING, worker retries</text>
+    <text x="600" y="40">queue row cleared</text>
+    <text x="600" y="128">kept, shown to user</text>
+  </g>
+</svg>
+<figcaption>Figure 5.1 — Sync states. A failed request never changes a record; only a per-record server result does.</figcaption>
+</figure>
+
+<h2 id="sync-queue">The pending_sync queue</h2>
+<p><code>PendingSync</code> (<code>entity/PendingSync.kt</code>) is the cross-module queue: one row per record still to send, with <code>entityType</code>, <code>entityId</code> (the record GUID), <code>operation</code>, <code>payload</code>, <code>createdAt</code>, <code>retryCount</code> and the owning <code>user_id</code>. Use it through <code>PendingSyncRepository</code>:</p>
+<table class="compact">
+  <thead><tr><th style="width:40%">Call</th><th>Use it to</th></tr></thead>
+  <tbody>
+    <tr><td><code>queueOperation(type, id, op, payload)</code></td><td>Queue a record right after saving it</td></tr>
+    <tr><td><code>getPendingOperations()</code> / <code>getAllPendingOperations()</code></td><td>Find what is waiting (the first respects the retry limit)</td></tr>
+    <tr><td><code>markSyncSuccessful(id)</code> / <code>markEntitySyncSuccessful(…)</code></td><td>Clear the queue row once the server said <code>SYNCED</code></td></tr>
+    <tr><td><code>markSyncFailed(id, …)</code> / <code>resetRetryCount(…)</code></td><td>Count a failed attempt, or give a manual retry fresh attempts</td></tr>
+    <tr><td><code>observePendingCount(userId)</code> / <code>observeOldestPendingAt(userId)</code></td><td>Drive the Home counts and the Day-7 policy</td></tr>
+  </tbody>
+</table>
+<p>The queue also feeds the 7-day policy and the "waiting" counts on Home, so <strong>every synced record type must queue its records here</strong>, even if the feature also tracks <code>sync_status</code> on its own table. Newer features (feed crib) treat their own table as the source of truth and repair the queue whenever the two disagree.</p>
+<div class="note"><b class="label">Legacy rows</b><code>user_id</code> is nullable for rows created before database version 31. Those rows are deliberately not attributed to any user, because guessing could lock or wipe the wrong person's data.</div>
+
+<h2 id="sync-workers">Workers and the dispatcher</h2>
+<p>Each feature has a <code>CoroutineWorker</code> that sends its waiting records. <code>SyncAllDispatcher.dispatch</code> (in <code>:demoapp</code>) enqueues all of them as unique one-time work with a <code>CONNECTED</code> network constraint:</p>
+<table class="compact">
+  <thead><tr><th style="width:42%">Unique work name</th><th>Worker</th></tr></thead>
+  <tbody>
+    <tr><td><code>farmer-registration-sync</code></td><td><code>FarmerSyncWorker</code></td></tr>
+    <tr><td><code>calf-registration-network-available-sync</code></td><td><code>CalfRegistrationSyncWorker</code></td></tr>
+    <tr><td><code>treatment_network_available_sync</code></td><td><code>TreatmentSyncWorker</code></td></tr>
+    <tr><td><code>animal-movement-scheduled-sync</code></td><td><code>AnimalMovementSyncWorker</code></td></tr>
+    <tr><td><code>mortality-scheduled-sync</code></td><td><code>MortalitySyncWorker</code></td></tr>
+    <tr><td><code>cost-scheduled-sync</code></td><td><code>CostSyncWorker</code></td></tr>
+    <tr><td><code>traceability-outbox-scheduled-sync</code></td><td><code>TraceabilityOutboxWorker</code></td></tr>
+    <tr><td><code>farmer-animal-link-sync</code></td><td><code>FarmerAnimalLinkSyncWorker</code></td></tr>
+    <tr><td><code>feed-crib-network-available-sync</code></td><td><code>FeedCribSyncWorker</code></td></tr>
+  </tbody>
+</table>
+<p>The dispatcher is triggered by:</p>
+<ul>
+  <li><strong>Sync now</strong> on Home and <strong>Retry Sync</strong> in Traceability, with <code>ExistingWorkPolicy.REPLACE</code> (an explicit request restarts a running worker);</li>
+  <li>the 05:00 and 18:00 windows (<code>ScheduledBatchSyncWorker</code>), with <code>KEEP</code> so a worker already syncing is not started twice.</li>
+</ul>
+<p>Each request carries a trigger (<code>SyncRunSummary.TRIGGER_INPUT_KEY</code>: morning, evening, manual or auto). Workers wrap their work in <code>SyncRunRepository.trackRun(module, entityTypes, trigger) { … }</code>, which records a row for the sync history screen.</p>
+<p>A well-behaved worker:</p>
+<pre><span class="k">override suspend fun</span> doWork(): Result {
+    <span class="k">val</span> database = DatabaseProvider.getDatabase() ?: <span class="k">return</span> Result.retry()   <span class="c">// not unlocked yet</span>
+    <span class="k">val</span> tokens = TokenProviderRegistry.get() ?: <span class="k">return</span> Result.retry()
+    <span class="k">return try</span> {
+        syncRuns.trackRun(SyncRunModule.FEED, listOf(ENTITY_TYPE), trigger) { repository.syncPending() }
+        <span class="k">if</span> (stillWaiting()) Result.retry() <span class="k">else</span> Result.success()
+    } <span class="k">catch</span> (e: Exception) {
+        Result.retry()   <span class="c">// never delete a local record because sync failed</span>
+    }
+}</pre>
+<div class="note"><b class="label">Immediate send</b>Some features, such as feed crib, also try to send a record straight after saving it when the phone is online. That is only a shortcut; the worker remains the guarantee.</div>
+
+<h2 id="sync-batch">Batch names</h2>
+<p>Uploads carry an optional batch name in the format <code>[FarmCode]-[Project]-[YYYYMMDD]-[HHMMSS]-[DeviceID]</code>, for example <code>S001-FEED_CRIB-20261010-141503-emulator_5554</code>.</p>
+<ul>
+  <li>The phone builds it with <code>FileNamingUtils</code> / <code>BatchNaming</code> in <code>:android:database</code>; the server's copy is <code>common/FileNaming.kt</code>. <strong>Keep the regex and the project codes in step on both sides.</strong></li>
+  <li>Project codes: <code>CALF_REG</code>, <code>FARMER_REG</code>, <code>TREATMENT</code>, <code>MOVEMENT</code>, <code>MORTALITY</code>, <code>COST</code>, <code>TRACE_EVENT</code>, <code>FEED_CRIB</code>, <code>REPORT</code>.</li>
+  <li>The server (<code>SyncUploadLog.problemWith</code>) rejects a present name with <code>400</code> if the format is wrong, the project does not match the endpoint, the farm code is not the caller's site, or the device is not the signed-in device. A missing name is accepted as a legacy upload.</li>
+  <li>Every upload is logged in <code>sync_upload_log</code>; a retry with the same name updates its row.</li>
+</ul>
+
+<h2 id="sync-server">What the server does with a batch</h2>
+<ol>
+  <li>Authenticates the caller and reloads their role, site and device from the database.</li>
+  <li>Checks the batch name (<code>call.acceptBatch(principal, ProjectCode.X, request.batchName)</code>).</li>
+  <li>Validates each record on its own. A bad record gets <code>status = "ERROR"</code> with a message and does not stop the rest of the batch.</li>
+  <li>Upserts each good record by its GUID, so a retry can never create a duplicate. The submitter and site come from the token, never from the request body.</li>
+  <li>Logs the upload (<code>SyncUploadLog.record</code>) and answers with one result per record.</li>
+</ol>
+<p>The phone then marks each <code>SYNCED</code> result as synced (using the server's <code>serverSyncedAt</code> when given), clears its queue row, and keeps every <code>ERROR</code> record with its message for the user to see.</p>
+
+<h2 id="sync-policy">The 7-day policy</h2>
+<p>If a user's data stays unsynced, the app escalates. <code>SyncPolicyEnforcer</code> evaluates the age of the oldest pending record per user; <code>SyncPolicyGate</code> runs it every 60 seconds in the app and <code>SyncPolicyActivityGuard</code> applies a lock in every Activity.</p>
+<table class="compact">
+  <thead><tr><th style="width:24%">Age of oldest unsynced record</th><th>What happens</th><th style="width:30%">Who can change it</th></tr></thead>
+  <tbody>
+    <tr><td>Days 2, 4 and 6 (defaults)</td><td>Warnings of increasing severity</td><td>Admins, via <code>PUT /api/sync-policy</code> (days 1–6)</td></tr>
+    <tr><td>Day 7</td><td>Pending local operations are wiped and the account is locked, both audited</td><td><strong>Nobody.</strong> <code>SyncWarningPolicy.WIPE_DAY = 7</code> is a constant the server cannot move</td></tr>
+    <tr><td>After a lock</td><td>The user can only sign in to report the lock</td><td>An admin clears it: <code>POST /api/users/{id}/clear-sync-lock</code></td></tr>
+  </tbody>
+</table>
+<div class="danger"><b class="label">Be careful here</b>This is the one place the app deletes unsynced data on purpose. Any change to <code>SyncPolicyEnforcer</code>, <code>SyncWarningPolicy</code> or <code>SyncSecurityDao</code> needs tests for the boundary days and for users who share a phone.</div>
+
+<h2 id="sync-checkin">Device check-in</h2>
+<p><code>DeviceCheckInWorker</code> runs after each online sign-in, including for a locked account (after a wipe that is the only time a valid token exists). Each step is independent and the job is retried if any fails:</p>
+<ul>
+  <li>pulls reference data (<code>ReferenceDataSync</code>, using <code>?ifVersion=</code> to skip unchanged data);</li>
+  <li>pulls the sync-warning policy (<code>SyncPolicySync</code>) and the site's feed cribs;</li>
+  <li>uploads the phone's sync security events (<code>SecurityEventSync</code>);</li>
+  <li>lifts the phone's Day-7 lock once an admin has cleared it on the server (<code>SyncLockRelease</code>).</li>
+</ul>
+<p>It never reads or writes <code>pending_sync</code>, so it cannot block or reorder a sync.</p>
+
+<!-- ============================ 6. AUTH ============================ -->
+<h1 class="chapter" id="auth"><span class="num">Chapter 6</span>Authentication and security</h1>
+
+<h2 id="auth-login">Online sign-in</h2>
+<p>Users sign in with a username and a 5-digit PIN. <code>AuthRepository</code> (in <code>:android:authentication</code>) posts to <code>POST /api/auth/login</code> with the username, PIN and device ID (and optionally the device model and app version).</p>
+<table class="compact">
+  <thead><tr><th style="width:16%">Response</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><span class="pill ok">200</span></td><td>A JWT (HMAC256, 24 h) and the user, including the BCrypt PIN hash the phone caches for offline sign-in</td></tr>
+    <tr><td><span class="pill bad">401</span></td><td>Wrong username or PIN</td></tr>
+    <tr><td><span class="pill wait">409</span></td><td>The user is bound to a different device</td></tr>
+    <tr><td><span class="pill bad">403</span></td><td>This device has been revoked</td></tr>
+    <tr><td><span class="pill wait">423</span></td><td>Locked: 5 wrong PINs lock the account on the server for 5 minutes</td></tr>
+  </tbody>
+</table>
+<p>The first successful sign-in binds the user to that device (<code>users.device_assigned_id</code>). A manager can unbind it.</p>
+
+<h2 id="auth-offline">Offline sign-in</h2>
+<p>With no network, <code>AuthRepository</code> checks the PIN against the cached BCrypt hash (<code>BCrypt.checkpw</code>). A user must have signed in online once on that phone first. A successful offline sign-in gives <strong>local access only</strong> for up to seven days: <code>SessionStore.saveOffline</code> keeps that window separate from the real JWT expiry, and no token is invented for the server.</p>
+<p>On the phone, <code>PinLockoutManager</code> blocks further attempts for 1 minute after 5 wrong PINs. This is separate from the server's 5-minute lock.</p>
+
+<h2 id="auth-session">Sessions and tokens on the phone</h2>
+<ul>
+  <li><code>SessionStore</code> is the interface; <code>EncryptedSessionStore</code> stores the JWT, user and expiry in encrypted preferences. It also implements <code>TokenProvider</code>.</li>
+  <li><code>TokenProviderRegistry</code> and <code>CurrentUserIdRegistry</code> (in <code>:android:database</code>) let any module get the token or current user without depending on <code>:android:authentication</code>.</li>
+  <li>API clients call <code>tokenProvider.token()</code> and attach it with <code>bearerAuth(token)</code>.</li>
+  <li>On a <code>401</code>, a client calls <code>tokenProvider.reportUnauthorized(body)</code>. The session store decides what that means (expired, revoked, deactivated) and ends the session; the user lands on the login screen. Queued records are never touched.</li>
+</ul>
+
+<h2 id="auth-server">Checking a request on the server</h2>
+<p>There is no Ktor <code>authenticate { }</code> block. Each handler calls one of the helpers in <code>AuthUtils.kt</code> as its first line:</p>
+<table class="compact">
+  <thead><tr><th style="width:38%">Helper</th><th>Returns / does</th></tr></thead>
+  <tbody>
+    <tr><td><code>call.requireAuthPrincipal(jwtService)</code></td><td>The caller's <code>AuthPrincipal</code>, or responds <code>401</code> and returns <code>null</code></td></tr>
+    <tr><td><code>call.requireRole(jwtService, Role.ADMIN, Role.MANAGER)</code></td><td>Same, plus <code>403</code> if the role is not listed</td></tr>
+    <tr><td><code>call.requireBearerToken(jwtService)</code></td><td>Only the username; same checks</td></tr>
+  </tbody>
+</table>
+<p>The check runs in a fixed order: decode and verify the JWT; check the live account and device state (inactive user, revoked device, PIN reset after the token was issued → <code>401</code>); then reload role, site and device from the user row. So deactivations, role changes and site moves apply on the very next request, even with an older token.</p>
+<pre><span class="k">post</span>("/api/things/sync") {
+    <span class="k">val</span> principal = call.requireAuthPrincipal(jwtService) ?: <span class="k">return</span>@post
+    ...
+}</pre>
+
+<h2 id="auth-scope">Record scope</h2>
+<p>Reads are scoped by role through <code>RecordScope</code> (<code>RecordScope.kt</code>):</p>
+<table class="compact">
+  <thead><tr><th>Role</th><th>Scope</th><th>Sees</th></tr></thead>
+  <tbody>
+    <tr><td>Admin</td><td><code>RecordScope.All</code></td><td>Everything</td></tr>
+    <tr><td>Manager</td><td><code>RecordScope.Site(siteId)</code></td><td>Their site's records. A manager without a site sees nothing</td></tr>
+    <tr><td>Worker, or unknown role</td><td><code>RecordScope.User(userId)</code></td><td>Only their own records</td></tr>
+  </tbody>
+</table>
+<p>Use it in every list, single-record read and dashboard count, and pass the table's <code>voided_at</code> column so voided records stay hidden:</p>
+<pre>Table.selectAll().where {
+    principal.recordScope().predicate(Table.submittedByUserId, Table.siteId, Table.voidedAt)
+}</pre>
+
+<h2 id="auth-prod">Before production</h2>
+<div class="danger"><b class="label">Development defaults to remove</b>
+<ul style="margin:0">
+  <li>Set <code>BEEFTECH_JWT_SECRET</code>. Without it the server falls back to a fixed dev secret and prints a warning.</li>
+  <li>Turn off the dev seed (<code>BEEFTECH_SEED_DEV=false</code>); the Render blueprint currently turns it on.</li>
+  <li>Replace the demo SQLCipher passphrase with the KeyStore-backed key, with a re-key migration for installed phones.</li>
+  <li>Remove <code>usesCleartextTraffic="true"</code> from release manifests.</li>
+  <li>Stop returning <code>pin_hash</code> in the login response, or protect what the phone stores, as part of a reviewed offline-login design.</li>
+</ul></div>
+
+<!-- ============================ 7. BACKEND ============================ -->
+<h1 class="chapter" id="be"><span class="num">Chapter 7</span>The backend</h1>
+
+<h2 id="be-layout">Code layout</h2>
+<p class="lead">All server code is in <code>backend/api/src/main/kotlin/com/beeftech/backend/api/</code>. Each feature is a set of flat files with a common suffix.</p>
+<table class="compact">
+  <thead><tr><th style="width:26%">File</th><th>Responsibility</th></tr></thead>
+  <tbody>
+    <tr><td><code>*Routes.kt</code></td><td>A <code>fun Route.xRoutes(jwtService, service)</code> extension. Authenticates, parses, calls the service, responds with <code>ApiResponse</code></td></tr>
+    <tr><td><code>*Service.kt</code></td><td>Validation and business rules; per-record results for sync</td></tr>
+    <tr><td><code>*Repository.kt</code></td><td>Exposed queries inside <code>newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase())</code></td></tr>
+    <tr><td><code>*Table.kt</code></td><td>Exposed <code>Table</code> objects (the schema)</td></tr>
+    <tr><td><code>*Models.kt</code></td><td><code>@Serializable</code> request and response DTOs</td></tr>
+    <tr><td><code>*SchemaMigration.kt</code></td><td>Idempotent changes to tables that already exist</td></tr>
+  </tbody>
+</table>
+<p>Sub-packages: <code>auth/</code> (login, JWT, users, sites, devices, login security, dev seed), <code>feedCrib/</code> (package <code>…api.feedcrib</code>) and <code>common/</code> (<code>ApiResponse</code>, <code>FileNaming</code>). Shared helpers: <code>AuthUtils.kt</code>, <code>RecordScope.kt</code>, <code>SyncUploadLog.kt</code>, <code>PdfGenerator.kt</code>, <code>ReportCsv.kt</code>, <code>CalfPhotoStore.kt</code>.</p>
+
+<h2 id="be-startup">Start-up</h2>
+<p><code>Application.kt</code> holds <code>main()</code>, which starts Netty on <code>$PORT</code> (default 8081), and <code>Application.module()</code>, which:</p>
+<ol class="steps">
+  <li>resolves the JDBC URL and calls <code>DatabaseFactory.init(jdbcUrl)</code> (<code>Database.kt</code>): runs the schema migrations, then <code>SchemaUtils.create(…)</code> for every table, then seeds reference data and feed crib codes;</li>
+  <li>installs <code>ContentNegotiation</code> with <code>Json { ignoreUnknownKeys = true }</code>, so a newer app sending extra fields keeps working against an older server;</li>
+  <li>seeds the dev site, users and cribs if the dev seed is on;</li>
+  <li>builds the repositories and services by hand (there is no DI framework) and registers every route group inside <code>routing { }</code>.</li>
+</ol>
+<p>Tests call the same <code>module()</code>, so anything you wire here is exercised by the route tests.</p>
+
+<h2 id="be-config">Configuration</h2>
+<p>There is no <code>application.conf</code>. An environment variable wins over the matching <code>-D</code> system property.</p>
+<table class="compact">
+  <thead><tr><th style="width:30%">Environment variable</th><th style="width:22%">System property</th><th>Default / purpose</th></tr></thead>
+  <tbody>
+    <tr><td><code>PORT</code></td><td>—</td><td><code>8081</code></td></tr>
+    <tr><td><code>BEEFTECH_DB_URL</code></td><td><code>beeftech.db.url</code></td><td><code>jdbc:sqlite:./data/beeftech-backend.db</code></td></tr>
+    <tr><td><code>BEEFTECH_SEED_DEV</code></td><td><code>beeftech.seed.dev</code></td><td>Seed dev site and users when <code>true</code>. If the env var is set at all it wins</td></tr>
+    <tr><td><code>BEEFTECH_MEDIA_DIR</code></td><td><code>beeftech.media.dir</code></td><td>Calf photo folder; defaults to <code>media/</code> next to the database</td></tr>
+    <tr><td><code>BEEFTECH_JWT_SECRET</code></td><td>—</td><td>JWT signing secret. Always set in production</td></tr>
+    <tr><td><code>BEEFTECH_SMTP_PROVIDER</code></td><td>—</td><td><code>custom</code> (default), <code>gmail</code> or <code>outlook</code></td></tr>
+    <tr><td><code>BEEFTECH_SMTP_HOST</code> / <code>_PORT</code> / <code>_SECURITY</code></td><td>—</td><td>Host (custom only); port defaults 587/465/25 for <code>starttls</code>/<code>ssl</code>/<code>none</code></td></tr>
+    <tr><td><code>BEEFTECH_SMTP_USERNAME</code> / <code>_PASSWORD</code></td><td>—</td><td>Set both or neither</td></tr>
+    <tr><td><code>BEEFTECH_SMTP_FROM</code></td><td>—</td><td>Sender; defaults to the username</td></tr>
+    <tr><td><code>BEEFTECH_SALES_REP_EMAIL</code></td><td>—</td><td>Fallback recipient when a site has no sales rep email</td></tr>
+  </tbody>
+</table>
+
+<h2 id="be-schema">Server schema changes</h2>
+<p><code>SchemaUtils.create</code> only creates tables that are missing; it never alters an existing one. So:</p>
+<ul>
+  <li><strong>A new table:</strong> define the <code>Table</code> object and add it to the <code>SchemaUtils.create(…)</code> list in <code>Database.kt</code>.</li>
+  <li><strong>A new column on an existing table:</strong> add it to the <code>Table</code> object <em>and</em> write a <code>*SchemaMigration</code> object that adds it with <code>ALTER TABLE</code> when <code>PRAGMA table_info</code> shows it is missing. Call it in <code>DatabaseFactory.init</code> <em>before</em> <code>SchemaUtils.create</code>. Follow <code>RecordVoidSchemaMigration.kt</code>: idempotent, and a no-op when the table does not exist yet.</li>
+  <li>Add a <code>*SchemaMigrationTest</code> that starts from the old shape and checks existing rows survive.</li>
+</ul>
+
+<h2 id="be-route">Anatomy of a route</h2>
+<p>The feed crib sync endpoint shows every convention in a few lines:</p>
+<pre><span class="c">/* Submitter and site come from the token, never the body. */</span>
+<span class="k">post</span>("/api/feed-crib-entries/sync") {
+    <span class="k">val</span> principal = call.requireAuthPrincipal(jwtService) ?: <span class="k">return</span>@post
+    <span class="k">val</span> request = call.receive&lt;FeedCribEntrySyncRequest&gt;()
+
+    <span class="k">if</span> (!call.acceptBatch(principal, ProjectCode.FEED_CRIB, request.batchName)) <span class="k">return</span>@post
+
+    <span class="k">val</span> response = feedCribService.sync(request, principal.userId, principal.siteId)
+    SyncUploadLog.record(principal, ProjectCode.FEED_CRIB, request.batchName, response.results.map { it.status })
+
+    call.respond(ApiResponse(success = <span class="k">true</span>, message = "Feed crib entries synchronized.", data = response))
+}</pre>
+<p>Every response body is an <code>ApiResponse&lt;T&gt;(success, message, data)</code>, including errors.</p>
+
+<h2 id="be-side">Voiding, audit, email, reports</h2>
+<ul>
+  <li><strong>Voiding</strong> is the only way to correct a synced record; there are no edits. <code>POST /api/records/{type}/{id}/void</code> sets <code>voided_at</code>, <code>voided_by_user_id</code> and <code>void_reason</code> and writes the audit log. A new record type that managers should be able to void needs those columns and an entry in <code>VoidRepository</code>.</li>
+  <li><strong>Audit log</strong> (<code>AuditLogTable</code>): written with <code>insertAuditRow(…)</code> by user, site, device, login security, reference data, sync policy, void and restore changes; read through <code>AuditService</code>.</li>
+  <li><strong>Email</strong> (<code>FarmerSalesNotification.kt</code>): the first sync of a farmer, and of a calf registration, emails a JSON receipt to the site's sales rep (or <code>BEEFTECH_SALES_REP_EMAIL</code>). A farmer is emailed at most once (claimed via <code>farmers.sales_notified_at</code>). With incomplete SMTP settings the email is logged instead and retried on a later sync.</li>
+  <li><strong>Reports</strong> (<code>ReportService</code>, <code>ReportCsv</code>, <code>PdfGenerator</code> with PDFBox): JSON, CSV or PDF via <code>?format=</code>. Calf birth certificates are PDFs too.</li>
+  <li><strong>Photos</strong> (<code>CalfPhotoStore</code>): raw <code>image/jpeg</code>, max 5 MB, stored on disk under the media folder.</li>
+</ul>
+
+<!-- ============================ 8. API ============================ -->
+<h1 class="chapter" id="api"><span class="num">Chapter 8</span>API reference</h1>
+
+<h2 id="api-conv">Conventions</h2>
+<p class="lead">Base URL <code>https://beeftech-backend.onrender.com</code> (hosted) or <code>http://&lt;host&gt;:8081</code> (local). Every route except the public ones needs <code>Authorization: Bearer &lt;jwt&gt;</code>.</p>
+<p><strong>Role:</strong> <em>any</em> — any signed-in user; <em>mgr</em> — manager or admin (managers limited to their own site); <em>admin</em> — admin only (<code>403</code> otherwise). Responses are <code>ApiResponse</code> JSON unless stated.</p>
+<div class="note"><b class="label">Note</b><code>backend/api/requests.http</code> is out of date (it sends <code>password</code> and calls the removed <code>/api/auth/register</code>). Use the <code>curl</code> examples in Chapter 2 or the route tests instead.</div>
+
+<h2 id="api-public">Public</h2>
+<table class="api compact">
+  <thead><tr><th>Method</th><th>Path</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td><code>GET</code></td><td><code>/</code> · <code>/health</code> · <code>/api/farm-traceability</code></td><td>Liveness text (Render uses <code>/health</code>)</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/auth/login</code></td><td><code>{username, pin, device_id, device_model?, app_version?}</code> → JWT and user</td></tr>
+  </tbody>
+</table>
+
+<h2 id="api-field">Field data</h2>
+<table class="api compact">
+  <thead><tr><th>Method</th><th>Path</th><th>Role</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td><code>GET</code></td><td><code>/api/profile</code></td><td>any</td><td>Current username</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/calf-registrations/sync</code></td><td>any</td><td>Batch upsert by GUID</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/calf-registrations</code> · <code>/{tagNumber}</code></td><td>any</td><td>List (scoped) / single</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/calf-registrations/assignment-candidates</code></td><td>mgr</td><td>Calves on the manager's site assignable to <code>?farmerId=</code></td></tr>
+    <tr><td><code>PUT</code> · <code>GET</code></td><td><code>/api/calf-registrations/{tag}/photo</code></td><td>any</td><td>Upload (raw JPEG, ≤ 5 MB; <code>413</code>/<code>415</code>) / download</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/calf-registrations/{tag}/certificate</code></td><td>any</td><td>Birth certificate PDF</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/farmers/sync</code></td><td>any</td><td>Batch upsert; sends the sales email once per farmer</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/farmers</code> · <code>/{farmerId}</code></td><td>any</td><td>List / single</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/treatments/sync</code></td><td>any</td><td>Batch upsert</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/treatments</code> · <code>/{animalId}</code> · <code>/reference-data</code></td><td>any</td><td>List / per animal / legacy reference data</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/animal-movements/sync</code></td><td>any</td><td>Batch upsert</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/mortalities/sync</code></td><td>any</td><td>Batch upsert</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/costs/sync</code></td><td>any</td><td>Batch upsert</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/{animal-movements|mortalities|costs}</code> · <code>/{animalId}</code></td><td>any</td><td>List / per animal</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/farmer-animal-links/sync</code></td><td>any</td><td>Upload one farmer–animal assignment, checked against site and saved link</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/farmer-animal-links/diagnose</code></td><td>any</td><td>Why pending assignments (≤ 50) are not syncing</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/traceability-events/sync</code></td><td>any</td><td>Generic outbox (<code>entityType</code>, <code>recordGuid</code>, <code>payload</code>), upsert by GUID</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/feed-cribs</code></td><td>any</td><td>Site's cribs, codes and last <code>days</code> (default 3, max 14) of entries; admins pass <code>?siteId=</code></td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/feed-crib-entries/sync</code></td><td>any</td><td>Batch upsert by <code>recordguid</code>; also updates <code>feed_cribs.current_adi</code></td></tr>
+  </tbody>
+</table>
+
+<h2 id="api-ref">Reference data and sync policy</h2>
+<table class="api compact">
+  <thead><tr><th>Method</th><th>Path</th><th>Role</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td><code>GET</code></td><td><code>/api/reference-data</code></td><td>any</td><td>Diseases, treatment types, cost types; <code>?ifVersion=N</code> → <code>unchanged</code></td></tr>
+    <tr><td><code>POST</code> · <code>PATCH</code></td><td><code>/api/reference-data/{kind}</code> · <code>/{kind}/{id}</code></td><td>admin</td><td>Add a value / activate or deactivate</td></tr>
+    <tr><td><code>GET</code> · <code>PUT</code></td><td><code>/api/sync-policy</code></td><td>any · admin</td><td>Read / change warning days (1–6) and stale-sync hours (12–336)</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/sync-security-events</code></td><td>any</td><td>Device uploads its security events (≤ 200)</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/sync-security-events</code> · <code>/locked</code></td><td>admin</td><td>Event log / locked users</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/users/{id}/clear-sync-lock</code></td><td>admin</td><td>Clear a Day-7 lock (audited)</td></tr>
+  </tbody>
+</table>
+
+<h2 id="api-admin">Administration</h2>
+<table class="api compact">
+  <thead><tr><th>Method</th><th>Path</th><th>Role</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td><code>GET</code> · <code>POST</code></td><td><code>/api/users</code></td><td>mgr</td><td>List / create (managers: workers on their site)</td></tr>
+    <tr><td><code>PATCH</code></td><td><code>/api/users/{id}</code></td><td>mgr</td><td>Update (only admins change role or site)</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/users/{id}/reset-pin</code> · <code>/unlock-login</code> · <code>/unbind-device</code></td><td>mgr</td><td>Reset PIN (also unlocks) / lift lockout / release device</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/sites</code></td><td>mgr</td><td>List sites (managers: their own)</td></tr>
+    <tr><td><code>POST</code> · <code>PATCH</code></td><td><code>/api/sites</code> · <code>/{id}</code></td><td>admin</td><td>Create / update (name, 4-char farm code, <code>salesRepEmail</code>)</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/devices</code></td><td>mgr</td><td>List devices</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/devices/{id}/revoke</code> · <code>/reinstate</code></td><td>admin</td><td>Revoke / reinstate with <code>{reason}</code></td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/login-events</code> · <code>/api/login-security/lockouts</code></td><td>admin</td><td>Login history / current lockouts</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/farmer-animal-links/restore-missing-parent</code></td><td>mgr</td><td>Recreate a missing farmer or calf an assignment needs; <code>verificationReason</code> 15–500 chars</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/records/{type}/{id}/assign-site</code></td><td>admin</td><td>Give a legacy record without a site a site</td></tr>
+    <tr><td><code>POST</code></td><td><code>/api/records/{type}/{id}/void</code></td><td>mgr</td><td>Void with <code>{reason}</code> (≤ 500 chars)</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/records/{type}</code></td><td>mgr</td><td>Review list, including voided</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/audit-log</code></td><td>mgr</td><td>Audit log with filters</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/dashboard/summary</code></td><td>mgr</td><td>Dashboard figures (<code>?siteId</code>)</td></tr>
+    <tr><td><code>GET</code></td><td><code>/api/reports/{report}</code></td><td>mgr</td><td><code>mortality</code>, <code>treatment-cost</code>, <code>cost-per-animal</code>, <code>calf-registrations</code>, <code>worker-productivity</code>; <code>?format=json|csv|pdf</code></td></tr>
+  </tbody>
+</table>
+<p class="muted">Void and review <code>{type}</code> values: <code>calf-registrations</code>, <code>treatments</code>, <code>farmers</code>, <code>animal-movements</code>, <code>mortalities</code>.</p>
+
+<!-- ============================ 9. TESTING ============================ -->
+<h1 class="chapter" id="test"><span class="num">Chapter 9</span>Testing and CI</h1>
+
+<h2 id="test-kinds">Kinds of test</h2>
+<table class="compact">
+  <thead><tr><th style="width:42%">Command</th><th>Runs</th><th style="width:13%">Device?</th></tr></thead>
+  <tbody>
+    <tr><td><code>./gradlew testDebugUnitTest test</code></td><td>Every JVM unit test (exactly what CI runs)</td><td>No</td></tr>
+    <tr><td><code>./gradlew :backend:api:test</code></td><td>Ktor route, auth, admin, email and schema-migration tests</td><td>No</td></tr>
+    <tr><td><code>./gradlew :android:&lt;module&gt;:testDebugUnitTest</code></td><td>One module's unit tests</td><td>No</td></tr>
+    <tr><td><code>./gradlew lintDebug</code></td><td>Android Lint in every module</td><td>No</td></tr>
+    <tr><td><code>./gradlew :android:database:connectedAndroidTest</code></td><td>SQLCipher, keystore, DAO, sync and migration tests</td><td><strong>Yes</strong></td></tr>
+    <tr><td><code>./gradlew :android:tag-scanner:connectedAndroidTest</code></td><td>Ear-tag recognition over sample images</td><td><strong>Yes</strong></td></tr>
+  </tbody>
+</table>
+<p>Run a single class with <code>--tests</code>:</p>
+<pre><span class="k">./gradlew</span> :android:feed-crib:testDebugUnitTest --tests "com.beeftech.feedcrib.SlotAllocatorTest"
+<span class="k">./gradlew</span> :backend:api:test --tests "com.beeftech.backend.api.VoidRoutesTest"</pre>
+
+<h2 id="test-android">Android unit tests</h2>
+<p>Feature logic is tested on the JVM with hand-written fakes rather than a mocking library. <code>android/feed-crib/src/test/</code> is the model:</p>
+<ul>
+  <li><code>fakes/FakeFeedCribDao.kt</code> and <code>FakePendingSyncDao.kt</code> — in-memory DAOs;</li>
+  <li><code>fakes/FakeFeedCribServer.kt</code> — a scriptable backend behind Ktor's <code>MockEngine</code>, with an <code>offline</code> switch;</li>
+  <li><code>fakes/FakeTokenProvider.kt</code> — a token source;</li>
+  <li><code>FeedCribRepositoryTest</code>, <code>FeedCribViewModelTest</code>, <code>FeedCribApiClientTest</code>, <code>SlotAllocatorTest</code>.</li>
+</ul>
+<p>Because repositories take their clock, time zone and user ID as constructor parameters, tests can pin the time of day and the signed-in user. Modules that log through <code>android.util.Log</code> set <code>unitTests.isReturnDefaultValues = true</code> so logging does not throw on the JVM.</p>
+<p>Test what matters for field data: a save survives a failed sync; a retry does not duplicate; an <code>ERROR</code> result is kept and shown; the queue and the record table agree afterwards.</p>
+
+<h2 id="test-backend">Backend route tests</h2>
+<p>Backend tests start the real <code>module()</code> in Ktor's <code>testApplication</code> against a fresh temporary SQLite file, with the dev seed on. Helpers live in <code>AdminTestHelpers.kt</code>:</p>
+<pre>@Test
+<span class="k">fun</span> `a worker sees only their own records`() = testApplication {
+    startAdminApp()                                  <span class="c">// temp DB + dev seed + module()</span>
+    <span class="k">val</span> client = createClient { }
+    <span class="k">val</span> worker = client.adminLogin("jvdm", "30003")  <span class="c">// returns a JWT</span>
+    <span class="k">val</span> response = client.adminSend("GET", "/api/treatments", worker)
+    assertEquals(HttpStatusCode.OK, response.status)
+}</pre>
+<p>Pass the same file to <code>startAdminApp(file)</code> twice to simulate a restart on the same database (useful for schema migrations).</p>
+<div class="warn"><b class="label">Flaky suite</b><code>:backend:api:test</code> is known to be flaky: a different single test can fail on each run, probably because tests share static state (N5 in <code>docs/database/future-checks.md</code>). Re-run before assuming a regression, and do not add new shared mutable state.</div>
+<p><code>FarmerSalesNotificationLiveTest</code> sends a real email and is skipped unless <code>BEEFTECH_SMTP_LIVE_TEST=true</code>.</p>
+
+<h2 id="test-ci">Continuous integration</h2>
+<p><code>.github/workflows/ci.yml</code> runs on every push and pull request to <code>main</code>, on JDK 17:</p>
+<table class="compact">
+  <thead><tr><th style="width:32%">Job</th><th>Command</th><th style="width:22%">Reports artifact</th></tr></thead>
+  <tbody>
+    <tr><td>Unit tests</td><td><code>./gradlew testDebugUnitTest test --continue</code></td><td><code>test-reports</code></td></tr>
+    <tr><td>Android Lint</td><td><code>./gradlew lintDebug --continue</code></td><td><code>lint-reports</code></td></tr>
+    <tr><td>Database migration tests (emulator)</td><td><code>:android:database:connectedAndroidTest</code> on API 30, x86_64, KVM</td><td><code>database-instrumented-test-reports</code></td></tr>
+  </tbody>
+</table>
+<p>None of the jobs is a required check yet; do not merge on red anyway.</p>
+
+<h2 id="test-contrib">Contributing</h2>
+<ul>
+  <li>Branch from <code>main</code>: <code>feature/&lt;short-description&gt;</code>, <code>fix/…</code>, <code>docs/…</code>.</li>
+  <li>Commit messages follow Conventional Commits with the module as scope, e.g. <code>feat(feed-crib): add crib note</code>, <code>fix(backend): …</code>, <code>docs(user-manual): …</code>.</li>
+  <li>Before opening a pull request run <code>./gradlew build</code>, <code>./gradlew testDebugUnitTest test</code> and <code>./gradlew lintDebug</code>. Run <code>connectedAndroidTest</code> for any change under <code>:android:database</code>.</li>
+  <li>Update the README, this manual and, for user-visible changes, the User Manual in the same pull request.</li>
+</ul>
+
+<!-- ============================ 10. RECIPES ============================ -->
+<h1 class="chapter" id="recipes"><span class="num">Chapter 10</span>Recipes</h1>
+
+<h2 id="recipe-record">Adding a new synced record type</h2>
+<p class="lead">The most common large change. Feed crib (schema 47) went through every step below; read its files next to this list.</p>
+
+<h3>On the server</h3>
+<ol class="check">
+  <li><strong>Table.</strong> Create <code>XTable.kt</code> with a unique <code>record_guid</code>, the record's fields, <code>submitted_by_user_id</code>, <code>site_id</code>, <code>device_id</code>, capture and server-sync timestamps, and <code>voided_at</code> / <code>voided_by_user_id</code> / <code>void_reason</code> if it can be voided. Add it to <code>SchemaUtils.create(…)</code> in <code>Database.kt</code>.<span class="where">e.g. feedCrib/FeedCribTable.kt</span></li>
+  <li><strong>Models.</strong> <code>@Serializable</code> sync request (<code>deviceId</code>, <code>batchName?</code>, <code>records</code>), per-record result (<code>recordGuid</code>, <code>status</code>, <code>message?</code>, <code>serverSyncedAt?</code>) and response.</li>
+  <li><strong>Repository.</strong> <code>upsert</code> by GUID inside <code>newSuspendedTransaction</code>; scoped list and single reads using <code>RecordScope.predicate(…)</code>.</li>
+  <li><strong>Service.</strong> Validate each record; return <code>SYNCED</code> or <code>ERROR</code> per record, never throw for the batch.</li>
+  <li><strong>Project code.</strong> Add a value to <code>FileNaming.ProjectCode</code> (server) <em>and</em> the phone's copy in <code>:android:database</code>.</li>
+  <li><strong>Routes.</strong> <code>POST /api/x/sync</code> following <a href="#be-route">the anatomy above</a>, plus <code>GET</code> reads. Register them in <code>Application.module()</code>.</li>
+  <li><strong>Tests.</strong> A <code>XRoutesTest</code> covering: unauthenticated → 401, upsert is idempotent, submitter/site come from the token, one bad record does not fail the batch, scope per role, bad batch name → 400.</li>
+</ol>
+
+<h3>On the phone</h3>
+<ol class="check">
+  <li><strong>Entity and DAO</strong> in <code>:android:database</code>, with <code>record_guid</code> as the key, <code>sync_status</code>, <code>sync_error</code>, <code>synced_at</code>, <code>user_id</code>, <code>device_id</code>, <code>captured_at</code>. Index <code>sync_status</code>.</li>
+  <li><strong>Migration</strong>: the full checklist in <a href="#db-change">Chapter 4</a>, including the schema JSON and a migration test.</li>
+  <li><strong>API client</strong> in the feature's <code>data/</code>: <code>baseUrl = BackendConfig.baseUrl</code>, <code>bearerAuth(token)</code>, report <code>401</code>, return <code>Result&lt;T&gt;</code>. Send a batch name.</li>
+  <li><strong>Repository</strong>: save locally → <code>queueOperation(ENTITY_TYPE, guid, "UPSERT", …)</code> → try <code>syncPending()</code>. Apply results per record; clear the queue row only on <code>SYNCED</code>.</li>
+  <li><strong>Worker</strong>: the shape in <a href="#sync-workers">Chapter 5</a>, wrapped in <code>SyncRunRepository.trackRun</code>. Add a <code>SyncRunModule</code> value if the feature is new.</li>
+  <li><strong>Dispatcher</strong>: add a unique work name and the worker to <code>SyncAllDispatcher</code>, and update its test in <code>demoapp/src/test/</code>.</li>
+  <li><strong>Home and policy</strong>: make sure the pending count on Home and the 7-day policy see the new entity type (they read <code>pending_sync</code>).</li>
+  <li><strong>UI</strong>: ViewModel + screens; a tab in <code>AppTab</code> or an entry from an existing screen.</li>
+  <li><strong>Tests</strong>: repository and ViewModel tests with fakes (<a href="#test-android">Chapter 9</a>).</li>
+  <li><strong>Docs</strong>: README module table and API reference, this manual, the User Manual.</li>
+</ol>
+
+<h2 id="recipe-endpoint">Adding an endpoint</h2>
+<ol class="steps">
+  <li>Add the DTOs to the feature's <code>*Models.kt</code>.</li>
+  <li>Add the query to the repository and the rule to the service.</li>
+  <li>Add the route to the feature's <code>*Routes.kt</code>. First line: <code>requireAuthPrincipal</code> or <code>requireRole</code>. Use <code>RecordScope</code> for reads. Respond with <code>ApiResponse</code>.</li>
+  <li>If it is a new route group, register it in <code>Application.module()</code>.</li>
+  <li>Write route tests for each role (allowed and refused).</li>
+  <li>Add a method to the Android API client that will call it, and add the endpoint to the README and <a href="#api">Chapter 8</a>.</li>
+</ol>
+
+<h2 id="recipe-mgmt">Adding a manager or admin screen</h2>
+<p>Management screens in <code>:android:management</code> are online-only: they call the server through <code>ManagementApiClient</code> and show a "needs connection" notice when offline. They do not write to Room or <code>pending_sync</code>.</p>
+<ol class="steps">
+  <li>Add the call to <code>ManagementApiClient</code> (<code>management/data/</code>).</li>
+  <li>Add a ViewModel in <code>management/viewmodel/</code> exposing loading, content, error and offline states.</li>
+  <li>Add the screen in <code>management/ui/</code>. Admin-only pages go inside the Admin area; manager pages get an <code>AppTab</code> value and an entry in <code>moreTabsFor</code>.</li>
+  <li>Protect the endpoint on the server with <code>requireRole</code>; never rely on the screen being hidden.</li>
+  <li>Add ViewModel tests in <code>android/management/src/test/</code>.</li>
+</ol>
+
+<h2 id="recipe-dep">Adding a dependency</h2>
+<ul>
+  <li>Add it to <code>gradle/libs.versions.toml</code> and reference it as <code>libs.…</code>. Older modules still hard-code coordinates; new code should use the catalog.</li>
+  <li>Repositories can only be declared in <code>settings.gradle.kts</code> (<code>FAIL_ON_PROJECT_REPOS</code>).</li>
+  <li>Match the Ktor client version (3.0.3) and Compose BOM already used by the module you are editing.</li>
+  <li>If the dependency brings SQLCipher or BouncyCastle into a new module, copy the <code>packaging { resources { excludes += … } }</code> block from <code>:android:database</code> to avoid duplicate <code>META-INF</code> errors.</li>
+</ul>
+
+<!-- ============================ 11. SHIP ============================ -->
+<h1 class="chapter" id="ship"><span class="num">Chapter 11</span>Building, releasing and deploying</h1>
+
+<h2 id="ship-apk">Building the APK</h2>
+<pre><span class="k">./gradlew</span> :demoapp:assembleDebug     <span class="c"># → demoapp/build/outputs/apk/debug/</span>
+<span class="k">./gradlew</span> :demoapp:assembleRelease   <span class="c"># talks to https://beeftech-backend.onrender.com/</span></pre>
+<ul>
+  <li><code>applicationId</code> is <code>com.beeftech.demoapp</code>, <code>versionName</code> <code>1.0</code>; bump <code>versionCode</code> and <code>versionName</code> in <code>demoapp/build.gradle.kts</code> for each release so phones accept the update.</li>
+  <li>No release signing config is committed. Sign release APKs with the team's keystore outside the repository; never commit it.</li>
+  <li>On phones the app is still labelled <strong>demoapp</strong> in the app drawer.</li>
+  <li>An update must open the existing encrypted database and migrate it. Test an upgrade over the previous release with unsynced data on the phone before shipping.</li>
+</ul>
+
+<h2 id="ship-backend">Deploying the backend</h2>
+<p>The <code>Dockerfile</code> builds <code>:backend:api:installDist</code> on Temurin 17 and runs <code>/app/bin/api</code> on a JRE 17 image, exposing 8081. <code>render.yaml</code> deploys it to Render as <code>beeftech-backend</code>:</p>
+<ul>
+  <li>auto-deploys on every commit to the tracked branch; health check <code>/health</code>;</li>
+  <li>generates <code>BEEFTECH_JWT_SECRET</code>; SMTP goes through the Brevo relay; <code>BEEFTECH_SMTP_USERNAME</code>, <code>_PASSWORD</code>, <code>_FROM</code> and <code>BEEFTECH_SALES_REP_EMAIL</code> are entered in the Render dashboard (<code>sync: false</code>) and never committed;</li>
+  <li><code>BEEFTECH_SEED_DEV=true</code>, so the dev users exist on the hosted server.</li>
+</ul>
+<div class="danger"><b class="label">No persistent disk</b>The Render service has no disk, so the hosted SQLite database and calf photos reset on every redeploy or restart. Treat it as a demo environment. Production needs a persistent volume (and <code>BEEFTECH_DB_URL</code> / <code>BEEFTECH_MEDIA_DIR</code> pointing at it) or a managed database.</div>
+<p>To try the image locally:</p>
+<pre><span class="k">docker</span> build -t beeftech-backend .
+<span class="k">docker</span> run -p 8081:8081 -e BEEFTECH_SEED_DEV=true -e BEEFTECH_JWT_SECRET=dev-only beeftech-backend</pre>
+
+<h2 id="ship-manuals">Rebuilding the manuals</h2>
+<p>Both manuals are HTML rendered to PDF by headless Chromium. They share one stylesheet and logo in <code>docs/user-manual/</code>:</p>
+<pre class="tree">docs/user-manual/       manual.html · cover.html · manual.css · assets/ · screenshots/ · build.sh
+docs/developer-manual/  manual.html · cover.html · developer.css · build.sh</pre>
+<pre><span class="k">docs/user-manual/build.sh</span>        <span class="c"># → BeefTech-User-Manual.pdf</span>
+<span class="k">docs/developer-manual/build.sh</span>   <span class="c"># → BeefTech-Developer-Manual.pdf</span></pre>
+<p>They need <code>chromium</code> (or <code>google-chrome</code>; set <code>CHROME=</code> to override) and <code>pdfunite</code> from poppler-utils. Edit the HTML, rebuild, and commit the HTML and the PDF together.</p>
+
+<!-- ============================ 12. HELP ============================ -->
+<h1 class="chapter" id="help"><span class="num">Chapter 12</span>Troubleshooting and reference</h1>
+
+<h2 id="help-trouble">Troubleshooting</h2>
+<table>
+  <thead><tr><th style="width:36%">Symptom</th><th>Fix</th></tr></thead>
+  <tbody>
+    <tr><td><code>Unable to download toolchain matching … languageVersion=17</code></td><td>Install a JDK 17, or point Gradle at one: <code>-Porg.gradle.java.installations.paths=/path/to/jdk-17</code></td></tr>
+    <tr><td><code>SDK location not found</code></td><td>Create <code>local.properties</code> with <code>sdk.dir=…</code></td></tr>
+    <tr><td><code>Plugin [id: 'com.android.application' …] was not found</code></td><td>Gradle cannot reach Google Maven / Maven Central. Check proxy or VPN</td></tr>
+    <tr><td>Duplicate <code>META-INF</code> resources</td><td>Copy the <code>packaging</code> excludes from <code>:android:database</code></td></tr>
+    <tr><td>Room schema export fails with <code>AbstractMethodError</code></td><td>KSP2 must stay on: <code>ksp.useKSP2=true</code> in <code>gradle.properties</code></td></tr>
+    <tr><td>Lint crashes reading Kotlin metadata of a fake DAO</td><td>Set <code>lint { ignoreTestSources = true }</code> in that module, as <code>feed-crib</code> does</td></tr>
+    <tr><td>App cannot reach the backend</td><td>Emulator: backend running on 8081? Physical phone: reinstall with <code>-Pbeeftech.baseUrl=http://&lt;lan-ip&gt;:8081/</code></td></tr>
+    <tr><td>Sign-in returns <code>409</code></td><td>User bound to another device; unbind it or reset the local backend database</td></tr>
+    <tr><td>Worker logs "Database is not initialized"</td><td>Expected before the first unlock after a process start; it retries</td></tr>
+    <tr><td><code>Room cannot verify the data integrity</code> / migration missing</td><td>You changed an entity without bumping <code>VERSION</code> and adding a migration (<a href="#db-change">Chapter 4</a>). Never "fix" this by uninstalling on a field phone</td></tr>
+    <tr><td>A backend test fails once, passes on re-run</td><td>Known flakiness (<a href="#test-backend">Chapter 9</a>)</td></tr>
+    <tr><td>Gradle behaves strangely after a branch switch</td><td><code>./gradlew --stop &amp;&amp; ./gradlew clean</code></td></tr>
+  </tbody>
+</table>
+
+<h2 id="help-gaps">Known gaps</h2>
+<ul>
+  <li>The demo SQLCipher passphrase, the JWT fallback secret and the dev users are hard-coded for development.</li>
+  <li><code>usesCleartextTraffic="true"</code> is set in main manifests, so release builds allow HTTP too.</li>
+  <li>The login response includes the user's <code>pin_hash</code> (used for offline sign-in).</li>
+  <li>The Render deployment has no persistent disk and seeds the dev users.</li>
+  <li><code>CalfRegistrationViewModel</code> and <code>TreatmentViewModel</code> re-enqueue the legacy 15-minute periodic jobs that <code>ScheduledSyncScheduler</code> cancels.</li>
+  <li>The biometric prompt code in <code>:android:authentication</code> is unused.</li>
+  <li><code>backend/authentication</code>, <code>backend/sync</code>, <code>docs/architecture/</code> and <code>docs/testing/</code> are empty.</li>
+  <li><code>backend/api/requests.http</code> is stale; stale standalone Gradle files remain under <code>android/</code>.</li>
+  <li>Dependency declarations are mixed between the version catalog and hard-coded coordinates; Compose BOM versions differ between modules.</li>
+  <li>CI jobs are not required checks; <code>:backend:api:test</code> is flaky.</li>
+</ul>
+
+<h2 id="help-versions">Toolchain and versions</h2>
+<table class="compact">
+  <thead><tr><th>Component</th><th>Version</th><th>Component</th><th>Version</th></tr></thead>
+  <tbody>
+    <tr><td>Gradle wrapper</td><td>8.13</td><td>Ktor client / server</td><td>3.0.3</td></tr>
+    <tr><td>Daemon JVM / JVM target</td><td>17</td><td>Exposed</td><td>0.56.0</td></tr>
+    <tr><td>Android Gradle Plugin</td><td>8.13.2</td><td>SQLite JDBC</td><td>3.46.1.3</td></tr>
+    <tr><td>Kotlin</td><td>2.0.21</td><td>PDFBox</td><td>2.0.30</td></tr>
+    <tr><td>KSP</td><td>2.0.21-1.0.28 (KSP2)</td><td>Jakarta Mail (Angus)</td><td>2.0.3</td></tr>
+    <tr><td>Room</td><td>2.8.4</td><td>java-jwt / jBCrypt</td><td>4.4.0 / 0.4</td></tr>
+    <tr><td>SQLCipher for Android</td><td>4.17.0</td><td>ML Kit text recognition</td><td>16.0.1</td></tr>
+    <tr><td>compileSdk</td><td>35 / 34 (per module)</td><td>minSdk</td><td>24 (23 for database)</td></tr>
+  </tbody>
+</table>
+
+<h2 id="help-docs">Other documents</h2>
+<table class="compact">
+  <thead><tr><th style="width:44%">Document</th><th>What it covers</th></tr></thead>
+  <tbody>
+    <tr><td><code>README.md</code></td><td>Quick start and the same reference material in Markdown</td></tr>
+    <tr><td><code>docs/user-manual/BeefTech-User-Manual.pdf</code></td><td>The app from the user's side, with screenshots</td></tr>
+    <tr><td><code>docs/database/incident-2026-09-r0-migration-data-loss.md</code></td><td>Why the migration rules exist</td></tr>
+    <tr><td><code>docs/database/future-checks.md</code></td><td>Deferred database and backend follow-ups</td></tr>
+    <tr><td><code>docs/database/schema-diagram.md</code> / <code>.svg</code></td><td>The local schema</td></tr>
+    <tr><td><code>docs/database/referential-integrity-audit-2026-09-28.*</code></td><td>Integrity audit and its SQL</td></tr>
+    <tr><td><code>docs/requirements/</code></td><td>Client feedback gaps; farmer sales email plan</td></tr>
+    <tr><td><code>docs/design/field-ready-redesign-plan.md</code></td><td>The field-ready UI redesign</td></tr>
+    <tr><td><code>docs/farmer-calf-linking-proposal.md</code></td><td>Farmer–calf linking proposal</td></tr>
+  </tbody>
+</table>
+
+<h2 id="help-glossary">Glossary</h2>
+<table class="compact">
+  <tbody>
+    <tr><td style="width:24%"><strong>ADI</strong></td><td>Average daily intake (kg) for a feed crib</td></tr>
+    <tr><td><strong>Batch name</strong></td><td><code>[FarmCode]-[Project]-[YYYYMMDD]-[HHMMSS]-[DeviceID]</code> label sent with each upload</td></tr>
+    <tr><td><strong>Check-in</strong></td><td><code>DeviceCheckInWorker</code>: reference data and policy down, security events up</td></tr>
+    <tr><td><strong>Day-7 wipe / lock</strong></td><td>The audited deletion of a user's pending operations and account lock after 7 days unsynced</td></tr>
+    <tr><td><strong>Device binding</strong></td><td>A user may only sign in on the device they first used, until unbound</td></tr>
+    <tr><td><strong>Farm code</strong></td><td>A site's 4-character code (A–Z, 0–9), e.g. <code>S001</code></td></tr>
+    <tr><td><strong>GUID / record GUID</strong></td><td>The ID a phone gives each record; the server upserts by it</td></tr>
+    <tr><td><strong>Outbox</strong></td><td>The generic <code>/api/traceability-events/sync</code> channel for traceability record types</td></tr>
+    <tr><td><strong>pending_sync</strong></td><td>The cross-module queue of records still to upload</td></tr>
+    <tr><td><strong>Principal</strong></td><td><code>AuthPrincipal</code>: the server's view of the caller (user, role, site, device)</td></tr>
+    <tr><td><strong>Record scope</strong></td><td>Which records a caller may read: all, their site, or their own</td></tr>
+    <tr><td><strong>Site</strong></td><td>A feedlot or farm; managers and workers belong to one</td></tr>
+    <tr><td><strong>Slot</strong></td><td>Feed crib reading block: <code>MORNING</code>, <code>MIDDAY</code> or <code>EVENING</code></td></tr>
+    <tr><td><strong>Void</strong></td><td>Hiding a synced record with a reason; the only correction mechanism</td></tr>
+  </tbody>
+</table>
+
+</body>
+</html>

@@ -95,7 +95,9 @@ beeftech-mobile-data-platform/
 ├── docs/
 │   ├── database/                 # incident write-up, future-checks, integrity audit, schema diagram, R4 plans
 │   ├── design/                   # field-ready UI redesign plan
-│   └── requirements/             # client feedback gaps, Req 6 farmer sales email plan
+│   ├── developer-manual/         # Developer Manual (HTML → PDF via build.sh)
+│   ├── requirements/             # client feedback gaps, Req 6 farmer sales email plan
+│   └── user-manual/              # User Manual (HTML → PDF via build.sh)
 ├── gradle/
 │   ├── libs.versions.toml        # Version catalog
 │   ├── gradle-daemon-jvm.properties
@@ -111,6 +113,10 @@ beeftech-mobile-data-platform/
 module. `backend/authentication` and `backend/sync` are empty `.gitkeep` placeholders
 declared in `settings.gradle.kts` — they configure but build nothing.
 `docs/architecture/` and `docs/testing/` are still empty.
+
+For a fuller guide to the architecture, sync, security, testing and common changes, see the
+[Developer Manual](docs/developer-manual/BeefTech-Developer-Manual.pdf). Rebuild it with
+`docs/developer-manual/build.sh` after editing `docs/developer-manual/manual.html`.
 
 > **Note:** `android/` also contains a leftover standalone Gradle setup
 > (`android/gradlew`, `android/gradlew.bat`, `android/gradle/wrapper/` pointing at
