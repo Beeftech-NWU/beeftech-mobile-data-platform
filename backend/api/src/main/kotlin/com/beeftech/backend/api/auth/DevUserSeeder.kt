@@ -34,9 +34,10 @@ object DevUserSeeder {
                     siteId = user.siteId
                 )
                 println("Seeded user: ${user.username}")
-            } else if (existing.siteId != user.siteId) {
-                /* A dev DB seeded before sites existed: attach the dev users to the dev site. */
-                userRepository.updateSite(existing.userId, user.siteId)
+            } else {
+                // Existing site assignments are managed by administrators.
+                // Do not move GauFarm's manager back to the Feedcrib development site.
+                println("Existing dev user retained: ${user.username}")
             }
         }
     }

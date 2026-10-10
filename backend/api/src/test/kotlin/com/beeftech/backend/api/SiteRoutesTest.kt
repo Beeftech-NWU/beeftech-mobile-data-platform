@@ -88,6 +88,25 @@ class SiteRoutesTest {
     private suspend fun HttpClient.siteIdOf(response: HttpResponse) = dataOf(response.bodyAsText()).jsonObject.str("siteId")!!
 
     @Test
+    fun `development seeding preserves manager's admin-assigned GauFarm site`() = testApplication {
+        startApp()
+        val client = createClient { }
+        val admin = client.login("admin", "10001")
+        val created = client.createSite(admin, "GauFarm", "GAUF")
+        assertEquals(HttpStatusCode.Created, created.status)
+        val gauFarmSiteId = client.siteIdOf(created)
+        val users = com.beeftech.backend.api.auth.UserRepository()
+        val manager = users.findByUsername("fmanager")!!
+        users.updateSite(manager.userId, gauFarmSiteId)
+
+        com.beeftech.backend.api.auth.DevUserSeeder.seed(users)
+
+        assertEquals(gauFarmSiteId, users.findByUsername("fmanager")!!.siteId)
+        assertEquals("dev-site-1", users.findByUsername("jvdm")!!.siteId)
+        assertEquals(2, client.sites(admin).size)
+    }
+
+    @Test
     fun `admin lists all sites with active user counts and a manager only their own`() = testApplication {
         startApp()
         val client = createClient { }
