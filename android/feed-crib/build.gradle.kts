@@ -18,6 +18,12 @@ android {
         compose = true
     }
 
+    lint {
+        // Lint 8.x crashes reading the Kotlin 2.1 metadata of the Room DAO that FakeFeedCribDao extends
+        // ("maximum supported version is 2.0.0"). The unit tests are still compiled and run.
+        ignoreTestSources = true
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
