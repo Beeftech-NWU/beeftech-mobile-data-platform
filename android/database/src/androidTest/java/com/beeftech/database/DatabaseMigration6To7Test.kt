@@ -401,11 +401,18 @@ class DatabaseMigration6To7Test {
             rawDatabase.execSQL("CREATE TABLE IF NOT EXISTS `farmer_addresses` (`address_id` TEXT NOT NULL, `farmer_id` TEXT NOT NULL, `address_type` TEXT, `address_line_1` TEXT, `province` TEXT, `postal_code` TEXT, `gps_latitude` REAL, `gps_longitude` REAL, PRIMARY KEY(`address_id`), FOREIGN KEY(`farmer_id`) REFERENCES `farmers`(`farmer_id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
             rawDatabase.execSQL("CREATE INDEX IF NOT EXISTS `index_farmer_addresses_farmer_id` ON `farmer_addresses` (`farmer_id`)")
 
-            rawDatabase.execSQL("DROP TABLE `feed_crib_readings`")
+            /*
+             * The current schema (v47) has no stub feed crib tables, so rebuild all three as they
+             * were at v6. Later migrations read feed_cribs.id and drop them again at v47.
+             */
+            rawDatabase.execSQL("DROP TABLE IF EXISTS `feed_crib_reading_values`")
+            rawDatabase.execSQL("DROP TABLE IF EXISTS `feed_crib_readings`")
+            rawDatabase.execSQL("DROP TABLE IF EXISTS `feed_cribs`")
+            rawDatabase.execSQL("CREATE TABLE IF NOT EXISTS `feed_cribs` (`id` TEXT NOT NULL, `name` TEXT, PRIMARY KEY(`id`))")
+
             rawDatabase.execSQL("CREATE TABLE IF NOT EXISTS `feed_crib_readings` (`id` TEXT NOT NULL, `cribId` TEXT NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`cribId`) REFERENCES `feed_cribs`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
             rawDatabase.execSQL("CREATE INDEX IF NOT EXISTS `index_feed_crib_readings_cribId` ON `feed_crib_readings` (`cribId`)")
 
-            rawDatabase.execSQL("DROP TABLE `feed_crib_reading_values`")
             rawDatabase.execSQL("CREATE TABLE IF NOT EXISTS `feed_crib_reading_values` (`id` TEXT NOT NULL, `readingId` TEXT NOT NULL, `value` REAL NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`readingId`) REFERENCES `feed_crib_readings`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
             rawDatabase.execSQL("CREATE INDEX IF NOT EXISTS `index_feed_crib_reading_values_readingId` ON `feed_crib_reading_values` (`readingId`)")
 

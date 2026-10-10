@@ -63,6 +63,7 @@ class FakeSyncSecurityDao : SyncSecurityDao() {
     override suspend fun findUnsyncedCalfAnimalId(recordGuid: String): String? = unused()
     override suspend fun deleteUnsyncedCalfRegistration(recordGuid: String) = unused()
     override suspend fun deleteUnsyncedCalfAnimal(animalId: String) = unused()
+    override suspend fun deleteUnsyncedFeedCribEntry(recordGuid: String) = unused()
     override suspend fun deletePendingQueueItem(pendingId: Long) = unused()
 
     private fun unused(): Nothing = error("Not used by these tests")

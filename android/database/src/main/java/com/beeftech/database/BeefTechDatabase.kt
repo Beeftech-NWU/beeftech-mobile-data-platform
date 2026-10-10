@@ -21,9 +21,9 @@ import com.beeftech.database.entity.FarmerAddressEntity
 import com.beeftech.database.entity.FarmerEntity
 import com.beeftech.database.entity.FarmerRoleEntity
 import com.beeftech.database.entity.FarmerBusinessRole
+import com.beeftech.database.entity.CribReadingCodeEntity
 import com.beeftech.database.entity.FeedCribEntity
-import com.beeftech.database.entity.FeedCribReadingEntity
-import com.beeftech.database.entity.FeedCribReadingValueEntity
+import com.beeftech.database.entity.FeedCribEntryEntity
 import com.beeftech.database.entity.RationEntity
 import com.beeftech.database.entity.LocationEntity
 import com.beeftech.database.entity.Mortality
@@ -94,7 +94,6 @@ import com.beeftech.database.dao.IdentifierTypeDao
 import com.beeftech.database.dao.CalfRegistrationDao
 import com.beeftech.database.dao.FarmerDao
 import com.beeftech.database.dao.FeedCribDao
-import com.beeftech.database.dao.FeedCribReadingDao
 import com.beeftech.database.dao.LocationDao
 import com.beeftech.database.dao.MortalityDao
 import com.beeftech.database.dao.PenDao
@@ -123,8 +122,8 @@ import com.beeftech.database.dao.UserDao
         LocationEntity::class,
         PenEntity::class,
         FeedCribEntity::class,
-        FeedCribReadingEntity::class,
-        FeedCribReadingValueEntity::class,
+        CribReadingCodeEntity::class,
+        FeedCribEntryEntity::class,
         RationEntity::class,
         Role::class,
         User::class,
@@ -191,7 +190,6 @@ abstract class BeefTechDatabase : RoomDatabase() {
     abstract fun locationDao(): LocationDao
     abstract fun penDao(): PenDao
     abstract fun feedCribDao(): FeedCribDao
-    abstract fun feedCribReadingDao(): FeedCribReadingDao
     abstract fun rationDao(): RationDao
     abstract fun roleDao(): RoleDao
     abstract fun userDao(): UserDao
@@ -242,7 +240,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
     companion object {
 
         /** Current Room schema version. Bump here when adding a migration. */
-        const val VERSION = 46
+        const val VERSION = 47
 
         /**
          * Phase 3 Migration (Version 9 -> 10):
@@ -4040,6 +4038,62 @@ abstract class BeefTechDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_farmer_animal_links_farmer_id` ON `farmer_animal_links` (`farmer_id`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_farmer_animal_links_animal_id` ON `farmer_animal_links` (`animal_id`)")
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_farmer_animal_links_record_guid` ON `farmer_animal_links` (`record_guid`)")
+            }
+        }
+
+        /**
+         * Migration (Version 46 -> 47): feed crib management.
+         *
+         * Drops the three stub tables, which nothing ever wrote to (`feed_cribs` held only an id
+         * and a name), and creates the real ones: the site's cribs, the 0-5 reading codes, and
+         * the saved readings with their sync columns.
+         */
+        val MIGRATION_46_47 = object : Migration(46, 47) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS `feed_crib_reading_values`")
+                db.execSQL("DROP TABLE IF EXISTS `feed_crib_readings`")
+                db.execSQL("DROP TABLE IF EXISTS `feed_cribs`")
+
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `feed_cribs` (`crib_number` TEXT NOT NULL, " +
+                        "`site_id` TEXT NOT NULL, `pen_description` TEXT NOT NULL DEFAULT '', " +
+                        "`ration` TEXT NOT NULL DEFAULT '', `method` TEXT NOT NULL DEFAULT '', " +
+                        "`description` TEXT NOT NULL DEFAULT '', `required_kg` REAL, " +
+                        "`animals_begin` INTEGER NOT NULL DEFAULT 0, `animals_in` INTEGER NOT NULL DEFAULT 0, " +
+                        "`animals_out` INTEGER NOT NULL DEFAULT 0, `animals_close` INTEGER NOT NULL DEFAULT 0, " +
+                        "`current_adi` REAL, `active` INTEGER NOT NULL DEFAULT 1, " +
+                        "`updated_at` INTEGER NOT NULL DEFAULT 0, `last_downloaded_at` INTEGER NOT NULL DEFAULT 0, " +
+                        "PRIMARY KEY(`crib_number`))"
+                )
+
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `crib_reading_codes` (`code` INTEGER NOT NULL, " +
+                        "`label` TEXT NOT NULL, `description` TEXT NOT NULL DEFAULT '', " +
+                        "`active` INTEGER NOT NULL DEFAULT 1, PRIMARY KEY(`code`))"
+                )
+
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `feed_crib_entries` (`record_guid` TEXT NOT NULL, " +
+                        "`crib_number` TEXT NOT NULL, `site_id` TEXT, `reading_date` TEXT NOT NULL, " +
+                        "`slot` TEXT NOT NULL, `code` INTEGER, `adi` REAL NOT NULL, " +
+                        "`captured_at` INTEGER NOT NULL, `device_id` TEXT NOT NULL DEFAULT '', " +
+                        "`gps_lat` REAL, `gps_lng` REAL, `user_id` TEXT NOT NULL DEFAULT '', " +
+                        "`origin` TEXT NOT NULL DEFAULT 'LOCAL', `sync_status` TEXT NOT NULL DEFAULT 'PENDING', " +
+                        "`synced_at` INTEGER, `sync_error` TEXT, `sync_attempts` INTEGER NOT NULL DEFAULT 0, " +
+                        "PRIMARY KEY(`record_guid`))"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_feed_crib_entries_crib_number_reading_date` " +
+                        "ON `feed_crib_entries` (`crib_number`, `reading_date`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_feed_crib_entries_sync_status` " +
+                        "ON `feed_crib_entries` (`sync_status`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_feed_crib_entries_reading_date_user_id` " +
+                        "ON `feed_crib_entries` (`reading_date`, `user_id`)"
+                )
             }
         }
     }

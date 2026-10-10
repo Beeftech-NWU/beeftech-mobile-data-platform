@@ -29,6 +29,7 @@ class SyncRunDisplayTest {
             "MORTALITY" to 0,
             "ANIMAL_PURCHASE" to 1,
             "LOCATION_FEED" to 2,
+            "FEED_CRIB_ENTRY" to 6,
             "SOMETHING_NEW" to 5
         )
 
@@ -37,6 +38,7 @@ class SyncRunDisplayTest {
                 ModulePending("Calves", 4),
                 ModulePending("Costs", 2),
                 ModulePending("Traceability", 3),
+                ModulePending("Feed", 6),
                 ModulePending("Other", 5)
             ),
             SyncRunDisplay.pendingByModule(counts)
