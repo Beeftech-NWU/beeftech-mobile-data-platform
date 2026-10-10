@@ -1,0 +1,230 @@
+/* BeefTech user manual — print stylesheet (rendered to PDF by headless Chromium). */
+
+:root {
+  --primary: #4F6256;
+  --primary-strong: #35473D;
+  --accent: #667A6C;
+  --bg: #FAF9F2;
+  --soft: #F4F3E8;
+  --soft-green: #E3E8E2;
+  --text: #1F2823;
+  --muted: #6D756F;
+  --border: #D9DDD8;
+  --success: #3F6A50;
+  --warning: #7A5A20;
+  --warning-bg: #FBF3E2;
+  --danger: #8A4F4F;
+  --danger-bg: #F8ECEC;
+}
+
+@page {
+  size: A4;
+  margin: 26mm 18mm 18mm 18mm;
+  @top-left {
+    content: url(assets/logo-header.png) "  BEEFTECH";
+    font: 700 9pt "Inter", "Roboto", "Helvetica Neue", Arial, sans-serif;
+    letter-spacing: 0.08em;
+    color: #35473D;
+    vertical-align: bottom;
+    padding-bottom: 2mm;
+    border-bottom: 0.4mm solid #E3E8E2;
+  }
+  @top-right {
+    content: "User Manual";
+    font: 8pt "Inter", "Roboto", "Helvetica Neue", Arial, sans-serif;
+    color: #6D756F;
+    vertical-align: bottom;
+    padding-bottom: 2mm;
+    border-bottom: 0.4mm solid #E3E8E2;
+  }
+  @bottom-left {
+    content: "BeefTech Mobile Data Collection Platform · User Manual v1.0";
+    font: 8pt "Inter", "Roboto", "Helvetica Neue", Arial, sans-serif;
+    color: #6D756F;
+  }
+  @bottom-right {
+    content: "Page " counter(page);
+    font: 8pt "Inter", "Roboto", "Helvetica Neue", Arial, sans-serif;
+    color: #6D756F;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: #fff;
+  color: var(--text);
+  font: 10pt/1.5 "Inter", "Roboto", "Helvetica Neue", Arial, sans-serif;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+
+h1, h2, h3, h4 { color: var(--primary-strong); line-height: 1.2; break-after: avoid; }
+
+h1.chapter {
+  break-before: page;
+  font-size: 22pt;
+  margin: 0 0 4mm;
+  padding-bottom: 3mm;
+  border-bottom: 0.8mm solid var(--primary);
+}
+h1.chapter .num {
+  display: block;
+  font-size: 9pt;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 1.5mm;
+}
+h2 { font-size: 14pt; margin: 7mm 0 2.5mm; }
+h3 { font-size: 11pt; margin: 5mm 0 2mm; }
+p { margin: 0 0 2.5mm; }
+ul, ol { margin: 0 0 3mm; padding-left: 6mm; }
+li { margin-bottom: 1mm; }
+strong { color: var(--primary-strong); }
+code, .ui {
+  font-family: inherit;
+  font-weight: 600;
+  background: var(--soft-green);
+  color: var(--primary-strong);
+  border-radius: 1mm;
+  padding: 0 1.2mm;
+  white-space: nowrap;
+}
+code { font-family: "JetBrains Mono", "DejaVu Sans Mono", monospace; font-weight: 500; font-size: 8.8pt; }
+
+.lead { font-size: 11pt; color: var(--muted); margin-bottom: 5mm; }
+
+/* Steps */
+ol.steps { counter-reset: step; list-style: none; padding-left: 0; }
+ol.steps > li {
+  counter-increment: step;
+  position: relative;
+  padding-left: 9mm;
+  margin-bottom: 2mm;
+}
+ol.steps > li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0; top: 0.2mm;
+  width: 5.8mm; height: 5.8mm;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 8pt;
+  font-weight: 700;
+  text-align: center;
+  line-height: 5.8mm;
+}
+
+/* Screenshot rows */
+.shots {
+  display: flex;
+  gap: 5mm;
+  justify-content: center;
+  margin: 3mm 0 5mm;
+  break-inside: avoid;
+}
+.shots figure { margin: 0; width: 44mm; text-align: center; }
+.shots.two figure { width: 48mm; }
+.shots img {
+  width: 100%;
+  border: 0.3mm solid var(--border);
+  border-radius: 2.5mm;
+  box-shadow: 0 0.6mm 1.6mm rgba(31, 40, 35, 0.12);
+}
+.shots figcaption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; line-height: 1.3; }
+
+/* Text + phone side by side */
+.split { display: flex; gap: 7mm; align-items: flex-start; break-inside: avoid; margin: 2mm 0 4mm; }
+.split > .text { flex: 1; }
+.split > figure { margin: 0; width: 46mm; flex: none; text-align: center; }
+.split > figure img {
+  width: 100%;
+  border: 0.3mm solid var(--border);
+  border-radius: 2.5mm;
+  box-shadow: 0 0.6mm 1.6mm rgba(31, 40, 35, 0.12);
+}
+.split > figure figcaption { font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
+
+/* Callouts */
+.note, .tip, .warn, .danger {
+  border-radius: 2mm;
+  padding: 3mm 4mm;
+  margin: 3mm 0 4mm;
+  break-inside: avoid;
+  border-left: 1.4mm solid;
+}
+.note { background: var(--soft); border-color: var(--accent); }
+.tip { background: var(--soft-green); border-color: var(--success); }
+.warn { background: var(--warning-bg); border-color: var(--warning); }
+.danger { background: var(--danger-bg); border-color: var(--danger); }
+.note b.label, .tip b.label, .warn b.label, .danger b.label {
+  display: block;
+  font-size: 8pt;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 1mm;
+}
+.tip b.label { color: var(--success); }
+.warn b.label { color: var(--warning); }
+.danger b.label { color: var(--danger); }
+.note b.label { color: var(--accent); }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: 2mm 0 5mm; font-size: 9pt; break-inside: auto; }
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
+th {
+  text-align: left;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 600;
+  padding: 2mm 2.5mm;
+}
+td { padding: 1.8mm 2.5mm; border-bottom: 0.3mm solid var(--border); vertical-align: top; }
+tbody tr:nth-child(even) td { background: var(--soft); }
+
+.pill {
+  display: inline-block;
+  font-size: 7.5pt;
+  font-weight: 700;
+  padding: 0.3mm 2mm;
+  border-radius: 3mm;
+  white-space: nowrap;
+}
+.pill.ok { background: #E1EEE5; color: var(--success); }
+.pill.wait { background: #FBEBC8; color: var(--warning); }
+.pill.bad { background: #F3DDDD; color: var(--danger); }
+.pill.off { background: #E4E6E4; color: #3A433D; }
+
+/* Role badges */
+.roles { display: flex; gap: 4mm; margin: 3mm 0 5mm; break-inside: avoid; }
+.role {
+  flex: 1;
+  border: 0.3mm solid var(--border);
+  border-radius: 2.5mm;
+  padding: 3.5mm 4mm;
+  background: var(--soft);
+}
+.role h4 { margin: 0 0 1.5mm; font-size: 10.5pt; }
+.role p { font-size: 9pt; margin: 0; color: var(--text); }
+.role .who { font-size: 8pt; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+
+/* Table of contents */
+.toc { break-after: page; }
+.toc h1 { font-size: 20pt; border-bottom: 0.8mm solid var(--primary); padding-bottom: 3mm; margin-top: 0; }
+.toc ol { list-style: none; padding: 0; counter-reset: none; }
+.toc > ol > li { margin: 0 0 2.5mm; break-inside: avoid; }
+.toc > ol > li > a { font-weight: 700; font-size: 11pt; color: var(--primary-strong); }
+.toc a { text-decoration: none; color: var(--text); }
+.toc ol ol { padding-left: 8mm; margin-top: 1mm; columns: 2; column-gap: 8mm; }
+.toc ol ol li { font-size: 9pt; margin: 0 0 0.8mm; }
+.toc .audience { font-size: 8pt; color: var(--muted); margin-left: 2mm; font-weight: 400; }
+
+.avoid-break { break-inside: avoid; }
+.muted { color: var(--muted); }
+
+table.compact td { padding: 1.2mm 2.5mm; }
