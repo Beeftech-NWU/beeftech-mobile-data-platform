@@ -578,7 +578,8 @@ object DatabaseFactory {
                         guarded(BeefTechDatabase.MIGRATION_42_43),
                         guarded(BeefTechDatabase.MIGRATION_43_44),
                         guarded(BeefTechDatabase.MIGRATION_44_45),
-                        guarded(BeefTechDatabase.MIGRATION_45_46)
+                        guarded(BeefTechDatabase.MIGRATION_45_46),
+                        guarded(BeefTechDatabase.MIGRATION_46_47)
                     )
 
                     .addCallback(
@@ -587,7 +588,7 @@ object DatabaseFactory {
 
                     /*
                      * No destructive fallback. Losing local data is the worst
-                     * failure this app can have (see AGENT.md): a missing
+                     * failure this app can have (see docs/database/database-rules.md): a missing
                      * migration path, a downgrade, or an exception inside a
                      * migration must fail loudly instead of silently wiping
                      * the encrypted database. See the catch block below.

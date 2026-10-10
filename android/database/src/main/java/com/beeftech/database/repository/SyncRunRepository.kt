@@ -124,6 +124,7 @@ class SyncRunRepository(
             SyncRunModule.MORTALITY -> ProjectCode.MORTALITY
             SyncRunModule.COST -> ProjectCode.COST
             SyncRunModule.TRACEABILITY -> ProjectCode.TRACE_EVENT
+            SyncRunModule.FEED -> ProjectCode.FEED_CRIB
             else -> null
         }
 

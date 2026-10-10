@@ -5,7 +5,7 @@ import com.beeftech.backend.api.auth.Role
 import com.beeftech.backend.api.auth.SitesTable
 import com.beeftech.backend.api.auth.UserRepository
 import com.beeftech.backend.api.auth.UsersTable
-import com.beeftech.backend.api.feedcrib.FeedCribTable
+import com.beeftech.backend.api.feedcrib.FeedCribEntriesTable
 import kotlinx.coroutines.Dispatchers
 import org.jetbrains.exposed.sql.Op
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -484,18 +484,21 @@ class DashboardService(
 
             val feedScope =
                 scope.predicate(
-                    FeedCribTable
+                    FeedCribEntriesTable
                         .submittedByUserId,
 
-                    FeedCribTable
-                        .siteId
+                    FeedCribEntriesTable
+                        .siteId,
+
+                    FeedCribEntriesTable
+                        .voidedAt
                 )
 
 
             val feedReadings =
                 RecordCount(
                     total =
-                        FeedCribTable
+                        FeedCribEntriesTable
                             .selectAll()
                             .where {
                                 feedScope
@@ -503,13 +506,13 @@ class DashboardService(
                             .count(),
 
                     last7Days =
-                        FeedCribTable
+                        FeedCribEntriesTable
                             .selectAll()
                             .where {
                                 feedScope and
                                     (
-                                        FeedCribTable
-                                            .timestamp
+                                        FeedCribEntriesTable
+                                            .capturedAt
                                             greaterEq
                                             weekAgo
                                         )

@@ -1,8 +1,10 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    id("org.jetbrains.kotlin.plugin.serialization")
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -28,156 +30,62 @@ android {
             JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
 
     buildFeatures {
         compose = true
     }
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
+    }
+}
+
 dependencies {
 
     // BeefTech database
-    implementation(
-        project(":android:database")
-    )
+    implementation(project(":android:database"))
 
     // Compose
-    implementation(
-        platform(libs.androidx.compose.bom)
-    )
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.ui.graphics)
+    implementation(libs.androidx.compose.ui.tooling.preview)
 
-    implementation(
-        libs.androidx.activity.compose
-    )
-
-    implementation(
-        libs.androidx.activity.ktx
-    )
-
-    implementation(
-        libs.androidx.annotation
-    )
-
-    implementation(
-        libs.androidx.appcompat
-    )
-
-    implementation(
-        libs.androidx.compose.material3
-    )
-
-    implementation(
-        "androidx.compose.material:material-icons-extended"
-    )
-
-    implementation(
-        libs.androidx.compose.material3.adaptive.navigation.suite
-    )
-
-    implementation(
-        libs.androidx.compose.ui
-    )
-
-    implementation(
-        libs.androidx.compose.ui.graphics
-    )
-
-    implementation(
-        libs.androidx.compose.ui.tooling.preview
-    )
-
-    implementation(
-        libs.androidx.constraintlayout
-    )
-
-    implementation(
-        libs.androidx.core.ktx
-    )
+    implementation(libs.androidx.core.ktx)
 
     // Lifecycle / ViewModel
-    implementation(
-        libs.androidx.lifecycle.livedata.ktx
-    )
-
-    implementation(
-        libs.androidx.lifecycle.runtime.ktx
-    )
-
-    implementation(
-        libs.androidx.lifecycle.viewmodel.ktx
-    )
-
-    // Material
-    implementation(
-        libs.material
-    )
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
 
     // WorkManager - automatic Farmer synchronization
-    implementation(
-        "androidx.work:work-runtime-ktx:2.9.1"
-    )
+    implementation(libs.androidx.work.runtime.ktx)
 
     // Ktor client - Farmer backend synchronization
-    implementation(
-        "io.ktor:ktor-client-core:3.0.3"
-    )
-
-    implementation(
-        "io.ktor:ktor-client-okhttp:3.0.3"
-    )
-
-    implementation(
-        "io.ktor:ktor-client-content-negotiation:3.0.3"
-    )
-
-    implementation(
-        "io.ktor:ktor-serialization-kotlinx-json:3.0.3"
-    )
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.okhttp)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
 
     // Kotlin serialization
-    implementation(
-        "org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3"
-    )
+    implementation(libs.kotlinx.serialization.json)
 
     // Unit tests
-    testImplementation(
-        libs.junit
-    )
-
-    testImplementation(
-        "io.ktor:ktor-client-mock:3.0.3"
-    )
-
-    testImplementation(
-        "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0"
-    )
+    testImplementation(libs.junit)
+    testImplementation(libs.ktor.client.mock)
+    testImplementation(libs.kotlinx.coroutines.test)
 
     // Android tests
-    androidTestImplementation(
-        platform(libs.androidx.compose.bom)
-    )
-
-    androidTestImplementation(
-        libs.androidx.compose.ui.test.junit4
-    )
-
-    androidTestImplementation(
-        libs.androidx.espresso.core
-    )
-
-    androidTestImplementation(
-        libs.androidx.junit
-    )
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.junit)
 
     // Debug
-    debugImplementation(
-        libs.androidx.compose.ui.test.manifest
-    )
-
-    debugImplementation(
-        libs.androidx.compose.ui.tooling
-    )
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+    debugImplementation(libs.androidx.compose.ui.tooling)
 }

@@ -23,3 +23,20 @@ backend/api/data/
 
 # Artifacts
 .artifacts/
+
+# Local databases and secrets
+*.db
+*.db-shm
+*.db-wal
+.env
+.env.*
+
+# Release artifacts and signing keys
+*.apk
+*.aab
+*.jks
+*.keystore
+
+# IDE / local tooling
+*.iml
+.claude/settings.local.json

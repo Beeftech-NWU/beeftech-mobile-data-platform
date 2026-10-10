@@ -6,14 +6,17 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import java.util.UUID
+import org.slf4j.LoggerFactory
+
+private val log = LoggerFactory.getLogger("com.beeftech.backend.api.auth.DevUserSeeder")
 
 object DevUserSeeder {
 
-    private const val DEV_SITE_ID = "dev-site-1"
+    const val DEV_SITE_ID = "dev-site-1"
     private const val DEV_SITE_NAME = "Dev Feedlot"
 
     suspend fun seed(userRepository: UserRepository) {
-        println("Seeding dev users...")
+        log.info("Seeding dev users...")
 
         seedDevSite()
 
@@ -33,11 +36,10 @@ object DevUserSeeder {
                     role = user.role,
                     siteId = user.siteId
                 )
-                println("Seeded user: ${user.username}")
+                log.info("Seeded user: {}", user.username)
             } else {
-                // Existing site assignments are managed by administrators.
-                // Do not move GauFarm's manager back to the Feedcrib development site.
-                println("Existing dev user retained: ${user.username}")
+                // Existing site assignments belong to admins, not the dev seeder.
+                log.info("Existing dev user retained: {}", user.username)
             }
         }
     }

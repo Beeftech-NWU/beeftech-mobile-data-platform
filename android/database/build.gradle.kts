@@ -1,9 +1,9 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    id("com.android.library")
-    id("org.jetbrains.kotlin.android")
-    id("com.google.devtools.ksp")
+    alias(libs.plugins.android.library)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.ksp)
 }
 
 ksp {
@@ -52,46 +52,31 @@ dependencies {
     // Room
     // 'api' is required because BeefTechDatabase publicly
     // extends androidx.room.RoomDatabase.
-    api("androidx.room:room-runtime:2.8.4")
+    api(libs.androidx.room.runtime)
 
-    implementation("androidx.room:room-ktx:2.8.4")
+    implementation(libs.androidx.room.ktx)
 
     // Shared process-wide runtime UI state
-    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
-    implementation(libs.androidx.lifecycle.livedata.core.ktx)
+    api(libs.kotlinx.coroutines.core)
 
-    ksp("androidx.room:room-compiler:2.8.4")
+    ksp(libs.androidx.room.compiler)
 
-    // SQLCipher
-    implementation("net.zetetic:sqlcipher-android:4.17.0@aar")
+    // SQLCipher (the @aar suffix cannot be expressed in a catalog entry)
+    implementation("net.zetetic:sqlcipher-android:${libs.versions.sqlcipher.get()}@aar")
 
     // SQLite
-    implementation("androidx.sqlite:sqlite:2.6.2")
+    implementation(libs.androidx.sqlite)
 
     // Security
-    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
-    implementation("androidx.security:security-crypto:1.1.0")
+    implementation(libs.bouncycastle.bcprov)
+    implementation(libs.androidx.security.crypto)
 
     // Unit tests
-    testImplementation("junit:junit:4.13.2")
-
+    testImplementation(libs.junit)
 
     // Android tests
-    androidTestImplementation(
-        "androidx.test.ext:junit:1.3.0"
-    )
-
-    androidTestImplementation(
-        "androidx.room:room-testing:2.8.4"
-    )
-
-    androidTestImplementation(
-        "androidx.test:core:1.7.0"
-    )
-
-    androidTestImplementation(
-        "androidx.test:runner:1.7.0"
-    )
-
-    androidTestImplementation("androidx.room:room-testing:2.8.4")
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.room.testing)
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.runner)
 }

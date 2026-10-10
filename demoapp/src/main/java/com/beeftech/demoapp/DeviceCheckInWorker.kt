@@ -10,6 +10,10 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.beeftech.database.DatabaseProvider
+import com.beeftech.database.repository.PendingSyncRepository
+import com.beeftech.feedcrib.data.FeedCribApiClient
+import com.beeftech.feedcrib.data.FeedCribCaptureContext
+import com.beeftech.feedcrib.data.FeedCribRepository
 import com.beeftech.database.repository.SyncPolicyStore
 import com.beeftech.database.security.CurrentUserIdRegistry
 import com.beeftech.database.security.TokenProviderRegistry
@@ -25,7 +29,7 @@ import com.beeftech.management.data.SyncPolicySync
 
 /**
  * Talks to the server on the device's behalf: pulls the reference data (disease, treatment type and
- * cost type lists) and the sync-warning policy (when phones warn about unsynced data), uploads the
+ * cost type lists), downloads the site's feed cribs and the sync-warning policy (when phones warn about unsynced data), uploads the
  * security events the phone recorded (warnings, the Day-7 wipe and lock), and lifts the phone's
  * Day-7 lock once an admin has cleared it on the server.
  *
@@ -76,6 +80,17 @@ class DeviceCheckInWorker(
                     ).pull() !is ReferenceSyncOutcome.Failed
                 }
 
+            /* The site's cribs, reading codes and recent readings. Only reads; it never touches queued readings. */
+            val feedCribs =
+                runStep("Feed cribs") {
+                    FeedCribRepository(
+                        feedCribDao = database.feedCribDao(),
+                        pendingSyncRepository = PendingSyncRepository(database.pendingSyncDao()),
+                        apiClient = FeedCribApiClient(tokenProvider = tokenProvider),
+                        captureContextProvider = { FeedCribCaptureContext(deviceId = "") }
+                    ).refreshCribs().isSuccess
+                }
+
             /* Without a signed-in user there is nobody whose events or lock to handle. */
             val userId = CurrentUserIdRegistry.currentUserId()
 
@@ -103,7 +118,7 @@ class DeviceCheckInWorker(
                     ).pull() !is PolicySyncOutcome.Failed
                 }
 
-            if (referenceData && events && syncPolicy) Result.success() else Result.retry()
+            if (referenceData && feedCribs && events && syncPolicy) Result.success() else Result.retry()
 
         } catch (exception: Exception) {
 

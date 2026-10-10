@@ -57,6 +57,15 @@ class FileNamingUtilsTest {
     }
 
     @Test
+    fun `feed crib batches are named like every other project`() {
+        val name = FileNamingUtils.build("BF01", ProjectCode.FEED_CRIB, instant, "MOB_DEV_a1b2c3d4", timeZone = utc)
+
+        assertEquals("BF01-FEED_CRIB-20261008-140509-MOB_DEV_a1b2c3d4", name)
+        assertTrue(FileNamingUtils.validate(name))
+        assertEquals("FEED_CRIB", FileNamingUtils.parse(name)!!.project)
+    }
+
+    @Test
     fun `parse splits a valid name and returns null for an invalid one`() {
         val parts = FileNamingUtils.parse("BF01-TRACE_EVENT-20261008-140509-MOB_DEV_9.jpg")!!
 

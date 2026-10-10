@@ -1,5 +1,9 @@
 package com.beeftech.backend.api
 
+import org.slf4j.LoggerFactory
+
+private val log = LoggerFactory.getLogger("com.beeftech.backend.api.CalfRegistrationService")
+
 sealed interface PhotoUploadOutcome {
     data class Stored(val path: String) : PhotoUploadOutcome
     data object NotFound : PhotoUploadOutcome
@@ -54,8 +58,8 @@ class CalfRegistrationService(
                                 calfDetails = persisted.record
                             )
                         )
-                    } catch (_: Exception) {
-                        System.err.println("Calf synchronized; JSON notification delivery failed")
+                    } catch (e: Exception) {
+                        log.warn("Calf synchronized; JSON notification delivery failed: {}", e.message)
                     }
                 }
                 CalfRegistrationSyncResult(

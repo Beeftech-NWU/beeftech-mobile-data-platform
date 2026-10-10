@@ -12,7 +12,7 @@ import java.time.format.DateTimeFormatter
 object FileNaming {
 
     enum class ProjectCode {
-        CALF_REG, FARMER_REG, TREATMENT, MOVEMENT, MORTALITY, COST, TRACE_EVENT, REPORT
+        CALF_REG, FARMER_REG, TREATMENT, MOVEMENT, MORTALITY, COST, TRACE_EVENT, FEED_CRIB, REPORT
     }
 
     val REGEX = Regex("^[A-Z0-9]{4}-[A-Z0-9_]+-\\d{8}-\\d{6}-[A-Za-z0-9_]+(\\.[a-z]+)?$")

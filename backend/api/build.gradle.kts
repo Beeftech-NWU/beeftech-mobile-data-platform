@@ -1,6 +1,6 @@
 plugins {
-    id("org.jetbrains.kotlin.jvm")
-    id("org.jetbrains.kotlin.plugin.serialization")
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
     id("application")
 }
 
@@ -21,30 +21,27 @@ tasks.named<JavaExec>("run") {
 }
 
 dependencies {
-    implementation("org.eclipse.angus:jakarta.mail:2.0.3")
-    implementation("io.ktor:ktor-server-core-jvm:3.0.3")
-    implementation("io.ktor:ktor-server-netty-jvm:3.0.3")
+    implementation(libs.jakarta.mail)
+    implementation(libs.ktor.server.core)
+    implementation(libs.ktor.server.netty)
+    implementation(libs.ktor.server.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json.jvm)
 
-    implementation("ch.qos.logback:logback-classic:1.5.16")
+    implementation(libs.logback.classic)
+
+    implementation(libs.kotlinx.serialization.json)
+
+    implementation(libs.java.jwt)
+
+    implementation(libs.exposed.core)
+    implementation(libs.exposed.jdbc)
+
+    implementation(libs.sqlite.jdbc)
+    implementation(libs.pdfbox)
+    implementation(libs.jbcrypt)
 
     testImplementation(kotlin("test"))
-
-    implementation("io.ktor:ktor-server-content-negotiation-jvm:3.0.3")
-    implementation("io.ktor:ktor-serialization-kotlinx-json-jvm:3.0.3")
-
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
-
-    implementation("com.auth0:java-jwt:4.4.0")
-
-    implementation("org.jetbrains.exposed:exposed-core:0.56.0")
-    implementation("org.jetbrains.exposed:exposed-dao:0.56.0")
-    implementation("org.jetbrains.exposed:exposed-jdbc:0.56.0")
-
-    implementation("org.xerial:sqlite-jdbc:3.46.1.3")
-    implementation("org.apache.pdfbox:pdfbox:2.0.30")
-    implementation("org.mindrot:jbcrypt:0.4")
-
-    testImplementation("io.ktor:ktor-server-test-host-jvm:3.0.3")
+    testImplementation(libs.ktor.server.test.host)
 }
 
 tasks.test {

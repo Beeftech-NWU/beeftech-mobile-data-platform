@@ -7,7 +7,9 @@ import com.beeftech.database.dao.PhotoUpload
 import com.beeftech.database.entity.Animal
 import com.beeftech.database.entity.AnimalIdentifierEntity
 import com.beeftech.database.entity.AnimalMediaEntity
+import com.beeftech.database.entity.Breed
 import com.beeftech.database.entity.CalfRegistrationEntity
+import com.beeftech.database.entity.Device
 import com.beeftech.database.entity.IdentifierTypes
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -24,6 +26,8 @@ class FakeCalfRegistrationDao : CalfRegistrationDao() {
     val identifiers = mutableListOf<AnimalIdentifierEntity>()
     val media = mutableListOf<AnimalMediaEntity>()
     val registrations = mutableListOf<CalfRegistrationEntity>()
+    val breeds = mutableListOf<Breed>()
+    val devices = mutableListOf<Device>()
 
     override suspend fun insertAnimal(animal: Animal) {
         animals += animal
@@ -40,6 +44,28 @@ class FakeCalfRegistrationDao : CalfRegistrationDao() {
     override suspend fun insertRegistration(registration: CalfRegistrationEntity) {
         registrations += registration
     }
+
+    // Mirrors the INSERT OR IGNORE / lookup queries behind importVerifiedServerCalf.
+    override suspend fun insertRemoteBreed(value: Breed): Long =
+        if (breeds.any { it.breedId == value.breedId }) -1L else { breeds += value; breeds.size.toLong() }
+
+    override suspend fun insertRemoteDevice(value: Device): Long =
+        if (devices.any { it.deviceId == value.deviceId }) -1L else { devices += value; devices.size.toLong() }
+
+    override suspend fun existingBreedId(breed: String): String? =
+        breeds.firstOrNull { it.breedId == breed || it.name == breed }?.breedId
+
+    override suspend fun remoteAnimalExists(animalId: String): String? =
+        animals.firstOrNull { it.animalId == animalId }?.animalId
+
+    override suspend fun importedRegistrationByGuid(guid: String): String? =
+        registrations.firstOrNull { it.recordGuid == guid }?.registeredAnimalId
+
+    override suspend fun existingTagOwner(tag: String): String? =
+        identifiers.firstOrNull {
+            it.identifierType == IdentifierTypes.TAG && it.validTo == null &&
+                it.identifierValue.equals(tag, ignoreCase = true)
+        }?.animalId
 
     /** When set, [findAnimalIdByTag] throws, simulating a database failure before the write. */
     var lookupFailure: Exception? = null

@@ -76,38 +76,6 @@ interface AnimalMovementDao {
         notes: String
     ): AnimalMovementEntity?
 
-
-    /*
-     * Actual accidental duplicate guard.
-     *
-     * Location & Feed rows are excluded because those are a
-     * different traceability event even though they share the
-     * animal_movements table.
-     */
-    @Query(
-        """
-        SELECT *
-        FROM animal_movements
-        WHERE animal_id = :animalId
-          AND destination_farm_id = :destinationFarmId
-          AND notes = :notes
-          AND movement_date >= :afterTimestamp
-          AND (
-                feed_location_type IS NULL
-                OR TRIM(feed_location_type) = ''
-              )
-        ORDER BY movement_date DESC
-        LIMIT 1
-        """
-    )
-    suspend fun findRecentMovementDuplicate(
-        animalId: String,
-        destinationFarmId: String,
-        notes: String,
-        afterTimestamp: Long
-    ): AnimalMovementEntity?
-
-
     @Query(
         """
         SELECT *

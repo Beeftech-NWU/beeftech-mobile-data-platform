@@ -6,7 +6,10 @@ import com.beeftech.backend.api.auth.LoginEventsTable
 import com.beeftech.backend.api.auth.SitesSchemaMigration
 import com.beeftech.backend.api.auth.SitesTable
 import com.beeftech.backend.api.auth.UsersSchemaMigration
-import com.beeftech.backend.api.feedcrib.FeedCribTable
+import com.beeftech.backend.api.feedcrib.CribReadingCodesTable
+import com.beeftech.backend.api.feedcrib.FeedCribEntriesTable
+import com.beeftech.backend.api.feedcrib.FeedCribSeeder
+import com.beeftech.backend.api.feedcrib.FeedCribsTable
 import com.beeftech.backend.api.auth.UsersTable
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
@@ -15,12 +18,13 @@ import java.io.File
 
 object DatabaseFactory {
 
+    const val DEFAULT_JDBC_URL = "jdbc:sqlite:./data/beeftech-backend.db"
+
     @Volatile
     private var db: Database? = null
 
     fun init(
-        jdbcUrl: String =
-            "jdbc:sqlite:./data/beeftech-backend.db"
+        jdbcUrl: String = DEFAULT_JDBC_URL
     ): Database {
 
         val filePath =
@@ -62,7 +66,9 @@ object DatabaseFactory {
                 FarmerRoleTable,
                 UsersTable,
                 SitesTable,
-                FeedCribTable,
+                FeedCribsTable,
+                CribReadingCodesTable,
+                FeedCribEntriesTable,
                 MortalityTable,
                 CostTable,
                 AuditLogTable,
@@ -72,7 +78,8 @@ object DatabaseFactory {
                 CostTypeTable,
                 AppSettingsTable,
                 SyncSecurityEventsTable,
-                SyncUploadLogTable
+                SyncUploadLogTable,
+                TraceabilityEventTable
             )
         }
 
@@ -81,6 +88,7 @@ object DatabaseFactory {
          * after the reference tables exist.
          */
         ReferenceDataSeeder.seed()
+        FeedCribSeeder.seedCodes()
 
         return database
     }

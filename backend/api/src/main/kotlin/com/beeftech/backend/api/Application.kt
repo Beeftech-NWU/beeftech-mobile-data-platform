@@ -15,6 +15,7 @@ import com.beeftech.backend.api.auth.deviceAdminRoutes
 import com.beeftech.backend.api.auth.siteRoutes
 import com.beeftech.backend.api.auth.userAdminRoutes
 import com.beeftech.backend.api.feedcrib.FeedCribRepository
+import com.beeftech.backend.api.feedcrib.FeedCribSeeder
 import com.beeftech.backend.api.feedcrib.FeedCribService
 import com.beeftech.backend.api.feedcrib.feedCribRoutes
 import io.ktor.serialization.kotlinx.json.json
@@ -61,7 +62,7 @@ fun Application.module() {
             ?: System.getProperty(
                 "beeftech.db.url"
             )
-            ?: "jdbc:sqlite:./data/beeftech-backend.db"
+            ?: DatabaseFactory.DEFAULT_JDBC_URL
 
     DatabaseFactory.init(
         jdbcUrl
@@ -97,6 +98,7 @@ fun Application.module() {
     if (seedDevUsers) {
         runBlocking {
             DevUserSeeder.seed(userRepository)
+            FeedCribSeeder.seedDevCribs(DevUserSeeder.DEV_SITE_ID)
         }
     }
 
@@ -218,12 +220,12 @@ fun Application.module() {
 
         voidRoutes(
             jwtService,
-            VoidService(UserRepository(), VoidRepository())
+            VoidService(userRepository, VoidRepository())
         )
 
         auditRoutes(
             jwtService,
-            AuditService(UserRepository(), AuditRepository())
+            AuditService(userRepository, AuditRepository())
         )
 
         costRoutes(
@@ -233,12 +235,12 @@ fun Application.module() {
 
         dashboardRoutes(
             jwtService,
-            DashboardService()
+            DashboardService(userRepository = userRepository)
         )
 
         reportRoutes(
             jwtService,
-            ReportService()
+            ReportService(userRepository = userRepository)
         )
 
         /*

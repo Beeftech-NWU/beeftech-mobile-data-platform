@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BeefTech Developer Manual — Cover</title>
+<style>
+  @page { size: A4; margin: 0; }
+  html, body { margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: "Inter", "Roboto", "Helvetica Neue", Arial, sans-serif; }
+  .cover {
+    width: 210mm; height: 297mm;
+    position: relative;
+    background: #FAF9F2;
+    overflow: hidden;
+  }
+  .band {
+    position: absolute; left: 0; right: 0; top: 0; height: 128mm;
+    background: #35473D;
+  }
+  .band::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -0.1mm; height: 22mm;
+    background: #4F6256;
+  }
+  .logo-card {
+    position: absolute; left: 22mm; top: 70mm;
+    width: 52mm; height: 52mm;
+    background: #fff;
+    border-radius: 6mm;
+    box-shadow: 0 2mm 6mm rgba(0,0,0,0.18);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .logo-card img { width: 34mm; height: auto; }
+  .eyebrow {
+    position: absolute; left: 22mm; top: 34mm;
+    color: #E3E8E2; font-size: 11pt; letter-spacing: 0.32em; font-weight: 700;
+  }
+  .tagline {
+    position: absolute; left: 22mm; top: 44mm; right: 22mm;
+    color: #FAF9F2; font-size: 13pt; opacity: 0.85;
+  }
+  .title {
+    position: absolute; left: 22mm; right: 22mm; top: 142mm;
+    color: #35473D;
+  }
+  .title h1 { font-size: 34pt; line-height: 1.08; margin: 0 0 5mm; }
+  .title h2 { font-size: 15pt; font-weight: 500; color: #4F6256; margin: 0 0 12mm; }
+  .audiences { display: flex; flex-wrap: wrap; gap: 3mm; }
+  .audiences span {
+    border: 0.4mm solid #4F6256; color: #35473D;
+    border-radius: 4mm; padding: 1.5mm 4mm; font-size: 9.5pt; font-weight: 600;
+  }
+  .meta {
+    position: absolute; left: 22mm; right: 22mm; bottom: 22mm;
+    border-top: 0.5mm solid #D9DDD8; padding-top: 5mm;
+    display: flex; justify-content: space-between;
+    color: #6D756F; font-size: 9.5pt;
+  }
+  .meta b { color: #35473D; display: block; font-size: 10.5pt; }
+</style>
+</head>
+<body>
+<div class="cover">
+  <div class="band"></div>
+  <div class="eyebrow">BEEFTECH</div>
+  <div class="tagline">Building, running and extending the BeefTech platform</div>
+  <div class="logo-card"><img src="../user-manual/assets/logo.png" alt="BeefTech logo"></div>
+  <div class="title">
+    <h1>BeefTech Mobile Data Collection Platform</h1>
+    <h2>Developer Manual</h2>
+    <div class="audiences">
+      <span>Android developers</span><span>Backend developers</span><span>Maintainers</span><span>DevOps</span>
+    </div>
+  </div>
+  <div class="meta">
+    <div><b>Codebase</b>Room schema 47 · Kotlin 2.0.21</div>
+    <div><b>Manual version</b>1.0</div>
+    <div><b>Date</b>October 2026</div>
+  </div>
+</div>
+</body>
+</html>

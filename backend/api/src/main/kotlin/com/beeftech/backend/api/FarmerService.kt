@@ -1,6 +1,9 @@
 package com.beeftech.backend.api
 
 import com.beeftech.backend.api.auth.AuthPrincipal
+import org.slf4j.LoggerFactory
+
+private val log = LoggerFactory.getLogger("com.beeftech.backend.api.FarmerService")
 
 class FarmerService(
     private val repository: FarmerRepository,
@@ -42,13 +45,10 @@ class FarmerService(
                         )
                     } catch (notificationException: Exception) {
 
-                        System.err.println(
-                            "Farmer ${farmer.farmerId} synchronized, " +
-                                "but the sales notification could not be recorded: " +
-                                (
-                                    notificationException.message
-                                        ?: "Unknown notification error"
-                                )
+                        log.warn(
+                            "Farmer {} synchronized, but the sales notification could not be recorded: {}",
+                            farmer.farmerId,
+                            notificationException.message ?: "Unknown notification error"
                         )
                     }
 
@@ -128,13 +128,10 @@ class FarmerService(
                     )
             } catch (notificationException: Exception) {
 
-                System.err.println(
-                    "Farmer ${farmer.farmerId} synchronized, " +
-                        "but sales notification failed: " +
-                        (
-                            notificationException.message
-                                ?: "Unknown notification error"
-                        )
+                log.warn(
+                    "Farmer {} synchronized, but sales notification failed: {}",
+                    farmer.farmerId,
+                    notificationException.message ?: "Unknown notification error"
                 )
 
                 false

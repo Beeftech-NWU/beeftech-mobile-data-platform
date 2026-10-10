@@ -1,0 +1,888 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BeefTech User Manual</title>
+<link rel="stylesheet" href="manual.css">
+</head>
+<body>
+
+<!-- ============================ CONTENTS ============================ -->
+<section class="toc">
+  <h1>Contents</h1>
+  <ol>
+    <li><a href="#intro">1. Introduction</a><span class="audience">Everyone</span>
+      <ol>
+        <li><a href="#intro-what">What the app does</a></li>
+        <li><a href="#intro-roles">Roles and what each one sees</a></li>
+        <li><a href="#intro-nav">Finding your way around</a></li>
+        <li><a href="#intro-conventions">How to read this manual</a></li>
+      </ol>
+    </li>
+    <li><a href="#start">2. Getting started</a><span class="audience">Everyone</span>
+      <ol>
+        <li><a href="#start-signin">Signing in</a></li>
+        <li><a href="#start-forgot">Forgot your PIN</a></li>
+        <li><a href="#start-offline">Signing in without signal</a></li>
+        <li><a href="#start-home">The Home screen</a></li>
+        <li><a href="#start-logout">Logging out</a></li>
+      </ol>
+    </li>
+    <li><a href="#sync">3. Working offline and syncing</a><span class="audience">Everyone</span>
+      <ol>
+        <li><a href="#sync-how">How saving works</a></li>
+        <li><a href="#sync-status">Reading the sync status</a></li>
+        <li><a href="#sync-now">Sync now and scheduled sync</a></li>
+        <li><a href="#sync-history">Sync history</a></li>
+        <li><a href="#sync-policy">The 7-day rule</a></li>
+      </ol>
+    </li>
+    <li><a href="#field">4. Field agent guide</a><span class="audience">Workers</span>
+      <ol>
+        <li><a href="#calf">Registering a calf</a></li>
+        <li><a href="#calf-list">Registered calves</a></li>
+        <li><a href="#scanner">Scanning an ear tag</a></li>
+        <li><a href="#farmer">Registering a farmer</a></li>
+        <li><a href="#trace">Farm Traceability</a></li>
+        <li><a href="#assign">Assigning animals to a farmer</a></li>
+        <li><a href="#find">Find Animal and Animal Record</a></li>
+        <li><a href="#movement">Animal Movement</a></li>
+        <li><a href="#supplier">Supplier</a></li>
+        <li><a href="#locfeed">Location &amp; Feed</a></li>
+        <li><a href="#treatment">Treatments</a></li>
+        <li><a href="#costs">Costs</a></li>
+        <li><a href="#mortality">Mortality Records</a></li>
+        <li><a href="#feed">Feed tab</a></li>
+        <li><a href="#activity">My activity</a></li>
+      </ol>
+    </li>
+    <li><a href="#manager">5. Site manager guide</a><span class="audience">Managers</span>
+      <ol>
+        <li><a href="#dashboard">Dashboard</a></li>
+        <li><a href="#reports">Reports</a></li>
+        <li><a href="#records">Records and voiding</a></li>
+        <li><a href="#team">Team</a></li>
+      </ol>
+    </li>
+    <li><a href="#admin">6. Administrator guide</a><span class="audience">Admins</span>
+      <ol>
+        <li><a href="#admin-users">Users across all sites</a></li>
+        <li><a href="#admin-sites">Sites</a></li>
+        <li><a href="#admin-phones">Phones</a></li>
+        <li><a href="#admin-login">Login security</a></li>
+        <li><a href="#admin-ref">Reference data</a></li>
+        <li><a href="#admin-policy">Sync policy</a></li>
+        <li><a href="#admin-syncsec">Sync security</a></li>
+        <li><a href="#admin-audit">Audit log</a></li>
+      </ol>
+    </li>
+    <li><a href="#it">7. IT and installer guide</a><span class="audience">IT</span>
+      <ol>
+        <li><a href="#it-install">Installing the app</a></li>
+        <li><a href="#it-server">Server address</a></li>
+        <li><a href="#it-first">Setting up a new phone</a></li>
+        <li><a href="#it-replace">Replacing or losing a phone</a></li>
+        <li><a href="#it-security">Before going live</a></li>
+      </ol>
+    </li>
+    <li><a href="#help">8. Troubleshooting and glossary</a><span class="audience">Everyone</span>
+      <ol>
+        <li><a href="#help-messages">Messages and what to do</a></li>
+        <li><a href="#help-faq">Frequently asked questions</a></li>
+        <li><a href="#help-glossary">Glossary</a></li>
+      </ol>
+    </li>
+  </ol>
+</section>
+
+<!-- ============================ 1. INTRODUCTION ============================ -->
+<h1 class="chapter" id="intro"><span class="num">Chapter 1</span>Introduction</h1>
+
+<h2 id="intro-what">What the app does</h2>
+<p class="lead">The BeefTech app lets field teams record livestock and farm information on an Android phone, even where there is no signal. Records are kept safely on the phone and sent to the BeefTech server as soon as the phone is online.</p>
+<p>With the app you can:</p>
+<ul>
+  <li><strong>Register calves</strong> with their ear tag, breed, birth details, condition and parents.</li>
+  <li><strong>Register farmers</strong> (clients), their address, farm details and GPS location.</li>
+  <li><strong>Trace animals</strong>: movements, supplier and purchase details, location and feed, treatments, costs, weighings and deaths.</li>
+  <li><strong>Link animals to farmers</strong> so each farmer's herd is known.</li>
+  <li><strong>Manage the operation</strong> (managers and admins): dashboards, reports, record review, team, phones, sites and system settings.</li>
+</ul>
+
+<h2 id="intro-roles">Roles and what each one sees</h2>
+<p>Every person signs in with their own username and 5-digit PIN. What they can do depends on their role. Higher roles can do everything the lower roles can.</p>
+<div class="roles">
+  <div class="role"><span class="who">Field agent</span><h4>Worker</h4><p>Captures calves, farmers and traceability records. Sees their own sync status and activity.</p></div>
+  <div class="role"><span class="who">Site manager</span><h4>Manager</h4><p>Everything a worker can do, plus Dashboard, Reports, Records and Team for <b>their own site</b>.</p></div>
+  <div class="role"><span class="who">System owner</span><h4>Admin</h4><p>Everything a manager can do across <b>all sites</b>, plus the Admin area: sites, phones, security, reference data and sync policy.</p></div>
+</div>
+<div class="note"><b class="label">Note</b>On the phone the app may still be labelled <b>demoapp</b> in the app drawer. It is the BeefTech app.</div>
+
+<div class="shots">
+  <figure><img src="screenshots/50-more-menu-worker.png" alt=""><figcaption>More menu — Worker</figcaption></figure>
+  <figure><img src="screenshots/50-more-menu-manager.png" alt=""><figcaption>More menu — Manager</figcaption></figure>
+  <figure><img src="screenshots/50-more-menu-admin.png" alt=""><figcaption>More menu — Admin</figcaption></figure>
+</div>
+
+<h2 id="intro-nav">Finding your way around</h2>
+<p>After signing in, the bar at the bottom of the screen has five tabs. They are the same for every role:</p>
+<table>
+  <thead><tr><th style="width:24%">Tab</th><th>What it is for</th></tr></thead>
+  <tbody>
+    <tr><td><b>Home</b></td><td>Welcome, quick actions (Register calf, Traceability, Feed; Dashboard and Reports for managers) and the Sync card.</td></tr>
+    <tr><td><b>Calves</b></td><td>Register a calf or look up calves registered on this phone.</td></tr>
+    <tr><td><b>Traceability</b></td><td>Farmers, animal assignment and every per-animal record: movements, supplier, location &amp; feed, treatments, costs and mortality.</td></tr>
+    <tr><td><b>Feed</b></td><td>Feed crib readings: pick a crib, enter a reading code and the A.D.I. See <a href="#feed">Feed tab</a>.</td></tr>
+    <tr><td><b>More</b></td><td>My activity and Log out. Managers and admins also find their management tools here.</td></tr>
+  </tbody>
+</table>
+<p>The green header at the top of every screen shows where you are (for example <span class="ui">BEEFTECH · CALVES</span>), who is signed in and on which site, whether the phone is <span class="pill ok">Online</span> or <span class="pill off">Offline</span>, and the upload status pill (see <a href="#sync-status">Reading the sync status</a>).</p>
+
+<h2 id="intro-conventions">How to read this manual</h2>
+<ul>
+  <li>Buttons and labels you tap appear like this: <span class="ui">Save calf</span>.</li>
+  <li>Fields marked with <b>*</b> in the app are required. The app will not save until they are filled in.</li>
+  <li>The screenshots were taken with sample data on a test system. Your names, sites and numbers will differ.</li>
+</ul>
+
+<!-- ============================ 2. GETTING STARTED ============================ -->
+<h1 class="chapter" id="start"><span class="num">Chapter 2 · Everyone</span>Getting started</h1>
+
+<h2 id="start-signin">Signing in</h2>
+<div class="split">
+  <div class="text">
+    <ol class="steps">
+      <li>Open the BeefTech app.</li>
+      <li>Type your <b>Username</b>.</li>
+      <li>Type your 5-digit <b>PIN</b>. The <span class="ui">Sign In</span> button only becomes active once both are filled in.</li>
+      <li>Tap <span class="ui">Sign In</span>.</li>
+    </ol>
+    <div class="warn"><b class="label">First time on a phone</b>The very first time you sign in on a phone it must be <b>online</b>. Your account is then linked to that phone, and from then on you can also sign in without signal.</div>
+    <p>If you type the wrong PIN five times in a row, the phone blocks sign-in for <b>1 minute</b>. If this happens while online, the server also locks your account for <b>5 minutes</b>. A manager can unlock it sooner from <a href="#team">Team</a>.</p>
+  </div>
+  <figure><img src="screenshots/02-login-filled.png" alt=""><figcaption>Sign-in screen</figcaption></figure>
+</div>
+
+<div class="shots">
+  <figure><img src="screenshots/91-error-incorrect-pin.png" alt=""><figcaption>Wrong username or PIN</figcaption></figure>
+  <figure><img src="screenshots/92-error-too-many-attempts.png" alt=""><figcaption>After five wrong PINs</figcaption></figure>
+  <figure><img src="screenshots/90-error-other-worker.png" alt=""><figcaption>Account linked to another phone</figcaption></figure>
+</div>
+
+<h2 id="start-forgot">Forgot your PIN</h2>
+<div class="split">
+  <div class="text">
+    <p>Tap <span class="ui">Forgot PIN?</span> on the sign-in screen. You cannot reset a PIN yourself. Ask your manager or administrator to give you a new one (see <a href="#team">Team → Reset PIN</a>).</p>
+    <p>Records already saved on the phone are <b>not</b> lost when your PIN is reset.</p>
+  </div>
+  <figure><img src="screenshots/03-forgot-pin.png" alt=""><figcaption>Forgot PIN</figcaption></figure>
+</div>
+
+<h2 id="start-offline">Signing in without signal</h2>
+<div class="split">
+  <div class="text">
+    <p>Once you have signed in online on a phone, you can sign in on that phone with no signal. The app checks your PIN against a secure copy kept on the phone.</p>
+    <ul>
+      <li>An offline session lasts up to <b>7 days</b>. After that, connect and sign in online again.</li>
+      <li>Everything you capture offline is saved on the phone and sent later.</li>
+      <li>The header shows <span class="pill off">Offline</span> and <span class="pill off">Sync paused</span> while there is no connection.</li>
+    </ul>
+  </div>
+  <figure><img src="screenshots/04-offline-signin-home.png" alt=""><figcaption>Signed in while offline</figcaption></figure>
+</div>
+
+<h2 id="start-home">The Home screen</h2>
+<div class="shots two">
+  <figure><img src="screenshots/10-home-worker.png" alt=""><figcaption>Home — Worker</figcaption></figure>
+  <figure><img src="screenshots/10-home-manager.png" alt=""><figcaption>Home — Manager, with Farm management tiles</figcaption></figure>
+</div>
+<ul>
+  <li><b>Welcome back</b> shows your username and site.</li>
+  <li><span class="ui">Register calf</span> starts a calf registration straight away.</li>
+  <li><b>Quick actions</b> open Traceability and Feed. Managers and admins also get <b>Farm management</b> tiles for Dashboard and Reports.</li>
+  <li>The <b>Sync</b> card tells you what is safely stored on the server and what is still waiting (see <a href="#sync">Chapter 3</a>).</li>
+</ul>
+
+<h2 id="start-logout">Logging out</h2>
+<div class="split">
+  <div class="text">
+    <p>Go to <span class="ui">More</span> → <span class="ui">Log out</span> and confirm with <span class="ui">Log out</span>. You will need your username and PIN to sign in again.</p>
+    <p>Log out when you hand the phone to someone else, so their records are captured under their own name.</p>
+  </div>
+  <figure><img src="screenshots/14-logout-confirm.png" alt=""><figcaption>Log out confirmation</figcaption></figure>
+</div>
+
+<!-- ============================ 3. SYNC ============================ -->
+<h1 class="chapter" id="sync"><span class="num">Chapter 3 · Everyone</span>Working offline and syncing</h1>
+
+<h2 id="sync-how">How saving works</h2>
+<p class="lead">Every record is saved on the phone first, then sent to the server. You never need signal to capture data, but you do need signal for the data to reach the office.</p>
+<ol class="steps">
+  <li>You tap <b>Save</b>. The record is stored, encrypted, on the phone and marked <span class="pill wait">PENDING</span>.</li>
+  <li>When the phone has a connection, the app uploads waiting records in the background.</li>
+  <li>When the server confirms it received a record, the record becomes <span class="pill ok">SYNCED</span>.</li>
+  <li>If the server refuses a record (for example the ear tag is already registered), it is marked <span class="pill bad">NEEDS ATTENTION</span> and the reason is shown on the record.</li>
+</ol>
+
+<h2 id="sync-status">Reading the sync status</h2>
+<p>The pill in the header and the Sync card on Home always show the current state:</p>
+<table>
+  <thead><tr><th style="width:30%">Status</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><span class="pill ok">Upload queue clear</span></td><td>Everything captured on this phone has been sent.</td></tr>
+    <tr><td><span class="pill wait">Waiting to sync</span></td><td>Records are queued and will be sent shortly, or the server has not yet confirmed them.</td></tr>
+    <tr><td><span class="pill off">Sync paused</span></td><td>The phone is offline. The card shows how many records are waiting for internet.</td></tr>
+    <tr><td><span class="pill bad">Needs attention</span></td><td>One or more records could not be sent. Open the record to see why and use <span class="ui">Retry sync</span> once fixed.</td></tr>
+  </tbody>
+</table>
+
+<div class="shots">
+  <figure><img src="screenshots/12-home-sync-card-pending.png" alt=""><figcaption>Online, waiting for the server</figcaption></figure>
+  <figure><img src="screenshots/11-home-offline-sync-card.png" alt=""><figcaption>Offline: records waiting per module</figcaption></figure>
+  <figure><img src="screenshots/13-sync-details.png" alt=""><figcaption>View sync details</figcaption></figure>
+</div>
+
+<p>Tap <span class="ui">View sync details</span> on the Sync card to see the numbers of <b>PENDING</b> and <b>FAILED</b> records, the time of the last upload the server confirmed, and the scheduled sync windows.</p>
+
+<h2 id="sync-now">Sync now and scheduled sync</h2>
+<div class="split">
+  <div class="text">
+    <ul>
+      <li><b>Automatic:</b> waiting records upload by themselves as soon as the phone has a connection.</li>
+      <li><b>Scheduled:</b> the app also runs a full sync every day between <b>05:00–06:00</b> and <b>18:00–19:00</b> (phone time). Android may run it a little later to save battery.</li>
+      <li><b>Sync now:</b> tap <span class="ui">Sync now</span> on the Home Sync card to send everything immediately. You will see <i>Sync started.</i> While offline the button reads <span class="ui">Sync now (needs internet)</span>.</li>
+      <li><b>Retry supported uploads</b> (in sync details) tries again for records that failed.</li>
+    </ul>
+    <div class="tip"><b class="label">Good habit</b>Before leaving a farm or at the end of the day, find signal and tap <span class="ui">Sync now</span>. Wait until the pill shows <span class="pill ok">Upload queue clear</span>.</div>
+  </div>
+  <figure><img src="screenshots/13-sync-started.png" alt=""><figcaption>Sync started</figcaption></figure>
+</div>
+
+<h2 id="sync-history">Sync history</h2>
+<div class="split">
+  <div class="text">
+    <p><span class="ui">More</span> → <span class="ui">My activity</span> shows your account, site, how many records are still waiting, and a <b>Sync history</b> of the last 30 days.</p>
+    <p>Each entry shows the module (Calves, Farmers, Traceability, …), what started it — <i>Morning sync</i>, <i>Evening sync</i>, <i>Sync now</i> or <i>Automatic</i> — the time, and a summary such as <i>3 sent, 1 waiting</i> with <b>All sent</b>, <b>Partly sent</b>, <b>Failed</b> or <b>Offline</b>.</p>
+  </div>
+  <figure><img src="screenshots/51-my-activity.png" alt=""><figcaption>My activity</figcaption></figure>
+</div>
+
+<h2 id="sync-policy">The 7-day rule</h2>
+<p>To protect the data, the app does not let records sit unsynced on a phone forever. Counting from the oldest unsynced record:</p>
+<table>
+  <thead><tr><th style="width:22%">Day (default)</th><th style="width:30%">What you see</th><th>What to do</th></tr></thead>
+  <tbody>
+    <tr><td>Day 2</td><td><b>Data Not Synced</b></td><td>Connect to a network and sync your records.</td></tr>
+    <tr><td>Day 4</td><td><b>Critical Sync Warning</b></td><td>Connect and sync as soon as possible.</td></tr>
+    <tr><td>Day 6</td><td><b>Final Sync Warning</b></td><td>Connect and sync <b>today</b>.</td></tr>
+    <tr><td>Day 7</td><td><b>Account locked</b></td><td>The unsynced records are deleted from the phone and the account is locked until an administrator restores access.</td></tr>
+  </tbody>
+</table>
+<div class="danger"><b class="label">Important</b>On day 7, records that were never sent are <b>permanently deleted</b> from the phone. Do not ignore the warning banners. The administrator can move the warning days (see <a href="#admin-policy">Sync policy</a>) but day 7 is fixed.</div>
+
+<!-- ============================ 4. FIELD GUIDE ============================ -->
+<h1 class="chapter" id="field"><span class="num">Chapter 4 · Workers</span>Field agent guide</h1>
+<p class="lead">This chapter covers the day-to-day capture work: calves, farmers and the traceability records for each animal.</p>
+
+<h2 id="calf">Registering a calf</h2>
+<p>Open the <span class="ui">Calves</span> tab and tap <span class="ui">Register a calf</span>, or tap <span class="ui">Register calf</span> on Home. Registration has four steps; the bar at the top shows where you are, and the back arrow returns to the previous step without losing what you typed.</p>
+
+<h3>Step 1 — Ear tag</h3>
+<div class="split">
+  <div class="text">
+    <ol class="steps">
+      <li>Choose the tag colour: <b>Blue</b>, <b>Red</b>, <b>Green</b> or <b>Yellow</b>.</li>
+      <li>Type the number printed on the tag, for example <code>64</code>. The app builds the full tag ID — Blue 64 becomes <code>Blu0000064</code>.</li>
+      <li>Watch the line below the field: <i>“Blu0000064 is free to use”</i> means you can continue; if the tag is already registered the app tells you.</li>
+      <li>Or tap <span class="ui">Scan ear tag instead</span> to read the tag with the camera (see <a href="#scanner">Scanning an ear tag</a>).</li>
+      <li>Optionally fill in <b>Other identifiers</b>: old tag number and reference number.</li>
+      <li>Tap <span class="ui">Next: calf details</span>.</li>
+    </ol>
+  </div>
+  <figure><img src="screenshots/16-calf-step1-tag.png" alt=""><figcaption>Step 1 — Ear tag</figcaption></figure>
+</div>
+
+<h3>Step 2 — Calf details</h3>
+<div class="shots">
+  <figure><img src="screenshots/17-calf-step2-top.png" alt=""><figcaption>Type and appearance</figcaption></figure>
+  <figure><img src="screenshots/17-calf-breed-picker.png" alt=""><figcaption>Breed list</figcaption></figure>
+  <figure><img src="screenshots/17-calf-step2-birth.png" alt=""><figcaption>Birth details</figcaption></figure>
+</div>
+<ul>
+  <li><b>Breed / type</b>: BRN Brangus, BNM Bonsmara, BRH Brahman, NGN Nguni, ANG Angus, SMT Simmentaler or AFR Afrikaner.</li>
+  <li><b>Gender</b>: Female or Male.</li>
+  <li><b>Hide colour</b> and <b>conformity score</b>: choose from the lists.</li>
+  <li><b>Brand mark</b> (optional): any brand or distinguishing mark.</li>
+  <li><b>Birth date</b>: tap the calendar icon and pick the date.</li>
+  <li><b>Birth mass (kg)</b>: the weighed mass. If the calf was <i>not</i> weighed, tap a quick estimate — <b>30 kg</b> small, <b>35 kg</b> typical or <b>40 kg</b> large.</li>
+</ul>
+<p>Tap <span class="ui">Next: age &amp; condition</span>.</p>
+
+<h3>Step 3 — Age, health and parentage</h3>
+<div class="shots">
+  <figure><img src="screenshots/18-calf-step3-condition.png" alt=""><figcaption>Age and condition</figcaption></figure>
+  <figure><img src="screenshots/18-calf-parent-picker.png" alt=""><figcaption>Choosing the dam</figcaption></figure>
+  <figure><img src="screenshots/18-calf-step3-bottom.png" alt=""><figcaption>Verification and photo</figcaption></figure>
+</div>
+<ul>
+  <li><b>Age category</b>: Newborn, &lt; 1 week, 1–2 weeks or &gt; 2 weeks.</li>
+  <li><b>Condition (1–5)</b>: 1 Poor, 2 Fair, 3 Good (default), 4 Very good, 5 Excellent.</li>
+  <li><b>Parentage (optional)</b>: tap the dam (mother) or sire (father) field and search for a registered animal by tag (e.g. <code>B64</code>) or breed, or tap the scan button beside the field to scan the parent's tag.</li>
+  <li><b>Verification (optional)</b>: process proof and implant proof references.</li>
+  <li><span class="ui">Take calf photo</span> (optional) opens the camera.</li>
+</ul>
+<p>Tap <span class="ui">Next: check and review</span>.</p>
+
+<h3>Step 4 — Review and save</h3>
+<div class="shots">
+  <figure><img src="screenshots/19-calf-review.png" alt=""><figcaption>Review details</figcaption></figure>
+  <figure><img src="screenshots/19-calf-review-bottom.png" alt=""><figcaption>Save calf</figcaption></figure>
+  <figure><img src="screenshots/19-calf-saved.png" alt=""><figcaption>Saved — assign to a farmer?</figcaption></figure>
+</div>
+<ol class="steps">
+  <li>Check every section. Tap <span class="ui">Change</span> next to anything that is wrong to jump back to that step.</li>
+  <li>Tap <span class="ui">Save calf</span>. The calf is saved on the phone and will be sent when there is signal.</li>
+  <li>The app asks whether to assign the calf to a farmer now. Tap <span class="ui">Assign to farmer</span> (see <a href="#assign">Assigning animals</a>) or <span class="ui">Not now</span>.</li>
+</ol>
+
+<h2 id="calf-list">Registered calves</h2>
+<div class="split">
+  <div class="text">
+    <p>On the <span class="ui">Calves</span> tab tap <span class="ui">View registered calves</span>. The summary shows how many calves are registered on this phone and how many are synced, pending or need attention.</p>
+    <p><b>Search shortcuts:</b> type the first letter of the colour and the number — <code>B64</code> finds <code>Blu0000064</code>, <code>R123</code> finds <code>Red0000123</code>. <code>G</code> is Green and <code>Y</code> is Yellow.</p>
+    <p>Each calf shows its status: <span class="pill ok">SYNCED</span>, <span class="pill wait">PENDING</span> or <span class="pill bad">NEEDS ATTENTION</span>. Tap a calf to see all its details (read-only).</p>
+  </div>
+  <figure><img src="screenshots/1a-calves-list-offline.png" alt=""><figcaption>Registered calves</figcaption></figure>
+</div>
+<div class="split">
+  <div class="text">
+    <h3 style="margin-top:0">When a calf needs attention</h3>
+    <p>Open the calf. At the bottom, <b>Sync status</b> reads <i>Rejected by the server</i> and <b>Server message</b> gives the reason. The most common reason is that the <b>ear tag is already registered</b> on the server.</p>
+    <ul>
+      <li>If the tag was mistyped, register the calf again with the correct tag, and ask your manager to void the wrong record.</li>
+      <li>If the problem was temporary, tap <span class="ui">Retry sync</span>.</li>
+    </ul>
+    <div class="note"><b class="label">Note</b>The server message can be technical. Text containing <i>UNIQUE constraint … tag_number</i> means the tag number already exists.</div>
+  </div>
+  <figure><img src="screenshots/1b-calf-detail-rejected.png" alt=""><figcaption>Rejected calf with Retry sync</figcaption></figure>
+</div>
+
+<h2 id="scanner">Scanning an ear tag</h2>
+<div class="split">
+  <div class="text">
+    <p>Wherever you see <span class="ui">Scan ear tag</span> (calf step 1, the dam and sire fields, and Find Animal):</p>
+    <ol class="steps">
+      <li>Allow camera access the first time the app asks.</li>
+      <li>Hold the phone so the <b>tag number fills the frame</b>. Use the torch button in poor light.</li>
+      <li>The app reads the number and the tag colour. If it cannot tell the colour, it asks you to tap it.</li>
+      <li>Tap <span class="ui">Use this tag</span>, or <span class="ui">Rescan</span> to try again.</li>
+    </ol>
+    <p>If camera access was refused, choose <span class="ui">Enter manually</span> and type the number instead.</p>
+  </div>
+  <figure><img src="screenshots/40-tag-scanner.png" alt=""><figcaption>Scanner (emulator camera shown)</figcaption></figure>
+</div>
+
+<h2 id="farmer">Registering a farmer</h2>
+<p>Go to <span class="ui">Traceability</span> → <span class="ui">Farmer Registration</span>. The list shows farmers registered on this phone with their status: <span class="pill wait">Pending Sync</span>, <span class="pill wait">Processing</span> or <span class="pill ok">Registered</span>. Tap <span class="ui">Register farmer</span> to add one. There are three screens.</p>
+
+<h3>1. Client Details</h3>
+<div class="shots">
+  <figure><img src="screenshots/21-farmer-client-details.png" alt=""><figcaption>Identity profile</figcaption></figure>
+  <figure><img src="screenshots/22-farmer-roles.png" alt=""><figcaption>Email, VAT and roles</figcaption></figure>
+  <figure><img src="screenshots/28-farmer-list.png" alt=""><figcaption>Saved farmer in the list</figcaption></figure>
+</div>
+<table>
+  <thead><tr><th style="width:32%">Field</th><th>Rules</th></tr></thead>
+  <tbody>
+    <tr><td>Client code</td><td>Required and must be unique. The app warns “Client Code already exists!”.</td></tr>
+    <tr><td>Co-Reg / ID no., name of organisation</td><td>Company registration or ID number, and the business or farm name.</td></tr>
+    <tr><td>Contact person</td><td>Optional. The person the sales rep should call.</td></tr>
+    <tr><td>Contact number</td><td>Optional. Only <code>+</code>, digits and spaces, with 9 to 15 digits, e.g. <code>+27 82 555 0101</code>.</td></tr>
+    <tr><td>Email, VAT number</td><td>Optional.</td></tr>
+    <tr><td>Roles</td><td>Tick all that apply: Agent, Buyer, Client, Location, Feedlot, Owner, Supplier, Transporter.</td></tr>
+  </tbody>
+</table>
+<p>Tap <span class="ui">Continue</span>, or <span class="ui">Discard</span> to abandon the registration.</p>
+
+<h3>2. Address &amp; Location</h3>
+<div class="shots">
+  <figure><img src="screenshots/24-farmer-province-picker.png" alt=""><figcaption>Province list</figcaption></figure>
+  <figure><img src="screenshots/25-farmer-land.png" alt=""><figcaption>Land and herd</figcaption></figure>
+  <figure><img src="screenshots/26-farmer-interest-gln.png" alt=""><figcaption>Interest, FA code and GLN</figcaption></figure>
+</div>
+<ul>
+  <li><b>Street address, street code, postal code, postal address.</b></li>
+  <li><b>Province</b> (the nine South African provinces) and <b>Country</b> (South Africa or a neighbouring country).</li>
+  <li><b>Land ownership</b>: Owned, Leased, Communal, State-owned or Trust.</li>
+  <li><b>Herd capacity</b> and <b>Head count</b>: whole numbers from 0 to 100 000 (optional).</li>
+  <li><b>Farm size (ha)</b>: up to 2 decimals (optional). <b>Primary breed</b> (optional).</li>
+  <li><b>Interest status</b>: Interested, Follow-up needed, Not interested or Already a client (optional).</li>
+  <li><b>FA Code (RMIS)</b>: pick a saved code or type it. <b>GLN number</b>: the 13-digit Global Location Number, or leave blank.</li>
+</ul>
+
+<h3>3. Coordinates &amp; Save</h3>
+<div class="split">
+  <div class="text">
+    <ol class="steps">
+      <li>Stand at the farm and tap <span class="ui">Use current location</span>. Allow location access if asked. Or type the latitude (−90 to 90) and longitude (−180 to 180).</li>
+      <li>Tap <span class="ui">View on map</span> to check the position in your map app.</li>
+      <li>Check the summary card and tap <span class="ui">Save Location Data</span>.</li>
+    </ol>
+    <p>The farmer is saved on the phone as <span class="pill wait">Pending Sync</span> and becomes <span class="pill ok">Registered</span> once the server has it. If the site has a sales rep, they are emailed about the new farmer.</p>
+  </div>
+  <figure><img src="screenshots/27-farmer-coordinates.png" alt=""><figcaption>Coordinates &amp; Save</figcaption></figure>
+</div>
+
+<h2 id="trace">Farm Traceability</h2>
+<div class="shots two">
+  <figure><img src="screenshots/30-traceability-home.png" alt=""><figcaption>Sync overview and farmer options</figcaption></figure>
+  <figure><img src="screenshots/30-traceability-options.png" alt=""><figcaption>Per-animal options</figcaption></figure>
+</div>
+<p>The <span class="ui">Traceability</span> tab starts with a <b>Sync overview</b> (and the day 2/4/6 warning banners when they apply). Below are the options:</p>
+<ul>
+  <li><b>Farmer options</b>: Assign Animal to Farmer, Farmer &amp; Farm Profile, Farmer Registration.</li>
+  <li><b>Animal options</b>: Find Animal, Animal Record, Animal Movement, Supplier, Location &amp; Feed, Treatments, Costs and Mortality Records.</li>
+</ul>
+<p>Every animal option first opens <b>Find Animal</b> so you can pick the animal, then opens the form for that animal. The animal's tag is shown at the top of each form (e.g. <i>ANIMAL GRN0000007</i>).</p>
+
+<h2 id="assign">Assigning animals to a farmer</h2>
+<div class="shots">
+  <figure><img src="screenshots/34-assign-pick-farmer.png" alt=""><figcaption>1. Select the farmer</figcaption></figure>
+  <figure><img src="screenshots/35-assign-animals-selected.png" alt=""><figcaption>2. Tick the animals</figcaption></figure>
+  <figure><img src="screenshots/36-assign-done.png" alt=""><figcaption>3. Assigned</figcaption></figure>
+</div>
+<ol class="steps">
+  <li>Open <span class="ui">Assign Animal to Farmer</span> and tap the farmer receiving the animals.</li>
+  <li>Use the search box or the filters <b>Unassigned</b>, <b>Assigned elsewhere</b> and <b>Assigned here</b> to find animals, and tick them.</li>
+  <li>Tap <span class="ui">Assign N unassigned animals</span>. The assignments are saved on the phone and synced.</li>
+  <li>To take an animal over from another farmer, select it under <b>Assigned elsewhere</b>. The app asks <i>Transfer {tag}?</i> and ends the old assignment when you confirm.</li>
+</ol>
+<div class="split">
+  <div class="text">
+    <h3 style="margin-top:0">Tools &amp; sync</h3>
+    <p>Tap <span class="ui">Tools &amp; sync</span> at the top of the screen for:</p>
+    <ul>
+      <li><span class="ui">Download farm animals for offline use</span> — copies the site's animals to the phone before you go out of signal.</li>
+      <li><span class="ui">Check pending assignment issues</span> — reports assignments that have not reached the server.</li>
+    </ul>
+    <h3>Farmer &amp; Farm Profile</h3>
+    <p>Shows a farmer's details, farm and the animals assigned to them, with buttons to <span class="ui">Assign existing animals</span> or <span class="ui">Register new calf</span>.</p>
+  </div>
+  <figure><img src="screenshots/33-farmer-profile.png" alt=""><figcaption>Farmer &amp; Farm Profile</figcaption></figure>
+</div>
+
+<h2 id="find">Find Animal and Animal Record</h2>
+<div class="shots">
+  <figure><img src="screenshots/41-find-animal-search.png" alt=""><figcaption>Find Animal with shortcut search</figcaption></figure>
+  <figure><img src="screenshots/42-animal-record.png" alt=""><figcaption>Animal Record</figcaption></figure>
+  <figure><img src="screenshots/42-animal-record-2.png" alt=""><figcaption>Linked records</figcaption></figure>
+</div>
+<p><b>Find Animal</b> searches by tag, number, breed, brand or parent (e.g. <code>B64</code>, <code>64</code>, <code>Bonsmara</code>). Filter by tag colour, or tap <span class="ui">Scan ear tag</span>.</p>
+<p><b>Animal Record</b> shows the animal's profile and status (for example <i>Moved</i>, <i>Sold</i> or <i>Deceased</i>), birth date, age, current location, registered mass, supplier, entry mass and <b>ADG</b> (average daily gain). Under <b>Linked records</b> you can open its movements, feed records, treatments, mortalities and costs.</p>
+<div class="split">
+  <div class="text">
+    <h3 style="margin-top:0">Recording a weighing</h3>
+    <ol class="steps">
+      <li>On the Animal Record, tap <b>Registered Mass</b>.</li>
+      <li>Choose <span class="ui">New weighing</span> to add a weighing, or <span class="ui">Correct birth mass</span> to fix the registered birth mass.</li>
+      <li>Enter the mass in kg (must be more than 0), the date and an optional note, then tap <span class="ui">Save</span>.</li>
+    </ol>
+    <p>The <b>Mass history</b> list shows all earlier weighings. ADG is calculated once there are at least two masses on different dates.</p>
+  </div>
+  <figure><img src="screenshots/42-animal-mass-dialog.png" alt=""><figcaption>Mass records</figcaption></figure>
+</div>
+
+<h2 id="movement">Animal Movement</h2>
+<div class="shots two">
+  <figure><img src="screenshots/43-movement.png" alt=""><figcaption>Movement type and date</figcaption></figure>
+  <figure><img src="screenshots/43-movement-filled.png" alt=""><figcaption>Locations and responsible worker</figcaption></figure>
+</div>
+<ul>
+  <li><b>Movement type *</b>: Within Site, Another Site, Sold or Other.</li>
+  <li><b>Movement date *</b>, <b>From location</b> and <b>To location *</b> (pick or type).</li>
+  <li><b>Responsible worker *</b> and optional <b>Notes</b>.</li>
+</ul>
+<p>Tap <span class="ui">Save Movement</span>. The app will not save a movement to the place the animal already is. Past movements are listed under <b>Movement history</b>.</p>
+
+<h2 id="supplier">Supplier</h2>
+<div class="split">
+  <div class="text">
+    <p>Records where a purchased animal came from.</p>
+    <ul>
+      <li><b>Supplier name *</b>: search registered suppliers or type a new one, then tap the <i>Use “…”</i> suggestion.</li>
+      <li><b>GLN number</b>: exactly 13 digits, or leave blank.</li>
+      <li><b>Date of purchase *</b>.</li>
+      <li><b>Purchase batch number</b>: created automatically (<code>PB-…</code>) once a supplier is chosen.</li>
+    </ul>
+    <p>The <b>Batch overview</b> shows head in the batch and average entry mass. Tap <span class="ui">Save Supplier</span>.</p>
+  </div>
+  <figure><img src="screenshots/44-supplier-filled.png" alt=""><figcaption>Supplier</figcaption></figure>
+</div>
+
+<h2 id="locfeed">Location &amp; Feed</h2>
+<div class="split">
+  <div class="text">
+    <ul>
+      <li><b>Destination *</b> (pen or camp) and <b>Days in destination</b>.</li>
+      <li><b>Ration *</b>, <b>Days</b> on that ration and <b>Cost</b> in rand.</li>
+      <li>Ration days cannot be more than the days at the destination.</li>
+      <li>Enter the real cost. Zero is accepted only if the feed really cost nothing.</li>
+    </ul>
+    <p>Tap <span class="ui">Save Location &amp; Feed</span>. The feed cost also appears in the animal's <a href="#costs">Costs</a>.</p>
+  </div>
+  <figure><img src="screenshots/46-location-feed-filled.png" alt=""><figcaption>Location &amp; Feed</figcaption></figure>
+</div>
+
+<h2 id="treatment">Treatments</h2>
+<div class="shots">
+  <figure><img src="screenshots/45-treatment-disease-list.png" alt=""><figcaption>Disease / condition</figcaption></figure>
+  <figure><img src="screenshots/45-treatment-type-list.png" alt=""><figcaption>Treatment type</figcaption></figure>
+  <figure><img src="screenshots/45-treatment-filled.png" alt=""><figcaption>Batch, volume and cost</figcaption></figure>
+</div>
+<ol class="steps">
+  <li><b>Disease / condition *</b>: pick from the list or type a condition that is not listed.</li>
+  <li><b>Treatment type *</b>: pick from the list (for example Antibiotic treatment, Vaccination, Deworming). Use <b>Other</b> if nothing fits.</li>
+  <li>The <b>Batch number</b> (<code>TRT-…</code>) is filled in automatically.</li>
+  <li>Enter the <b>Volume used</b> and the <b>Cost</b> in rand.</li>
+  <li>Tap <span class="ui">Save Treatment</span>. The app blocks an identical treatment from being saved twice.</li>
+</ol>
+
+<h2 id="costs">Costs</h2>
+<div class="shots">
+  <figure><img src="screenshots/47-costs-add.png" alt=""><figcaption>Add Cost</figcaption></figure>
+  <figure><img src="screenshots/47-costs-transport-calc.png" alt=""><figcaption>Transport calculator</figcaption></figure>
+  <figure><img src="screenshots/47-costs-overview-2.png" alt=""><figcaption>Overview: total cost</figcaption></figure>
+</div>
+<p>The Costs screen has two tabs:</p>
+<ul>
+  <li><span class="ui">Add Cost</span>: choose the cost type — <b>Transport</b>, <b>Processing</b>, <b>Handling</b> or <b>Interest</b> — then enter the amount, an optional description and the date, and tap <span class="ui">Save Cost</span>.
+    <ul>
+      <li><b>Transport calculator</b>: distance (km) × rate per km × number of trips ÷ animals sharing the trip, plus extra charges. Tap <span class="ui">Calculate Transport Cost</span> to fill in the amount.</li>
+      <li><b>Interest calculator</b>: simple interest over a 365-day year.</li>
+    </ul>
+  </li>
+  <li><span class="ui">Overview</span>: direct costs (Transport, Processing, Treatment, Feed / Ration), indirect costs (Handling, Interest, Other), the <b>total animal cost</b> and <b>cost per birth kg</b>.</li>
+</ul>
+<div class="note"><b class="label">Note</b>Treatment and Feed costs are added automatically from the Treatments and Location &amp; Feed screens. Do not enter them again here.</div>
+
+<h2 id="mortality">Mortality Records</h2>
+<div class="split">
+  <div class="text">
+    <ol class="steps">
+      <li>Find the animal, then enter the <b>Mortality reason *</b> (e.g. illness, injury or unknown cause).</li>
+      <li>Enter the <b>Responsible worker *</b>.</li>
+      <li>Tap <span class="ui">Save Mortality</span>. The animal's status changes to <b>Deceased</b>.</li>
+    </ol>
+    <div class="warn"><b class="label">Check first</b>Make sure you have the right animal before saving. A mortality can only be undone by a manager voiding the record.</div>
+  </div>
+  <figure><img src="screenshots/48-mortality-filled.png" alt=""><figcaption>Mortality Records</figcaption></figure>
+</div>
+
+<h2 id="feed">Feed tab</h2>
+<p>Use the <span class="ui">Feed</span> tab to take crib readings: how much feed is left in a crib, and the A.D.I (average daily intake) for its pen. Readings are saved on the phone, so you can work without a signal. They are sent to the server when the phone is online.</p>
+<ol>
+  <li><b>Open a crib.</b> Type the crib number (for example <span class="ui">A06</span>) and tap <span class="ui">Go</span>, or tap a crib in the list. The list can be searched. When the tab opens the phone downloads your site's cribs; tap the refresh arrow to download them again.</li>
+  <li><b>Check the details.</b> The crib shows its pen, ration, method, required feed and A.D.I, the animal counts (Begin, In, Out, Close) and a grid of the last three days. Rows are days; columns are <b>M</b> (Morning), <b>D</b> (Mid-Day) and <b>E</b> (Evening). The outlined block is where a reading saved now will go.</li>
+  <li><b>Pick a reading code.</b> Tap one of the codes <b>0</b> to <b>5</b> (Empty to Full). Under the codes the app says where it will be filed, for example <i>Goes to: Evening (from 14h00)</i>. Readings before 11h00 go to Morning, before 14h00 to Mid-Day, and later ones to Evening.</li>
+  <li><b>Adjust the A.D.I.</b> Tap <span class="ui">+</span> or <span class="ui">&minus;</span>. Each tap changes it by 0.1 kg.</li>
+  <li>Tap <span class="ui">Save</span>. The app shows <i>Saved A06 &middot; Evening 3</i> and returns to the crib number, ready for the next crib. Tap <span class="ui">Discard</span> to leave without saving; the app asks first if you changed something.</li>
+</ol>
+
+<div class="shots">
+  <figure><img src="screenshots/49-feed-home.png" alt=""><figcaption>Crib number and list</figcaption></figure>
+  <figure><img src="screenshots/49-feed-crib.png" alt=""><figcaption>Crib details</figcaption></figure>
+  <figure><img src="screenshots/49-feed-entry.png" alt=""><figcaption>Code and A.D.I</figcaption></figure>
+</div>
+
+<div class="note"><b class="label">Note</b>If you save a second reading in the same block on the same day, the newer code is the one shown in the grid. Earlier readings are kept.</div>
+
+<div class="split">
+  <div class="text">
+    <p><b>Today's session.</b> On the Feed tab, tap <span class="ui">Today's session</span> to see every crib you read today: its crib number, the codes for Morning, Mid-Day and Evening, and the A.D.I. A green <span class="ui">Synced</span> pill means the reading is on the server; <span class="ui">Waiting</span> means it will be sent when the phone is online. Tap a crib to see each reading with its time, block, code and A.D.I.</p>
+    <p><b>Sync.</b> Tap <span class="ui">Sync</span> on the Feed tab to send waiting readings now. They are also included in <span class="ui">Sync now</span> on the Home screen. See <a href="#sync">Working offline and syncing</a>.</p>
+    <div class="warn"><b class="label">No site, no cribs</b>Cribs belong to a site. A user who has no site (an administrator, for example) cannot download cribs.</div>
+  </div>
+  <figure><img src="screenshots/49-feed-session.png" alt=""><figcaption>Today's session</figcaption></figure>
+</div>
+
+<h2 id="activity">My activity</h2>
+<p><span class="ui">More</span> → <span class="ui">My activity</span> shows who is signed in, the role and site, how many of your records are waiting, and your sync history. See <a href="#sync-history">Sync history</a>.</p>
+
+<!-- ============================ 5. MANAGER ============================ -->
+<h1 class="chapter" id="manager"><span class="num">Chapter 5 · Managers</span>Site manager guide</h1>
+<p class="lead">Managers see the tools below under <span class="ui">More</span>, for their own site. These screens read live data from the server, so they need a connection. When offline they show <i>“… needs a connection. Check your signal and tap Refresh.”</i></p>
+<div class="note"><b class="label">Note</b>If you are a manager and no site has been assigned to you, the Dashboard asks you to contact an administrator.</div>
+
+<h2 id="dashboard">Dashboard</h2>
+<div class="shots">
+  <figure><img src="screenshots/52-dashboard.png" alt=""><figcaption>Farm overview</figcaption></figure>
+  <figure><img src="screenshots/52-dashboard-2.png" alt=""><figcaption>Costs and team status</figcaption></figure>
+  <figure><img src="screenshots/52-dashboard-3.png" alt=""><figcaption>Alerts</figcaption></figure>
+</div>
+<ul>
+  <li><b>Operational snapshot</b>: farmers, calf registrations, treatments, team, mortalities, movements, other costs and feed readings, with the number in the last 7 days.</li>
+  <li><b>Cost overview</b>: treatment value and other recorded costs.</li>
+  <li><b>Team status</b>: active and deactivated workers.</li>
+  <li><b>Alerts</b>: for example a worker who has not connected for longer than the time set in <a href="#admin-policy">Sync policy</a>.</li>
+</ul>
+<p>Tap <span class="ui">Refresh dashboard</span> for the latest figures. Admins can switch between sites or choose <b>All sites</b>.</p>
+
+<h2 id="reports">Reports</h2>
+<div class="shots">
+  <figure><img src="screenshots/53-reports.png" alt=""><figcaption>Report types and options</figcaption></figure>
+  <figure><img src="screenshots/53-reports-2.png" alt=""><figcaption>Mortality report</figcaption></figure>
+  <figure><img src="screenshots/53-report-cost-per-animal.png" alt=""><figcaption>Cost per animal</figcaption></figure>
+</div>
+<ol class="steps">
+  <li>Choose a report: <b>Farm Summary</b>, <b>Animal History</b>, <b>Movement Report</b>, <b>Treatment Report</b> or <b>Mortality Report</b>.</li>
+  <li>Under <b>Report options</b> choose the view (Mortality, Treatment cost, Cost per animal) and the period: <b>Last 7</b>, <b>30</b> or <b>90 days</b>.</li>
+  <li>Tap <span class="ui">Refresh</span> to build the report.</li>
+  <li>Tap <span class="ui">Share CSV</span> (for Excel) or <span class="ui">Share PDF</span> to send it by email, WhatsApp, Drive and so on.</li>
+</ol>
+<p>Mortality rate = mortalities ÷ calves registered in the same period and site.</p>
+
+<h2 id="records">Records and voiding</h2>
+<div class="shots">
+  <figure><img src="screenshots/54-records-animals.png" alt=""><figcaption>Animals tab</figcaption></figure>
+  <figure><img src="screenshots/54-records-captured.png" alt=""><figcaption>Captured Records</figcaption></figure>
+  <figure><img src="screenshots/54-records-void-dialog.png" alt=""><figcaption>Void with a reason</figcaption></figure>
+</div>
+<ul>
+  <li><b>Animals</b>: every animal on the site, filtered by <b>At Site</b>, <b>Moved</b>, <b>Sold</b> or <b>Deceased</b>, with a search box.</li>
+  <li><b>Captured Records</b>: records by type (Calves, Treatments, Farmers, Movements, …), showing who captured them and when.</li>
+</ul>
+<h3>Voiding a wrong record</h3>
+<ol class="steps">
+  <li>Find the record under <b>Captured Records</b> and tap <span class="ui">Void</span>.</li>
+  <li>Type the <b>Reason</b> (required) and tap <span class="ui">Void</span>.</li>
+</ol>
+<p>The record is kept but hidden from lists and reports, and the action is written to the audit log. The worker will need to capture the correct record again. Switch on <b>Show voided</b> to see voided records. Admins can also <b>assign a record to a site</b> (a reason is required).</p>
+
+<h2 id="team">Team</h2>
+<div class="shots">
+  <figure><img src="screenshots/55-team-people.png" alt=""><figcaption>People</figcaption></figure>
+  <figure><img src="screenshots/55-team-add-worker.png" alt=""><figcaption>Add worker</figcaption></figure>
+  <figure><img src="screenshots/55-team-reset-pin.png" alt=""><figcaption>New PIN — shown once</figcaption></figure>
+</div>
+<p>Team has three sub-tabs: <b>People</b>, <b>Phones</b> and <b>Activity</b>. Managers see and manage the <b>workers on their own site</b>.</p>
+<table>
+  <thead><tr><th style="width:28%">Action</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><span class="ui">Add worker</span></td><td>Create a worker with a username and a 5-digit PIN on your site. Give the worker the PIN in person.</td></tr>
+    <tr><td><span class="ui">Reset PIN</span></td><td>Immediately creates a new PIN and shows it <b>once</b>. Write it down and give it to the worker before tapping <span class="ui">Done</span>.</td></tr>
+    <tr><td><span class="ui">Unlock sign-in</span></td><td>Lifts the 5-minute lock after too many wrong PINs.</td></tr>
+    <tr><td><span class="ui">Unlink phone</span></td><td>Releases the worker from their current phone so they can sign in on a different one.</td></tr>
+    <tr><td><span class="ui">Deactivate</span> / <span class="ui">Reactivate</span></td><td>Stops a worker from signing in (for example when they leave), or lets them back in.</td></tr>
+  </tbody>
+</table>
+<div class="shots two">
+  <figure><img src="screenshots/55-team-phones.png" alt=""><figcaption>Phones: model, app version, last seen</figcaption></figure>
+  <figure><img src="screenshots/55-team-activity.png" alt=""><figcaption>Activity: audit log for the site</figcaption></figure>
+</div>
+
+<!-- ============================ 6. ADMIN ============================ -->
+<h1 class="chapter" id="admin"><span class="num">Chapter 6 · Admins</span>Administrator guide</h1>
+<p class="lead">Admins have every manager tool for all sites, plus <span class="ui">More</span> → <span class="ui">Admin</span>. The Admin area has tabs along the top — swipe the tab row sideways to reach them all: Sites, Phones, Login security, Reference data, Sync policy, Sync security and Audit log.</p>
+
+<h2 id="admin-users">Users across all sites</h2>
+<div class="split">
+  <div class="text">
+    <p>For admins, <span class="ui">More</span> → <span class="ui">Team</span> becomes <b>User management</b> for every user on every site.</p>
+    <ul>
+      <li><span class="ui">Add user</span>: username, 5-digit PIN and site.</li>
+      <li>Reset PIN, unlock sign-in, unlink phone, deactivate/reactivate — as for managers.</li>
+      <li><b>Change site</b> for a user. You cannot change your own site or another admin's.</li>
+    </ul>
+  </div>
+  <figure><img src="screenshots/6a-admin-add-user-filled.png" alt=""><figcaption>Add user</figcaption></figure>
+</div>
+
+<h2 id="admin-sites">Sites</h2>
+<div class="shots two">
+  <figure><img src="screenshots/61-admin-sites.png" alt=""><figcaption>Sites</figcaption></figure>
+  <figure><img src="screenshots/62-admin-sales-rep.png" alt=""><figcaption>Sales rep email</figcaption></figure>
+</div>
+<ul>
+  <li><span class="ui">Add site</span> and <span class="ui">Rename</span>.</li>
+  <li><span class="ui">Farm code</span>: a 4-character code for the site (capital letters A–Z and digits 0–9), used in the names of sync batches, photos and exported reports.</li>
+  <li><span class="ui">Sales rep</span>: an optional email address. That person receives an email for every farmer registered on the site. Without one, farmer emails go to the default inbox.</li>
+  <li><span class="ui">Deactivate</span> a site that is no longer used.</li>
+</ul>
+
+<h2 id="admin-phones">Phones</h2>
+<div class="split">
+  <div class="text">
+    <p>Lists every phone that has signed in: model, phone ID, app version, last seen, which users it is assigned to and its site. Filter by <b>All</b>, <b>Active</b> or <b>Blocked</b>.</p>
+    <p>Tap <span class="ui">Block</span> to stop a lost or stolen phone from signing in. Its users then see <i>“This phone has been blocked. Contact your administrator.”</i> Unblock it the same way.</p>
+  </div>
+  <figure><img src="screenshots/6a-admin-phones.png" alt=""><figcaption>Phones</figcaption></figure>
+</div>
+
+<h2 id="admin-login">Login security</h2>
+<div class="split">
+  <div class="text">
+    <p>Shows who is <b>locked out now</b> (with an unlock action) and a list of <b>sign-in attempts</b> — successful sign-ins, wrong PINs and other outcomes — with the user, time and phone.</p>
+    <p>Use it to spot repeated failed attempts on an account.</p>
+  </div>
+  <figure><img src="screenshots/6a-admin-login-security.png" alt=""><figcaption>Login security</figcaption></figure>
+</div>
+
+<h2 id="admin-ref">Reference data</h2>
+<div class="split">
+  <div class="text">
+    <p>Manages the pick lists on every phone: <b>Diseases</b>, <b>Treatment types</b> and <b>Cost types</b>.</p>
+    <ul>
+      <li>Switch a value <b>off</b> to hide it from the pickers on every phone. Records that already use it keep it.</li>
+      <li><span class="ui">Add</span> a new value with a code such as <code>VET_CALLOUT</code> and a display name.</li>
+      <li>Values cannot be renamed or deleted — switch off the old one and add a new one.</li>
+    </ul>
+    <p>Phones receive changes the next time they connect.</p>
+  </div>
+  <figure><img src="screenshots/6a-admin-reference-data.png" alt=""><figcaption>Reference data</figcaption></figure>
+</div>
+
+<h2 id="admin-policy">Sync policy</h2>
+<div class="split">
+  <div class="text">
+    <ul>
+      <li><b>Sync warnings</b>: the three days on which workers see the unsynced-data warnings (default 2, 4 and 6). Each must be between 1 and 6 and later than the one before.</li>
+      <li>Unsynced data is wiped on <b>day 7</b>. This is fixed in the app and cannot be changed here.</li>
+      <li><b>Dashboard alert</b>: flag a worker on the Dashboard after this many hours without contact (default 48).</li>
+    </ul>
+    <p>Tap <span class="ui">Save</span>. Phones keep their current warning days until they next connect.</p>
+  </div>
+  <figure><img src="screenshots/6a-admin-sync-policy.png" alt=""><figcaption>Sync policy</figcaption></figure>
+</div>
+
+<h2 id="admin-syncsec">Sync security</h2>
+<div class="split">
+  <div class="text">
+    <p>Lists <b>locked accounts</b> — accounts locked by the 7-day rule — and the warning and day-7 events that phones have reported.</p>
+    <p>To restore a worker after a day-7 lock, find the account under <b>Locked accounts</b> and clear the lock. Then ask the worker to tap <span class="ui">Check again</span> on their phone.</p>
+  </div>
+  <figure><img src="screenshots/6a-admin-sync-security.png" alt=""><figcaption>Sync security</figcaption></figure>
+</div>
+
+<h2 id="admin-audit">Audit log</h2>
+<div class="split">
+  <div class="text">
+    <p>Every administrative change is recorded: users created and changed, PIN resets, voids, site changes and more. Filter by action type and by period (24 hours, 7 days, 30 days, All).</p>
+  </div>
+  <figure><img src="screenshots/6a-admin-audit-log.png" alt=""><figcaption>Audit log</figcaption></figure>
+</div>
+
+<!-- ============================ 7. IT ============================ -->
+<h1 class="chapter" id="it"><span class="num">Chapter 7 · IT</span>IT and installer guide</h1>
+<p class="lead">This chapter is for the person who installs the app and prepares phones. Server installation and configuration are covered in the project <code>README.md</code>.</p>
+
+<h2 id="it-install">Installing the app</h2>
+<table>
+  <thead><tr><th style="width:30%">Requirement</th><th>Detail</th></tr></thead>
+  <tbody>
+    <tr><td>Phone</td><td>Android 7.0 (API 24) or later, with a rear camera (tag scanning) and GPS (farm location).</td></tr>
+    <tr><td>App file</td><td>The BeefTech APK supplied by the development team (package <code>com.beeftech.demoapp</code>, version 1.0).</td></tr>
+    <tr><td>Permissions</td><td>Camera (scanning tags and calf photos) and Location (farm coordinates). The app asks the first time each is needed.</td></tr>
+  </tbody>
+</table>
+<ol class="steps">
+  <li>Copy the APK to the phone, or download it from the link you were given.</li>
+  <li>Open it and allow installation from this source if Android asks.</li>
+  <li>Tap <span class="ui">Install</span>, then <span class="ui">Open</span>.</li>
+</ol>
+<p>Developers can install directly from the source code with <code>./gradlew :demoapp:installDebug</code>.</p>
+
+<h2 id="it-server">Server address</h2>
+<p>The server address is built into the app when it is compiled. It cannot be changed on the phone.</p>
+<table>
+  <thead><tr><th style="width:30%">Build</th><th>Server</th></tr></thead>
+  <tbody>
+    <tr><td>Release</td><td><code>https://beeftech-backend.onrender.com/</code></td></tr>
+    <tr><td>Debug (emulator)</td><td><code>http://10.0.2.2:8081/</code> — the developer's computer, as seen from the Android emulator.</td></tr>
+    <tr><td>Debug (real phone)</td><td>Build with <code>-Pbeeftech.baseUrl=http://&lt;server-ip&gt;:8081/</code>, e.g. <code>./gradlew :demoapp:installDebug -Pbeeftech.baseUrl=http://192.168.1.20:8081/</code></td></tr>
+  </tbody>
+</table>
+
+<h2 id="it-first">Setting up a new phone</h2>
+<ol class="steps">
+  <li>An admin or manager creates the user's account (<a href="#team">Team</a> or <a href="#admin-users">User management</a>) and gives them their username and PIN.</li>
+  <li>Install the app and make sure the phone has a <b>working internet connection</b>.</li>
+  <li>The user signs in once online. The account is now linked to this phone, and the phone appears under <a href="#admin-phones">Phones</a>.</li>
+  <li>Let the phone sync once (tap <span class="ui">Sync now</span>) so it downloads the pick lists and the sync policy.</li>
+  <li>Optionally, in <span class="ui">Assign Animal to Farmer</span> → <span class="ui">Tools &amp; sync</span>, download the farm's animals for offline use.</li>
+</ol>
+
+<h2 id="it-replace">Replacing or losing a phone</h2>
+<ul>
+  <li><b>New phone for an existing user</b>: on the old phone, sync until <span class="pill ok">Upload queue clear</span>. Then, in Team, tap <span class="ui">Unlink phone</span> for the user and sign in on the new phone while online.</li>
+  <li><b>Lost or stolen phone</b>: in Admin → Phones, tap <span class="ui">Block</span>, then unlink the user and set them up on a new phone. Records on the lost phone that never synced cannot be recovered.</li>
+  <li><b>Clearing app data or reinstalling</b> removes unsynced records and gives the phone a new identity. The user must be unlinked from the old identity before signing in again.</li>
+</ul>
+
+<h2 id="it-security">Before going live</h2>
+<div class="danger"><b class="label">Security checklist</b>
+  <ul style="margin-bottom:0">
+    <li>The current build protects the phone database with a fixed demonstration key. Replace it with a key kept in the Android Keystore before production use.</li>
+    <li>Remove or change the seeded test accounts (<code>admin</code>, <code>fmanager</code>, <code>jvdm</code>) on the production server.</li>
+    <li>Use the HTTPS server address for release builds.</li>
+    <li>Set the app name and launcher icon to BeefTech branding.</li>
+  </ul>
+</div>
+
+<!-- ============================ 8. HELP ============================ -->
+<h1 class="chapter" id="help"><span class="num">Chapter 8 · Everyone</span>Troubleshooting and glossary</h1>
+
+<h2 id="help-messages">Messages and what to do</h2>
+<table>
+  <thead><tr><th style="width:36%">Message</th><th style="width:30%">Meaning</th><th>What to do</th></tr></thead>
+  <tbody>
+    <tr><td>Incorrect username or PIN</td><td>The username or PIN is wrong.</td><td>Check spelling and try again. After five tries you are blocked for a while.</td></tr>
+    <tr><td>Too many attempts. Try again in 1 minutes.</td><td>Five wrong PINs on this phone.</td><td>Wait one minute. If it continues online, ask a manager to <span class="ui">Unlock sign-in</span>.</td></tr>
+    <tr><td>This phone is registered to another worker</td><td>Your account is linked to a different phone.</td><td>Use your own phone, or ask a manager to <span class="ui">Unlink phone</span>.</td></tr>
+    <tr><td>This phone has been blocked. Contact your administrator.</td><td>An admin blocked the phone.</td><td>Contact your administrator.</td></tr>
+    <tr><td>Your access was ended. Connect to the internet and sign in again.</td><td>Your account was deactivated or changed.</td><td>Connect and sign in. If it still fails, contact your manager.</td></tr>
+    <tr><td>Connect once to set up this account</td><td>First sign-in on this phone, but there is no signal.</td><td>Find signal and sign in online once.</td></tr>
+    <tr><td>Cannot reach the server. Try again.</td><td>No connection to the server.</td><td>Check signal or Wi-Fi and try again.</td></tr>
+    <tr><td>Your session has ended. Sign in again.</td><td>Your session expired.</td><td>Sign in again. Your saved records are kept.</td></tr>
+    <tr><td>Data Not Synced / Critical Sync Warning / Final Sync Warning</td><td>Records have been waiting for 2 / 4 / 6 days.</td><td>Connect and tap <span class="ui">Sync now</span> — see <a href="#sync-policy">The 7-day rule</a>.</td></tr>
+    <tr><td>Account locked</td><td>Day 7 reached with unsynced data.</td><td>Contact an administrator to clear the lock, then tap <span class="ui">Check again</span>.</td></tr>
+    <tr><td>Unable to verify account security</td><td>The app could not check the account status.</td><td>Tap <span class="ui">Try again</span> when you have signal.</td></tr>
+    <tr><td>… needs a connection. Check your signal and tap Refresh.</td><td>A management screen needs live data.</td><td>Find signal and tap <span class="ui">Refresh</span>.</td></tr>
+    <tr><td>Client Code already exists!</td><td>Another farmer has that client code.</td><td>Use a different, unique client code.</td></tr>
+    <tr><td>Calf shows <span class="pill bad">NEEDS ATTENTION</span></td><td>The server rejected it, usually a duplicate tag.</td><td>Open the calf, read the server message, then fix it or tap <span class="ui">Retry sync</span>.</td></tr>
+  </tbody>
+</table>
+
+<h2 id="help-faq">Frequently asked questions</h2>
+<h3>Can I work all day without signal?</h3>
+<p>Yes. Everything is saved on the phone. Sync when you get signal, and at least once every couple of days — see <a href="#sync-policy">The 7-day rule</a>.</p>
+<h3>Two of us share a phone. Is that a problem?</h3>
+<p>Each person should sign in with their own account and log out when handing over the phone, so records are captured under the right name. Sync before handing over.</p>
+<h3>I registered a calf with the wrong tag. How do I fix it?</h3>
+<p>Calf details cannot be edited after saving. Register the calf again with the correct tag and ask your manager to void the wrong record with a reason.</p>
+<h3>Why can't I see a farmer or animal that a colleague registered?</h3>
+<p>Records reach other phones through the server. Make sure both phones have synced. For animals, use <span class="ui">Tools &amp; sync</span> → <span class="ui">Download farm animals for offline use</span>.</p>
+<h3>The scheduled sync didn't run at exactly 05:00.</h3>
+<p>Android may delay background work to save battery. The sync runs as soon as Android allows and there is a connection. Tap <span class="ui">Sync now</span> if you need it immediately.</p>
+
+<h2 id="help-glossary">Glossary</h2>
+<table class="compact">
+  <thead><tr><th style="width:26%">Term</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td>ADG</td><td>Average daily gain — the animal's weight gain per day between weighings.</td></tr>
+    <tr><td>Batch number</td><td>An automatic reference: <code>PB-…</code> for a purchase batch (Supplier), <code>TRT-…</code> for a treatment.</td></tr>
+    <tr><td>Dam / Sire</td><td>The calf's mother / father.</td></tr>
+    <tr><td>Ear tag ID</td><td>Colour code plus seven digits: <code>Blu</code>, <code>Red</code>, <code>Grn</code> or <code>Yel</code>, e.g. <code>Blu0000064</code>.</td></tr>
+    <tr><td>FA Code (RMIS)</td><td>The farm's code in the Red Meat Industry Services system.</td></tr>
+    <tr><td>Farm code</td><td>A 4-character code for a site, set by an admin.</td></tr>
+    <tr><td>GLN</td><td>Global Location Number — a 13-digit number identifying a farm or supplier location.</td></tr>
+    <tr><td>PENDING</td><td>Saved on the phone, not yet confirmed by the server.</td></tr>
+    <tr><td>SYNCED</td><td>Confirmed by the server.</td></tr>
+    <tr><td>NEEDS ATTENTION</td><td>The server refused the record. Open it to see why.</td></tr>
+    <tr><td>Site</td><td>A feedlot or farm operation. Every user and record belongs to a site.</td></tr>
+    <tr><td>Sync</td><td>Sending records from the phone to the server and receiving updates back.</td></tr>
+    <tr><td>Void</td><td>Hiding a wrong record without deleting it. Voids are recorded in the audit log.</td></tr>
+  </tbody>
+</table>
+
+</body>
+</html>

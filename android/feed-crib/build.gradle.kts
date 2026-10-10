@@ -1,12 +1,15 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
     namespace = "com.beeftech.feedcrib"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 24
@@ -17,44 +20,74 @@ android {
         compose = true
     }
 
+    lint {
+        // Lint 8.x crashes reading the Kotlin 2.1 metadata of the Room DAO that FakeFeedCribDao extends
+        // ("maximum supported version is 2.0.0"). The unit tests are still compiled and run.
+        ignoreTestSources = true
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
+
+    testOptions {
+        unitTests {
+            // The repository logs through android.util.Log, which throws in JVM tests.
+            isReturnDefaultValues = true
+        }
     }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
+    }
+}
+
+tasks.withType<Test> {
+    jvmArgs("-XX:+EnableDynamicAgentLoading")
 }
 
 dependencies {
     implementation(project(":android:database"))
 
     // Feed Crib API communication
-    implementation("io.ktor:ktor-client-core:2.3.8")
-    implementation("io.ktor:ktor-client-okhttp:2.3.8")
-    implementation("io.ktor:ktor-client-content-negotiation:2.3.8")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.8")
-    implementation(platform("androidx.compose:compose-bom:2024.02.00"))
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.okhttp)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
 
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.ui:ui-tooling-preview")
+    // Kotlin serialization
+    implementation(libs.kotlinx.serialization.json)
 
-    debugImplementation(platform("androidx.compose:compose-bom:2024.02.00"))
-    debugImplementation("androidx.compose.ui:ui-tooling")
+    // ViewModel
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
 
-    implementation("androidx.compose.material:material-icons-extended")
+    // WorkManager - background sync
+    implementation(libs.androidx.work.runtime.ktx)
 
-    implementation("androidx.fragment:fragment-ktx:1.6.2")
+    implementation(platform(libs.androidx.compose.bom))
 
-    implementation("androidx.activity:activity-compose:1.9.0")
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.androidx.compose.material.icons.extended)
 
-    testImplementation("junit:junit:4.13.2")
+    debugImplementation(platform(libs.androidx.compose.bom))
+    debugImplementation(libs.androidx.compose.ui.tooling)
 
-    androidTestImplementation("junit:junit:4.13.2")
-    androidTestImplementation("androidx.test.ext:junit:1.2.1")
-    androidTestImplementation("androidx.test:runner:1.6.2")
-    androidTestImplementation("androidx.test:core-ktx:1.6.1")
-    androidTestImplementation("androidx.test:rules:1.6.1")
+    implementation(libs.androidx.activity.compose)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.ktor.client.mock)
+    testImplementation(libs.kotlinx.coroutines.test)
+
+    androidTestImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.core.ktx)
+    androidTestImplementation(libs.androidx.test.rules)
 }
