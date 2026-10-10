@@ -265,63 +265,7 @@
 <h2 id="arch-overview">The big picture</h2>
 <p class="lead">Every record is written to the encrypted local database first and queued. Sync is a separate, retryable step that never deletes local data because a request failed.</p>
 <figure class="diagram">
-<svg viewBox="0 0 680 330" xmlns="http://www.w3.org/2000/svg" font-family="Inter, Roboto, Helvetica, Arial, sans-serif" font-size="11">
-  <defs>
-    <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#4F6256"/></marker>
-  </defs>
-  <rect x="4" y="4" width="672" height="182" rx="10" fill="#F4F3E8" stroke="#D9DDD8"/>
-  <text x="18" y="24" font-weight="700" fill="#35473D" font-size="11.5">Android phone (offline-capable)</text>
-  <g font-weight="600" fill="#1F2823">
-    <rect x="18" y="40" width="130" height="50" rx="6" fill="#fff" stroke="#4F6256"/>
-    <text x="83" y="61" text-anchor="middle">Compose screen</text>
-    <text x="83" y="77" text-anchor="middle" font-weight="400" fill="#6D756F" font-size="9.5">feature module</text>
-    <rect x="182" y="40" width="130" height="50" rx="6" fill="#fff" stroke="#4F6256"/>
-    <text x="247" y="61" text-anchor="middle">ViewModel</text>
-    <text x="247" y="77" text-anchor="middle" font-weight="400" fill="#6D756F" font-size="9.5">feature module</text>
-    <rect x="346" y="40" width="130" height="50" rx="6" fill="#fff" stroke="#4F6256"/>
-    <text x="411" y="61" text-anchor="middle">Repository</text>
-    <text x="411" y="77" text-anchor="middle" font-weight="400" fill="#6D756F" font-size="9.5">validates, saves, queues</text>
-    <rect x="510" y="40" width="152" height="50" rx="6" fill="#35473D"/>
-    <text x="586" y="61" text-anchor="middle" fill="#fff">Room + SQLCipher</text>
-    <text x="586" y="77" text-anchor="middle" font-weight="400" fill="#E3E8E2" font-size="9.5">:android:database</text>
-    <rect x="510" y="118" width="152" height="50" rx="6" fill="#fff" stroke="#4F6256"/>
-    <text x="586" y="139" text-anchor="middle">pending_sync</text>
-    <text x="586" y="155" text-anchor="middle" font-weight="400" fill="#6D756F" font-size="9.5">what still has to go</text>
-    <rect x="182" y="118" width="294" height="50" rx="6" fill="#fff" stroke="#4F6256"/>
-    <text x="329" y="139" text-anchor="middle">SyncAllDispatcher → per-module sync workers</text>
-    <text x="329" y="155" text-anchor="middle" font-weight="400" fill="#6D756F" font-size="9.5">WorkManager, needs a connection, retries</text>
-  </g>
-  <g stroke="#4F6256" stroke-width="1.6" fill="none" marker-end="url(#a1)">
-    <line x1="148" y1="65" x2="180" y2="65"/>
-    <line x1="312" y1="65" x2="344" y2="65"/>
-    <line x1="476" y1="65" x2="508" y2="65"/>
-    <line x1="586" y1="90" x2="586" y2="116"/>
-    <line x1="508" y1="143" x2="478" y2="143"/>
-    <line x1="329" y1="168" x2="329" y2="226"/>
-  </g>
-  <text x="338" y="204" fill="#35473D" font-size="10">HTTPS · JSON · Bearer JWT · batch name</text>
-  <rect x="4" y="228" width="672" height="96" rx="10" fill="#E3E8E2" stroke="#D9DDD8"/>
-  <text x="18" y="248" font-weight="700" fill="#35473D" font-size="11.5">backend:api (Ktor + Netty, port 8081)</text>
-  <g font-weight="600" fill="#1F2823">
-    <rect x="18" y="260" width="140" height="50" rx="6" fill="#fff" stroke="#4F6256"/>
-    <text x="88" y="281" text-anchor="middle">*Routes.kt</text>
-    <text x="88" y="297" text-anchor="middle" font-weight="400" fill="#6D756F" font-size="9.5">auth + live user check</text>
-    <rect x="190" y="260" width="140" height="50" rx="6" fill="#fff" stroke="#4F6256"/>
-    <text x="260" y="281" text-anchor="middle">*Service.kt</text>
-    <text x="260" y="297" text-anchor="middle" font-weight="400" fill="#6D756F" font-size="9.5">validation, per-record result</text>
-    <rect x="362" y="260" width="140" height="50" rx="6" fill="#fff" stroke="#4F6256"/>
-    <text x="432" y="281" text-anchor="middle">*Repository.kt</text>
-    <text x="432" y="297" text-anchor="middle" font-weight="400" fill="#6D756F" font-size="9.5">upsert by GUID</text>
-    <rect x="534" y="260" width="128" height="50" rx="6" fill="#35473D"/>
-    <text x="598" y="281" text-anchor="middle" fill="#fff">Exposed → SQLite</text>
-    <text x="598" y="297" text-anchor="middle" font-weight="400" fill="#E3E8E2" font-size="9.5">*Table.kt</text>
-  </g>
-  <g stroke="#4F6256" stroke-width="1.6" fill="none" marker-end="url(#a1)">
-    <line x1="158" y1="285" x2="188" y2="285"/>
-    <line x1="330" y1="285" x2="360" y2="285"/>
-    <line x1="502" y1="285" x2="532" y2="285"/>
-  </g>
-</svg>
+<img src="assets/big-picture.png" alt="The Android phone: Compose screen to ViewModel to Repository, which saves the record to Room + SQLCipher and queues it in pending_sync; SyncAllDispatcher and the sync workers read pending records and post an HTTPS batch with a JWT to the backend. On backend:api, *Routes.kt passes to *Service.kt, then *Repository.kt, which upserts by GUID into Exposed/SQLite; a per-record result goes back to the workers, which mark records SYNCED." style="width:100%;height:auto">
 <figcaption>Figure 3.1 — From a screen on the phone to a row on the server</figcaption>
 </figure>
 <ol>
