@@ -29,6 +29,7 @@ fun RegisteredFarmersScreen(
     farmers: List<FarmerEntity>,
     isLoading: Boolean = false,
     errorMessage: String = "",
+    selectingForAssignment: Boolean = false,
     onFarmerClick: (String) -> Unit,
     onBackClick: () -> Unit = {}
 ) {
@@ -40,8 +41,8 @@ fun RegisteredFarmersScreen(
     ) {
         TraceabilityHeader(
             eyebrow = "FARM TRACEABILITY",
-            title = "Registered Farmers",
-            subtitle = "Select a farmer to view their profile",
+            title = if (selectingForAssignment) "Select Farmer" else "Registered Farmers",
+            subtitle = if (selectingForAssignment) "Choose the farmer receiving the animal" else "Select a farmer to view their profile",
             icon = Icons.Outlined.Person,
             showBackButton = true,
             onBackClick = onBackClick

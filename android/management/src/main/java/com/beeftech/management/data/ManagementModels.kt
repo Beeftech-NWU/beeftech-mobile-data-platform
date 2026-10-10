@@ -127,6 +127,12 @@ data class ReviewRecord(
 }
 
 @Serializable
+data class AssignRecordSiteBody(val siteId: String, val reason: String)
+
+@Serializable
+data class AssignRecordSiteResult(val entityType: String, val entityId: String, val siteId: String)
+
+@Serializable
 data class VoidBody(
     val reason: String
 )

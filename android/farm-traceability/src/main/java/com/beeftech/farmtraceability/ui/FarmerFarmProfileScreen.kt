@@ -1,6 +1,11 @@
 package com.beeftech.farmtraceability.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import com.beeftech.database.entity.Animal
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -41,6 +46,9 @@ fun FarmerFarmProfileScreen(
     syncStatus: String = "",
     isLoading: Boolean = false,
     errorMessage: String = "",
+    assignedAnimals: List<Animal> = emptyList(),
+    onAssignAnimals: () -> Unit = {},
+    onRegisterCalf: () -> Unit = {},
     onBackClick: () -> Unit = {}
 ) {
     Column(
@@ -63,6 +71,43 @@ fun FarmerFarmProfileScreen(
                 .fillMaxWidth()
                 .padding(18.dp)
         ) {
+            TraceabilitySectionTitle(title = "Registered animals")
+            Spacer(modifier = Modifier.height(12.dp))
+            TraceabilityCard {
+                Text(
+                    text = "${assignedAnimals.size} ${if (assignedAnimals.size == 1) "animal" else "animals"} assigned",
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                if (assignedAnimals.isEmpty()) {
+                    Text("No calves are assigned to this farmer yet.")
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Assign an existing animal, or register a new calf first.")
+                } else {
+                    assignedAnimals.forEach { animal ->
+                        Spacer(modifier = Modifier.height(12.dp))
+                        TraceabilityInfoRow(
+                            icon = Icons.Outlined.Tag,
+                            title = listOfNotNull(
+                                animal.breed.takeIf { it.isNotBlank() },
+                                animal.gender?.takeIf { it.isNotBlank() }
+                            ).joinToString(" · ").ifBlank { "Registered animal" },
+                            subtitle = animal.brandMark?.takeIf { it.isNotBlank() }
+                                ?.let { "Brand mark: $it" }
+                                ?: "Animal reference: ${animal.animalId.take(8)}"
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(onClick = onAssignAnimals, modifier = Modifier.fillMaxWidth()) {
+                    Text("Assign existing animals")
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedButton(onClick = onRegisterCalf, modifier = Modifier.fillMaxWidth()) {
+                    Text("Register new calf")
+                }
+            }
+            Spacer(modifier = Modifier.height(20.dp))
             if (isLoading) {
                 TraceabilityCard {
                     TraceabilityInfoRow(

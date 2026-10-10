@@ -7,6 +7,7 @@ import com.beeftech.management.data.ManagementApiClient
 import com.beeftech.management.data.ManagementResult
 import com.beeftech.management.data.REVIEW_TYPES
 import com.beeftech.management.data.ReviewRecord
+import com.beeftech.management.data.Site
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,6 +19,7 @@ data class RecordsReviewUiState(
     val type: String = REVIEW_TYPES.first().first,
     val records: List<ReviewRecord> = emptyList(),
     val showVoided: Boolean = true,
+    val sites: List<Site> = emptyList(),
     val loading: Boolean = false,
     /* True when the last call failed for lack of connection, so the screen can say so. */
     val needsConnection: Boolean = false,
@@ -41,6 +43,36 @@ class RecordsReviewViewModel(
         if (type == _uiState.value.type) return
         _uiState.update { it.copy(type = type, records = emptyList(), error = null, notice = null) }
         refresh()
+    }
+
+    fun loadSites() {
+        viewModelScope.launch {
+            val result = apiClient.listSites()
+            if (result is ManagementResult.Success) {
+                _uiState.update { it.copy(sites = result.value) }
+            }
+        }
+    }
+
+    fun assignSite(record: ReviewRecord, siteId: String, reason: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            val result = apiClient.assignRecordSite(record.type, record.id, siteId, reason.trim())
+            if (result is ManagementResult.Success) {
+                _uiState.update { state ->
+                    state.copy(
+                        records = state.records.map {
+                            if (it.id == record.id && it.type == record.type) it.copy(siteId = siteId) else it
+                        },
+                        notice = "Assigned ${record.label} to selected site",
+                        error = null,
+                        needsConnection = false
+                    )
+                }
+                onSuccess()
+            } else {
+                _uiState.update { failed(it, result) }
+            }
+        }
     }
 
     fun setShowVoided(show: Boolean) {

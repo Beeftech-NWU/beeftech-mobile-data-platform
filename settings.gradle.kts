@@ -22,6 +22,7 @@ rootProject.name = "beeftech"
 
 // Include Android modules
 include(":demoapp")
+include(":android")
 include(":android:authentication")
 include(":android:calf-registration")
 include(":android:database")

@@ -4,6 +4,9 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -26,7 +29,8 @@ private enum class CalfFlowStep {
 fun CalfRegistrationFlow(
     viewModel: CalfRegistrationViewModel,
     onCalfSaved: ((tagNumber: String) -> Unit)? = null,
-    onNavigateHome: (() -> Unit)? = null
+    onNavigateHome: (() -> Unit)? = null,
+    onAssignSavedCalf: ((tagNumber: String) -> Unit)? = null
 ) {
     var currentStep by remember {
         mutableStateOf(CalfFlowStep.HOME)
@@ -51,6 +55,7 @@ fun CalfRegistrationFlow(
     val registeredCalves by
         viewModel.registeredCalves.collectAsState()
 
+    var savedCalfForAssignment by remember { mutableStateOf<String?>(null) }
     val parentOptions by
         viewModel.parentOptions.collectAsState()
 
@@ -86,6 +91,23 @@ fun CalfRegistrationFlow(
         ) {
             viewModel.loadCalves()
         }
+    }
+
+    savedCalfForAssignment?.let { tag ->
+        AlertDialog(
+            onDismissRequest = { savedCalfForAssignment = null },
+            title = { Text("Calf saved successfully") },
+            text = { Text("Would you like to assign calf $tag to a registered farmer now? You can also do this later in Farm Traceability.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    savedCalfForAssignment = null
+                    onAssignSavedCalf?.invoke(tag)
+                }) { Text("Assign to farmer") }
+            },
+            dismissButton = {
+                TextButton(onClick = { savedCalfForAssignment = null }) { Text("Not now") }
+            }
+        )
     }
 
     Scaffold(
@@ -172,8 +194,12 @@ fun CalfRegistrationFlow(
                                         formData = createNextCalfForm()
                                         navigationHistory.clear()
                                         currentStep = CalfFlowStep.HOME
-                                        scope.launch {
-                                            snackbarHostState.showSnackbar("Calf $savedTagNumber saved")
+                                        if (onAssignSavedCalf != null) {
+                                            savedCalfForAssignment = savedTagNumber
+                                        } else {
+                                            scope.launch {
+                                                snackbarHostState.showSnackbar("Calf $savedTagNumber saved")
+                                            }
                                         }
                                     }
                                 } else {

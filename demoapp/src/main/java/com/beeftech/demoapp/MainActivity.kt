@@ -10,6 +10,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.work.Constraints
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -67,6 +71,7 @@ import com.beeftech.feedcrib.ui.FeedCribFlow
 import com.beeftech.farmtraceability.data.TreatmentApiClient
 import com.beeftech.farmtraceability.data.TreatmentRepository
 import com.beeftech.farmtraceability.ui.FarmTraceabilityFlow
+import com.beeftech.farmtraceability.worker.FarmerAnimalLinkSyncWorker
 import com.beeftech.farmtraceability.viewmodel.AnimalMovementViewModel
 import com.beeftech.farmtraceability.viewmodel.AnimalMovementViewModelFactory
 import com.beeftech.farmtraceability.viewmodel.CostSummaryViewModel
@@ -505,6 +510,8 @@ class MainActivity : ComponentActivity() {
                                 mutableIntStateOf(0)
                             }
 
+                            var calfTagToAssign by remember { mutableStateOf<String?>(null) }
+
                             val tabs =
                                 remember(loggedInUser.role) {
                                     tabsFor(loggedInUser.roleEnum)
@@ -520,10 +527,21 @@ class MainActivity : ComponentActivity() {
                                 mutableStateOf(false)
                             }
 
-                            val pendingCount by
+                            val queuedPendingCount by
                             remember(loggedInUser.userId) {
                                 pendingSyncRepository
                                     .observePendingCount(loggedInUser.userId)
+                            }.collectAsState(initial = 0)
+
+                            // Assignment revisions live outside the generic pending-sync queue.
+                            val assignmentPendingCount by remember(database) {
+                                database.farmerAnimalLinkDao().observePendingUploadCount()
+                            }.collectAsState(initial = 0)
+
+                            val pendingCount = queuedPendingCount + assignmentPendingCount
+
+                            val localTransferHistoryCount by remember(database) {
+                                database.farmerAnimalLinkDao().observeLocalHistoryCount()
                             }.collectAsState(initial = 0)
 
                             val failedSyncCount by
@@ -536,6 +554,10 @@ class MainActivity : ComponentActivity() {
                             remember(loggedInUser.userId) {
                                 pendingSyncRepository
                                     .observeOldestPendingAt(loggedInUser.userId)
+                            }.collectAsState(initial = null)
+
+                            val latestSyncBatch by remember {
+                                syncRepository.observeLatestSyncBatch()
                             }.collectAsState(initial = null)
 
                             val isOnline by rememberIsOnline()
@@ -636,6 +658,139 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
 
+                            val retrySyncAction: () -> Unit = {
+
+                                                lifecycleScope.launch {
+
+                                                    val pendingOperations =
+                                                        withContext(Dispatchers.IO) {
+                                                            pendingSyncRepository
+                                                                .getAllPendingOperations()
+                                                        }
+
+                                                    if (pendingOperations.isEmpty() && assignmentPendingCount == 0) {
+                                                        showUiMessage("There are no pending records to sync.")
+                                                        return@launch
+                                                    }
+
+                                                    if (assignmentPendingCount > 0) {
+                                                        // Manual retry replaces a backoff-delayed one-time request.
+                                                        // Keep the existing periodic worker and shared Retry button.
+                                                        val constraints = Constraints.Builder()
+                                                            .setRequiredNetworkType(NetworkType.CONNECTED)
+                                                            .build()
+                                                        val request = OneTimeWorkRequestBuilder<FarmerAnimalLinkSyncWorker>()
+                                                            .setConstraints(constraints)
+                                                            .build()
+                                                        WorkManager.getInstance(applicationContext).enqueueUniqueWork(
+                                                            "farmer-animal-link-sync",
+                                                            ExistingWorkPolicy.REPLACE,
+                                                            request
+                                                        )
+                                                        showUiMessage("Farmer–animal assignment sync queued.")
+                                                    }
+
+                                                    val pendingTypes =
+                                                        pendingOperations
+                                                            .map { it.entityType }
+                                                            .toSet()
+
+                                                    if (
+                                                        "FARMER_REGISTRATION" in pendingTypes
+                                                    ) {
+
+                                                        /*
+                                                         * Reset Farmer Registration retry counters.
+                                                         *
+                                                         * Automatic retries are capped, but pressing Retry Sync
+                                                         * is an explicit user request to try the record again.
+                                                         */
+                                                        withContext(Dispatchers.IO) {
+                                                            pendingOperations
+                                                                .filter {
+                                                                    it.entityType ==
+                                                                        "FARMER_REGISTRATION"
+                                                                }
+                                                                .forEach { pendingOperation ->
+                                                                    pendingSyncRepository
+                                                                        .resetRetryCount(
+                                                                            pendingOperation.id
+                                                                        )
+                                                                }
+                                                        }
+
+                                                        FarmerSyncScheduler.enqueue(
+                                                            applicationContext
+                                                        )
+                                                    }
+
+                                                    if (
+                                                        "CALF_REGISTRATION" in pendingTypes
+                                                    ) {
+                                                        calfRegistrationViewModel
+                                                            .retrySync {
+                                                                    success,
+                                                                    message ->
+
+                                                                if (
+                                                                    success &&
+                                                                    message.contains(
+                                                                        "synced successfully",
+                                                                        ignoreCase = true
+                                                                    )
+                                                                ) {
+                                                                    lifecycleScope.launch {
+                                                                        syncRepository
+                                                                            .recordSuccessfulSync()
+                                                                    }
+                                                                }
+                                                            showUiMessage(message)
+                                                            }
+                                                    }
+
+                                                    if (
+                                                        "ANIMAL_MOVEMENT" in pendingTypes
+                                                    ) {
+                                                        movementViewModel
+                                                            .retrySync(
+                                                                animalId = ""
+                                                            ) {
+                                                                    _,
+                                                                    message ->
+                                                            showUiMessage(message)
+                                                            }
+                                                    }
+
+                                                    if (
+                                                        "MORTALITY" in pendingTypes
+                                                    ) {
+                                                        mortalityViewModel
+                                                            .retrySync {
+                                                                    _,
+                                                                    message ->
+                                                            showUiMessage(message)
+                                                            }
+                                                    }
+
+                                                    if (
+                                                        "ANIMAL_COST" in pendingTypes
+                                                    ) {
+                                                        costSummaryViewModel
+                                                            .retrySync {
+                                                                    _,
+                                                                    message ->
+                                                            showUiMessage(message)
+                                                            }
+                                                    }
+
+                                                    if (
+                                                        "FARMER_REGISTRATION" in pendingTypes
+                                                    ) {
+                                                        showUiMessage("Farmer registration sync queued.")
+                                                    }
+                                                }
+                                            }
+
                             Scaffold(
                                 modifier =
                                     Modifier.fillMaxSize(),
@@ -718,6 +873,10 @@ class MainActivity : ComponentActivity() {
                                             role = loggedInUser.roleEnum,
                                             pendingCount = pendingCount,
                                             syncState = syncState,
+                                            failedCount = failedSyncCount,
+                                            localHistoryCount = localTransferHistoryCount,
+                                            lastSuccessfulSyncAt = latestSyncBatch?.timestamp,
+                                            onRetrySync = retrySyncAction,
                                             pendingByModule =
                                                 SyncRunDisplay.pendingByModule(pendingByType),
                                             lastRunLine =
@@ -815,7 +974,8 @@ class MainActivity : ComponentActivity() {
                                             apiClient =
                                                 managementApiClient,
                                             currentUserId =
-                                                loggedInUser.userId
+                                                loggedInUser.userId,
+                                            isAdmin = loggedInUser.roleEnum == Role.ADMIN
                                         )
 
                                     } else if (activeTab == AppTab.TEAM) {
@@ -842,12 +1002,19 @@ class MainActivity : ComponentActivity() {
 
                                         CalfRegistrationFlow(
                                             viewModel =
-                                                calfRegistrationViewModel
+                                                calfRegistrationViewModel,
+                                            onAssignSavedCalf = { tag ->
+                                                calfTagToAssign = tag
+                                                selectedMoreTab = null
+                                                selectedDemoTab = tabs.indexOf(AppTab.TRACEABILITY)
+                                            }
                                         )
 
                                     } else if (activeTab == AppTab.TRACEABILITY) {
 
                                         FarmTraceabilityFlow(
+                                            newlyRegisteredCalfTag = calfTagToAssign,
+                                            onAssignmentEntryConsumed = { calfTagToAssign = null },
 
                                             onCalfRegistrationClick = {
                                                 selectedDemoTab = tabs.indexOf(AppTab.CALF_REGISTRATION)
@@ -1167,123 +1334,7 @@ class MainActivity : ComponentActivity() {
                                                     )
                                             },
 
-                                            onRetrySyncClick = {
-
-                                                lifecycleScope.launch {
-
-                                                    val pendingOperations =
-                                                        withContext(Dispatchers.IO) {
-                                                            pendingSyncRepository
-                                                                .getAllPendingOperations()
-                                                        }
-
-                                                    if (pendingOperations.isEmpty()) {
-                                                        showUiMessage(
-                                                            "There are no pending records to sync."
-                                                        )
-                                                        return@launch
-                                                    }
-
-                                                    val pendingTypes =
-                                                        pendingOperations
-                                                            .map { it.entityType }
-                                                            .toSet()
-
-                                                    if (
-                                                        "FARMER_REGISTRATION" in pendingTypes
-                                                    ) {
-
-                                                        /*
-                                                         * Reset Farmer Registration retry counters.
-                                                         *
-                                                         * Automatic retries are capped, but pressing Retry Sync
-                                                         * is an explicit user request to try the record again.
-                                                         */
-                                                        withContext(Dispatchers.IO) {
-                                                            pendingOperations
-                                                                .filter {
-                                                                    it.entityType ==
-                                                                        "FARMER_REGISTRATION"
-                                                                }
-                                                                .forEach { pendingOperation ->
-                                                                    pendingSyncRepository
-                                                                        .resetRetryCount(
-                                                                            pendingOperation.id
-                                                                        )
-                                                                }
-                                                        }
-
-                                                        FarmerSyncScheduler.enqueue(
-                                                            applicationContext
-                                                        )
-                                                    }
-
-                                                    if (
-                                                        "CALF_REGISTRATION" in pendingTypes
-                                                    ) {
-                                                        calfRegistrationViewModel
-                                                            .retrySync {
-                                                                    success,
-                                                                    message ->
-
-                                                                if (
-                                                                    success &&
-                                                                    message.contains(
-                                                                        "synced successfully",
-                                                                        ignoreCase = true
-                                                                    )
-                                                                ) {
-                                                                    lifecycleScope.launch {
-                                                                        syncRepository
-                                                                            .recordSuccessfulSync()
-                                                                    }
-                                                                }
-                                                            showUiMessage(message)
-                                                            }
-                                                    }
-
-                                                    if (
-                                                        "ANIMAL_MOVEMENT" in pendingTypes
-                                                    ) {
-                                                        movementViewModel
-                                                            .retrySync(
-                                                                animalId = ""
-                                                            ) {
-                                                                    _,
-                                                                    message ->
-                                                            showUiMessage(message)
-                                                            }
-                                                    }
-
-                                                    if (
-                                                        "MORTALITY" in pendingTypes
-                                                    ) {
-                                                        mortalityViewModel
-                                                            .retrySync {
-                                                                    _,
-                                                                    message ->
-                                                            showUiMessage(message)
-                                                            }
-                                                    }
-
-                                                    if (
-                                                        "ANIMAL_COST" in pendingTypes
-                                                    ) {
-                                                        costSummaryViewModel
-                                                            .retrySync {
-                                                                    _,
-                                                                    message ->
-                                                            showUiMessage(message)
-                                                            }
-                                                    }
-
-                                                    if (
-                                                        "FARMER_REGISTRATION" in pendingTypes
-                                                    ) {
-                                                        showUiMessage("Farmer registration sync queued.")
-                                                    }
-                                                }
-                                            }
+                                            onRetrySyncClick = retrySyncAction
                                         )
 
                                     } else {

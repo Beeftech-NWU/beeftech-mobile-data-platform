@@ -31,6 +31,11 @@ import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.CloudDone
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.CloudQueue
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Home
@@ -46,7 +51,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -56,11 +60,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -138,8 +140,8 @@ fun appSyncUiState(
         else ->
             AppSyncUiState(
                 tone = SyncTone.SYNCED,
-                label = "Synced",
-                detail = "Everything on this device is up to date"
+                label = "Upload queue clear",
+                detail = "No supported uploads are currently pending"
             )
     }
 
@@ -394,96 +396,35 @@ fun BeefBottomNavigation(
     }
 }
 
+/** Queue status only. Do not present inferred pending-count changes as a real upload %. */
 @Composable
 private fun SyncProgressVisual(
     pendingCount: Int,
     syncState: AppSyncUiState,
     modifier: Modifier = Modifier
 ) {
-    var batchTotal by remember { mutableIntStateOf(pendingCount.coerceAtLeast(0)) }
-
-    LaunchedEffect(pendingCount, syncState.tone) {
-        when {
-            syncState.tone == SyncTone.SYNCED -> batchTotal = 0
-            syncState.tone == SyncTone.WAITING && pendingCount > batchTotal -> batchTotal = pendingCount
-        }
-    }
-
-    val percent = when {
-        syncState.tone == SyncTone.SYNCED -> 100
-        syncState.tone == SyncTone.WAITING && batchTotal > 0 ->
-            (((batchTotal - pendingCount).coerceAtLeast(0) * 100f) / batchTotal)
-                .toInt()
-                .coerceIn(0, 99)
-        else -> 0
-    }
-
-    val progressColor = when (syncState.tone) {
-        SyncTone.SYNCED -> BeefSuccess
-        SyncTone.WAITING -> BeefPrimaryStrong
-        SyncTone.OFFLINE -> BeefOffline
-        SyncTone.FAILED -> BeefDanger
-    }
-
     val headline = when (syncState.tone) {
-        SyncTone.SYNCED -> "Everything synced"
-        SyncTone.WAITING -> "Syncing..."
-        SyncTone.OFFLINE -> "You are offline"
+        SyncTone.SYNCED -> "Supported upload queue clear"
+        SyncTone.WAITING -> "Waiting for server acknowledgement"
+        SyncTone.OFFLINE -> "Sync paused - offline"
         SyncTone.FAILED -> "Sync needs attention"
     }
-
     val message = when (syncState.tone) {
-        SyncTone.SYNCED -> "All records on this device are up to date."
-        SyncTone.WAITING ->
-            if (pendingCount == 1) "Uploading 1 record" else "Uploading $pendingCount records"
-        SyncTone.OFFLINE ->
-            if (pendingCount > 0) {
-                "$pendingCount record${if (pendingCount == 1) "" else "s"} will sync automatically when you are back online."
-            } else {
-                "Records will sync automatically when you are back online."
-            }
+        SyncTone.SYNCED -> "No supported uploads currently waiting."
+        SyncTone.WAITING -> "$pendingCount record${if (pendingCount == 1) "" else "s"} awaiting upload or acknowledgement."
+        SyncTone.OFFLINE -> syncState.detail
         SyncTone.FAILED -> syncState.detail
     }
-
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = headline,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = BeefText
-            )
-            Text(
-                text = "$percent%",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = progressColor
-            )
-        }
-
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodySmall,
-            color = BeefMutedText
-        )
-
-        LinearProgressIndicator(
-            progress = percent / 100f,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(8.dp),
-            color = progressColor,
-            trackColor = BeefBorder
-        )
+        Text(headline, style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold, color = BeefText)
+        Text(message, style = MaterialTheme.typography.bodySmall, color = BeefMutedText)
     }
 }
+
 @Composable
 fun BeefHomeScreen(
     username: String,
@@ -491,6 +432,10 @@ fun BeefHomeScreen(
     role: Role?,
     pendingCount: Int,
     syncState: AppSyncUiState,
+    failedCount: Int,
+    localHistoryCount: Int,
+    lastSuccessfulSyncAt: Long?,
+    onRetrySync: () -> Unit,
     onRegisterCalf: () -> Unit,
     onTraceability: () -> Unit,
     onFeed: () -> Unit,
@@ -503,6 +448,7 @@ fun BeefHomeScreen(
     canSyncNow: Boolean = false,
     onSyncNow: () -> Unit = {}
 ) {
+    var showSyncDetails by remember { mutableStateOf(false) }
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -602,35 +548,134 @@ fun BeefHomeScreen(
         item { HomeSectionTitle("Sync", "Know what is safely stored and what still needs the server") }
         item {
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onMyActivity),
-                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = BeefSurface),
                 border = BorderStroke(1.dp, BeefBorder)
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showSyncDetails = !showSyncDetails },
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        SyncStatusChip(syncState)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            SyncStatusChip(syncState)
+                            Icon(
+                                imageVector = if (showSyncDetails) Icons.Outlined.KeyboardArrowUp
+                                    else Icons.Outlined.KeyboardArrowDown,
+                                contentDescription = if (showSyncDetails) "Collapse sync details" else "Expand sync details",
+                                tint = BeefPrimaryStrong
+                            )
+                        }
+                        SyncProgressVisual(pendingCount = pendingCount, syncState = syncState)
                         Text(
-                            text = "›",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = BeefAccent
+                            text = if (showSyncDetails) "Hide sync details" else "View sync details",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = BeefPrimaryStrong
                         )
                     }
 
-                    SyncProgressVisual(
-                        pendingCount = pendingCount,
-                        syncState = syncState
-                    )
+                    if (showSyncDetails) {
+                        val displayDate = lastSuccessfulSyncAt?.let { timestamp ->
+                            java.text.DateFormat.getDateTimeInstance(
+                                java.text.DateFormat.MEDIUM,
+                                java.text.DateFormat.SHORT
+                            ).format(java.util.Date(timestamp))
+                        } ?: "Not recorded yet"
 
+                        androidx.compose.material3.HorizontalDivider(color = BeefBorder)
+                        Text(
+                            text = "SYNC ACTIVITY",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = BeefMutedText
+                        )
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            color = BeefSoftSurface
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(14.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Outlined.CloudDone, contentDescription = null, tint = BeefSuccess)
+                                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text("Last acknowledged upload on this device", style = MaterialTheme.typography.labelMedium, color = BeefMutedText)
+                                    Text(displayDate, style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold, color = BeefText)
+                                }
+                            }
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            SyncMetricTile("PENDING", pendingCount, BeefPrimaryStrong, Modifier.weight(1f))
+                            SyncMetricTile("FAILED", failedCount, if (failedCount > 0) BeefDanger else BeefPrimaryStrong, Modifier.weight(1f))
+                        }
+                        if (localHistoryCount > 0) {
+                            Text(
+                                "$localHistoryCount ended assignment${if (localHistoryCount == 1) "" else "s"} kept as local history (not uploaded to the server).",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = BeefMutedText
+                            )
+                        }
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            color = BeefSoftSurface
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Icon(Icons.Outlined.Schedule, contentDescription = null, tint = BeefPrimaryStrong)
+                                    Text("Scheduled sync", style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold, color = BeefText)
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    SyncTimePill("05:00–06:00", Modifier.weight(1f))
+                                    SyncTimePill("18:00–19:00", Modifier.weight(1f))
+                                }
+                                Text("Device local time · Android may run scheduled work later.",
+                                    style = MaterialTheme.typography.bodySmall, color = BeefMutedText)
+                            }
+                        }
+                        Button(
+                            onClick = onRetrySync,
+                            enabled = pendingCount > 0 && syncState.tone != SyncTone.OFFLINE,
+                            modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = BeefPrimaryStrong,
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Icon(Icons.Outlined.Refresh, contentDescription = null)
+                            Spacer(Modifier.size(8.dp))
+                            Text("Retry supported uploads", fontWeight = FontWeight.SemiBold)
+                        }
+                        if (pendingCount == 0) {
+                            Text("No pending supported uploads to retry.",
+                                modifier = Modifier.fillMaxWidth(),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = BeefMutedText,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                        }
+                    }
                     if (pendingByModule.isNotEmpty()) {
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             pendingByModule.forEach { module ->
@@ -670,20 +715,43 @@ fun BeefHomeScreen(
                         Text(if (canSyncNow) "Sync now" else "Sync now (needs internet)")
                     }
 
-                    Text(
-                        text = if (pendingCount > 0) {
-                            "Tap to review pending activity"
-                        } else {
-                            "Tap to view your activity"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = BeefMutedText
-                    )
                 }
             }
         }
 
         item { Spacer(modifier = Modifier.height(6.dp)) }
+    }
+}
+
+@Composable
+private fun SyncMetricTile(label: String, count: Int, accent: Color, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(14.dp),
+        color = BeefSoftSurface
+    ) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(label, style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold, color = BeefMutedText)
+            Text(count.toString(), style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold, color = accent)
+            Text(if (count == 1) "record" else "records", style = MaterialTheme.typography.bodySmall, color = BeefMutedText)
+        }
+    }
+}
+
+@Composable
+private fun SyncTimePill(time: String, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(9.dp),
+        color = BeefSurface,
+        border = BorderStroke(1.dp, BeefBorder)
+    ) {
+        Text(time, modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
+            style = MaterialTheme.typography.labelMedium,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            fontWeight = FontWeight.SemiBold, color = BeefPrimaryStrong)
     }
 }
 

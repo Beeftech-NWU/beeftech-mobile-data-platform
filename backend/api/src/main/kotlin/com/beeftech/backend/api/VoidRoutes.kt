@@ -20,6 +20,17 @@ fun Route.voidRoutes(
     voidService: VoidService
 ) {
 
+    post("/api/records/{type}/{id}/assign-site") {
+        val principal = call.requireRole(jwtService, Role.ADMIN) ?: return@post
+        val request = call.receive<AssignRecordSiteRequest>()
+        call.respondResult(
+            voidService.assignSite(
+                principal, call.parameters["type"].orEmpty(),
+                call.parameters["id"].orEmpty(), request
+            ), "Record assigned to site"
+        )
+    }
+
     post("/api/records/{type}/{id}/void") {
 
         val principal = call.requireRole(jwtService, Role.ADMIN, Role.MANAGER) ?: return@post

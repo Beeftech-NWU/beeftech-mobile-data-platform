@@ -10,6 +10,10 @@ import com.beeftech.database.entity.AnimalIdentifierEntity
 import com.beeftech.database.entity.AnimalMediaEntity
 import com.beeftech.database.entity.CalfRegistrationEntity
 import com.beeftech.database.entity.IdentifierTypes
+import com.beeftech.database.entity.Breed
+import com.beeftech.database.entity.Device
+import java.nio.charset.StandardCharsets
+import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 
 class DuplicateTagException(val tagNumber: String) :
@@ -63,6 +67,24 @@ data class PhotoUpload(
     val filePath: String
 )
 
+/** Server-visible calf data that has already passed the backend's site/role checks. */
+data class VerifiedCalfImport(
+    val animalId: String?,
+    val tagNumber: String,
+    val breed: String,
+    val birthdate: Long,
+    val gpsLat: Double,
+    val gpsLng: Double,
+    val captureAt: Long,
+    val deviceId: String,
+    val recordGuid: String,
+    val syncedAt: Long?,
+    val damAnimalId: String?,
+    val sireAnimalId: String?
+)
+
+enum class VerifiedCalfImportResult { IMPORTED, ALREADY_PRESENT, CONFLICT, INVALID }
+
 @Dao
 abstract class CalfRegistrationDao {
 
@@ -104,6 +126,93 @@ abstract class CalfRegistrationDao {
         insertIdentifiers(identifiers)
         if (media.isNotEmpty()) insertMedia(media)
         insertRegistration(registration)
+    }
+
+    // Import is intentionally separate from registerCalf(): the latter creates a new local
+    // registration/PENDING queue item. These records already exist on the server and must
+    // retain their original UUIDs and record GUIDs; never upload a duplicate.
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    protected abstract suspend fun insertRemoteBreed(value: Breed): Long
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    protected abstract suspend fun insertRemoteDevice(value: Device): Long
+
+    @Query("SELECT breedId FROM breeds WHERE breedId = :breed OR name = :breed LIMIT 1")
+    protected abstract suspend fun existingBreedId(breed: String): String?
+
+    @Query("SELECT animalId FROM animals WHERE animalId = :animalId LIMIT 1")
+    protected abstract suspend fun remoteAnimalExists(animalId: String): String?
+
+    @Query("SELECT registered_animal_id FROM calf_registrations WHERE record_guid = :guid LIMIT 1")
+    protected abstract suspend fun importedRegistrationByGuid(guid: String): String?
+
+    @Query("""
+        SELECT animal_id FROM animal_identifiers
+        WHERE identifier_type = 'TAG' AND identifier_value = :tag COLLATE NOCASE
+          AND valid_to IS NULL LIMIT 1
+    """)
+    protected abstract suspend fun existingTagOwner(tag: String): String?
+
+    /** Idempotent, all-or-nothing download for a *site-scoped* server calf record. */
+    @Transaction
+    open suspend fun importVerifiedServerCalf(source: VerifiedCalfImport): VerifiedCalfImportResult {
+        val uuid = source.animalId?.trim().orEmpty()
+        val tag = source.tagNumber.trim()
+        val breed = source.breed.trim()
+        val device = source.deviceId.trim()
+        val guid = source.recordGuid.trim()
+        if (uuid.isEmpty() || runCatching { UUID.fromString(uuid) }.isFailure ||
+            tag.isBlank() || tag.length > 100 || breed.isBlank() || breed.length > 100 ||
+            device.isBlank() || device.length > 255 || guid.isBlank() || guid.length > 64 ||
+            source.birthdate <= 0 || source.captureAt <= 0 ||
+            source.gpsLat !in -90.0..90.0 || source.gpsLng !in -180.0..180.0) {
+            return VerifiedCalfImportResult.INVALID
+        }
+
+        // Never adopt a server ID over a pre-existing offline animal, even when the tag matches.
+        val existingGuidAnimal = importedRegistrationByGuid(guid)
+        if (existingGuidAnimal != null) {
+            return if (existingGuidAnimal == uuid && existingTagOwner(tag) == uuid)
+                VerifiedCalfImportResult.ALREADY_PRESENT
+            else VerifiedCalfImportResult.CONFLICT
+        }
+        if (remoteAnimalExists(uuid) != null || existingTagOwner(tag) != null) {
+            return VerifiedCalfImportResult.CONFLICT
+        }
+
+        // These lookups are foreign-key parents of animals. Preserve the original device ID.
+        val breedId = existingBreedId(breed) ?: breed.also {
+            insertRemoteBreed(Breed(breedId = it, name = it))
+        }
+        insertRemoteDevice(Device(deviceId = device))
+        val dam = source.damAnimalId?.takeIf { remoteAnimalExists(it) != null }
+        val sire = source.sireAnimalId?.takeIf { remoteAnimalExists(it) != null }
+        insertAnimal(
+            Animal(
+                animalId = uuid, birthdate = source.birthdate, breed = breedId,
+                damId = dam, sireId = sire,
+                gpsLat = source.gpsLat, gpsLng = source.gpsLng,
+                captureAt = source.captureAt, deviceId = device,
+                recordGuid = UUID.nameUUIDFromBytes(
+                    "downloaded-calf-animal:$guid".toByteArray(StandardCharsets.UTF_8)
+                ).toString(),
+                syncStatus = "SYNCED", syncedat = source.syncedAt
+            )
+        )
+        insertIdentifiers(listOf(
+            AnimalIdentifierEntity(
+                animalId = uuid, identifierType = IdentifierTypes.TAG,
+                identifierValue = tag, validFrom = source.captureAt
+            )
+        ))
+        insertRegistration(
+            CalfRegistrationEntity(
+                registeredAnimalId = uuid, damId = dam, sireId = sire,
+                registrationDate = source.captureAt,
+                recordGuid = guid, syncStatus = "SYNCED", syncedAt = source.syncedAt
+            )
+        )
+        return VerifiedCalfImportResult.IMPORTED
     }
 
     // --- reads ---

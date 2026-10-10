@@ -8,6 +8,12 @@ data class VoidRequest(
 )
 
 @Serializable
+data class AssignRecordSiteRequest(val siteId: String, val reason: String)
+
+@Serializable
+data class AssignRecordSiteResponse(val entityType: String, val entityId: String, val siteId: String)
+
+@Serializable
 data class VoidResponse(
     val entityType: String,
     val entityId: String,

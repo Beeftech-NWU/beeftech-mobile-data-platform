@@ -55,6 +55,7 @@ fun FarmTraceabilityScreen(
     onBackClick: () -> Unit = {},
     onRetrySyncClick: () -> Unit = {},
     onFarmerFarmProfileClick: () -> Unit = {},
+    onAssignAnimalClick: () -> Unit = {},
     onFarmerRegistrationClick: () -> Unit = {},
     onFindAnimalClick: () -> Unit = {},
     onAnimalRecordClick: () -> Unit = {},
@@ -178,72 +179,26 @@ fun FarmTraceabilityScreen(
             }
 
             // ---------------------------------------------------------
-            // SYNC STATUS
+            // COMPACT SYNC SUMMARY
+            // Full sync details remain on the main dashboard.
+            // Keep the warning and actionable retry here for offline work.
             // ---------------------------------------------------------
-
-            TraceabilitySectionTitle(
-                title = "Sync Status"
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
             TraceabilityCard {
-
                 TraceabilityInfoRow(
                     icon = Icons.Outlined.CloudSync,
-                    title = "Pending Records",
-                    subtitle = pendingRecordCount?.let {
-                        "$it record${if (it == 1) "" else "s"} waiting to sync"
-                    } ?: "Pending record count unavailable"
+                    title = "Sync overview",
+                    subtitle = pendingRecordCount?.let { count ->
+                        if (count == 0) "All queued records sent"
+                        else "$count record${if (count == 1) "" else "s"} waiting to sync"
+                    } ?: "Sync count unavailable — view dashboard for details"
                 )
 
-                Spacer(modifier = Modifier.height(14.dp))
-
-                TraceabilityInfoRow(
-                    icon = Icons.Outlined.CloudDone,
-                    title = "Last Sync",
-                    subtitle = lastSync.ifBlank {
-                        "Last sync information unavailable"
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                TraceabilityInfoRow(
-                    icon = Icons.Outlined.Schedule,
-                    title = "Scheduled Sync",
-                    subtitle = scheduledSync.ifBlank {
-                        "Background sync not configured yet"
-                    }
-                )
-
-                if (syncStatus.isNotBlank()) {
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    TraceabilityInfoRow(
-                        icon = Icons.Outlined.CloudSync,
-                        title = "Current Status",
-                        subtitle = syncStatus
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                if (retrySyncAvailable) {
-
+                if (retrySyncAvailable && (pendingRecordCount ?: 0) > 0) {
+                    Spacer(modifier = Modifier.height(12.dp))
                     TraceabilitySecondaryButton(
                         text = "Retry Sync",
                         icon = Icons.Outlined.Refresh,
                         onClick = onRetrySyncClick
-                    )
-
-                } else {
-
-                    TraceabilityInfoRow(
-                        icon = Icons.Outlined.Refresh,
-                        title = "Retry Sync",
-                        subtitle = "Available when the sync service is connected"
                     )
                 }
             }
@@ -260,6 +215,14 @@ fun FarmTraceabilityScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            TraceabilityMenuCard(
+                title = "Assign Animal to Farmer",
+                subtitle = "Choose a farmer, then select a registered animal",
+                icon = Icons.AutoMirrored.Outlined.Assignment,
+                onClick = onAssignAnimalClick
+            )
+
+            MenuSpacer()
             TraceabilityMenuCard(
                 title = "Farmer & Farm Profile",
                 subtitle = "View farmer, farm and location details",

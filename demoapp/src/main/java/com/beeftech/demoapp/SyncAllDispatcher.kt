@@ -13,6 +13,7 @@ import androidx.work.workDataOf
 import com.beeftech.calfregistration.worker.CalfRegistrationSyncWorker
 import com.beeftech.database.repository.SyncRunSummary
 import com.beeftech.farmerregistration.worker.FarmerSyncWorker
+import com.beeftech.farmtraceability.worker.FarmerAnimalLinkSyncWorker
 import com.beeftech.farmtraceability.worker.AnimalMovementSyncWorker
 import com.beeftech.farmtraceability.worker.CostSyncWorker
 import com.beeftech.farmtraceability.worker.MortalitySyncWorker
@@ -37,7 +38,8 @@ object SyncAllDispatcher {
         "animal-movement-scheduled-sync",
         "mortality-scheduled-sync",
         "cost-scheduled-sync",
-        "traceability-outbox-scheduled-sync"
+        "traceability-outbox-scheduled-sync",
+        "farmer-animal-link-sync"
     )
 
     fun dispatch(context: Context, trigger: String, policy: ExistingWorkPolicy) {
@@ -51,7 +53,8 @@ object SyncAllDispatcher {
             WORK_NAMES[3] to request<AnimalMovementSyncWorker>(input),
             WORK_NAMES[4] to request<MortalitySyncWorker>(input),
             WORK_NAMES[5] to request<CostSyncWorker>(input),
-            WORK_NAMES[6] to request<TraceabilityOutboxWorker>(input)
+            WORK_NAMES[6] to request<TraceabilityOutboxWorker>(input),
+            WORK_NAMES[7] to request<FarmerAnimalLinkSyncWorker>(input)
         ).forEach { (name, request) ->
             workManager.enqueueUniqueWork(name, policy, request)
         }

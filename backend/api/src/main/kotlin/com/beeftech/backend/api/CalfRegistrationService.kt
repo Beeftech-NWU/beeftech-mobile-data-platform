@@ -9,7 +9,8 @@ sealed interface PhotoUploadOutcome {
 
 class CalfRegistrationService(
     private val repository: CalfRegistrationRepository,
-    private val photoStore: CalfPhotoStore
+    private val photoStore: CalfPhotoStore,
+    private val notificationService: FarmerSalesNotificationService? = null
 ) {
 
     suspend fun syncRecords(
@@ -31,11 +32,32 @@ class CalfRegistrationService(
                     scope
                 )
 
+                if (persisted.created) {
+                    try {
+                        notificationService?.notifyCalfRegistration(
+                            CalfRegistrationNotificationPayload(
+                                recordGuid = persisted.record.recordguid,
+                                animalUuid = persisted.record.animalUuid,
+                                tagNumber = persisted.record.tagNumber,
+                                breed = persisted.record.breed,
+                                birthdate = persisted.record.birthdate,
+                                captureAt = persisted.record.captureAt,
+                                deviceId = persisted.record.deviceId,
+                                siteId = siteId,
+                                submittedByUserId = submittedBy,
+                                serverSyncedAt = persisted.record.syncedAt ?: System.currentTimeMillis(),
+                                assignedSalesmanEmail = siteId?.let { salesRepEmailOfSite(it) }
+                            )
+                        )
+                    } catch (_: Exception) {
+                        System.err.println("Calf synchronized; JSON notification delivery failed")
+                    }
+                }
                 CalfRegistrationSyncResult(
-                    recordguid = persisted.recordguid,
-                    tagNumber = persisted.tagNumber,
+                    recordguid = persisted.record.recordguid,
+                    tagNumber = persisted.record.tagNumber,
                     status = "SYNCED",
-                    serverSyncedAt = persisted.syncedAt
+                    serverSyncedAt = persisted.record.syncedAt
                 )
 
             } catch (e: Exception) {
