@@ -14,7 +14,7 @@ data class ModulePending(val label: String, val count: Int)
 /** Words for the sync history, shared by the Home widget and My activity. */
 object SyncRunDisplay {
 
-    private val ORDER = listOf("Calves", "Farmers", "Treatments", "Movements", "Mortality", "Costs", "Traceability", "Other")
+    private val ORDER = listOf("Calves", "Farmers", "Treatments", "Movements", "Mortality", "Costs", "Traceability", "Feed", "Other")
 
     private fun moduleOfEntityType(entityType: String): String = when (entityType) {
         "CALF_REGISTRATION" -> "Calves"
@@ -24,6 +24,7 @@ object SyncRunDisplay {
         "MORTALITY" -> "Mortality"
         "ANIMAL_COST" -> "Costs"
         "ANIMAL_PURCHASE", "LOCATION_FEED" -> "Traceability"
+        "FEED_CRIB_ENTRY" -> "Feed"
         else -> "Other"
     }
 
@@ -44,6 +45,7 @@ object SyncRunDisplay {
         SyncRunModule.MORTALITY -> "Mortality"
         SyncRunModule.COST -> "Costs"
         SyncRunModule.TRACEABILITY -> "Traceability"
+        SyncRunModule.FEED -> "Feed"
         else -> module.lowercase().replaceFirstChar { it.uppercase() }
     }
 

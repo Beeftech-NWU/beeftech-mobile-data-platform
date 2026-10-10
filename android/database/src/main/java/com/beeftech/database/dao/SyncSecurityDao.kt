@@ -295,6 +295,26 @@ abstract class SyncSecurityDao {
 
 
     // ========================================================
+    // Feed crib entries
+    //
+    // The pending-sync ID is feed_crib_entries.record_guid.
+    // Rows downloaded from the server are always SYNCED, so
+    // only the user's own unsent readings are removed.
+    // ========================================================
+
+    @Query(
+        """
+        DELETE FROM feed_crib_entries
+        WHERE record_guid = :recordGuid
+          AND sync_status != 'SYNCED'
+        """
+    )
+    protected abstract suspend fun deleteUnsyncedFeedCribEntry(
+        recordGuid: String
+    ): Int
+
+
+    // ========================================================
     // Pending queue
     // ========================================================
 
@@ -452,6 +472,13 @@ abstract class SyncSecurityDao {
                     )
                 }
 
+                ENTITY_FEED_CRIB_ENTRY -> {
+
+                    deleteUnsyncedFeedCribEntry(
+                        pending.entityId
+                    )
+                }
+
                 else -> {
 
                     /*
@@ -583,6 +610,9 @@ abstract class SyncSecurityDao {
         const val ENTITY_LOCATION_FEED =
             "LOCATION_FEED"
 
+        const val ENTITY_FEED_CRIB_ENTRY =
+            "FEED_CRIB_ENTRY"
+
         /*
          * Every type enforceDay7 can wipe. Keep this in step
          * with the `when` above: a type missing there makes
@@ -597,7 +627,8 @@ abstract class SyncSecurityDao {
                 ENTITY_ANIMAL_COST,
                 ENTITY_FARMER_REGISTRATION,
                 ENTITY_ANIMAL_PURCHASE,
-                ENTITY_LOCATION_FEED
+                ENTITY_LOCATION_FEED,
+                ENTITY_FEED_CRIB_ENTRY
             )
 
         const val EVENT_WARNING =

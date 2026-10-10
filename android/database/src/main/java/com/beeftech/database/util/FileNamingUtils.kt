@@ -6,7 +6,7 @@ import java.util.TimeZone
 
 /** What a name is about. The backend has the same list in `common/FileNaming`. */
 enum class ProjectCode {
-    CALF_REG, FARMER_REG, TREATMENT, MOVEMENT, MORTALITY, COST, TRACE_EVENT, REPORT
+    CALF_REG, FARMER_REG, TREATMENT, MOVEMENT, MORTALITY, COST, TRACE_EVENT, FEED_CRIB, REPORT
 }
 
 /**

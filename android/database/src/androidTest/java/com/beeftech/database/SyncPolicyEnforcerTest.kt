@@ -9,6 +9,7 @@ import com.beeftech.database.entity.Treatment
 import com.beeftech.database.entity.IdentifierTypes
 import com.beeftech.database.entity.CalfRegistrationEntity
 import com.beeftech.database.entity.AnimalMovementEntity
+import com.beeftech.database.entity.FeedCribEntryEntity
 import com.beeftech.database.entity.Mortality
 import com.beeftech.database.entity.AnimalCost
 import com.beeftech.database.entity.AnimalPurchaseEntity
@@ -905,6 +906,52 @@ class SyncPolicyEnforcerTest {
                     .pendingSyncDao()
                     .getPendingCount()
             )
+        }
+
+    // ========================================================
+    // DAY 7 - FEED CRIB ENTRY
+    // ========================================================
+
+    @Test
+    fun day7_wipesUnsyncedFeedCribEntryButKeepsSyncedOnes() =
+        runBlocking {
+
+            val unsyncedGuid = "DAY7-FEED-UNSYNCED"
+            val syncedGuid = "DAY7-FEED-SYNCED"
+
+            fun entry(guid: String, status: String) =
+                FeedCribEntryEntity(
+                    recordGuid = guid,
+                    cribNumber = "A01",
+                    readingDate = "2026-10-10",
+                    slot = "MORNING",
+                    code = 3,
+                    adi = 11.0,
+                    capturedAt = NOW,
+                    userId = USER_ID,
+                    syncStatus = status
+                )
+
+            database.feedCribDao().insertEntry(entry(unsyncedGuid, "PENDING"))
+            database.feedCribDao().insertEntry(entry(syncedGuid, "SYNCED"))
+
+            insertDay7Queue(
+                entityType = SyncSecurityDao.ENTITY_FEED_CRIB_ENTRY,
+                entityId = unsyncedGuid
+            )
+            insertDay7Queue(
+                entityType = SyncSecurityDao.ENTITY_FEED_CRIB_ENTRY,
+                entityId = syncedGuid
+            )
+
+            val result = enforcer.evaluate(userId = USER_ID, now = NOW)
+
+            assertTrue(result.accountLocked)
+
+            assertNull(database.feedCribDao().findEntry(unsyncedGuid))
+            assertNotNull(database.feedCribDao().findEntry(syncedGuid))
+
+            assertEquals(0, database.pendingSyncDao().getPendingCount())
         }
 
     @Test

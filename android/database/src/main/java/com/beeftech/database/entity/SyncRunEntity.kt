@@ -56,6 +56,7 @@ object SyncRunModule {
     const val MORTALITY = "MORTALITY"
     const val COST = "COST"
     const val TRACEABILITY = "TRACEABILITY"
+    const val FEED = "FEED"
 }
 
 object SyncRunTrigger {
