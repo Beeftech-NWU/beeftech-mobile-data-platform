@@ -128,7 +128,7 @@ declared in `settings.gradle.kts` — they configure but build nothing.
 | `:android:database` | library | `com.beeftech.database` | — | Core; Room + SQLCipher, repositories, security, `BackendConfig` |
 | `:android:authentication` | library | `com.beeftech.authentication` | `database` | Online/offline PIN login, `AuthGate`, `SessionStore` / `EncryptedSessionStore` |
 | `:android:calf-registration` | library | `com.beeftech.calfregistration` | `database`, `tag-scanner` | Room-backed; authenticated sync incl. photo upload |
-| `:android:farm-traceability` | library | `com.beeftech.farmtraceability` | `database`, `tag-scanner` | Room-backed; authenticated sync (movements, treatments, mortalities, costs, outbox) |
+| `:android:farm-traceability` | library | `com.beeftech.farmtraceability` | `database`, `tag-scanner` | Room-backed; authenticated sync (movements, treatments, mortalities, costs, outbox, farmer–animal assignments) |
 | `:android:farmer-registration` | library | `com.beeftech.farmerregistration` | `database` | Room-backed; farmer list, authenticated sync (triggers the sales email) |
 | `:android:feed-crib` | library | `com.beeftech.feedcrib` | `database` (declared, unused) | UI only; hard-coded pens, readings live in Compose state |
 | `:android:management` | library | `com.beeftech.management` | `database` | Online-only manager/admin screens over `ManagementApiClient` |
@@ -140,10 +140,10 @@ declared in `settings.gradle.kts` — they configure but build nothing.
 
 Everything persistent lives here:
 
-- `BeefTechDatabase` — Room database, **schema version 45** (`BeefTechDatabase.VERSION`; see
+- `BeefTechDatabase` — Room database, **schema version 46** (`BeefTechDatabase.VERSION`; see
   [Database & migrations](#database--migrations))
-- `entity/` — 44 Room entities: animals and their identifiers, media, weights,
-  ownership, purchases, groups and memberships; calf registrations, treatments,
+- `entity/` — 45 Room entities: animals and their identifiers, media, weights,
+  ownership, purchases, groups and memberships, farmer–animal links; calf registrations, treatments,
   mortalities, movements, costs; farmers, addresses and roles; locations and pens;
   feed cribs, readings and rations; users and roles; lookups (breeds, hide colours,
   diseases, medications and batches, necropsy codes, countries, provinces, devices,
@@ -225,9 +225,10 @@ Feed, More**:
   (dispatches every sync worker).
 - **Calves** — calf registration (tag scan, details, condition, review; registered list
   and detail with retry).
-- **Traceability** — farmers (opens the farmer-registration Activities), find animal,
-  movements, purchases/suppliers, location & feed, treatments, costs, mortalities, and a
-  sync status card with **Retry Sync**.
+- **Traceability** — farmers (opens the farmer-registration Activities) with **Assign
+  animals** (link registered animals to a farmer; assignments sync as
+  `farmer_animal_links`), find animal, movements, purchases/suppliers, location & feed,
+  treatments, costs, mortalities, and a sync status card with **Retry Sync**.
 - **Feed** — the feed crib screens (not persisted).
 - **More** — My activity and Log out; managers also get Dashboard, Reports, Records and
   Team; admins additionally get Admin.
@@ -285,7 +286,9 @@ An environment variable wins over the matching `-D` system property. There is no
 If the SMTP settings are incomplete, the farmer sales notification is **logged instead
 of sent** and the farmer stays un-notified, so a later sync retries it. Each farmer is
 emailed at most once (claimed via `farmers.sales_notified_at`); the email carries a JSON
-attachment named after the site's farm code.
+attachment named after the site's farm code. A separate "BeefTech Calf Registration"
+email (JSON attachment `calf-registration-<guid>.json`) is sent to the same recipient
+when a calf is registered.
 
 Deployment: the `Dockerfile` builds `:backend:api:installDist` on Temurin 17 and runs
 `/app/bin/api`; `render.yaml` deploys it to Render as `beeftech-backend` (health check
@@ -478,7 +481,8 @@ Run a single test class:
 4. **Sync** — `SyncAllDispatcher` (Sync now, Retry Sync, and the 05:00/18:00
    `ScheduledBatchSyncWorker`) enqueues `FarmerSyncWorker`,
    `CalfRegistrationSyncWorker`, `TreatmentSyncWorker`, `AnimalMovementSyncWorker`,
-   `MortalitySyncWorker`, `CostSyncWorker` and `TraceabilityOutboxWorker`. Each posts
+   `MortalitySyncWorker`, `CostSyncWorker`, `FarmerAnimalLinkSyncWorker` and
+   `TraceabilityOutboxWorker`. Each posts
    batches with the session JWT and an optional batch name
    `[FarmCode]-[Project]-[YYYYMMDD]-[HHMMSS]-[DeviceID]`, which the server validates.
 5. **Acknowledge** — the backend upserts by GUID (so retries cannot duplicate), stamps
@@ -494,16 +498,16 @@ scoped reads.
 
 ## Database & migrations
 
-- **Room schema version: 45** (`BeefTechDatabase.VERSION` is the source of truth)
+- **Room schema version: 46** (`BeefTechDatabase.VERSION` is the source of truth)
 - Migrations `1→2` … `8→9` are defined in
   `android/database/src/main/java/com/beeftech/database/DatabaseFactory.kt`.
-  Migrations `9→10` through `44→45` live in the `BeefTechDatabase` companion object in
+  Migrations `9→10` through `45→46` live in the `BeefTechDatabase` companion object in
   `BeefTechDatabase.kt`. Every migration is registered in `DatabaseFactory.kt`
   `.addMigrations(...)` wrapped in `guarded(...)`.
   Version 15 is deliberately unused (see the comment above `MIGRATION_14_16`).
 - Exported schema JSON is committed under
   `android/database/schemas/com.beeftech.database.BeefTechDatabase/` for versions 14
-  and 16–45.
+  and 16–46.
 - Encryption: SQLCipher for Android 4.17.0, key material via Android KeyStore
   (`AndroidKeyStoreSecurityProvider`)
 
@@ -570,6 +574,7 @@ request. **Role** below means: *any* — any logged-in user; *mgr* — manager o
 | `POST` | `/api/calf-registrations/sync` | any | Batch upsert of calf registrations by GUID |
 | `GET` | `/api/calf-registrations` | any | List (scoped) |
 | `GET` | `/api/calf-registrations/{tagNumber}` | any | Single calf registration |
+| `GET` | `/api/calf-registrations/assignment-candidates` | mgr (site-assigned manager) | Calves on the manager's site that can be assigned to `?farmerId=` (the farmer must be on the same site) |
 | `PUT` | `/api/calf-registrations/{tagNumber}/photo` | any | Upload photo: raw `image/jpeg` body, max 5 MB (`413`/`415`); record must be synced and in scope |
 | `GET` | `/api/calf-registrations/{tagNumber}/photo` | any | Download the stored photo |
 | `GET` | `/api/calf-registrations/{tagNumber}/certificate` | any | Birth-certificate PDF (PDFBox) |
@@ -584,6 +589,8 @@ request. **Role** below means: *any* — any logged-in user; *mgr* — manager o
 | `GET` | `/api/mortalities` · `/api/mortalities/{animalId}` | any | List / per animal |
 | `POST` | `/api/costs/sync` | any | Batch upsert of animal costs |
 | `GET` | `/api/costs` · `/api/costs/{animalId}` | any | List / per animal |
+| `POST` | `/api/farmer-animal-links/sync` | any | Upload one farmer–animal assignment (`recordGuid`, `linkId`, `farmerId`, `animalId`, `effectiveFrom`, `effectiveTo?`); checked against the caller's site and the saved link |
+| `POST` | `/api/farmer-animal-links/diagnose` | any | Explain why pending assignments (max 50) are not syncing; only reveals records the caller can see |
 | `POST` | `/api/traceability-events/sync` | any | Generic outbox (`entityType`, `recordGuid`, `payload`, …), upsert by `recordGuid` |
 | `POST` | `/api/feed-crib` | any | Submit one feed crib reading |
 | `GET` | `/api/feed-crib` · `/api/feed-crib/{penName}` | any | List / per pen |
@@ -615,6 +622,8 @@ request. **Role** below means: *any* — any logged-in user; *mgr* — manager o
 | `GET` | `/api/devices` | mgr | List devices |
 | `POST` | `/api/devices/{id}/revoke` · `/reinstate` | admin | Revoke / reinstate a device (`{reason}`) |
 | `GET` | `/api/login-events` · `/api/login-security/lockouts` | admin | Login history / current lockouts |
+| `POST` | `/api/farmer-animal-links/restore-missing-parent` | mgr (site-assigned manager) | Recreate a missing farmer or calf registration that an assignment references, in the manager's site; needs the original record and a `verificationReason` (15–500 chars) |
+| `POST` | `/api/records/{type}/{id}/assign-site` | admin | Assign a legacy record without a site to a site |
 | `POST` | `/api/records/{type}/{id}/void` | mgr | Void a record with a `{reason}` (≤ 500 chars). `type`: `calf-registrations`, `treatments`, `farmers`, `animal-movements`, `mortalities` |
 | `GET` | `/api/records/{type}` | mgr | Review list, including voided records |
 | `GET` | `/api/audit-log` | mgr | Audit log with filters |
