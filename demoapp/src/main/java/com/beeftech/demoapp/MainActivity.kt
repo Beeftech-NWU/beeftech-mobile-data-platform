@@ -68,6 +68,8 @@ import com.beeftech.demoapp.ui.theme.BeeftechTheme
 import com.beeftech.farmerregistration.FarmerListScreen
 import com.beeftech.farmerregistration.FarmerSyncScheduler
 import com.beeftech.feedcrib.ui.FeedCribFlow
+import com.beeftech.feedcrib.viewmodel.FeedCribViewModel
+import com.beeftech.feedcrib.viewmodel.FeedCribViewModelFactory
 import com.beeftech.farmtraceability.data.TreatmentApiClient
 import com.beeftech.farmtraceability.data.TreatmentRepository
 import com.beeftech.farmtraceability.ui.FarmTraceabilityFlow
@@ -410,6 +412,25 @@ class MainActivity : ComponentActivity() {
                             calfRegistrationViewModelFactory
                         )[CalfRegistrationViewModel::class.java]
 
+                    /*
+                     * Feed Crib setup
+                     */
+                    val feedCribViewModel =
+                        ViewModelProvider(
+                            this@MainActivity,
+                            FeedCribViewModelFactory(
+                                context = applicationContext,
+                                feedCribDao = database.feedCribDao(),
+                                pendingSyncRepository =
+                                    pendingSyncRepository,
+                                tokenProvider =
+                                    sessionStore,
+                                deviceIdProvider = {
+                                    EncryptedDeviceIdProvider(applicationContext).getDeviceId()
+                                }
+                            )
+                        )[FeedCribViewModel::class.java]
+
                     val syncRepository =
                         SyncRepository(
                             pendingSyncDao =
@@ -745,6 +766,27 @@ class MainActivity : ComponentActivity() {
                                                                     }
                                                                 }
                                                             showUiMessage(message)
+                                                            }
+                                                    }
+
+                                                    if (
+                                                        "FEED_CRIB_ENTRY" in pendingTypes
+                                                    ) {
+                                                        feedCribViewModel
+                                                            .retrySync { success, message ->
+                                                                if (
+                                                                    success &&
+                                                                    message.contains(
+                                                                        "sent",
+                                                                        ignoreCase = true
+                                                                    )
+                                                                ) {
+                                                                    lifecycleScope.launch {
+                                                                        syncRepository
+                                                                            .recordSuccessfulSync()
+                                                                    }
+                                                                }
+                                                                showUiMessage(message)
                                                             }
                                                     }
 
@@ -1340,6 +1382,7 @@ class MainActivity : ComponentActivity() {
                                     } else {
 
                                         FeedCribFlow(
+                                            viewModel = feedCribViewModel,
                                             onBackToHome = {
                                                 selectedDemoTab = tabs.indexOf(AppTab.HOME)
                                                 selectedMoreTab = null

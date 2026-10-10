@@ -1,425 +1,310 @@
 package com.beeftech.feedcrib.ui
 
-import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.outlined.Restaurant
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.util.Calendar
+import com.beeftech.database.entity.CribReadingCodeEntity
+import com.beeftech.feedcrib.viewmodel.CribDetailState
 
+/** One crib: its details, the last nine readings, the code and ADI to enter, and Discard / Save. */
 @Composable
 fun CribDetailScreen(
-    penName: String,
-    adiValue: Float,
-    onAdiChange: (Float) -> Unit,
-    readings: List<CribReading>,
-    onReadingsChange: (List<CribReading>) -> Unit,
-    onBack: () -> Unit
+    detail: CribDetailState,
+    codes: List<CribReadingCodeEntity>,
+    nowMillis: Long,
+    onSelectCode: (Int) -> Unit,
+    onAdjustAdi: (Int) -> Unit,
+    onDiscard: () -> Unit,
+    onSave: () -> Unit
 ) {
-    val context = LocalContext.current
-    var newReading by remember { mutableStateOf("") }
+    val crib = detail.crib
+    var confirmDiscard by remember { mutableStateOf(false) }
 
-    // Get the last 9 readings (or fewer if not enough)
-    val lastReadings = if (readings.size >= 9) readings.takeLast(9) else readings
+    fun requestDiscard() {
+        if (detail.draft.changed) confirmDiscard = true else onDiscard()
+    }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(FeedCribColors.LightBg)
-            .padding(16.dp)
-    ) {
-        // --- Back button ---
-        IconButton(
-            onClick = onBack,
-            modifier = Modifier.padding(bottom = 8.dp)
-        ) {
-            Icon(
-                Icons.Default.ArrowBack,
-                contentDescription = "Back",
-                tint = FeedCribColors.DarkText
-            )
-        }
+    BackHandler { requestDiscard() }
 
-        // --- Pen name as title ---
-        Text(
-            penName,
-            color = FeedCribColors.DarkText,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Serif
+    Column(modifier = Modifier.fillMaxSize().background(FeedCribColors.LightBg)) {
+        FeedHeader(
+            eyebrow = "Crib reading",
+            title = crib.cribNumber,
+            subtitle = crib.penDescription.ifBlank { crib.description },
+            icon = Icons.Outlined.Restaurant,
+            onBackClick = ::requestDiscard
         )
-        Spacer(modifier = Modifier.height(8.dp))
 
-        // --- Pen info card (read-only data) ---
-        Card(
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = FeedCribColors.LightSurface
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(12.dp)
+            FeedCard {
+                FeedDetailRow("Pen", crib.penDescription)
+                FeedDetailRow("Ration", crib.ration)
+                FeedDetailRow("Method", crib.method)
+                FeedDetailRow("Description", crib.description)
+                FeedDetailRow("Required", formatKg(crib.requiredKg))
+                FeedDetailRow("A.D.I", formatKg(crib.currentAdi))
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(FeedCribColors.InkLight, RoundedCornerShape(10.dp))
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Description", color = FeedCribColors.MutedText, fontSize = 11.sp)
-                    Text("GENEING", color = FeedCribColors.DarkText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Ration", color = FeedCribColors.MutedText, fontSize = 11.sp)
-                    Text("Grower", color = FeedCribColors.DarkText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Method", color = FeedCribColors.MutedText, fontSize = 11.sp)
-                    Text("Voldag voeding", color = FeedCribColors.DarkText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Required", color = FeedCribColors.MutedText, fontSize = 11.sp)
-                    Text("0.00 kg", color = FeedCribColors.DarkText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("A.D.I", color = FeedCribColors.MutedText, fontSize = 11.sp)
-                    Text(
-                        "${String.format("%.2f", adiValue)} kg",
-                        color = FeedCribColors.RustDeep,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-        }
-
-        // --- Animal tally ---
-        Text(
-            "Animals",
-            color = FeedCribColors.RustDeep,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Serif,
-            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-        )
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .background(FeedCribColors.InkLight)
-        ) {
-            listOf("Begin" to "104", "In" to "0", "Out" to "0", "Close" to "104").forEach { (label, value) ->
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(vertical = 8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(label, color = FeedCribColors.MutedText, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
-                    Text(value, color = FeedCribColors.RustDeep, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-
-        // --- Reading section ---
-        Text(
-            "Crib Reading",
-            color = FeedCribColors.RustDeep,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Serif,
-            modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
-        )
-
-        // Display last 9 readings in blocks of 3
-        if (lastReadings.isNotEmpty()) {
-            Text(
-                "Last ${lastReadings.size} readings:",
-                color = FeedCribColors.MutedText,
-                fontSize = 10.sp,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-
-            // Display readings in blocks of 3 (Morning, Mid-Day, Evening)
-            lastReadings.chunked(3).forEach { block ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // Morning, Mid-Day, Evening labels
-                    listOf("M", "D", "E").forEachIndexed { index, label ->
-                        Surface(
-                            modifier = Modifier.weight(1f),
-                            color = when (label) {
-                                "M" -> Color(0xFFE8F5E9)  // light green
-                                "D" -> Color(0xFFFFF3E0)  // light orange
-                                else -> Color(0xFFF3E5F5)  // light purple
-                            },
-                            shape = RoundedCornerShape(4.dp)
-                        ) {
-                            val value = if (index < block.size) block[index] else null
-                            val reading = if (value != null) {
-                                when (index) {
-                                    0 -> value.morning
-                                    1 -> value.midDay
-                                    else -> value.evening
-                                }
-                            } else "-"
-
-                            Text(
-                                "$label: $reading",
-                                color = FeedCribColors.DarkText,
-                                fontSize = 10.sp,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(4.dp),
-                                textAlign = TextAlign.Center,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
+                listOf(
+                    "Begin" to crib.animalsBegin,
+                    "In" to crib.animalsIn,
+                    "Out" to crib.animalsOut,
+                    "Close" to crib.animalsClose
+                ).forEach { (label, value) ->
+                    Column(
+                        modifier = Modifier.weight(1f).padding(vertical = 10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(label.uppercase(), color = FeedCribColors.MutedText, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                        Text(value.toString(), color = FeedCribColors.RustDeep, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
-        } else {
+
+            FeedSectionTitle("Last readings")
+            ReadingsGrid(detail = detail, nowMillis = nowMillis)
+
+            FeedSectionTitle("Reading code")
+            CodeChips(codes = codes, selected = detail.draft.code, onSelect = onSelectCode)
             Text(
-                "No readings yet. New feed readings will appear here.",
-                color = FeedCribColors.MutedText,
-                fontSize = 11.sp,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
-        }
-
-        // --- Enter new reading with TIME-BASED ALLOCATION ---
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = newReading,
-                onValueChange = { newReading = it },
-                modifier = Modifier.weight(1f),
-                placeholder = { Text("Enter code", fontSize = 12.sp) },
-                textStyle = androidx.compose.ui.text.TextStyle(
-                    textAlign = TextAlign.Center,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.SemiBold,
-                    color = FeedCribColors.DarkText
-                ),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = FeedCribColors.Rust,
-                    unfocusedBorderColor = FeedCribColors.Line,
-                    focusedTextColor = FeedCribColors.DarkText,
-                    unfocusedTextColor = FeedCribColors.DarkText
-                )
-            )
-            Button(
-                onClick = {
-                    if (newReading.isNotBlank()) {
-                        // TIME-BASED ALLOCATION RULES
-                        val calendar = Calendar.getInstance()
-                        val hour = calendar.get(Calendar.HOUR_OF_DAY)
-
-                        // Determine which column to add to based on current time
-                        val timeSlot = when {
-                            hour < 11 -> "morning"   // Before 11:00 → Morning
-                            hour < 14 -> "midDay"    // Before 14:00 → Mid-Day
-                            hour < 20 -> "evening"   // Before 20:00 → Evening
-                            else -> "evening"        // After 20:00 → Evening
-                        }
-
-                        // Create a new reading with the code in the correct slot
-                        val newReadingData = when (timeSlot) {
-                            "morning" -> CribReading(newReading, "", "")
-                            "midDay" -> CribReading("", newReading, "")
-                            else -> CribReading("", "", newReading)
-                        }
-
-                        // Add to readings list
-                        val updatedReadings = readings + newReadingData
-                        onReadingsChange(updatedReadings)
-
-                        // Show feedback with the time slot and hour
-                        Toast.makeText(
-                            context,
-                            "Added to ${timeSlot.uppercase()} (${String.format("%02d:00", hour)})",
-                            Toast.LENGTH_SHORT
-                        ).show()
-
-                        // Clear the input field
-                        newReading = ""
-                    } else {
-                        Toast.makeText(context, "Please enter a code", Toast.LENGTH_SHORT).show()
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = FeedCribColors.Rust
-                )
-            ) {
-                Text("Add", color = Color.White)
-            }
-        }
-
-        // Show current time slot info
-        val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        val timeSlotInfo = when {
-            currentHour < 11 -> "MORNING (before 11:00)"
-            currentHour < 14 -> "MID-DAY (before 14:00)"
-            currentHour < 20 -> "EVENING (before 20:00)"
-            else -> "EVENING (after 20:00)"
-        }
-        Text(
-            "Current slot: $timeSlotInfo",
-            color = FeedCribColors.MutedText,
-            fontSize = 10.sp,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        // --- ADI stepper ---
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                "A.D.I",
+                text = if (detail.draft.code != null) goesToText(detail.currentSlot)
+                else "Pick a code. It goes to the block for the time of day.",
                 color = FeedCribColors.RustDeep,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Serif
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold
             )
-            Text(
-                "Current: ${String.format("%.2f", adiValue)} kg",
-                color = FeedCribColors.MutedText,
-                fontSize = 10.sp
-            )
+
+            FeedSectionTitle("A.D.I")
+            AdiStepper(adi = detail.draft.adi, onAdjust = onAdjustAdi)
         }
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Decrease button
-            IconButton(
-                onClick = { onAdiChange(adiValue - 0.1f) },
-                modifier = Modifier
-                    .size(36.dp)
-                    .border(1.5.dp, FeedCribColors.Line, RoundedCornerShape(6.dp))
-            ) {
-                Icon(Icons.Default.Remove, contentDescription = "Decrease", tint = FeedCribColors.RustDeep)
-            }
-            // Value display
-            Text(
-                "${String.format("%.2f", adiValue)} kg",
-                color = FeedCribColors.DarkText,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
-                modifier = Modifier.weight(1f),
-                textAlign = TextAlign.Center
-            )
-            // Increase button
-            IconButton(
-                onClick = { onAdiChange(adiValue + 0.1f) },
-                modifier = Modifier
-                    .size(36.dp)
-                    .border(1.5.dp, FeedCribColors.Line, RoundedCornerShape(6.dp))
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Increase", tint = FeedCribColors.RustDeep)
-            }
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        // --- Save / Discard buttons ---
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp),
+                .background(FeedCribColors.LightSurface)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Discard button
             OutlinedButton(
-                onClick = {
-                    // Reset readings and go back
-                    onReadingsChange(emptyList())
-                    onBack()
-                    Toast.makeText(context, "Changes discarded", Toast.LENGTH_SHORT).show()
-                },
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = FeedCribColors.MutedText
-                ),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    FeedCribColors.Line
-                )
+                onClick = ::requestDiscard,
+                modifier = Modifier.weight(1f).height(52.dp),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, FeedCribColors.Line)
             ) {
-                Text("Discard", fontSize = 12.sp)
+                Text("Discard", color = FeedCribColors.MutedText, fontWeight = FontWeight.Bold)
             }
-
-            // Save button
             Button(
-                onClick = {
-                    // Save the current readings
-                    val count = readings.size
-                    Toast.makeText(
-                        context,
-                        "Saved $count reading(s) for $penName",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    onBack()
-                },
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = FeedCribColors.Rust
-                )
+                onClick = onSave,
+                enabled = detail.draft.changed,
+                modifier = Modifier.weight(1f).height(52.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = FeedCribColors.Rust)
             ) {
-                Text("Save & Next Crib", fontSize = 12.sp, color = Color.White)
+                Text("Save", fontWeight = FontWeight.Bold, color = Color.White)
             }
         }
     }
+
+    if (confirmDiscard) {
+        AlertDialog(
+            onDismissRequest = { confirmDiscard = false },
+            title = { Text("Discard this reading?") },
+            text = { Text("What you picked for ${crib.cribNumber} will not be saved.") },
+            confirmButton = {
+                TextButton(onClick = { confirmDiscard = false; onDiscard() }) { Text("Discard") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDiscard = false }) { Text("Keep editing") }
+            }
+        )
+    }
+}
+
+/** Rows are the last 3 days (today first), columns are M / D / E. The block a reading would go into now is outlined. */
+@Composable
+private fun ReadingsGrid(detail: CribDetailState, nowMillis: Long) {
+    val dates = gridDates(detail.currentDate, nowMillis)
+
+    FeedCard {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Spacer(Modifier.width(64.dp))
+            GRID_SLOTS.forEach { slot ->
+                Text(
+                    slotInitial(slot),
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center,
+                    color = FeedCribColors.MutedText,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
+            }
+        }
+        dates.forEachIndexed { index, date ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    if (index == 0) "Today" else shortDate(date),
+                    modifier = Modifier.width(64.dp),
+                    color = FeedCribColors.MutedText,
+                    fontSize = 11.sp
+                )
+                GRID_SLOTS.forEach { slot ->
+                    val current = date == detail.currentDate && slot == detail.currentSlot
+                    val code = gridCode(detail.lastSlots, date, slot)
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 3.dp)
+                            .height(40.dp)
+                            .background(if (current) FeedCribColors.HeaderSoft else FeedCribColors.InkLight, RoundedCornerShape(8.dp))
+                            .border(
+                                width = if (current) 2.dp else 0.dp,
+                                color = if (current) FeedCribColors.Rust else Color.Transparent,
+                                shape = RoundedCornerShape(8.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            code?.toString() ?: "–",
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = if (code != null) FeedCribColors.DarkText else FeedCribColors.MutedText
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CodeChips(codes: List<CribReadingCodeEntity>, selected: Int?, onSelect: (Int) -> Unit) {
+    if (codes.isEmpty()) {
+        Text("No reading codes yet. Download the cribs to get them.", color = FeedCribColors.MutedText, fontSize = 12.sp)
+        return
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        codes.filter { it.active }.chunked(2).forEach { pair ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                pair.forEach { code ->
+                    val isSelected = code.code == selected
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp)
+                            .background(
+                                if (isSelected) FeedCribColors.Rust else FeedCribColors.LightSurface,
+                                RoundedCornerShape(11.dp)
+                            )
+                            .border(1.dp, if (isSelected) FeedCribColors.Rust else FeedCribColors.Line, RoundedCornerShape(11.dp))
+                            .clickable { onSelect(code.code) }
+                            .padding(horizontal = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            code.code.toString(),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp,
+                            color = if (isSelected) Color.White else FeedCribColors.RustDeep
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            code.label,
+                            fontSize = 12.sp,
+                            lineHeight = 14.sp,
+                            color = if (isSelected) Color.White else FeedCribColors.DarkText
+                        )
+                    }
+                }
+                if (pair.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdiStepper(adi: Double, onAdjust: (Int) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        StepButton(onClick = { onAdjust(-1) }) {
+            Icon(Icons.Default.Remove, contentDescription = "Decrease ADI", tint = FeedCribColors.RustDeep)
+        }
+        Text(
+            formatKg(adi),
+            modifier = Modifier.weight(1f),
+            textAlign = TextAlign.Center,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Bold,
+            fontSize = 24.sp,
+            color = FeedCribColors.DarkText
+        )
+        StepButton(onClick = { onAdjust(1) }) {
+            Icon(Icons.Default.Add, contentDescription = "Increase ADI", tint = FeedCribColors.RustDeep)
+        }
+    }
+}
+
+@Composable
+private fun StepButton(onClick: () -> Unit, content: @Composable () -> Unit) {
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier
+            .size(52.dp)
+            .background(FeedCribColors.LightSurface, RoundedCornerShape(11.dp))
+            .border(1.5.dp, FeedCribColors.Line, RoundedCornerShape(11.dp))
+    ) { content() }
 }
