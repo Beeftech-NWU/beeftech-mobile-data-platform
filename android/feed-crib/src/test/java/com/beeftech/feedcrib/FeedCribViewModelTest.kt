@@ -108,8 +108,8 @@ class FeedCribViewModelTest {
     fun `the lists come from the database`() = runBlocking {
         val vm = viewModel()
 
-        assertEquals(listOf("A01", "A02"), vm.cribs.value.map { it.cribNumber })
-        assertEquals((0..5).toList(), vm.codes.value.map { it.code })
+        assertEquals(listOf("A01", "A02"), withTimeout(5_000) { vm.cribs.first { it.size == 2 } }.map { it.cribNumber })
+        assertEquals((0..5).toList(), withTimeout(5_000) { vm.codes.first { it.size == 6 } }.map { it.code })
         assertNull(vm.detail.value)
     }
 
@@ -325,7 +325,7 @@ class FeedCribViewModelTest {
 
         vm.loadSessions()
 
-        val session = vm.sessions.value.single()
+        val session = withTimeout(5_000) { vm.sessions.first { it.isNotEmpty() } }.single()
         assertEquals("A01", session.cribNumber)
         assertEquals(2, session.midDayCode)
         assertEquals(1, vm.entriesToday("A01").first().size)
@@ -341,7 +341,8 @@ class FeedCribViewModelTest {
 
         assertEquals(true to "2 cribs loaded.", withTimeout(5_000) { result.await() })
         assertFalse(vm.refreshing.value)
-        assertNotNull(vm.lastDownloadedAt.value)
+        /* The StateFlows hop threads, so wait for them rather than read them the instant the callback fires. */
+        assertNotNull(withTimeout(5_000) { vm.lastDownloadedAt.first { it != null } })
     }
 
     @Test
@@ -356,7 +357,7 @@ class FeedCribViewModelTest {
         assertFalse(ok)
         assertTrue(message.isNotBlank())
         assertFalse(vm.refreshing.value)
-        assertEquals(2, vm.cribs.value.size)
+        assertEquals(2, withTimeout(5_000) { vm.cribs.first { it.size == 2 } }.size)
     }
 
     @Test
