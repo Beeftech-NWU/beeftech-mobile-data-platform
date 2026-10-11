@@ -35,5 +35,28 @@ class CribCreationSchemaMigrationTest {
             }
         }
     }
-}
 
+    @Test fun duplicateCodesDifferingByCaseDoNotStopStartUpOrCreateTheIndex() {
+        val file = Files.createTempFile("crib-creation-duplicates", ".db").toFile().also { it.deleteOnExit() }
+        val url = "jdbc:sqlite:${file.absolutePath}"
+        DriverManager.getConnection(url).use { connection ->
+            connection.createStatement().use {
+                it.execute("CREATE TABLE feed_cribs (id INTEGER PRIMARY KEY, site_id TEXT, crib_number TEXT, current_adi DOUBLE)")
+                it.execute("INSERT INTO feed_cribs VALUES (1, 'site-1', 'A009', 1.5), (2, 'site-1', ' a009 ', 2.0)")
+            }
+        }
+        CribCreationSchemaMigration.run(Database.connect(url, driver = "org.sqlite.JDBC"))
+        DriverManager.getConnection(url).use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeQuery("SELECT COUNT(*) FROM sqlite_master WHERE name = 'feed_cribs_site_code_normalized'").use {
+                    assertTrue(it.next())
+                    assertEquals(0, it.getInt(1))
+                }
+                statement.executeQuery("SELECT COUNT(*) FROM feed_cribs WHERE crib_uuid IS NOT NULL").use {
+                    assertTrue(it.next())
+                    assertEquals(2, it.getInt(1))
+                }
+            }
+        }
+    }
+}

@@ -89,11 +89,17 @@ class CribRegistrationRepository {
             }
         } catch (e: Exception) {
             // Includes database uniqueness races: never acknowledge or merge a different UUID.
-            CribRegistrationResult(record.cribUuid,
-                if (generateSequence<Throwable>(e) { it.cause }.any {
-                    it is java.sql.SQLException && (it.errorCode == 19 || it.message.orEmpty().contains("UNIQUE constraint"))
-                }) "CONFLICT" else "ERROR",
-                e.message ?: "Unable to register crib.")
+            val uniqueViolation = generateSequence<Throwable>(e) { it.cause }.any {
+                it is java.sql.SQLException && (it.errorCode == 19 || it.message.orEmpty().contains("UNIQUE constraint"))
+            }
+            // REJECTED: a validation failure (every require above) that retrying the same record cannot fix.
+            // ERROR: anything else, treated as temporary.
+            val status = when {
+                uniqueViolation -> "CONFLICT"
+                e is IllegalArgumentException -> "REJECTED"
+                else -> "ERROR"
+            }
+            CribRegistrationResult(record.cribUuid, status, e.message ?: "Unable to register crib.")
         }
     }
 }

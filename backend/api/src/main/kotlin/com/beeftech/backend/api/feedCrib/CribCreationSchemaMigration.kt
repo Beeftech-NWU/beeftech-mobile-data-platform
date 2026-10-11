@@ -2,6 +2,7 @@ package com.beeftech.backend.api.feedcrib
 
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.slf4j.LoggerFactory
 import java.util.UUID
 
 object CribCreationSchemaMigration {
@@ -25,7 +26,16 @@ object CribCreationSchemaMigration {
                 }
             }.orEmpty()
             legacy.forEach { (id, uuid) -> exec("UPDATE feed_cribs SET crib_uuid = '$uuid' WHERE id = $id") }
-            exec("CREATE UNIQUE INDEX IF NOT EXISTS feed_cribs_site_code_normalized ON feed_cribs(site_id, UPPER(TRIM(crib_number)))")
+            /* Existing data may already hold codes that differ only by case or spaces; never stop start-up over it. */
+            val duplicates = exec("SELECT site_id, UPPER(TRIM(crib_number)) AS code FROM feed_cribs GROUP BY site_id, UPPER(TRIM(crib_number)) HAVING COUNT(*) > 1") { rs ->
+                buildList { while (rs.next()) add(rs.getString("site_id") + "/" + rs.getString("code")) }
+            }.orEmpty()
+            if (duplicates.isEmpty()) {
+                exec("CREATE UNIQUE INDEX IF NOT EXISTS feed_cribs_site_code_normalized ON feed_cribs(site_id, UPPER(TRIM(crib_number)))")
+            } else {
+                LoggerFactory.getLogger(CribCreationSchemaMigration::class.java).warn(
+                    "Skipping unique crib code index: duplicate codes (ignoring case and spaces) exist on a site: {}", duplicates)
+            }
         }
         val entries = exec("PRAGMA table_info(feed_crib_entries)") { rs ->
             buildSet { while (rs.next()) add(rs.getString("name")) }

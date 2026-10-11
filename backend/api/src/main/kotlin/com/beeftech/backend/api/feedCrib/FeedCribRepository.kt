@@ -18,14 +18,17 @@ class FeedCribRepository {
 
     suspend fun listCribs(siteId: String): List<FeedCribDto> =
         newSuspendedTransaction(Dispatchers.IO, db = DatabaseFactory.getDatabase()) {
+            /* Read the references once, not once per crib. */
+            val pens = CribPensTable.selectAll().where { CribPensTable.siteId eq siteId }.associateBy { it[CribPensTable.id] }
+            val rations = CribRationsTable.selectAll().associateBy { it[CribRationsTable.id] }
             FeedCribsTable
                 .selectAll()
                 .where { FeedCribsTable.siteId eq siteId }
                 .orderBy(FeedCribsTable.cribNumber, SortOrder.ASC)
                 .map { row ->
                     val base = row.toCribDto()
-                    val pen = base.penId?.let { id -> CribPensTable.selectAll().where { CribPensTable.id eq id }.singleOrNull() }
-                    val ration = base.rationId?.let { id -> CribRationsTable.selectAll().where { CribRationsTable.id eq id }.singleOrNull() }
+                    val pen = base.penId?.let { pens[it] }
+                    val ration = base.rationId?.let { rations[it] }
                     if (pen == null) base else base.copy(
                         penDescription = pen[CribPensTable.description],
                         requiredKg = pen[CribPensTable.requiredKg],

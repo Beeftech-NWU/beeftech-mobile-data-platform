@@ -450,9 +450,9 @@ class FeedCribRoutesTest {
         startApp()
         val client = createClient { }
         val admin = client.login("admin", "10001")
-        assertEquals(listOf("ERROR"), client.createCrib(admin, creation(pen = "unknown")).statuses())
-        assertEquals(listOf("ERROR"), client.createCrib(admin, creation(ration = "unknown")).statuses())
-        assertEquals(listOf("ERROR"), client.createCrib(admin, creation(adi = "-1")).statuses())
+        assertEquals(listOf("REJECTED"), client.createCrib(admin, creation(pen = "unknown")).statuses())
+        assertEquals(listOf("REJECTED"), client.createCrib(admin, creation(ration = "unknown")).statuses())
+        assertEquals(listOf("REJECTED"), client.createCrib(admin, creation(adi = "-1")).statuses())
         val worker = client.login("jvdm", "30003")
         val cribs = Json.parseToJsonElement(client.download(worker).bodyAsText()).data()["cribs"]!!.jsonArray
         assertEquals(8, cribs.size)
