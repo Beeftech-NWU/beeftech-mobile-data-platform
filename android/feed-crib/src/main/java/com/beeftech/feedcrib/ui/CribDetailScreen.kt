@@ -39,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -68,18 +69,22 @@ fun CribDetailScreen(
 
     BackHandler { requestDiscard() }
 
+    val headerState = rememberCollapsingHeaderState()
+
     Column(modifier = Modifier.fillMaxSize().background(FeedCribColors.LightBg)) {
         FeedHeader(
             eyebrow = "Crib reading",
             title = crib.cribNumber,
             subtitle = crib.penDescription.ifBlank { crib.description },
             icon = Icons.Outlined.Restaurant,
+            modifier = Modifier.collapsingHeader(headerState),
             onBackClick = ::requestDiscard
         )
 
         Column(
             modifier = Modifier
                 .weight(1f)
+                .nestedScroll(headerState.nestedScrollConnection)
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)

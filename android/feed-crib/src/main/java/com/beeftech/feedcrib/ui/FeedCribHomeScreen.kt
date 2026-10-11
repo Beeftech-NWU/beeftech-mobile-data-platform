@@ -39,6 +39,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -76,16 +77,19 @@ fun FeedCribHomeScreen(
         }
     }
 
+    val headerState = rememberCollapsingHeaderState()
+
     Column(modifier = Modifier.fillMaxSize().background(FeedCribColors.LightBg)) {
         FeedHeader(
             eyebrow = "BeefTech",
             title = "Feed Crib",
             subtitle = "Enter a crib number to take a reading, or pick one from the list.",
-            icon = Icons.Outlined.Restaurant
+            icon = Icons.Outlined.Restaurant,
+            modifier = Modifier.collapsingHeader(headerState)
         )
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().nestedScroll(headerState.nestedScrollConnection),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
