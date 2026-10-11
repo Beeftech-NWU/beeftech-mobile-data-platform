@@ -2,6 +2,7 @@ package com.beeftech.feedcrib.fakes
 
 import com.beeftech.feedcrib.data.FeedCribApiClient
 import com.beeftech.feedcrib.data.FeedCribEntrySyncRequest
+import com.beeftech.feedcrib.data.CribRegistrationRequest
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -36,6 +37,10 @@ class FakeFeedCribServer {
 
     val syncRequests = mutableListOf<FeedCribEntrySyncRequest>()
     val downloadUrls = mutableListOf<String>()
+    val requestOrder = mutableListOf<String>()
+    val creationRequests = mutableListOf<CribRegistrationRequest>()
+    var creationStatus = "SYNCED"
+    var setupJson = """{"sites":[{"id":"site-1","name":"Test site"}],"pens":[{"id":"pen-1","siteId":"site-1","description":"Pen 1"}],"rations":[{"id":"ration-1","name":"Ration 1"}]}"""
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -45,7 +50,19 @@ class FakeFeedCribServer {
             gate?.await()
 
             when {
+                request.url.encodedPath.endsWith("/api/feed-cribs/setup") -> respond(
+                    """{"success":true,"message":"ok","data":$setupJson}""", HttpStatusCode.OK,
+                    headersOf(HttpHeaders.ContentType, "application/json"))
+                request.method == HttpMethod.Post && request.url.encodedPath.endsWith("/api/feed-cribs/sync") -> {
+                    val body = json.decodeFromString<CribRegistrationRequest>((request.body as TextContent).text)
+                    creationRequests += body
+                    requestOrder += "cribs"
+                    val results = body.records.joinToString(",") { """{"cribUuid":"${it.cribUuid}","status":"$creationStatus","message":"Creation result"}""" }
+                    respond("""{"success":true,"message":"ok","data":{"results":[$results]}}""", HttpStatusCode.OK,
+                        headersOf(HttpHeaders.ContentType, "application/json"))
+                }
                 request.method == HttpMethod.Post && request.url.encodedPath.endsWith("/api/feed-crib-entries/sync") -> {
+                    requestOrder += "readings"
                     val body = json.decodeFromString<FeedCribEntrySyncRequest>((request.body as TextContent).text)
                     syncRequests += body
 

@@ -59,15 +59,17 @@ class FeedCribSyncWorker(
                 captureContextProvider = { FeedCribCaptureContext(deviceId = "") }
             )
 
-            syncRuns.trackRun(SyncRunModule.FEED, listOf(FeedCribRepository.ENTITY_TYPE), trigger) {
+            val outcome = syncRuns.trackRun(SyncRunModule.FEED, listOf(FeedCribRepository.ENTITY_TYPE), trigger) {
                 repository.syncPending()
             }
+
+            val download = repository.refreshCribs()
 
             val remaining = pendingSyncRepository
                 .getPendingOperations()
                 .any { it.entityType == FeedCribRepository.ENTITY_TYPE }
 
-            if (remaining) Result.retry() else Result.success()
+            if (remaining || download.isFailure || outcome.errorMessagesByRecordGuid.isNotEmpty()) Result.retry() else Result.success()
 
         } catch (exception: Exception) {
 

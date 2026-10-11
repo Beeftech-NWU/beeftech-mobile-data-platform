@@ -7,6 +7,7 @@ import com.beeftech.backend.api.auth.Role
 import com.beeftech.backend.api.common.ApiResponse
 import com.beeftech.backend.api.common.FileNaming.ProjectCode
 import com.beeftech.backend.api.requireAuthPrincipal
+import com.beeftech.backend.api.requireRole
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
@@ -18,6 +19,22 @@ fun Route.feedCribRoutes(
     jwtService: JwtService,
     feedCribService: FeedCribService
 ) {
+    get("/api/feed-cribs/setup") {
+        call.requireRole(jwtService, Role.ADMIN) ?: return@get
+        call.respond(ApiResponse(success = true, message = "Crib setup loaded",
+            data = CribRegistrationRepository().setup()))
+    }
+    post("/api/feed-cribs/sync") {
+        val principal = call.requireRole(jwtService, Role.ADMIN) ?: return@post
+        val request = call.receive<CribRegistrationRequest>()
+        if (request.records.size > 200) {
+            call.respond(HttpStatusCode.BadRequest, ApiResponse<String>(success = false, message = "Maximum 200 cribs per request."))
+            return@post
+        }
+        val repository = CribRegistrationRepository()
+        call.respond(ApiResponse(success = true, message = "Cribs processed",
+            data = CribRegistrationResponse(request.records.map { repository.create(it, principal.userId) })))
+    }
 
     /*
      * The caller's own site. An admin has no site, so they name one with ?siteId=. Entries are the
@@ -61,7 +78,8 @@ fun Route.feedCribRoutes(
 
         if (!call.acceptBatch(principal, ProjectCode.FEED_CRIB, request.batchName)) return@post
 
-        val response = feedCribService.sync(request, principal.userId, principal.siteId)
+        val adminSite = if (principal.roleEnum == Role.ADMIN) call.request.queryParameters["siteId"] else null
+        val response = feedCribService.sync(request, principal.userId, adminSite ?: principal.siteId)
 
         SyncUploadLog.record(principal, ProjectCode.FEED_CRIB, request.batchName, response.results.map { it.status })
 

@@ -8,6 +8,17 @@ import org.jetbrains.exposed.sql.Table
 object FeedCribsTable : Table("feed_cribs") {
     val id = integer("id").autoIncrement()
 
+    val cribUuid = varchar("crib_uuid", 64).uniqueIndex()
+    val penId = varchar("pen_id", 64).nullable()
+    val rationId = varchar("ration_id", 64).nullable()
+    val initialAdi = double("initial_adi").nullable()
+    val rfid = varchar("rfid", 255).nullable().uniqueIndex()
+    val createdBy = varchar("created_by", 64).nullable()
+    val createdAt = long("created_at").nullable()
+    val creationDeviceId = varchar("creation_device_id", 255).nullable()
+    val creationGpsLat = double("creation_gps_lat").nullable()
+    val creationGpsLng = double("creation_gps_lng").nullable()
+
     val cribNumber = varchar("crib_number", 32)
     val siteId = varchar("site_id", 64)
     val penDescription = varchar("pen_description", 255).default("")
@@ -50,6 +61,7 @@ object FeedCribEntriesTable : Table("feed_crib_entries") {
     val id = integer("id").autoIncrement()
 
     val recordguid = varchar("recordguid", 255).uniqueIndex()
+    val cribUuid = varchar("crib_uuid", 64).nullable()
     val cribNumber = varchar("crib_number", 32)
     val siteId = varchar("site_id", 64).nullable()
 

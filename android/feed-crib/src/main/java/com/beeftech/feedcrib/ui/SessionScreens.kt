@@ -58,12 +58,12 @@ fun SessionListScreen(
             if (sessions.isEmpty()) {
                 item { Text("No readings yet today.", color = FeedCribColors.MutedText, fontSize = 13.sp) }
             }
-            items(sessions, key = { it.cribNumber }) { row ->
+            items(sessions, key = { it.cribUuid ?: it.cribNumber }) { row ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(FeedCribColors.LightSurface, RoundedCornerShape(12.dp))
-                        .clickable { onOpen(row.cribNumber) }
+                        .clickable { onOpen(row.cribUuid ?: row.cribNumber) }
                         .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -106,7 +106,7 @@ fun SessionDetailScreen(
     Column(modifier = Modifier.fillMaxSize().background(FeedCribColors.LightBg)) {
         FeedHeader(
             eyebrow = "Today's readings",
-            title = cribNumber,
+            title = entries.firstOrNull()?.cribNumber ?: cribNumber,
             subtitle = if (entries.size == 1) "1 reading saved." else "${entries.size} readings saved.",
             icon = Icons.Outlined.ListAlt,
             modifier = Modifier.collapsingHeader(headerState),

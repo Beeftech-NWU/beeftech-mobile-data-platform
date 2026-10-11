@@ -427,6 +427,15 @@ class MainActivity : ComponentActivity() {
                                     sessionStore,
                                 deviceIdProvider = {
                                     EncryptedDeviceIdProvider(applicationContext).getDeviceId()
+                                },
+                                canManageCribs = { sessionStore.currentUser()?.roleEnum == Role.ADMIN },
+                                siteIdProvider = {
+                                    val user = sessionStore.currentUser()
+                                    when {
+                                        user == null -> "__NO_SITE__"
+                                        user.roleEnum == Role.ADMIN -> null
+                                        else -> user.siteId ?: "__NO_SITE__"
+                                    }
                                 }
                             )
                         )[FeedCribViewModel::class.java]

@@ -21,8 +21,32 @@ class FakeFeedCribDao : FeedCribDao() {
     val cribs = MutableStateFlow<List<FeedCribEntity>>(emptyList())
     val codes = MutableStateFlow<List<CribReadingCodeEntity>>(emptyList())
     val entries = MutableStateFlow<List<FeedCribEntryEntity>>(emptyList())
+    private val setups = mutableMapOf<String, com.beeftech.database.entity.FeedCribSetupEntity>()
+    override suspend fun observeCribsSnapshot() = cribs.value
+    override suspend fun findCribUuid(uuid: String) = cribs.value.firstOrNull { it.cribUuid == uuid }
+    override suspend fun pendingCribs(userId: String) = cribs.value.filter { it.createdBy == userId && it.syncStatus != "SYNCED" }
+    override suspend fun setCribSync(uuid: String, status: String, error: String?) {
+        cribs.value = cribs.value.map { if (it.cribUuid == uuid) it.copy(syncStatus = status, syncError = error) else it }
+    }
+    override suspend fun insertCrib(crib: FeedCribEntity) {
+        require(cribs.value.none { it.siteId == crib.siteId && it.cribNumber == crib.cribNumber })
+        cribs.value += crib
+    }
+    override suspend fun updateConflictedCrib(uuid: String, code: String, tag: String?) {
+        cribs.value = cribs.value.map { if (it.cribUuid == uuid && it.syncStatus == "CONFLICT")
+            it.copy(cribNumber = code, rfid = tag, syncStatus = "PENDING", syncError = null) else it }
+    }
+    override suspend fun updateCribReadingLabels(uuid: String, code: String) {
+        entries.value = entries.value.map { if (it.cribUuid == uuid) it.copy(cribNumber = code) else it }
+    }
+    override suspend fun cacheSetup(setup: com.beeftech.database.entity.FeedCribSetupEntity) { setups[setup.userId] = setup }
+    override suspend fun getSetup(userId: String) = setups[userId]
 
     private val newestFirst = compareByDescending<FeedCribEntryEntity> { it.capturedAt }.thenByDescending { it.recordGuid }
+
+    private fun matches(entry: FeedCribEntryEntity, key: String): Boolean =
+        entry.cribUuid == key || entry.cribNumber == key ||
+            (entry.cribUuid == null && cribs.value.any { it.cribUuid == key && it.cribNumber == entry.cribNumber })
 
     fun entry(recordGuid: String): FeedCribEntryEntity? = entries.value.firstOrNull { it.recordGuid == recordGuid }
 
@@ -49,8 +73,8 @@ class FakeFeedCribDao : FeedCribDao() {
         this.entries.value = this.entries.value + entries.filter { it.recordGuid !in known }
     }
 
-    override suspend fun deleteAllCribs() {
-        cribs.value = emptyList()
+    override suspend fun deleteAllCribs(siteId: String?) {
+        cribs.value = cribs.value.filter { it.syncStatus != "SYNCED" || it.createdBy != null || (siteId != null && it.siteId != siteId) }
     }
 
     override suspend fun deleteAllCodes() {
@@ -76,13 +100,13 @@ class FakeFeedCribDao : FeedCribDao() {
     }
 
     override suspend fun refreshCurrentAdi(cribNumber: String) {
-        val newest = entries.value.filter { it.cribNumber == cribNumber }.sortedWith(newestFirst).firstOrNull() ?: return
-        cribs.value = cribs.value.map { if (it.cribNumber == cribNumber) it.copy(currentAdi = newest.adi) else it }
+        val newest = entries.value.filter { matches(it, cribNumber) }.sortedWith(newestFirst).firstOrNull() ?: return
+        cribs.value = cribs.value.map { if (it.cribNumber == cribNumber || it.cribUuid == cribNumber) it.copy(currentAdi = newest.adi) else it }
     }
 
     override fun observeLastSlots(cribNumber: String, fromDate: String): Flow<List<FeedCribEntryEntity>> =
         entries.map { all ->
-            all.filter { it.cribNumber == cribNumber && it.readingDate >= fromDate && it.code != null }
+            all.filter { matches(it, cribNumber) && it.readingDate >= fromDate && it.code != null }
                 .groupBy { it.readingDate to it.slot }
                 .map { (_, group) -> group.sortedWith(newestFirst).first() }
                 .sortedWith(compareByDescending<FeedCribEntryEntity> { it.readingDate }.thenBy { it.slot })
@@ -90,7 +114,7 @@ class FakeFeedCribDao : FeedCribDao() {
 
     override fun observeEntriesForCrib(cribNumber: String, date: String, userId: String): Flow<List<FeedCribEntryEntity>> =
         entries.map { all ->
-            all.filter { it.cribNumber == cribNumber && it.readingDate == date && it.userId == userId }
+            all.filter { matches(it, cribNumber) && it.readingDate == date && it.userId == userId }
                 .sortedWith(compareBy<FeedCribEntryEntity> { it.capturedAt }.thenBy { it.recordGuid })
         }
 

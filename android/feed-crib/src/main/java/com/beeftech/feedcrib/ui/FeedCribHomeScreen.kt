@@ -32,6 +32,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -62,7 +63,10 @@ fun FeedCribHomeScreen(
     onOpenCrib: (String) -> Unit,
     onSessions: () -> Unit,
     onSync: () -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    syncing: Boolean = false,
+    syncMessage: String? = null,
+    onResolveConflict: ((String) -> Unit)? = null
 ) {
     var number by remember { mutableStateOf("") }
     var search by remember { mutableStateOf("") }
@@ -90,7 +94,7 @@ fun FeedCribHomeScreen(
 
         LazyColumn(
             modifier = Modifier.fillMaxSize().nestedScroll(headerState.nestedScrollConnection),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
@@ -103,7 +107,11 @@ fun FeedCribHomeScreen(
                             onValueChange = { number = it.uppercase().filter { c -> !c.isWhitespace() } },
                             modifier = Modifier.weight(1f),
                             singleLine = true,
-                            placeholder = { Text("A06", fontSize = 26.sp, color = FeedCribColors.MutedText) },
+                            placeholder = {
+                                Text("Search for Crib Number", fontSize = 14.sp,
+                                    fontWeight = FontWeight.Normal, fontFamily = FontFamily.Default,
+                                    maxLines = 1, color = FeedCribColors.MutedText)
+                            },
                             textStyle = TextStyle(
                                 fontSize = 26.sp,
                                 fontWeight = FontWeight.Bold,
@@ -124,14 +132,16 @@ fun FeedCribHomeScreen(
                             )
                         )
                         Spacer(Modifier.width(10.dp))
-                        Button(
-                            onClick = { onOpenCrib(number) },
-                            enabled = number.isNotBlank(),
-                            modifier = Modifier.height(56.dp),
-                            shape = RoundedCornerShape(11.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = FeedCribColors.Rust)
-                        ) {
-                            Text("Go", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        FeedCribTooltip("Open the existing crib matching the number you entered.") {
+                            Button(
+                                onClick = { onOpenCrib(number) },
+                                enabled = number.isNotBlank(),
+                                modifier = Modifier.height(56.dp),
+                                shape = RoundedCornerShape(11.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = FeedCribColors.Rust)
+                            ) {
+                                Text("Go", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            }
                         }
                     }
                     if (errorMessage != null) {
@@ -143,23 +153,34 @@ fun FeedCribHomeScreen(
 
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Button(
-                        onClick = onSessions,
-                        modifier = Modifier.weight(1f).height(50.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = FeedCribColors.RustDeep)
-                    ) {
-                        Text("Today's session", fontWeight = FontWeight.Bold)
+                    FeedCribTooltip("Review the cribs and readings captured today.", modifier = Modifier.weight(1f).height(50.dp)) {
+                        Button(
+                            onClick = onSessions,
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = FeedCribColors.RustDeep)
+                        ) {
+                            Text("Today's session", fontWeight = FontWeight.Bold)
+                        }
                     }
-                    OutlinedButton(
-                        onClick = onSync,
-                        modifier = Modifier.weight(1f).height(50.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(Icons.Outlined.CloudSync, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Sync", fontWeight = FontWeight.Bold, color = FeedCribColors.RustDeep)
+                    FeedCribTooltip("Upload pending cribs and readings, then refresh reference information.", modifier = Modifier.weight(1f).height(50.dp)) {
+                        OutlinedButton(
+                            onClick = onSync,
+                            enabled = !syncing,
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Outlined.CloudSync, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(if (syncing) "Syncing…" else "Sync", fontWeight = FontWeight.Bold, color = FeedCribColors.RustDeep)
+                        }
                     }
+                }
+            }
+
+            if (syncMessage != null) {
+                item {
+                    Text(syncMessage, color = FeedCribColors.MutedText, fontSize = 12.sp)
                 }
             }
 
@@ -179,8 +200,10 @@ fun FeedCribHomeScreen(
                             color = FeedCribColors.Rust
                         )
                     } else {
-                        IconButton(onClick = onRefresh) {
-                            Icon(Icons.Outlined.Refresh, contentDescription = "Download cribs", tint = FeedCribColors.RustDeep)
+                        FeedCribTooltip("Download the latest cribs and reading codes. Saved local records are kept.") {
+                            IconButton(onClick = onRefresh) {
+                                Icon(Icons.Outlined.Refresh, contentDescription = "Download cribs", tint = FeedCribColors.RustDeep)
+                            }
                         }
                     }
                 }
@@ -215,12 +238,12 @@ fun FeedCribHomeScreen(
                 }
             }
 
-            items(visible, key = { it.cribNumber }) { crib ->
+            items(visible, key = { it.cribUuid }) { crib ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(FeedCribColors.LightSurface, RoundedCornerShape(12.dp))
-                        .clickable { onOpenCrib(crib.cribNumber) }
+                        .clickable { onOpenCrib(crib.cribUuid) }
                         .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -233,6 +256,19 @@ fun FeedCribHomeScreen(
                         modifier = Modifier.width(64.dp)
                     )
                     Column(modifier = Modifier.weight(1f)) {
+                        if (cribs.map { it.siteId }.distinct().size > 1) {
+                            Text("Site: ${crib.siteId}", color = FeedCribColors.MutedText, fontSize = 11.sp)
+                        }
+                        if (crib.syncStatus != "SYNCED") {
+                            Text(if (crib.syncStatus == "CONFLICT") "Creation conflict — resolution required"
+                                else "Crib awaiting sync", color = FeedCribColors.Refused, fontSize = 11.sp)
+                            crib.syncError?.let { Text(it, color = FeedCribColors.Refused, fontSize = 11.sp) }
+                            if (crib.syncStatus == "CONFLICT" && onResolveConflict != null) {
+                                FeedCribTooltip("Correct this crib’s conflicting code or tag so synchronisation can retry.") {
+                                    TextButton(onClick = { onResolveConflict(crib.cribUuid) }) { Text("Resolve conflict") }
+                                }
+                            }
+                        }
                         Text(
                             crib.penDescription.ifBlank { crib.description }.ifBlank { "—" },
                             fontSize = 13.sp,

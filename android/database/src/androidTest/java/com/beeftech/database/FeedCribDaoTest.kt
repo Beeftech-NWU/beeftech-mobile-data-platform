@@ -42,6 +42,40 @@ class FeedCribDaoTest {
         dao = database.feedCribDao()
     }
 
+    @Test
+    fun pendingCribAndReadingSurviveDownloadAndRestart() = runBlocking {
+        val newCrib = FeedCribEntity(cribNumber = "A009", siteId = "site-1", penId = "pen-1",
+            rationId = "ration-1", initialAdi = 1.5, currentAdi = 1.5, createdBy = "admin",
+            createdAt = 1000, creationDeviceId = "device", syncStatus = "PENDING")
+        dao.insertCrib(newCrib)
+        val reading = FeedCribEntryEntity(cribNumber = "A009", cribUuid = newCrib.cribUuid,
+            siteId = "site-1", readingDate = "2026-10-11", slot = FeedSlots.MORNING,
+            code = 1, adi = 1.6, capturedAt = 2000, userId = "admin")
+        dao.insertEntry(reading)
+        dao.applyDownload(emptyList(), emptyList(), emptyList(), "2026-01-01", "site-1")
+        database.close()
+        database = (DatabaseFactory.create(context, ByteArray(32) { index -> (index + 1).toByte() }) as DatabaseResult.Success).database
+        dao = database.feedCribDao()
+        assertEquals("PENDING", dao.findCribUuid(newCrib.cribUuid)!!.syncStatus)
+        assertEquals(1.6, dao.findCribUuid(newCrib.cribUuid)!!.currentAdi!!, 0.0)
+        assertEquals(newCrib.cribUuid, dao.findEntry(reading.recordGuid)!!.cribUuid)
+        assertEquals(1, dao.observeLastSlots(newCrib.cribUuid, "2026-10-01").first().size)
+    }
+
+    @Test
+    fun sameCodeOnDifferentSitesKeepsReadingsAndAdiSeparate() = runBlocking {
+        val first = FeedCribEntity(cribNumber = "A009", siteId = "site-1", currentAdi = 1.0)
+        val second = FeedCribEntity(cribNumber = "A009", siteId = "site-2", currentAdi = 2.0)
+        dao.insertCrib(first)
+        dao.insertCrib(second)
+        dao.insertEntry(FeedCribEntryEntity(cribNumber = "A009", cribUuid = first.cribUuid,
+            siteId = "site-1", readingDate = "2026-10-11", slot = FeedSlots.MORNING,
+            code = 1, adi = 1.5, capturedAt = 2000, userId = "admin"))
+        assertEquals(2.0, dao.findCribUuid(second.cribUuid)!!.currentAdi!!, 0.0)
+        assertTrue(dao.observeLastSlots(second.cribUuid, "2026-10-01").first().isEmpty())
+        assertEquals(1, dao.observeLastSlots(first.cribUuid, "2026-10-01").first().size)
+    }
+
     @After
     fun tearDown() {
         database.close()

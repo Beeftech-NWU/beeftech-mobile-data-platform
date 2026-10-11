@@ -8,6 +8,7 @@ import androidx.room.Transaction
 import com.beeftech.database.entity.CribReadingCodeEntity
 import com.beeftech.database.entity.FeedCribEntity
 import com.beeftech.database.entity.FeedCribEntryEntity
+import com.beeftech.database.entity.FeedCribSetupEntity
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -21,7 +22,8 @@ data class FeedCribSessionRow(
     val eveningCode: Int?,
     val latestAdi: Double?,
     val lastCapturedAt: Long,
-    val unsyncedCount: Int
+    val unsyncedCount: Int,
+    val cribUuid: String? = null
 )
 
 @Dao
@@ -32,7 +34,7 @@ abstract class FeedCribDao {
     @Query("SELECT * FROM feed_cribs ORDER BY crib_number")
     abstract fun observeCribs(): Flow<List<FeedCribEntity>>
 
-    @Query("SELECT * FROM feed_cribs WHERE crib_number = :cribNumber LIMIT 1")
+    @Query("SELECT * FROM feed_cribs WHERE crib_uuid = :cribNumber OR crib_number = :cribNumber LIMIT 1")
     abstract suspend fun getCrib(cribNumber: String): FeedCribEntity?
 
     @Query("SELECT * FROM crib_reading_codes ORDER BY code")
@@ -50,8 +52,36 @@ abstract class FeedCribDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     protected abstract suspend fun insertServerEntries(entries: List<FeedCribEntryEntity>)
 
-    @Query("DELETE FROM feed_cribs")
-    protected abstract suspend fun deleteAllCribs()
+    @Query("DELETE FROM feed_cribs WHERE sync_status = 'SYNCED' AND created_by IS NULL AND (:siteId IS NULL OR site_id = :siteId)")
+    protected abstract suspend fun deleteAllCribs(siteId: String?)
+
+    @Query("SELECT * FROM feed_cribs WHERE crib_uuid = :uuid")
+    abstract suspend fun findCribUuid(uuid: String): FeedCribEntity?
+
+    @Query("SELECT * FROM feed_cribs WHERE sync_status != 'SYNCED' AND created_by = :userId")
+    abstract suspend fun pendingCribs(userId: String): List<FeedCribEntity>
+
+    @Query("UPDATE feed_cribs SET sync_status = :status, sync_error = :error WHERE crib_uuid = :uuid")
+    abstract suspend fun setCribSync(uuid: String, status: String, error: String?)
+
+    @Query("UPDATE feed_cribs SET crib_number = :code, rfid = :tag, sync_status = 'PENDING', sync_error = NULL WHERE crib_uuid = :uuid AND sync_status = 'CONFLICT'")
+    protected abstract suspend fun updateConflictedCrib(uuid: String, code: String, tag: String?)
+    @Query("UPDATE feed_crib_entries SET crib_number = :code WHERE crib_uuid = :uuid")
+    protected abstract suspend fun updateCribReadingLabels(uuid: String, code: String)
+    @Transaction
+    open suspend fun resolveCribConflict(uuid: String, code: String, tag: String?) {
+        updateConflictedCrib(uuid, code, tag)
+        updateCribReadingLabels(uuid, code)
+    }
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    abstract suspend fun insertCrib(crib: FeedCribEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun cacheSetup(setup: FeedCribSetupEntity)
+
+    @Query("SELECT * FROM feed_crib_setup WHERE userId = :userId")
+    abstract suspend fun getSetup(userId: String): FeedCribSetupEntity?
 
     @Query("DELETE FROM crib_reading_codes")
     protected abstract suspend fun deleteAllCodes()
@@ -68,7 +98,9 @@ abstract class FeedCribDao {
         """
         UPDATE feed_cribs SET current_adi = COALESCE(
             (SELECT e.adi FROM feed_crib_entries e
-             WHERE e.crib_number = feed_cribs.crib_number
+             WHERE e.crib_uuid = feed_cribs.crib_uuid OR
+                 (e.crib_uuid IS NULL AND e.crib_number = feed_cribs.crib_number AND
+                  (e.site_id IS NULL OR e.site_id = feed_cribs.site_id))
              ORDER BY e.captured_at DESC, e.record_guid DESC LIMIT 1),
             current_adi)
         """
@@ -85,16 +117,31 @@ abstract class FeedCribDao {
         cribs: List<FeedCribEntity>,
         codes: List<CribReadingCodeEntity>,
         serverEntries: List<FeedCribEntryEntity>,
-        pruneBeforeDate: String
+        pruneBeforeDate: String,
+        siteId: String? = null
     ) {
-        deleteAllCribs()
-        insertCribs(cribs)
+        deleteAllCribs(siteId)
+        val preserved = observeCribsSnapshot()
+        insertCribs(cribs.filter { incoming ->
+            preserved.none { it.syncStatus != "SYNCED" &&
+                ((it.siteId == incoming.siteId && it.cribNumber == incoming.cribNumber) ||
+                    (it.rfid != null && it.rfid == incoming.rfid)) }
+        }.map { incoming ->
+            val old = preserved.firstOrNull { it.cribUuid == incoming.cribUuid }
+            if (old?.createdBy == null) incoming else incoming.copy(
+                createdBy = old.createdBy, createdAt = old.createdAt,
+                creationDeviceId = old.creationDeviceId, creationGpsLat = old.creationGpsLat,
+                creationGpsLng = old.creationGpsLng, initialAdi = old.initialAdi)
+        })
         deleteAllCodes()
         insertCodes(codes)
         if (serverEntries.isNotEmpty()) insertServerEntries(serverEntries)
         pruneSyncedBefore(pruneBeforeDate)
         recomputeCurrentAdi()
     }
+
+    @Query("SELECT * FROM feed_cribs")
+    abstract suspend fun observeCribsSnapshot(): List<FeedCribEntity>
 
     // --- entries ---
 
@@ -105,9 +152,9 @@ abstract class FeedCribDao {
         """
         UPDATE feed_cribs SET current_adi = (
             SELECT e.adi FROM feed_crib_entries e
-            WHERE e.crib_number = :cribNumber
+            WHERE e.crib_uuid = :cribNumber OR (e.crib_uuid IS NULL AND e.crib_number = :cribNumber)
             ORDER BY e.captured_at DESC, e.record_guid DESC LIMIT 1)
-        WHERE crib_number = :cribNumber
+        WHERE crib_uuid = :cribNumber OR crib_number = :cribNumber
         """
     )
     protected abstract suspend fun refreshCurrentAdi(cribNumber: String)
@@ -116,7 +163,7 @@ abstract class FeedCribDao {
     @Transaction
     open suspend fun insertEntry(entry: FeedCribEntryEntity) {
         insertEntryRow(entry)
-        refreshCurrentAdi(entry.cribNumber)
+        refreshCurrentAdi(entry.cribUuid ?: entry.cribNumber)
     }
 
     /**
@@ -127,10 +174,10 @@ abstract class FeedCribDao {
     @Query(
         """
         SELECT * FROM feed_crib_entries e
-        WHERE e.crib_number = :cribNumber AND e.reading_date >= :fromDate AND e.code IS NOT NULL
+        WHERE (e.crib_uuid = :cribNumber OR e.crib_number = :cribNumber) AND e.reading_date >= :fromDate AND e.code IS NOT NULL
           AND NOT EXISTS (
             SELECT 1 FROM feed_crib_entries n
-            WHERE n.crib_number = e.crib_number AND n.reading_date = e.reading_date
+            WHERE COALESCE(n.crib_uuid, n.crib_number) = COALESCE(e.crib_uuid, e.crib_number) AND n.reading_date = e.reading_date
               AND n.slot = e.slot AND n.code IS NOT NULL
               AND (n.captured_at > e.captured_at
                    OR (n.captured_at = e.captured_at AND n.record_guid > e.record_guid)))
@@ -143,7 +190,7 @@ abstract class FeedCribDao {
     @Query(
         """
         SELECT * FROM feed_crib_entries
-        WHERE crib_number = :cribNumber AND reading_date = :date AND user_id = :userId
+        WHERE (crib_uuid = :cribNumber OR crib_number = :cribNumber) AND reading_date = :date AND user_id = :userId
         ORDER BY captured_at, record_guid
         """
     )
@@ -152,24 +199,24 @@ abstract class FeedCribDao {
     /** One line per crib the user took a reading on today, newest first. */
     @Query(
         """
-        SELECT c.crib_number AS cribNumber,
-          (SELECT e.code FROM feed_crib_entries e WHERE e.crib_number = c.crib_number
+        SELECT c.crib_number AS cribNumber, c.crib_uuid AS cribUuid,
+          (SELECT e.code FROM feed_crib_entries e WHERE COALESCE(e.crib_uuid, e.crib_number) = COALESCE(c.crib_uuid, c.crib_number)
              AND e.reading_date = :date AND e.user_id = :userId AND e.slot = 'MORNING' AND e.code IS NOT NULL
              ORDER BY e.captured_at DESC, e.record_guid DESC LIMIT 1) AS morningCode,
-          (SELECT e.code FROM feed_crib_entries e WHERE e.crib_number = c.crib_number
+          (SELECT e.code FROM feed_crib_entries e WHERE COALESCE(e.crib_uuid, e.crib_number) = COALESCE(c.crib_uuid, c.crib_number)
              AND e.reading_date = :date AND e.user_id = :userId AND e.slot = 'MIDDAY' AND e.code IS NOT NULL
              ORDER BY e.captured_at DESC, e.record_guid DESC LIMIT 1) AS midDayCode,
-          (SELECT e.code FROM feed_crib_entries e WHERE e.crib_number = c.crib_number
+          (SELECT e.code FROM feed_crib_entries e WHERE COALESCE(e.crib_uuid, e.crib_number) = COALESCE(c.crib_uuid, c.crib_number)
              AND e.reading_date = :date AND e.user_id = :userId AND e.slot = 'EVENING' AND e.code IS NOT NULL
              ORDER BY e.captured_at DESC, e.record_guid DESC LIMIT 1) AS eveningCode,
-          (SELECT e.adi FROM feed_crib_entries e WHERE e.crib_number = c.crib_number
+          (SELECT e.adi FROM feed_crib_entries e WHERE COALESCE(e.crib_uuid, e.crib_number) = COALESCE(c.crib_uuid, c.crib_number)
              AND e.reading_date = :date AND e.user_id = :userId
              ORDER BY e.captured_at DESC, e.record_guid DESC LIMIT 1) AS latestAdi,
-          (SELECT MAX(e.captured_at) FROM feed_crib_entries e WHERE e.crib_number = c.crib_number
+          (SELECT MAX(e.captured_at) FROM feed_crib_entries e WHERE COALESCE(e.crib_uuid, e.crib_number) = COALESCE(c.crib_uuid, c.crib_number)
              AND e.reading_date = :date AND e.user_id = :userId) AS lastCapturedAt,
-          (SELECT COUNT(*) FROM feed_crib_entries e WHERE e.crib_number = c.crib_number
+          (SELECT COUNT(*) FROM feed_crib_entries e WHERE COALESCE(e.crib_uuid, e.crib_number) = COALESCE(c.crib_uuid, c.crib_number)
              AND e.reading_date = :date AND e.user_id = :userId AND e.sync_status != 'SYNCED') AS unsyncedCount
-        FROM (SELECT DISTINCT crib_number FROM feed_crib_entries
+        FROM (SELECT DISTINCT crib_number, crib_uuid FROM feed_crib_entries
               WHERE reading_date = :date AND user_id = :userId) c
         ORDER BY lastCapturedAt DESC
         """

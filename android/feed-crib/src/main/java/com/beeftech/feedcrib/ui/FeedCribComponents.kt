@@ -92,13 +92,15 @@ fun FeedHeader(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (onBackClick != null) {
-                IconButton(onClick = onBackClick, modifier = Modifier.size(42.dp)) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp)
-                    )
+                FeedCribTooltip("Return to the previous Feed Cribs screen.") {
+                    IconButton(onClick = onBackClick, modifier = Modifier.size(42.dp)) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.width(4.dp))
             }

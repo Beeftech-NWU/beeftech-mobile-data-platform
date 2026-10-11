@@ -76,7 +76,8 @@ data class FeedCribEntryEntity(
 
     /** Times the server explicitly rejected this record; reaching the cap makes it REJECTED. */
     @ColumnInfo(name = "sync_attempts", defaultValue = "0")
-    val syncAttempts: Int = 0
+    val syncAttempts: Int = 0,
+    @ColumnInfo(name = "crib_uuid") val cribUuid: String? = null
 )
 
 /** The three blocks of a feeding day. The same words the backend validates. */

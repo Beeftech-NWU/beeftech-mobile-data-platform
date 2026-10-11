@@ -22,7 +22,20 @@ class FeedCribRepository {
                 .selectAll()
                 .where { FeedCribsTable.siteId eq siteId }
                 .orderBy(FeedCribsTable.cribNumber, SortOrder.ASC)
-                .map { it.toCribDto() }
+                .map { row ->
+                    val base = row.toCribDto()
+                    val pen = base.penId?.let { id -> CribPensTable.selectAll().where { CribPensTable.id eq id }.singleOrNull() }
+                    val ration = base.rationId?.let { id -> CribRationsTable.selectAll().where { CribRationsTable.id eq id }.singleOrNull() }
+                    if (pen == null) base else base.copy(
+                        penDescription = pen[CribPensTable.description],
+                        requiredKg = pen[CribPensTable.requiredKg],
+                        animalsBegin = pen[CribPensTable.animalsBegin],
+                        animalsIn = pen[CribPensTable.animalsIn],
+                        animalsOut = pen[CribPensTable.animalsOut],
+                        animalsClose = pen[CribPensTable.animalsClose],
+                        ration = ration?.get(CribRationsTable.name) ?: base.ration
+                    )
+                }
         }
 
     suspend fun listCodes(): List<CribReadingCodeDto> =
@@ -84,6 +97,13 @@ class FeedCribRepository {
                 throw FeedCribValidationException("Crib ${record.cribNumber} is not active.")
             }
 
+            if (record.cribUuid != null && record.cribUuid != crib[FeedCribsTable.cribUuid]) {
+                throw FeedCribValidationException("Crib UUID does not match this site's crib. Resolve the creation conflict first.")
+            }
+            if (crib[FeedCribsTable.createdBy] != null && record.cribUuid == null) {
+                throw FeedCribValidationException("A reading for a registered crib must reference its UUID.")
+            }
+
             if (record.code != null) {
                 val codeRow = CribReadingCodesTable
                     .selectAll()
@@ -101,6 +121,7 @@ class FeedCribRepository {
 
             if (existing == null) {
                 FeedCribEntriesTable.insert {
+                    it[cribUuid] = crib[FeedCribsTable.cribUuid]
                     it[recordguid] = record.recordguid
                     it[cribNumber] = record.cribNumber
                     it[FeedCribEntriesTable.siteId] = siteId
@@ -168,6 +189,11 @@ class FeedCribRepository {
     }
 
     private fun ResultRow.toCribDto() = FeedCribDto(
+        cribUuid = this[FeedCribsTable.cribUuid],
+        penId = this[FeedCribsTable.penId],
+        rationId = this[FeedCribsTable.rationId],
+        initialAdi = this[FeedCribsTable.initialAdi],
+        rfid = this[FeedCribsTable.rfid],
         cribNumber = this[FeedCribsTable.cribNumber],
         siteId = this[FeedCribsTable.siteId],
         penDescription = this[FeedCribsTable.penDescription],
@@ -185,6 +211,7 @@ class FeedCribRepository {
     )
 
     private fun ResultRow.toEntryDto() = FeedCribEntryDto(
+        cribUuid = this[FeedCribEntriesTable.cribUuid],
         recordguid = this[FeedCribEntriesTable.recordguid],
         cribNumber = this[FeedCribEntriesTable.cribNumber],
         readingDate = this[FeedCribEntriesTable.readingDate],
