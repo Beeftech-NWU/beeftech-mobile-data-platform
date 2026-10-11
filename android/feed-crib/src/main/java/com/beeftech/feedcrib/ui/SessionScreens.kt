@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -37,17 +38,20 @@ fun SessionListScreen(
     onOpen: (String) -> Unit,
     onBack: () -> Unit
 ) {
+    val headerState = rememberCollapsingHeaderState()
+
     Column(modifier = Modifier.fillMaxSize().background(FeedCribColors.LightBg)) {
         FeedHeader(
             eyebrow = "Feed crib",
             title = "Today's session",
             subtitle = if (sessions.size == 1) "1 crib read today." else "${sessions.size} cribs read today.",
             icon = Icons.Outlined.ListAlt,
+            modifier = Modifier.collapsingHeader(headerState),
             onBackClick = onBack
         )
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().nestedScroll(headerState.nestedScrollConnection),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
@@ -97,17 +101,20 @@ fun SessionDetailScreen(
     entries: List<FeedCribEntryEntity>,
     onBack: () -> Unit
 ) {
+    val headerState = rememberCollapsingHeaderState()
+
     Column(modifier = Modifier.fillMaxSize().background(FeedCribColors.LightBg)) {
         FeedHeader(
             eyebrow = "Today's readings",
             title = cribNumber,
             subtitle = if (entries.size == 1) "1 reading saved." else "${entries.size} readings saved.",
             icon = Icons.Outlined.ListAlt,
+            modifier = Modifier.collapsingHeader(headerState),
             onBackClick = onBack
         )
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().nestedScroll(headerState.nestedScrollConnection),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
