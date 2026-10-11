@@ -260,8 +260,11 @@ fun FeedCribHomeScreen(
                             Text("Site: ${crib.siteId}", color = FeedCribColors.MutedText, fontSize = 11.sp)
                         }
                         if (crib.syncStatus != "SYNCED") {
-                            Text(if (crib.syncStatus == "CONFLICT") "Creation conflict — resolution required"
-                                else "Crib awaiting sync", color = FeedCribColors.Refused, fontSize = 11.sp)
+                            Text(when (crib.syncStatus) {
+                                "CONFLICT" -> "Creation conflict — resolution required"
+                                "REJECTED" -> "Crib refused by the server — tap Sync to retry"
+                                else -> "Crib awaiting sync"
+                            }, color = FeedCribColors.Refused, fontSize = 11.sp)
                             crib.syncError?.let { Text(it, color = FeedCribColors.Refused, fontSize = 11.sp) }
                             if (crib.syncStatus == "CONFLICT" && onResolveConflict != null) {
                                 FeedCribTooltip("Correct this crib’s conflicting code or tag so synchronisation can retry.") {

@@ -59,17 +59,14 @@ class FeedCribSyncWorker(
                 captureContextProvider = { FeedCribCaptureContext(deviceId = "") }
             )
 
-            val outcome = syncRuns.trackRun(SyncRunModule.FEED, listOf(FeedCribRepository.ENTITY_TYPE), trigger) {
+            syncRuns.trackRun(SyncRunModule.FEED, listOf(FeedCribRepository.ENTITY_TYPE), trigger) {
                 repository.syncPending()
             }
 
             val download = repository.refreshCribs()
 
-            val remaining = pendingSyncRepository
-                .getPendingOperations()
-                .any { it.entityType == FeedCribRepository.ENTITY_TYPE }
-
-            if (remaining || download.isFailure || outcome.errorMessagesByRecordGuid.isNotEmpty()) Result.retry() else Result.success()
+            /* Cribs waiting for a person (conflict, refused) must not keep this job retrying forever. */
+            if (download.isFailure || repository.hasRetryableWork()) Result.retry() else Result.success()
 
         } catch (exception: Exception) {
 

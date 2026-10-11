@@ -74,7 +74,7 @@ class FakeFeedCribDao : FeedCribDao() {
     }
 
     override suspend fun deleteAllCribs(siteId: String?) {
-        cribs.value = cribs.value.filter { it.syncStatus != "SYNCED" || it.createdBy != null || (siteId != null && it.siteId != siteId) }
+        cribs.value = cribs.value.filter { it.syncStatus != "SYNCED" || (siteId != null && it.siteId != siteId) }
     }
 
     override suspend fun deleteAllCodes() {

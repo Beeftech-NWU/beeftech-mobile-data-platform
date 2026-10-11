@@ -313,11 +313,17 @@ class FeedCribRepository(
      * background worker never sets it.
      */
     /** Register parent cribs first; a refused parent never sends readings under another UUID. */
-    private suspend fun syncCribRegistrations(userId: String): Map<String, String> {
+    private suspend fun syncCribRegistrations(userId: String, retryRejected: Boolean): Map<String, String> {
+        if (retryRejected) {
+            /* The manual Sync gives a crib the server refused another go, like a refused reading. */
+            feedCribDao.pendingCribs(userId).filter { it.syncStatus == "REJECTED" }
+                .forEach { feedCribDao.setCribSync(it.cribUuid, "PENDING", null) }
+        }
         val allCribs = feedCribDao.pendingCribs(userId)
-        val cribs = allCribs.filter { it.syncStatus != "CONFLICT" }
-        val errors = allCribs.filter { it.syncStatus == "CONFLICT" }.associate {
-            it.cribUuid to (it.syncError ?: "Crib conflict requires resolution.")
+        val cribs = allCribs.filter { it.syncStatus != "CONFLICT" && it.syncStatus != "REJECTED" }
+        val errors = allCribs.filter { it.syncStatus == "CONFLICT" || it.syncStatus == "REJECTED" }.associate {
+            it.cribUuid to (it.syncError ?: if (it.syncStatus == "CONFLICT") "Crib conflict requires resolution."
+                else "The server refused this crib.")
         }.toMutableMap()
         if (cribs.isEmpty()) return errors
         for (batch in cribs.chunked(200)) {
@@ -329,14 +335,14 @@ class FeedCribRepository(
             val results = response.getOrNull()?.results?.associateBy { it.cribUuid }.orEmpty()
             batch.forEach { crib ->
                 val result = results[crib.cribUuid]
-                val status = when (result?.status) { "SYNCED" -> "SYNCED"; "CONFLICT" -> "CONFLICT"; else -> "PENDING" }
+                val status = when (result?.status) { "SYNCED" -> "SYNCED"; "CONFLICT" -> "CONFLICT"; "REJECTED" -> "REJECTED"; else -> "PENDING" }
                 val error = if (status == "SYNCED") null else result?.message
                     ?: response.exceptionOrNull()?.message ?: "Server did not acknowledge crib creation."
                 feedCribDao.setCribSync(crib.cribUuid, status, error)
                 if (error != null) errors[crib.cribUuid] = error
             }
         }
-        feedCribDao.pendingCribs(userId).filter { it.syncStatus == "CONFLICT" }.forEach {
+        feedCribDao.pendingCribs(userId).filter { it.syncStatus == "CONFLICT" || it.syncStatus == "REJECTED" }.forEach {
             errors[it.cribUuid] = it.syncError ?: "Crib conflict requires resolution."
         }
         return errors
@@ -348,7 +354,7 @@ class FeedCribRepository(
 
         return try {
 
-            val cribErrors = syncCribRegistrations(userId).toMutableMap()
+            val cribErrors = syncCribRegistrations(userId, retryRejected).toMutableMap()
             val blockedCribs = feedCribDao.observeCribsSnapshot().filter { it.syncStatus != "SYNCED" }.map { it.cribUuid }.toSet()
 
             if (retryRejected) {
@@ -461,6 +467,22 @@ class FeedCribRepository(
                     else mapOf("_sync" to message)
             )
         }
+    }
+
+    /**
+     * True when another automatic attempt could make progress: a crib of the signed-in user is still
+     * pending, or a reading waits whose crib is not stuck. Cribs in conflict or refused by the server,
+     * cribs another user must sync, and the readings behind them wait for a person, so retrying would
+     * never end.
+     */
+    suspend fun hasRetryableWork(): Boolean {
+        val userId = userIdProvider()?.takeIf { it.isNotBlank() } ?: return false
+        if (feedCribDao.pendingCribs(userId).any { it.syncStatus == "PENDING" }) return true
+        val stuck = feedCribDao.observeCribsSnapshot()
+            .filter { it.syncStatus != "SYNCED" &&
+                (it.syncStatus == "CONFLICT" || it.syncStatus == "REJECTED" || it.createdBy != userId) }
+            .map { it.cribUuid }.toSet()
+        return feedCribDao.getPending(userId).any { it.cribUuid !in stuck }
     }
 
     private suspend fun clearQueue(recordGuids: Set<String>) {

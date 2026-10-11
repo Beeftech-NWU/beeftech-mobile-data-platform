@@ -123,6 +123,56 @@ class AddCribTest {
         assertEquals("SYNCED", dao.entries.value.single().syncStatus)
     }
 
+    @Test fun refusedCribIsNotResentAutomaticallyButManualSyncRetriesIt() = runTest {
+        repository.refreshSetup()
+        repository.addCrib(form)
+        dao.codes.value = listOf(com.beeftech.database.entity.CribReadingCodeEntity(1, "Code 1"))
+        val crib = dao.cribs.value.single()
+        server.offline = true
+        repository.saveEntry(crib.cribUuid, 1, 1.5)
+        server.offline = false
+        server.creationStatus = "REJECTED"
+        assertTrue(repository.syncPending().errorMessagesByRecordGuid.isNotEmpty())
+        assertEquals("REJECTED", dao.cribs.value.single().syncStatus)
+        assertEquals(1, server.creationRequests.size)
+        assertTrue(server.syncRequests.isEmpty())
+        assertFalse(repository.hasRetryableWork())
+
+        repository.syncPending()
+        assertEquals(1, server.creationRequests.size)
+
+        server.creationStatus = "SYNCED"
+        repository.syncPending(retryRejected = true)
+        assertEquals(2, server.creationRequests.size)
+        assertEquals("SYNCED", dao.cribs.value.single().syncStatus)
+        assertEquals("SYNCED", dao.entries.value.single().syncStatus)
+    }
+
+    @Test fun conflictedCribWithABlockedReadingIsNotRetryableWork() = runTest {
+        repository.refreshSetup()
+        repository.addCrib(form)
+        dao.codes.value = listOf(com.beeftech.database.entity.CribReadingCodeEntity(1, "Code 1"))
+        val crib = dao.cribs.value.single()
+        server.offline = true
+        repository.saveEntry(crib.cribUuid, 1, 1.5)
+        assertTrue(repository.hasRetryableWork())
+        server.offline = false
+        server.creationStatus = "CONFLICT"
+        repository.syncPending()
+        assertFalse(repository.hasRetryableWork())
+    }
+
+    @Test fun syncedCribTheServerNoLongerListsIsRemovedButCreationDetailsSurviveOtherwise() = runTest {
+        repository.refreshSetup()
+        repository.addCrib(form)
+        val uuid = dao.cribs.value.single().cribUuid
+        repository.syncPending()
+        assertEquals("SYNCED", dao.cribs.value.single().syncStatus)
+        assertEquals("admin-1", dao.cribs.value.single().createdBy)
+        dao.applyDownload(emptyList(), emptyList(), emptyList(), "2026-01-01", "site-1")
+        assertTrue(dao.cribs.value.none { it.cribUuid == uuid })
+    }
+
     @Test fun adiConfigurationSupportsDifferentStepsAndLimitsWithoutFormula() {
         val rules = CribAdiRules(minimum = 0.0, maximum = 2.0, adjustmentStep = 0.001)
         assertEquals("1.501", adjustInitialAdi("1.5", 1, rules))
