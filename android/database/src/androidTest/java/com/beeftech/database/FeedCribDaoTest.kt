@@ -76,6 +76,22 @@ class FeedCribDaoTest {
         assertEquals(1, dao.observeLastSlots(first.cribUuid, "2026-10-01").first().size)
     }
 
+    @Test
+    fun downloadRemovesSyncedCreatorCribsTheServerDroppedAndKeepsDetailsOfTheRest() = runBlocking {
+        val kept = FeedCribEntity(cribNumber = "A010", siteId = "site-1", createdBy = "admin",
+            createdAt = 1000, creationDeviceId = "device", creationGpsLat = 1.0, creationGpsLng = 2.0, initialAdi = 1.5)
+        val dropped = FeedCribEntity(cribNumber = "A011", siteId = "site-1", createdBy = "admin")
+        val pending = FeedCribEntity(cribNumber = "A012", siteId = "site-1", createdBy = "admin", syncStatus = "PENDING")
+        listOf(kept, dropped, pending).forEach { dao.insertCrib(it) }
+        dao.applyDownload(listOf(FeedCribEntity(cribNumber = "A010", siteId = "site-1")), emptyList(), emptyList(), "2026-01-01", "site-1")
+        assertNull(dao.findCribUuid(dropped.cribUuid))
+        assertNotNull(dao.findCribUuid(pending.cribUuid))
+        val reloaded = dao.findCribUuid(kept.cribUuid)!!
+        assertEquals("admin", reloaded.createdBy)
+        assertEquals(1.0, reloaded.creationGpsLat!!, 0.0)
+        assertEquals(1.5, reloaded.initialAdi!!, 0.0)
+    }
+
     @After
     fun tearDown() {
         database.close()

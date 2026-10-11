@@ -34,7 +34,7 @@ abstract class FeedCribDao {
     @Query("SELECT * FROM feed_cribs ORDER BY crib_number")
     abstract fun observeCribs(): Flow<List<FeedCribEntity>>
 
-    @Query("SELECT * FROM feed_cribs WHERE crib_uuid = :cribNumber OR crib_number = :cribNumber LIMIT 1")
+    @Query("SELECT * FROM feed_cribs WHERE crib_uuid = :cribNumber OR crib_number = :cribNumber ORDER BY (crib_uuid = :cribNumber) DESC LIMIT 1")
     abstract suspend fun getCrib(cribNumber: String): FeedCribEntity?
 
     @Query("SELECT * FROM crib_reading_codes ORDER BY code")
@@ -52,7 +52,7 @@ abstract class FeedCribDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     protected abstract suspend fun insertServerEntries(entries: List<FeedCribEntryEntity>)
 
-    @Query("DELETE FROM feed_cribs WHERE sync_status = 'SYNCED' AND created_by IS NULL AND (:siteId IS NULL OR site_id = :siteId)")
+    @Query("DELETE FROM feed_cribs WHERE sync_status = 'SYNCED' AND (:siteId IS NULL OR site_id = :siteId)")
     protected abstract suspend fun deleteAllCribs(siteId: String?)
 
     @Query("SELECT * FROM feed_cribs WHERE crib_uuid = :uuid")
@@ -120,8 +120,9 @@ abstract class FeedCribDao {
         pruneBeforeDate: String,
         siteId: String? = null
     ) {
-        deleteAllCribs(siteId)
+        /* Read before the delete: a synced crib the server still has gets its creation details back. */
         val preserved = observeCribsSnapshot()
+        deleteAllCribs(siteId)
         insertCribs(cribs.filter { incoming ->
             preserved.none { it.syncStatus != "SYNCED" &&
                 ((it.siteId == incoming.siteId && it.cribNumber == incoming.cribNumber) ||
