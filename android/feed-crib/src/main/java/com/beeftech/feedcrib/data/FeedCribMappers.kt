@@ -8,6 +8,7 @@ import com.beeftech.database.entity.FeedEntryOrigin
 object FeedCribMappers {
 
     fun toDto(entry: FeedCribEntryEntity) = FeedCribEntryDto(
+        cribUuid = entry.cribUuid,
         recordguid = entry.recordGuid,
         cribNumber = entry.cribNumber,
         readingDate = entry.readingDate,
@@ -21,17 +22,22 @@ object FeedCribMappers {
     )
 
     fun toEntity(dto: FeedCribNetworkDto, downloadedAt: Long) = FeedCribEntity(
+        cribUuid = dto.cribUuid ?: java.util.UUID.nameUUIDFromBytes(("${dto.siteId}|${dto.cribNumber}").toByteArray()).toString(),
+        penId = dto.penId,
+        rationId = dto.rationId,
+        initialAdi = dto.initialAdi,
+        rfid = dto.rfid,
         cribNumber = dto.cribNumber,
         siteId = dto.siteId,
         penDescription = dto.penDescription,
         ration = dto.ration,
         method = dto.method,
         description = dto.description,
-        requiredKg = dto.requiredKg,
-        animalsBegin = dto.animalsBegin,
-        animalsIn = dto.animalsIn,
-        animalsOut = dto.animalsOut,
-        animalsClose = dto.animalsClose,
+        requiredKg = if (dto.penId == null) dto.requiredKg else null,
+        animalsBegin = if (dto.penId == null) dto.animalsBegin else null,
+        animalsIn = if (dto.penId == null) dto.animalsIn else null,
+        animalsOut = if (dto.penId == null) dto.animalsOut else null,
+        animalsClose = if (dto.penId == null) dto.animalsClose else null,
         currentAdi = dto.currentAdi,
         active = dto.active,
         updatedAt = dto.updatedAt,
@@ -47,6 +53,7 @@ object FeedCribMappers {
 
     /** A reading some phone on the site already synced: kept for the history, never uploaded again. */
     fun toEntity(dto: FeedCribEntryDownloadDto, siteId: String) = FeedCribEntryEntity(
+        cribUuid = dto.cribUuid ?: java.util.UUID.nameUUIDFromBytes(("$siteId|${dto.cribNumber}").toByteArray()).toString(),
         recordGuid = dto.recordguid,
         cribNumber = dto.cribNumber,
         siteId = siteId,

@@ -64,6 +64,7 @@ fun CribDetailScreen(
     var confirmDiscard by remember { mutableStateOf(false) }
 
     fun requestDiscard() {
+        if (saving) return
         if (detail.draft.changed) confirmDiscard = true else onDiscard()
     }
 
@@ -94,7 +95,7 @@ fun CribDetailScreen(
                 FeedDetailRow("Ration", crib.ration)
                 FeedDetailRow("Method", crib.method)
                 FeedDetailRow("Description", crib.description)
-                FeedDetailRow("Required", formatKg(crib.requiredKg))
+                FeedDetailRow("Required", crib.requiredKg?.let { formatKg(it) } ?: "Not available")
                 FeedDetailRow("A.D.I", formatKg(crib.currentAdi))
             }
 
@@ -114,26 +115,39 @@ fun CribDetailScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(label.uppercase(), color = FeedCribColors.MutedText, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
-                        Text(value.toString(), color = FeedCribColors.RustDeep, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                        Text(value?.toString() ?: "Not available", color = FeedCribColors.RustDeep, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
 
             FeedSectionTitle("Last readings")
+            if (detail.lastSlots.isEmpty()) Text("No readings recorded", color = FeedCribColors.MutedText)
             ReadingsGrid(detail = detail, nowMillis = nowMillis)
 
-            FeedSectionTitle("Reading code")
-            CodeChips(codes = codes, selected = detail.draft.code, onSelect = onSelectCode)
+            FeedSectionTitle("Reading code (required)")
+            Text("Select one reading code below before saving. Adjusting ADI alone does not record a reading.",
+                color = FeedCribColors.RustDeep, fontSize = 14.sp)
+            CodeChips(codes = codes, selected = detail.draft.code, onSelect = { if (!saving) onSelectCode(it) })
             Text(
                 text = if (detail.draft.code != null) goesToText(detail.currentSlot)
-                else "Pick a code. It goes to the block for the time of day.",
+                else "No reading code selected — select a code to enable Save.",
                 color = FeedCribColors.RustDeep,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold
             )
+            detail.draft.code?.let { selected ->
+                val previous = gridCode(detail.lastSlots, detail.currentDate, detail.currentSlot)
+                Text(
+                    text = if (previous != null)
+                        "Unsaved: $previous → $selected. Save records a new reading; the earlier entry is retained."
+                    else "Unsaved reading: $selected. Tap Save to keep it.",
+                    color = FeedCribColors.MutedText,
+                    fontSize = 12.sp
+                )
+            }
 
             FeedSectionTitle("A.D.I")
-            AdiStepper(adi = detail.draft.adi, onAdjust = onAdjustAdi)
+            AdiStepper(adi = detail.draft.adi, onAdjust = { if (!saving) onAdjustAdi(it) })
         }
 
         Row(
@@ -143,22 +157,27 @@ fun CribDetailScreen(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            OutlinedButton(
-                onClick = ::requestDiscard,
-                modifier = Modifier.weight(1f).height(52.dp),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, FeedCribColors.Line)
-            ) {
-                Text("Discard", color = FeedCribColors.MutedText, fontWeight = FontWeight.Bold)
+            FeedCribTooltip("Discard unsaved reading and ADI changes and return to the crib list.", modifier = Modifier.weight(1f).height(52.dp)) {
+                OutlinedButton(
+                    onClick = ::requestDiscard,
+                    enabled = !saving,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, FeedCribColors.Line)
+                ) {
+                    Text("Discard", color = FeedCribColors.MutedText, fontWeight = FontWeight.Bold)
+                }
             }
-            Button(
-                onClick = onSave,
-                enabled = detail.draft.changed && !saving,
-                modifier = Modifier.weight(1f).height(52.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = FeedCribColors.Rust)
-            ) {
-                Text(if (saving) "Saving…" else "Save", fontWeight = FontWeight.Bold, color = Color.White)
+            FeedCribTooltip("Select a required reading code, then save this reading and ADI on the phone for synchronisation.", modifier = Modifier.weight(1f).height(52.dp)) {
+                Button(
+                    onClick = onSave,
+                    enabled = detail.draft.code != null && !saving,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = FeedCribColors.Rust)
+                ) {
+                    Text(if (saving) "Saving…" else "Save", fontWeight = FontWeight.Bold, color = Color.White)
+                }
             }
         }
     }
@@ -169,10 +188,14 @@ fun CribDetailScreen(
             title = { Text("Discard this reading?") },
             text = { Text("What you picked for ${crib.cribNumber} will not be saved.") },
             confirmButton = {
-                TextButton(onClick = { confirmDiscard = false; onDiscard() }) { Text("Discard") }
+                FeedCribTooltip("Discard this unsaved reading and ADI changes.") {
+                    TextButton(onClick = { confirmDiscard = false; onDiscard() }) { Text("Discard") }
+                }
             },
             dismissButton = {
-                TextButton(onClick = { confirmDiscard = false }) { Text("Keep editing") }
+                FeedCribTooltip("Return to the reading without losing your changes.") {
+                    TextButton(onClick = { confirmDiscard = false }) { Text("Keep editing") }
+                }
             }
         )
     }
@@ -210,7 +233,8 @@ private fun ReadingsGrid(detail: CribDetailState, nowMillis: Long) {
                 )
                 GRID_SLOTS.forEach { slot ->
                     val current = date == detail.currentDate && slot == detail.currentSlot
-                    val code = gridCode(detail.lastSlots, date, slot)
+                    val savedCode = gridCode(detail.lastSlots, date, slot)
+                    val code = if (current) detail.draft.code ?: savedCode else savedCode
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -229,7 +253,8 @@ private fun ReadingsGrid(detail: CribDetailState, nowMillis: Long) {
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp,
-                            color = if (code != null) FeedCribColors.DarkText else FeedCribColors.MutedText
+                            color = if (current && detail.draft.code != null) FeedCribColors.RustDeep
+                                else if (code != null) FeedCribColors.DarkText else FeedCribColors.MutedText
                         )
                     }
                 }
@@ -249,9 +274,10 @@ private fun CodeChips(codes: List<CribReadingCodeEntity>, selected: Int?, onSele
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 pair.forEach { code ->
                     val isSelected = code.code == selected
+                    FeedCribTooltip("Select reading code ${code.code}: ${code.label}.", modifier = Modifier.weight(1f)) {
                     Row(
                         modifier = Modifier
-                            .weight(1f)
+                            .fillMaxWidth()
                             .height(52.dp)
                             .background(
                                 if (isSelected) FeedCribColors.Rust else FeedCribColors.LightSurface,
@@ -276,6 +302,7 @@ private fun CodeChips(codes: List<CribReadingCodeEntity>, selected: Int?, onSele
                             color = if (isSelected) Color.White else FeedCribColors.DarkText
                         )
                     }
+                    }
                 }
                 if (pair.size == 1) Spacer(Modifier.weight(1f))
             }
@@ -286,7 +313,7 @@ private fun CodeChips(codes: List<CribReadingCodeEntity>, selected: Int?, onSele
 @Composable
 private fun AdiStepper(adi: Double, onAdjust: (Int) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        StepButton(onClick = { onAdjust(-1) }) {
+        StepButton(description = "Decrease ADI by the existing adjustment step.", onClick = { onAdjust(-1) }) {
             Icon(Icons.Default.Remove, contentDescription = "Decrease ADI", tint = FeedCribColors.RustDeep)
         }
         Text(
@@ -298,19 +325,21 @@ private fun AdiStepper(adi: Double, onAdjust: (Int) -> Unit) {
             fontSize = 24.sp,
             color = FeedCribColors.DarkText
         )
-        StepButton(onClick = { onAdjust(1) }) {
+        StepButton(description = "Increase ADI by the existing adjustment step.", onClick = { onAdjust(1) }) {
             Icon(Icons.Default.Add, contentDescription = "Increase ADI", tint = FeedCribColors.RustDeep)
         }
     }
 }
 
 @Composable
-private fun StepButton(onClick: () -> Unit, content: @Composable () -> Unit) {
-    IconButton(
-        onClick = onClick,
-        modifier = Modifier
-            .size(52.dp)
-            .background(FeedCribColors.LightSurface, RoundedCornerShape(11.dp))
-            .border(1.5.dp, FeedCribColors.Line, RoundedCornerShape(11.dp))
-    ) { content() }
+private fun StepButton(description: String, onClick: () -> Unit, content: @Composable () -> Unit) {
+    FeedCribTooltip(description) {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier
+                .size(52.dp)
+                .background(FeedCribColors.LightSurface, RoundedCornerShape(11.dp))
+                .border(1.5.dp, FeedCribColors.Line, RoundedCornerShape(11.dp))
+        ) { content() }
+    }
 }

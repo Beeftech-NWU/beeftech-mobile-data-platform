@@ -63,11 +63,10 @@ class FeedCribSyncWorker(
                 repository.syncPending()
             }
 
-            val remaining = pendingSyncRepository
-                .getPendingOperations()
-                .any { it.entityType == FeedCribRepository.ENTITY_TYPE }
+            val download = repository.refreshCribs()
 
-            if (remaining) Result.retry() else Result.success()
+            /* Cribs waiting for a person (conflict, refused) must not keep this job retrying forever. */
+            if (download.isFailure || repository.hasRetryableWork()) Result.retry() else Result.success()
 
         } catch (exception: Exception) {
 

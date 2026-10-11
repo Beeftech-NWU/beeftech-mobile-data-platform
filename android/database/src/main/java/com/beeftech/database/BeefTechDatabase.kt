@@ -122,6 +122,7 @@ import com.beeftech.database.dao.UserDao
         LocationEntity::class,
         PenEntity::class,
         FeedCribEntity::class,
+        com.beeftech.database.entity.FeedCribSetupEntity::class,
         CribReadingCodeEntity::class,
         FeedCribEntryEntity::class,
         RationEntity::class,
@@ -240,7 +241,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
     companion object {
 
         /** Current Room schema version. Bump here when adding a migration. */
-        const val VERSION = 47
+        const val VERSION = 48
 
         /**
          * Phase 3 Migration (Version 9 -> 10):
