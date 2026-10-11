@@ -402,9 +402,13 @@ class DatabaseMigration6To7Test {
             rawDatabase.execSQL("CREATE INDEX IF NOT EXISTS `index_farmer_addresses_farmer_id` ON `farmer_addresses` (`farmer_id`)")
 
             /*
-             * The current schema (v47) has no stub feed crib tables, so rebuild all three as they
-             * were at v6. Later migrations read feed_cribs.id and drop them again at v47.
+             * The current schema (v48) has no stub feed crib tables, so rebuild all three as they
+             * were at v6. Later migrations read feed_cribs.id and drop them again at v47. The
+             * tables added after v6 are dropped too, so the migrations create them from scratch.
              */
+            rawDatabase.execSQL("DROP TABLE IF EXISTS `feed_crib_entries`")
+            rawDatabase.execSQL("DROP TABLE IF EXISTS `crib_reading_codes`")
+            rawDatabase.execSQL("DROP TABLE IF EXISTS `feed_crib_setup`")
             rawDatabase.execSQL("DROP TABLE IF EXISTS `feed_crib_reading_values`")
             rawDatabase.execSQL("DROP TABLE IF EXISTS `feed_crib_readings`")
             rawDatabase.execSQL("DROP TABLE IF EXISTS `feed_cribs`")
