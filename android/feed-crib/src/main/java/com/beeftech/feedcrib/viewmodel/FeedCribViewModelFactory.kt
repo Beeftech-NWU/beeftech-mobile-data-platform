@@ -1,5 +1,6 @@
 package com.beeftech.feedcrib.viewmodel
 
+import android.annotation.SuppressLint
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -51,7 +52,12 @@ class FeedCribViewModelFactory(
         throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }
 
-    /** Use a recent permitted fix if available; absence is represented by null, never 0,0. */
+    /**
+     * Use a recent permitted fix if available; absence is represented by null, never 0,0. Both
+     * location permissions are checked at runtime below, and are declared by the app's manifest
+     * (merged from another module), so lint cannot see them from this library.
+     */
+    @SuppressLint("MissingPermission")
     private fun captureContext(): FeedCribCaptureContext {
         val manager = applicationContext.getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager
         val location = runCatching {

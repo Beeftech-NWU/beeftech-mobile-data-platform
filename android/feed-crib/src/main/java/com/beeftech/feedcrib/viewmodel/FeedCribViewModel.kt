@@ -324,11 +324,7 @@ class FeedCribViewModel(
         if (_syncing.value) return
         _syncing.value = true
         viewModelScope.launch {
-            fun report(ok: Boolean, message: String) {
-                _syncMessage.value = message
-                onResult(ok, message)
-            }
-            try {
+            val (ok, message) = try {
                 val outcome = repository.syncPending(retryRejected = true)
                 // Refresh even when an upload was rejected: updated codes may explain the rejection.
                 val download = repository.refreshCribs()
@@ -336,24 +332,26 @@ class FeedCribViewModel(
                 when {
                     outcome.errorMessagesByRecordGuid.isNotEmpty() -> {
                         scheduleNetworkAvailableSync()
-                        report(false, outcome.errorMessagesByRecordGuid.values.firstNotNullOfOrNull { it }
+                        false to (outcome.errorMessagesByRecordGuid.values.firstNotNullOfOrNull { it }
                             ?: "Some readings are still waiting to send.")
                     }
                     outcome.rejectedByRecordGuid.isNotEmpty() ->
-                        report(false, "The server refused a reading: ${outcome.rejectedByRecordGuid.values.first()}")
-                    download.isFailure -> report(false,
-                        "${outcome.syncedCount} readings sent. Could not refresh cribs: ${download.exceptionOrNull()?.message ?: "Download failed."}")
+                        false to "The server refused a reading: ${outcome.rejectedByRecordGuid.values.first()}"
+                    download.isFailure -> false to
+                        "${outcome.syncedCount} readings sent. Could not refresh cribs: ${download.exceptionOrNull()?.message ?: "Download failed."}"
                     outcome.syncedCount > 0 ->
-                        report(true, (if (outcome.syncedCount == 1) "1 reading sent." else "${outcome.syncedCount} readings sent.") + " Cribs refreshed.")
+                        true to ((if (outcome.syncedCount == 1) "1 reading sent." else "${outcome.syncedCount} readings sent.") + " Cribs refreshed.")
                     else ->
-                        report(true, "There are no readings waiting to send. Cribs refreshed.")
+                        true to "There are no readings waiting to send. Cribs refreshed."
                 }
             } catch (exception: Exception) {
                 scheduleNetworkAvailableSync()
-                report(false, exception.message ?: "Unable to retry the feed crib sync.")
-            } finally {
-                _syncing.value = false
+                false to (exception.message ?: "Unable to retry the feed crib sync.")
             }
+            // Clear the flag before reporting, so a caller reacting to the result sees syncing as finished.
+            _syncing.value = false
+            _syncMessage.value = message
+            onResult(ok, message)
         }
     }
 
