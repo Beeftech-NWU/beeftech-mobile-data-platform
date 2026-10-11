@@ -40,3 +40,6 @@ backend/api/data/
 # IDE / local tooling
 *.iml
 .claude/settings.local.json
+
+# IDE build output
+bin/
