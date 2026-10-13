@@ -40,6 +40,7 @@ fun TreatmentsScreen(
     disease: String = "",
     treatment: String = "",
     batchNumber: String = "",
+    medicineUsed: String = "",
     volumeUsed: String = "",
     cost: String = "",
     diseaseOptions: List<String> = emptyList(),
@@ -49,6 +50,7 @@ fun TreatmentsScreen(
     onDiseaseChange: (String) -> Unit = {},
     onTreatmentChange: (String) -> Unit = {},
     onBatchNumberChange: (String) -> Unit = {},
+    onMedicineUsedChange: (String) -> Unit = {},
     onVolumeUsedChange: (String) -> Unit = {},
     onCostChange: (String) -> Unit = {},
     onAddTreatmentClick: () -> Unit = {},
@@ -56,9 +58,10 @@ fun TreatmentsScreen(
         disease: String,
         treatment: String,
         batchNumber: String,
+        medicineUsed: String,
         volumeUsed: String,
         cost: String
-    ) -> Unit = { _, _, _, _, _ -> }
+    ) -> Unit = { _, _, _, _, _, _ -> }
 ) {
     var diseaseState by remember(disease) {
         mutableStateOf(disease)
@@ -70,6 +73,10 @@ fun TreatmentsScreen(
 
     var batchState by remember(batchNumber) {
         mutableStateOf(batchNumber)
+    }
+
+    var medicineState by remember(medicineUsed) {
+        mutableStateOf(medicineUsed)
     }
 
     var volumeState by remember(volumeUsed) {
@@ -142,7 +149,7 @@ fun TreatmentsScreen(
             )
 
             Spacer(
-                modifier = Modifier.height(12.dp)
+                modifier = Modifier.height(9.dp)
             )
 
             TraceabilityCard {
@@ -164,7 +171,7 @@ fun TreatmentsScreen(
             }
 
             Spacer(
-                modifier = Modifier.height(24.dp)
+                modifier = Modifier.height(14.dp)
             )
 
             TraceabilitySectionTitle(
@@ -172,7 +179,7 @@ fun TreatmentsScreen(
             )
 
             Spacer(
-                modifier = Modifier.height(12.dp)
+                modifier = Modifier.height(9.dp)
             )
 
             TraceabilityCard {
@@ -194,6 +201,21 @@ fun TreatmentsScreen(
                 Spacer(
                     modifier = Modifier.height(16.dp)
                 )
+
+                TraceabilityTextField(
+                    label = "Medicine Used",
+                    value = medicineState,
+                    onValueChange = {
+                        medicineState = it
+                        validationMessage = ""
+                        onMedicineUsedChange(it)
+                    },
+                    icon = Icons.Outlined.Medication,
+                    placeholder = "Medicine or product name",
+                    required = true
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
 
                 TraceabilityTextField(
                     label = "Batch Number",
@@ -244,7 +266,7 @@ fun TreatmentsScreen(
             }
 
             Spacer(
-                modifier = Modifier.height(26.dp)
+                modifier = Modifier.height(16.dp)
             )
 
             TraceabilityFormMessage(
@@ -264,6 +286,8 @@ fun TreatmentsScreen(
                             "Select or enter the disease / condition."
                         TreatmentTypeRules.match(treatmentState, treatmentOptions) == null ->
                             "Select the treatment type from the list."
+                        medicineState.trim().isBlank() ->
+                            "Enter the medicine or product used."
                         batchState.trim().isBlank() ->
                             "Select or enter the medication batch number."
                         else -> ""
@@ -274,6 +298,7 @@ fun TreatmentsScreen(
                             diseaseState.trim(),
                             TreatmentTypeRules.match(treatmentState, treatmentOptions).orEmpty(),
                             batchState.trim(),
+                            medicineState.trim(),
                             volumeState.trim(),
                             costState.trim()
                         )
@@ -290,7 +315,7 @@ fun TreatmentsScreen(
             )
 
             Spacer(
-                modifier = Modifier.height(12.dp)
+                modifier = Modifier.height(9.dp)
             )
 
             if (treatmentRecords.isEmpty()) {
@@ -315,6 +340,11 @@ fun TreatmentsScreen(
 
                         Text(
                             text = "Treatment: ${record.treatmentName}",
+                            color = BeeftechMutedText
+                        )
+
+                        Text(
+                            text = "Medicine: ${record.medicineUsed.ifBlank { "Not recorded" }}",
                             color = BeeftechMutedText
                         )
 

@@ -52,6 +52,9 @@ data class Treatment(
 
     val batchNumber: String,
 
+    @ColumnInfo(name = "medicine_used", defaultValue = "''")
+    val medicineUsed: String = "",
+
     val volumeUsed: String,
 
     /** Mirrored into animal_costs by TreatmentDao.insertWithCost. */

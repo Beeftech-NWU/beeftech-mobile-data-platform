@@ -358,7 +358,7 @@ class SmtpFarmerSalesNotificationService(
         }
 
         val summaryJson =
-            json.encodeToString(payload)
+            conciseFarmerReceiptJson(payload)
 
         val properties =
             Properties().apply {
@@ -566,7 +566,7 @@ class SmtpFarmerSalesNotificationService(
                                 appendLine()
 
                                 appendLine(
-                                    "The complete JSON registration summary is attached."
+                                    "A concise JSON registration receipt is attached."
                                 )
                             },
                             StandardCharsets.UTF_8.name()
@@ -685,20 +685,20 @@ class SmtpFarmerSalesNotificationService(
                             "Animal tag: ${payload.tagNumber}\n" +
                             "Farmer: ${payload.assignment!!.farmerOrganisationName ?: payload.assignment!!.farmerId}\n" +
                             "Site: ${payload.siteName ?: payload.siteId ?: "N/A"}\n" +
-                            "Full calf and farmer assignment JSON receipt attached."
+                            "A concise calf and farmer assignment JSON receipt is attached."
                     } else {
                         "Calf registration confirmed by BeefTech server.\n" +
                             "Animal tag: ${payload.tagNumber}\n" +
                             "Registration: ${payload.recordGuid}\n" +
                             "Farmer assignment is a separate record.\n" +
-                            "Full JSON receipt attached."
+                            "A concise JSON receipt is attached."
                     },
                     StandardCharsets.UTF_8.name()
                 )
             }
             val attachment = MimeBodyPart().apply {
                 dataHandler = DataHandler(ByteArrayDataSource(
-                    json.encodeToString(payload).toByteArray(StandardCharsets.UTF_8),
+                    conciseCalfReceiptJson(payload).toByteArray(StandardCharsets.UTF_8),
                     "application/json; charset=UTF-8"
                 ))
                 fileName = if (isAssignment) {

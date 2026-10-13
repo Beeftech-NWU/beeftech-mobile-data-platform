@@ -96,6 +96,24 @@ import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
+    // Window-only brightness override: system brightness settings are never changed.
+    private var previousWindowBrightness: Float? = null
+
+    override fun onResume() {
+        super.onResume()
+        previousWindowBrightness = window.attributes.screenBrightness
+        window.attributes = window.attributes.apply { screenBrightness = 0.90f }
+    }
+
+    override fun onPause() {
+        previousWindowBrightness?.let { previous ->
+            window.attributes = window.attributes.apply { screenBrightness = previous }
+        }
+        previousWindowBrightness = null
+        super.onPause()
+    }
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -1147,6 +1165,7 @@ class MainActivity : ComponentActivity() {
                                                     disease,
                                                     treatment,
                                                     batchNumber,
+                                                    medicineUsed,
                                                     volumeUsed,
                                                     cost,
                                                     onCompleted ->
@@ -1161,6 +1180,7 @@ class MainActivity : ComponentActivity() {
                                                             treatment,
                                                         batchNumber =
                                                             batchNumber,
+                                                        medicineUsed = medicineUsed,
                                                         volumeUsed =
                                                             volumeUsed,
                                                         costText =

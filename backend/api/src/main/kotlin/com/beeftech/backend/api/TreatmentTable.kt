@@ -10,6 +10,7 @@ object TreatmentTable : Table("treatments") {
     val disease = varchar("disease", 255)
     val treatmentName = varchar("treatment_name", 255)
     val batchNumber = varchar("batch_number", 255)
+    val medicineUsed = varchar("medicine_used", 255).default("")
     val volumeUsed = varchar("volume_used", 255)
     val cost = double("cost")
     val timestamp = long("timestamp")
