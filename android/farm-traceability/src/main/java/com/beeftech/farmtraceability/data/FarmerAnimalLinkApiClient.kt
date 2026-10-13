@@ -12,6 +12,7 @@ import io.ktor.client.call.body
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
@@ -74,7 +75,7 @@ internal class FarmerAnimalLinkApiClient(
         }
         if (response.status == HttpStatusCode.Unauthorized) {
             Log.w("FarmerAnimalLinkApi", "Upload rejected: HTTP 401 (unauthorized)")
-            tokenProvider.reportUnauthorized(null)
+            tokenProvider.reportUnauthorized(response.bodyAsText())
             return LinkUploadResult.DEFERRED
         }
         if (!response.status.isSuccess()) {

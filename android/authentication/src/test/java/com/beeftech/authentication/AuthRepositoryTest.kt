@@ -83,6 +83,33 @@ class AuthRepositoryTest {
         )
     }
 
+    @Test
+    fun `renew online session obtains JWT for the same user without clearing queue`() = runTest {
+        val engine = loginResponseEngine("u1", BCrypt.hashpw("30003", BCrypt.gensalt(10)))
+        sessionStore.saveOffline(
+            System.currentTimeMillis() + 60000,
+            com.beeftech.authentication.domain.LoggedInUser("u1", "jvdm", 3, "DEV_123")
+        )
+        val pendingSyncDao = mock(PendingSyncDao::class.java)
+        val repo = AuthRepository(createApiClient(engine), sessionStore, userDao, lockoutManager, deviceIdProvider, pendingSyncDao)
+        assertEquals(com.beeftech.authentication.data.OnlineSessionRenewal.Renewed, repo.renewOnlineSession("30003"))
+        assertEquals("test-jwt-token", sessionStore.token())
+        assertTrue(pendingSyncDao.reassignCalls().isEmpty())
+    }
+
+    @Test
+    fun `renew session refuses a different backend user and preserves offline identity`() = runTest {
+        sessionStore.saveOffline(
+            System.currentTimeMillis() + 60000,
+            com.beeftech.authentication.domain.LoggedInUser("u1", "jvdm", 3, "DEV_123")
+        )
+        val repo = AuthRepository(createApiClient(loginResponseEngine("different-user", "hash")), sessionStore,
+            userDao, lockoutManager, deviceIdProvider)
+        assertTrue(repo.renewOnlineSession("30003") is com.beeftech.authentication.data.OnlineSessionRenewal.RequiresFullLogin)
+        assertNull(sessionStore.token())
+        assertEquals("u1", sessionStore.currentUser()?.userId)
+    }
+
     /* Mockito can't match the continuation of a suspend call, so inspect the recorded calls. */
     private fun PendingSyncDao.reassignCalls() =
         mockingDetails(this).invocations

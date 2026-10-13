@@ -25,6 +25,16 @@ sealed class LoginOutcome {
     data class Unavailable(val message: String) : LoginOutcome()
 }
 
+/**
+ * PIN re-authentication never changes the logged-in user or their site's offline queue.
+ * Identity changes must use the normal full login path, which reconciles user IDs.
+ */
+sealed class OnlineSessionRenewal {
+    data object Renewed : OnlineSessionRenewal()
+    data class RequiresFullLogin(val message: String) : OnlineSessionRenewal()
+    data class Rejected(val message: String) : OnlineSessionRenewal()
+}
+
 class AuthRepository(
     private val apiClient: AuthApiClient,
     private val sessionStore: SessionStore,
@@ -240,6 +250,62 @@ class AuthRepository(
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Obtain a fresh Render JWT for exactly the account already using the device.
+     * Never silently take a token for a different role, site or backend user ID.
+     * The PIN is used for this request only; it is not persisted or logged.
+     */
+    suspend fun renewOnlineSession(pin: String): OnlineSessionRenewal {
+        val existing = sessionStore.currentUser()
+            ?: return OnlineSessionRenewal.RequiresFullLogin("Sign in to BeefTech first.")
+        if (sessionStore.isExpired()) {
+            return OnlineSessionRenewal.RequiresFullLogin("Your local session ended. Sign in online again.")
+        }
+        if (pin.isBlank()) return OnlineSessionRenewal.Rejected("Enter your PIN.")
+        if (lockoutManager.isLockedOut()) {
+            return OnlineSessionRenewal.Rejected("Too many attempts. Try again later.")
+        }
+        val reply = apiClient.login(existing.username, pin, deviceIdProvider.getDeviceId())
+        return when (reply) {
+            is LoginApiResult.Success -> {
+                val online = reply.response.user
+                if (online.userId != existing.userId ||
+                    !online.username.equals(existing.username, ignoreCase = true) ||
+                    online.siteId != existing.siteId ||
+                    online.role != existing.role
+                ) {
+                    OnlineSessionRenewal.RequiresFullLogin(
+                        "Your server account or site has changed. Sign out and sign in online as the same F Manager to reconcile safely."
+                    )
+                } else {
+                    val expiry = parseIsoToMillis(reply.response.expiresAt)
+                    if (expiry <= System.currentTimeMillis()) {
+                        OnlineSessionRenewal.Rejected("The server issued an expired session. Try signing in online again.")
+                    } else {
+                        sessionStore.save(
+                            token = reply.response.token,
+                            expiresAt = expiry,
+                            user = existing.copy(farmCode = online.farmCode ?: existing.farmCode)
+                        )
+                        lockoutManager.resetAttempts()
+                        OnlineSessionRenewal.Renewed
+                    }
+                }
+            }
+            is LoginApiResult.Unauthorized -> {
+                lockoutManager.recordFailedAttempt()
+                OnlineSessionRenewal.Rejected("Incorrect PIN. Check your F Manager credentials.")
+            }
+            is LoginApiResult.Locked -> OnlineSessionRenewal.Rejected("Account temporarily locked. Try again later.")
+            is LoginApiResult.WrongDevice -> OnlineSessionRenewal.Rejected("This device belongs to another account.")
+            is LoginApiResult.DeviceRevoked -> OnlineSessionRenewal.Rejected("Device access revoked. Contact your administrator.")
+            is LoginApiResult.NoNetwork -> OnlineSessionRenewal.Rejected("Cannot reach Render. Connect to the internet and retry.")
+            is LoginApiResult.Error -> OnlineSessionRenewal.Rejected(
+                reply.message.ifBlank { "Online authentication failed." }
+            )
         }
     }
 

@@ -19,6 +19,10 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -51,6 +55,7 @@ import com.beeftech.database.repository.SyncPolicyStore
 import com.beeftech.authentication.data.AuthApiClient
 import com.beeftech.authentication.data.DeviceInfo
 import com.beeftech.authentication.data.AuthRepository
+import com.beeftech.authentication.data.OnlineSessionRenewal
 import com.beeftech.authentication.data.EncryptedDeviceIdProvider
 import com.beeftech.authentication.data.EncryptedSessionStore
 import com.beeftech.authentication.viewmodel.LoginViewModelFactory
@@ -706,9 +711,25 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
 
+                            // V8: re-authentication is an overlay; the Sync Status header
+                            // and all 11 Farm Traceability menu destinations are unchanged.
+                            var showSyncRenewDialog by remember(loggedInUser.userId) { mutableStateOf(false) }
+                            var syncRenewPin by remember(loggedInUser.userId) { mutableStateOf("") }
+                            var syncRenewBusy by remember(loggedInUser.userId) { mutableStateOf(false) }
+                            var syncRenewError by remember(loggedInUser.userId) { mutableStateOf("") }
+
                             val retrySyncAction: () -> Unit = {
 
                                                 lifecycleScope.launch {
+                                                    if (!isOnline) {
+                                                        showUiMessage("Offline: your records remain saved. Reconnect to synchronize.")
+                                                        return@launch
+                                                    }
+                                                    if (sessionStore.token().isNullOrBlank()) {
+                                                        syncRenewError = ""
+                                                        showSyncRenewDialog = true
+                                                        return@launch
+                                                    }
 
                                                     val pendingOperations =
                                                         withContext(Dispatchers.IO) {
@@ -860,6 +881,81 @@ class MainActivity : ComponentActivity() {
                                                 }
                                             }
 
+                            if (showSyncRenewDialog) {
+                                AlertDialog(
+                                    onDismissRequest = {
+                                        if (!syncRenewBusy) {
+                                            syncRenewPin = ""
+                                            syncRenewError = ""
+                                            showSyncRenewDialog = false
+                                        }
+                                    },
+                                    title = { Text("Renew online session") },
+                                    text = {
+                                        androidx.compose.foundation.layout.Column {
+                                            Text("Your offline records are safe. Enter the PIN for ${loggedInUser.username} to renew this same account's Render token.")
+                                            OutlinedTextField(
+                                                value = syncRenewPin,
+                                                onValueChange = { syncRenewPin = it },
+                                                enabled = !syncRenewBusy,
+                                                label = { Text("Account PIN") },
+                                                singleLine = true,
+                                                visualTransformation = PasswordVisualTransformation(),
+                                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword)
+                                            )
+                                            if (syncRenewError.isNotBlank()) Text(syncRenewError)
+                                        }
+                                    },
+                                    confirmButton = {
+                                        TextButton(
+                                            enabled = !syncRenewBusy && syncRenewPin.isNotBlank(),
+                                            onClick = {
+                                                val pinForRequest = syncRenewPin
+                                                syncRenewPin = ""
+                                                syncRenewBusy = true
+                                                lifecycleScope.launch {
+                                                    val result = authRepository.renewOnlineSession(pinForRequest)
+                                                    syncRenewBusy = false
+                                                    when (result) {
+                                                        OnlineSessionRenewal.Renewed -> {
+                                                            syncRenewError = ""
+                                                            showSyncRenewDialog = false
+                                                            withContext(Dispatchers.IO) {
+                                                                pendingSyncRepository.getAllPendingOperations()
+                                                                    .filter { it.entityType == "FARMER_REGISTRATION" }
+                                                                    .forEach { pendingSyncRepository.resetRetryCount(it.id) }
+                                                            }
+                                                            SyncAllDispatcher.dispatch(
+                                                                applicationContext,
+                                                                SyncRunTrigger.MANUAL,
+                                                                ExistingWorkPolicy.REPLACE
+                                                            )
+                                                            showUiMessage("Online session renewed for ${loggedInUser.username}. Synchronization started.")
+                                                        }
+                                                        is OnlineSessionRenewal.RequiresFullLogin -> {
+                                                            syncRenewError = result.message
+                                                        }
+                                                        is OnlineSessionRenewal.Rejected -> {
+                                                            syncRenewError = result.message
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        ) { Text(if (syncRenewBusy) "Checking…" else "Renew & sync") }
+                                    },
+                                    dismissButton = {
+                                        TextButton(
+                                            enabled = !syncRenewBusy,
+                                            onClick = {
+                                                syncRenewPin = ""
+                                                syncRenewError = ""
+                                                showSyncRenewDialog = false
+                                            }
+                                        ) { Text("Cancel") }
+                                    }
+                                )
+                            }
+
                             Scaffold(
                                 modifier =
                                     Modifier.fillMaxSize(),
@@ -953,6 +1049,15 @@ class MainActivity : ComponentActivity() {
                                             canSyncNow = isOnline,
                                             onSyncNow = {
                                                 lifecycleScope.launch {
+                                                    if (!isOnline) {
+                                                        showUiMessage("Offline: your records remain saved.")
+                                                        return@launch
+                                                    }
+                                                    if (sessionStore.token().isNullOrBlank()) {
+                                                        syncRenewError = ""
+                                                        showSyncRenewDialog = true
+                                                        return@launch
+                                                    }
                                                     /*
                                                      * Sync now is an explicit request, so farmer
                                                      * registrations that hit the automatic retry cap
