@@ -26,8 +26,9 @@ sealed class LoginOutcome {
 }
 
 /**
- * PIN re-authentication never changes the logged-in user or their site's offline queue.
- * Identity changes must use the normal full login path, which reconciles user IDs.
+ * A fresh PIN-authenticated manager session may reconcile a changed backend-generated user ID
+ * only when the same username, site, role and bound device are verified. It never changes
+ * a farmer's site or role and never mixes pending work from different accounts.
  */
 sealed class OnlineSessionRenewal {
     data object Renewed : OnlineSessionRenewal()
@@ -254,9 +255,9 @@ class AuthRepository(
     }
 
     /**
-     * Obtain a fresh Render JWT for exactly the account already using the device.
-     * Never silently take a token for a different role, site or backend user ID.
-     * The PIN is used for this request only; it is not persisted or logged.
+     * Renew an authenticated manager session without logging out or discarding offline work.
+     * A re-created backend may generate a different user ID for the SAME account. Only
+     * that ID difference can be reconciled automatically; site/role changes are blocked.
      */
     suspend fun renewOnlineSession(pin: String): OnlineSessionRenewal {
         val existing = sessionStore.currentUser()
@@ -268,30 +269,88 @@ class AuthRepository(
         if (lockoutManager.isLockedOut()) {
             return OnlineSessionRenewal.Rejected("Too many attempts. Try again later.")
         }
-        val reply = apiClient.login(existing.username, pin, deviceIdProvider.getDeviceId())
+        val deviceId = deviceIdProvider.getDeviceId()
+        if (existing.deviceId != deviceId) {
+            return OnlineSessionRenewal.RequiresFullLogin(
+                "The device identity changed. Sign in online to verify this device."
+            )
+        }
+        val reply = apiClient.login(existing.username, pin, deviceId)
         return when (reply) {
             is LoginApiResult.Success -> {
                 val online = reply.response.user
-                if (online.userId != existing.userId ||
-                    !online.username.equals(existing.username, ignoreCase = true) ||
-                    online.siteId != existing.siteId ||
-                    online.role != existing.role
-                ) {
-                    OnlineSessionRenewal.RequiresFullLogin(
-                        "Your server account or site has changed. Sign out and sign in online as the same F Manager to reconcile safely."
-                    )
-                } else {
-                    val expiry = parseIsoToMillis(reply.response.expiresAt)
-                    if (expiry <= System.currentTimeMillis()) {
-                        OnlineSessionRenewal.Rejected("The server issued an expired session. Try signing in online again.")
-                    } else {
-                        sessionStore.save(
-                            token = reply.response.token,
-                            expiresAt = expiry,
-                            user = existing.copy(farmCode = online.farmCode ?: existing.farmCode)
+                // A valid PIN never authorizes shifting another user's offline data to this user.
+                when {
+                    !online.username.equals(existing.username, ignoreCase = true) ->
+                        OnlineSessionRenewal.RequiresFullLogin(
+                            "The authenticated username differs from the offline account. Sign in online."
                         )
-                        lockoutManager.resetAttempts()
-                        OnlineSessionRenewal.Renewed
+                    online.role != existing.role ->
+                        OnlineSessionRenewal.RequiresFullLogin(
+                            "The server role differs from the offline account. Ask the administrator to verify access."
+                        )
+                    // Site-free managers are not safe to reconcile. Admin continues to use
+                    // normal login when a backend-generated user ID changes.
+                    online.siteId != existing.siteId ->
+                        OnlineSessionRenewal.RequiresFullLogin(
+                            "The assigned farm site differs from the offline account. Ask the administrator to verify the site before synchronizing."
+                        )
+                    online.deviceAssignedId != null && online.deviceAssignedId != deviceId ->
+                        OnlineSessionRenewal.RequiresFullLogin(
+                            "The server associates this account with a different device. Sign in online."
+                        )
+                    else -> {
+                        val expiry = parseIsoToMillis(reply.response.expiresAt)
+                        if (expiry <= System.currentTimeMillis()) {
+                            OnlineSessionRenewal.Rejected(
+                                "The server issued an expired session. Try signing in online again."
+                            )
+                        } else {
+                            val newUser = existing.copy(
+                                userId = online.userId,
+                                farmCode = online.farmCode ?: existing.farmCode
+                            )
+                            if (online.userId != existing.userId) {
+                                // This is a *same-site/role* reconciliation, never a cross-site transfer.
+                                val cached = userDao.getUserByUsername(existing.username)
+                                val other = userDao.getUserById(online.userId)
+                                if (existing.siteId.isNullOrBlank() ||
+                                    cached == null || cached.userId != existing.userId ||
+                                    cached.siteId != existing.siteId ||
+                                    cached.role?.toInt() != existing.role ||
+                                    (other != null && !other.username.equals(existing.username, ignoreCase = true)) ||
+                                    pendingSyncDao == null
+                                ) {
+                                    return OnlineSessionRenewal.RequiresFullLogin(
+                                        "Local account identity cannot be safely reconciled. Sign in online as the same manager."
+                                    )
+                                }
+                                // The normal online-login path already uses this verified-ID
+                                // queue migration. Reuse its semantics, then refresh the UI.
+                                pendingSyncDao.reassignUserOperations(existing.userId, online.userId)
+                                userDao.insertUser(
+                                    User(
+                                        userId = online.userId,
+                                        username = online.username,
+                                        pinHash = online.pinHash,
+                                        failedPinAttempts = 0,
+                                        role = online.role?.toLong(),
+                                        deviceAssignedId = online.deviceAssignedId ?: deviceId,
+                                        siteId = online.siteId,
+                                        deviceLastSync = cached.deviceLastSync,
+                                        failedSyncAttempts = cached.failedSyncAttempts
+                                    )
+                                )
+                            }
+                            sessionStore.save(reply.response.token, expiry, newUser)
+                            if (online.userId != existing.userId) {
+                                // AuthGate must not keep showing the old user ID after the
+                                // pending queue has moved to the verified server user ID.
+                                sessionStore.announceIdentityReconciled()
+                            }
+                            lockoutManager.resetAttempts()
+                            OnlineSessionRenewal.Renewed
+                        }
                     }
                 }
             }

@@ -922,7 +922,8 @@ class MainActivity : ComponentActivity() {
                                                             showSyncRenewDialog = false
                                                             withContext(Dispatchers.IO) {
                                                                 pendingSyncRepository.getAllPendingOperations()
-                                                                    .filter { it.entityType == "FARMER_REGISTRATION" }
+                                                                    .filter { it.entityType == "FARMER_REGISTRATION" &&
+                                                                        it.userId == sessionStore.currentUser()?.userId }
                                                                     .forEach { pendingSyncRepository.resetRetryCount(it.id) }
                                                             }
                                                             SyncAllDispatcher.dispatch(
