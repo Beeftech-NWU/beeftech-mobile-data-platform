@@ -522,24 +522,6 @@ fun AddressAndLocationContent(
                 )
 
                 FarmerIdentifierTextField(
-                    label = "Herd Capacity",
-                    value = formData.herdCapacity,
-                    onValueChange = { entered ->
-                        val capacity = entered.toIntOrNull()
-                        if (capacity == null || capacity <= AddressAndLocationLookups.MAX_HERD_CAPACITY) {
-                            onFormDataChange(formData.copy(herdCapacity = entered))
-                        }
-                    },
-                    placeholder = "Number of animals the farm can hold",
-                    helperText = "Optional. Whole number from 0 to 100000.",
-                    maxLength = 6
-                )
-
-                Spacer(
-                    modifier = Modifier.height(16.dp)
-                )
-
-                FarmerIdentifierTextField(
                     label = "Farm Size (ha)",
                     value = formData.farmSizeHa,
                     onValueChange = { entered ->
@@ -552,38 +534,6 @@ fun AddressAndLocationContent(
                     helperText = "Optional. Hectares, up to 2 decimals.",
                     maxLength = 10,
                     allowDecimal = true
-                )
-
-                Spacer(
-                    modifier = Modifier.height(16.dp)
-                )
-
-                FarmerIdentifierTextField(
-                    label = "Head Count",
-                    value = formData.headCount,
-                    onValueChange = { entered ->
-                        val count = entered.toIntOrNull()
-                        if (count == null || count <= AddressAndLocationLookups.MAX_HERD_CAPACITY) {
-                            onFormDataChange(formData.copy(headCount = entered))
-                        }
-                    },
-                    placeholder = "Animals on the farm today",
-                    helperText = "Optional. Whole number from 0 to 100000.",
-                    maxLength = 6
-                )
-
-                Spacer(
-                    modifier = Modifier.height(16.dp)
-                )
-
-                FarmerTextField(
-                    label = "Primary Breed",
-                    value = formData.primaryBreed,
-                    onValueChange = {
-                        onFormDataChange(formData.copy(primaryBreed = it))
-                    },
-                    placeholder = "e.g. Bonsmara",
-                    supportingText = "Optional"
                 )
 
                 Spacer(

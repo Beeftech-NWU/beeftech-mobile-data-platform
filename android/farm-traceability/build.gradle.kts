@@ -41,6 +41,7 @@ dependencies {
 
     // BeefTech encrypted database
     implementation(project(":android:database"))
+    implementation("androidx.room:room-ktx:2.8.4")
     implementation(project(":android:farmer-registration"))
     implementation(project(":android:calf-registration"))
     implementation(project(":android:tag-scanner"))

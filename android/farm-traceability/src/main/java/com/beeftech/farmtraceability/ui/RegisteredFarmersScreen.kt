@@ -17,6 +17,11 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Tag
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -58,6 +63,19 @@ fun RegisteredFarmersScreen(
             )
 
             Spacer(modifier = Modifier.height(12.dp))
+            var search by remember { mutableStateOf("") }
+            OutlinedTextField(
+                value = search,
+                onValueChange = { search = it },
+                label = { Text("Search farmer or client code") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            val visibleFarmers = farmers.filter {
+                it.organisation_name.orEmpty().contains(search.trim(), ignoreCase = true) ||
+                    it.client_code.orEmpty().contains(search.trim(), ignoreCase = true)
+            }
 
             when {
                 isLoading -> {
@@ -80,18 +98,19 @@ fun RegisteredFarmersScreen(
                     }
                 }
 
-                farmers.isEmpty() -> {
+                visibleFarmers.isEmpty() -> {
                     TraceabilityCard {
                         TraceabilityInfoRow(
                             icon = Icons.Outlined.Person,
                             title = "No registered farmers",
-                            subtitle = "No farmer records are available yet."
+                            subtitle = if (search.isBlank()) "No farmer records are available yet."
+                                else "No farmers match your search."
                         )
                     }
                 }
 
                 else -> {
-                    farmers
+                    visibleFarmers
                         .sortedWith(
                             compareBy<FarmerEntity> {
                                 it.organisation_name.orEmpty()

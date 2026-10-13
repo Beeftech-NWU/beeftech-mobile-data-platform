@@ -39,6 +39,22 @@ interface FarmerDao {
     )
     suspend fun getAllFarmers(): List<FarmerEntity>
 
+    /** Update only herd overview fields; the farmer identity and site remain unchanged. */
+    @Query("""
+        UPDATE farmers
+        SET head_count = :headCount,
+            herd_capacity = :herdCapacity,
+            primary_breed = :primaryBreed,
+            sync_status = 'PENDING'
+        WHERE farmer_id = :farmerId
+    """)
+    suspend fun updateHerdOverview(
+        farmerId: String,
+        headCount: Int?,
+        herdCapacity: Int?,
+        primaryBreed: String?
+    ): Int
+
     /* Newest first. Farmers have no created time, so insertion order (rowid) stands in for it. */
     @Query(
         "SELECT * FROM farmers ORDER BY rowid DESC"
