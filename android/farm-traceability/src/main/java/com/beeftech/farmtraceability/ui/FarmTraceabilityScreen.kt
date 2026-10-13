@@ -184,16 +184,36 @@ fun FarmTraceabilityScreen(
             // Keep the warning and actionable retry here for offline work.
             // ---------------------------------------------------------
             TraceabilityCard {
+                // Status comes from the existing sync ViewModel, not an optimistic UI guess.
+                val failed = syncStatus.contains("fail", ignoreCase = true) ||
+                    syncStatus.contains("error", ignoreCase = true)
+                val pending = (pendingRecordCount ?: 0) > 0
+                // Never infer server acknowledgement from an empty local queue.
+                val acknowledged = syncStatus.trim().equals("Synced", ignoreCase = true) &&
+                    pendingRecordCount == 0
+                val label = when {
+                    failed -> "Sync: Failed"
+                    pending -> "Sync: Pending"
+                    acknowledged -> "Sync: Synced"
+                    pendingRecordCount == 0 -> "Sync queue clear"
+                    else -> "Sync status"
+                }
+                val detail = when {
+                    failed -> syncStatus
+                    pending -> "${pendingRecordCount} record(s) waiting to sync"
+                    acknowledged -> "Server synchronization confirmed"
+                    pendingRecordCount == 0 -> "No pending local records. Check dashboard for server confirmation"
+                    syncStatus.isNotBlank() -> syncStatus
+                    else -> "Open the dashboard to check synchronization"
+                }
                 TraceabilityInfoRow(
                     icon = Icons.Outlined.CloudSync,
-                    title = "Sync overview",
-                    subtitle = pendingRecordCount?.let { count ->
-                        if (count == 0) "All queued records sent"
-                        else "$count record${if (count == 1) "" else "s"} waiting to sync"
-                    } ?: "Sync count unavailable — view dashboard for details"
+                    title = label,
+                    subtitle = detail
                 )
 
-                if (retrySyncAvailable && (pendingRecordCount ?: 0) > 0) {
+                // A warning already contains the single contextual retry action.
+                if (retrySyncAvailable && syncWarningLevel !in 1..3 && pending) {
                     Spacer(modifier = Modifier.height(12.dp))
                     TraceabilitySecondaryButton(
                         text = "Retry Sync",
@@ -203,33 +223,19 @@ fun FarmTraceabilityScreen(
                 }
             }
 
-            // ---------------------------------------------------------
-            // TRACEABILITY OPTIONS
-            // ---------------------------------------------------------
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            TraceabilitySectionTitle(
-                title = "Traceability Options"
+            // Group all 11 existing actions without altering their callbacks or destinations.
+            Spacer(modifier = Modifier.height(16.dp))
+            TraceabilityMenuGroupHeading(
+                title = "Farmer & Animal Management",
+                description = "Profiles, assignments and animal lookup"
             )
-
             Spacer(modifier = Modifier.height(8.dp))
-
-            TraceabilityMenuCard(
-                title = "Assign Animal to Farmer",
-                subtitle = "Choose a farmer, then select a registered animal",
-                icon = Icons.AutoMirrored.Outlined.Assignment,
-                onClick = onAssignAnimalClick
-            )
-
-            MenuSpacer()
             TraceabilityMenuCard(
                 title = "Farmer & Farm Profile",
-                subtitle = "View farmer, farm and location details",
+                subtitle = "View farmer details and herd overview",
                 icon = Icons.Outlined.HomeWork,
                 onClick = onFarmerFarmProfileClick
             )
-
             MenuSpacer()
             TraceabilityMenuCard(
                 title = "Farmer Registration",
@@ -237,81 +243,102 @@ fun FarmTraceabilityScreen(
                 icon = Icons.Outlined.Description,
                 onClick = onFarmerRegistrationClick
             )
-
             MenuSpacer()
-
+            TraceabilityMenuCard(
+                title = "Assign Animal to Farmer",
+                subtitle = "Assign an existing registered calf",
+                icon = Icons.AutoMirrored.Outlined.Assignment,
+                onClick = onAssignAnimalClick
+            )
+            MenuSpacer()
             TraceabilityMenuCard(
                 title = "Find Animal",
-                subtitle = "Find an animal using its tag reference",
+                subtitle = "Search using an animal tag reference",
                 icon = Icons.Outlined.Search,
                 onClick = onFindAnimalClick
             )
-
             MenuSpacer()
-
             TraceabilityMenuCard(
                 title = "Animal Record",
-                subtitle = "View the complete animal record",
+                subtitle = "Animal profile and linked records",
                 icon = Icons.Outlined.Description,
                 onClick = onAnimalRecordClick
             )
 
-            MenuSpacer()
-
+            Spacer(modifier = Modifier.height(16.dp))
+            TraceabilityMenuGroupHeading(
+                title = "Farm Operations",
+                description = "Movements, health, feeding and suppliers"
+            )
+            Spacer(modifier = Modifier.height(8.dp))
             TraceabilityMenuCard(
                 title = "Animal Movement",
-                subtitle = "Capture and review livestock movement records",
+                subtitle = "Capture and review livestock movements",
                 icon = Icons.Outlined.Route,
                 onClick = onAnimalMovementClick
             )
-
             MenuSpacer()
-
+            TraceabilityMenuCard(
+                title = "Location & Feed",
+                subtitle = "Locations, destinations and feed",
+                icon = Icons.Outlined.LocationOn,
+                onClick = onLocationFeedClick
+            )
+            MenuSpacer()
+            TraceabilityMenuCard(
+                title = "Treatments",
+                subtitle = "Health, medicine and treatment history",
+                icon = Icons.Outlined.Medication,
+                onClick = onTreatmentsClick
+            )
+            MenuSpacer()
             TraceabilityMenuCard(
                 title = "Supplier",
-                subtitle = "View and capture origin and purchase information",
+                subtitle = "Origin and purchase information",
                 icon = Icons.Outlined.LocalShipping,
                 onClick = onSupplierClick
             )
 
-            MenuSpacer()
-
-            TraceabilityMenuCard(
-                title = "Location & Feed",
-                subtitle = "View and capture destination and ration information",
-                icon = Icons.Outlined.LocationOn,
-                onClick = onLocationFeedClick
+            Spacer(modifier = Modifier.height(16.dp))
+            TraceabilityMenuGroupHeading(
+                title = "Records & Costs",
+                description = "Financial and mortality records"
             )
-
-            MenuSpacer()
-
-            TraceabilityMenuCard(
-                title = "Treatments",
-                subtitle = "View and capture treatment records",
-                icon = Icons.Outlined.Medication,
-                onClick = onTreatmentsClick
-            )
-
-            MenuSpacer()
-
+            Spacer(modifier = Modifier.height(8.dp))
             TraceabilityMenuCard(
                 title = "Costs",
-                subtitle = "View direct and indirect animal costs",
+                subtitle = "Direct and indirect animal costs",
                 icon = Icons.Outlined.Payments,
                 onClick = onCostSummaryClick
             )
-
             MenuSpacer()
-
             TraceabilityMenuCard(
                 title = "Mortality Records",
-                subtitle = "Capture and review livestock mortality records",
+                subtitle = "Capture and review mortality events",
                 icon = Icons.AutoMirrored.Outlined.Assignment,
                 onClick = onMortalityClick
             )
 
             Spacer(modifier = Modifier.height(12.dp))
         }
+    }
+}
+
+@Composable
+private fun TraceabilityMenuGroupHeading(title: String, description: String) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = title,
+            color = BeeftechPrimaryDeep,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = description,
+            color = BeeftechMutedText,
+            fontSize = 11.sp,
+            lineHeight = 15.sp
+        )
     }
 }
 

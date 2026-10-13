@@ -68,6 +68,7 @@ fun AnimalMovementScreen(
     foundMovementDate: String = "",
     foundResponsibleWorker: String = "",
     movementRecords: List<AnimalMovementEntity> = emptyList(),
+    saveFeedback: String = "",
     onBackClick: () -> Unit = {},
     onAnimalReferenceChange: (String) -> Unit = {},
     onMovementInformationChange: (String) -> Unit = {},
@@ -251,7 +252,7 @@ fun AnimalMovementScreen(
             }
 
             TraceabilityFormMessage(
-                message = validationMessage
+                message = validationMessage.ifBlank { saveFeedback }
             )
 
             if (validationMessage.isNotBlank()) {

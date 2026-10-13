@@ -242,6 +242,10 @@ fun FarmTraceabilityFlow(
         mutableStateOf("")
     }
 
+    // Save feedback is tied to the selected animal, not to a different farmer or calf.
+    var saveFeedback by remember(selectedAnimalReference) { mutableStateOf("") }
+    var recordFeedback by remember(selectedAnimalReference) { mutableStateOf("") }
+
     // Human-readable tag for display only.
     var selectedTagNumber by remember {
         mutableStateOf("")
@@ -277,6 +281,9 @@ fun FarmTraceabilityFlow(
     fun navigateTo(
         screen: TraceabilityScreen
     ) {
+        if (screen == TraceabilityScreen.TREATMENTS || screen == TraceabilityScreen.ANIMAL_MOVEMENT) {
+            saveFeedback = ""
+        }
         navigationHistory.add(
             currentScreen
         )
@@ -1712,6 +1719,7 @@ fun FarmTraceabilityFlow(
 
 
             AnimalRecordScreen(
+                recordFeedback = recordFeedback,
                 tagNumber =
                     selectedTagNumber,
 
@@ -2138,6 +2146,7 @@ fun FarmTraceabilityFlow(
 
 
             AnimalMovementScreen(
+                saveFeedback = saveFeedback,
                 animalReference =
                     selectedTagNumber
                         .ifBlank {
@@ -2159,6 +2168,7 @@ fun FarmTraceabilityFlow(
                         responsibleWorker,
                         movementDateText ->
 
+                    saveFeedback = ""
                     val parsedMovementDate =
                         parseTraceabilityDate(
                             movementDateText
@@ -2175,15 +2185,16 @@ fun FarmTraceabilityFlow(
                             parsedMovementDate
                         ) {
                                 success,
-                                _ ->
-
-                            if (
-                                success
-                            ) {
-
+                                message ->
+                            if (success) {
+                                recordFeedback = "Movement saved. Check Sync Status for server confirmation."
                                 returnToAnimalRecordAfterSave()
+                            } else {
+                                saveFeedback = message.ifBlank { "Movement could not be saved. Please try again." }
                             }
                         }
+                    } else {
+                        saveFeedback = "Movement date is invalid. Please choose a valid date."
                     }
                 }
             )
@@ -2730,6 +2741,7 @@ fun FarmTraceabilityFlow(
             }
 
             TreatmentsScreen(
+                saveFeedback = saveFeedback,
                 animalReference =
                     selectedTagNumber
                         .ifBlank {
@@ -2757,6 +2769,7 @@ fun FarmTraceabilityFlow(
                         volumeUsed,
                         cost ->
 
+                    saveFeedback = ""
                     onSaveTreatment(
                         selectedAnimalReference,
                         disease,
@@ -2767,12 +2780,12 @@ fun FarmTraceabilityFlow(
                         cost
                     ) {
                             success,
-                            _ ->
-
-                        if (
-                            success
-                        ) {
+                            message ->
+                        if (success) {
+                            recordFeedback = "Treatment saved. Check Sync Status for server confirmation."
                             returnToAnimalRecordAfterSave()
+                        } else {
+                            saveFeedback = message.ifBlank { "Treatment could not be saved. Please try again." }
                         }
                     }
                 }

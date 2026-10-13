@@ -46,6 +46,7 @@ fun TreatmentsScreen(
     diseaseOptions: List<String> = emptyList(),
     treatmentOptions: List<String> = emptyList(),
     treatmentRecords: List<Treatment> = emptyList(),
+    saveFeedback: String = "",
     onBackClick: () -> Unit = {},
     onDiseaseChange: (String) -> Unit = {},
     onTreatmentChange: (String) -> Unit = {},
@@ -270,7 +271,7 @@ fun TreatmentsScreen(
             )
 
             TraceabilityFormMessage(
-                message = validationMessage
+                message = validationMessage.ifBlank { saveFeedback }
             )
 
             if (validationMessage.isNotBlank()) {
