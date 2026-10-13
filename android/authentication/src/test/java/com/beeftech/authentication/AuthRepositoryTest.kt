@@ -83,6 +83,125 @@ class AuthRepositoryTest {
         )
     }
 
+    @Test
+    fun `renew online session obtains JWT for the same user without clearing queue`() = runTest {
+        val engine = loginResponseEngine("u1", BCrypt.hashpw("30003", BCrypt.gensalt(10)))
+        sessionStore.saveOffline(
+            System.currentTimeMillis() + 60000,
+            com.beeftech.authentication.domain.LoggedInUser("u1", "jvdm", 3, "DEV_123")
+        )
+        val pendingSyncDao = mock(PendingSyncDao::class.java)
+        val repo = AuthRepository(createApiClient(engine), sessionStore, userDao, lockoutManager, deviceIdProvider, pendingSyncDao)
+        assertEquals(com.beeftech.authentication.data.OnlineSessionRenewal.Renewed, repo.renewOnlineSession("30003"))
+        assertEquals("test-jwt-token", sessionStore.token())
+        assertTrue(pendingSyncDao.reassignCalls().isEmpty())
+    }
+
+    @Test
+    fun `renew session refuses a different backend user and preserves offline identity`() = runTest {
+        sessionStore.saveOffline(
+            System.currentTimeMillis() + 60000,
+            com.beeftech.authentication.domain.LoggedInUser("u1", "jvdm", 3, "DEV_123")
+        )
+        val repo = AuthRepository(createApiClient(loginResponseEngine("different-user", "hash")), sessionStore,
+            userDao, lockoutManager, deviceIdProvider)
+        assertTrue(repo.renewOnlineSession("30003") is com.beeftech.authentication.data.OnlineSessionRenewal.RequiresFullLogin)
+        assertNull(sessionStore.token())
+        assertEquals("u1", sessionStore.currentUser()?.userId)
+    }
+
+    private fun managerResponseEngine(userId: String, siteId: String, role: Int = 2) = MockEngine {
+        respond(
+            content = """
+                {
+                    "success": true,
+                    "message": "Login successful",
+                    "data": {
+                        "token": "test-jwt-token",
+                        "expires_at": "2026-12-31T23:59:59Z",
+                        "user": {
+                            "user_id": "$userId",
+                            "username": "fmanager",
+                            "role": $role,
+                            "site_id": "$siteId",
+                            "pin_hash": "hash",
+                            "device_assigned_id": "DEV_123"
+                        }
+                    }
+                }
+            """.trimIndent(),
+            status = HttpStatusCode.OK,
+            headers = headersOf(HttpHeaders.ContentType, "application/json")
+        )
+    }
+
+    @Test
+    fun `renew changed user id for same manager and site reassigns queue and token`() = runTest {
+        val pending = mock(PendingSyncDao::class.java)
+        userDao.insertUser(User(userId = "old-id", username = "fmanager", role = 2, siteId = "site-a"))
+        sessionStore.saveOffline(
+            System.currentTimeMillis() + 60000,
+            com.beeftech.authentication.domain.LoggedInUser(
+                "old-id", "fmanager", 2, "DEV_123", siteId = "site-a"
+            )
+        )
+        val repository = AuthRepository(
+            createApiClient(managerResponseEngine("new-id", "site-a")),
+            sessionStore, userDao, lockoutManager, deviceIdProvider, pending
+        )
+        assertEquals(com.beeftech.authentication.data.OnlineSessionRenewal.Renewed,
+            repository.renewOnlineSession("20002"))
+        assertEquals(listOf("old-id" to "new-id"), pending.reassignCalls())
+        assertEquals("new-id", sessionStore.currentUser()?.userId)
+        assertEquals("test-jwt-token", sessionStore.token())
+        assertEquals("new-id", userDao.getUserById("new-id")?.userId)
+    }
+
+    @Test
+    fun `renew refuses changed site without moving queued records`() = runTest {
+        val pending = mock(PendingSyncDao::class.java)
+        userDao.insertUser(User(userId = "old-id", username = "fmanager", role = 2, siteId = "site-a"))
+        sessionStore.saveOffline(
+            System.currentTimeMillis() + 60000,
+            com.beeftech.authentication.domain.LoggedInUser(
+                "old-id", "fmanager", 2, "DEV_123", siteId = "site-a"
+            )
+        )
+        val repository = AuthRepository(
+            createApiClient(managerResponseEngine("new-id", "site-b")),
+            sessionStore, userDao, lockoutManager, deviceIdProvider, pending
+        )
+        val result = repository.renewOnlineSession("20002")
+        assertTrue(result is com.beeftech.authentication.data.OnlineSessionRenewal.RequiresFullLogin)
+        assertTrue((result as com.beeftech.authentication.data.OnlineSessionRenewal.RequiresFullLogin)
+            .message.contains("farm site"))
+        assertTrue(pending.reassignCalls().isEmpty())
+        assertEquals("old-id", sessionStore.currentUser()?.userId)
+        assertNull(sessionStore.token())
+    }
+
+    @Test
+    fun `renew refuses changed role without moving queued records`() = runTest {
+        val pending = mock(PendingSyncDao::class.java)
+        userDao.insertUser(User(userId = "old-id", username = "fmanager", role = 2, siteId = "site-a"))
+        sessionStore.saveOffline(
+            System.currentTimeMillis() + 60000,
+            com.beeftech.authentication.domain.LoggedInUser(
+                "old-id", "fmanager", 2, "DEV_123", siteId = "site-a"
+            )
+        )
+        val repository = AuthRepository(
+            createApiClient(managerResponseEngine("new-id", "site-a", role = 1)),
+            sessionStore, userDao, lockoutManager, deviceIdProvider, pending
+        )
+        val result = repository.renewOnlineSession("20002")
+        assertTrue(result is com.beeftech.authentication.data.OnlineSessionRenewal.RequiresFullLogin)
+        assertTrue((result as com.beeftech.authentication.data.OnlineSessionRenewal.RequiresFullLogin)
+            .message.contains("role"))
+        assertTrue(pending.reassignCalls().isEmpty())
+        assertNull(sessionStore.token())
+    }
+
     /* Mockito can't match the continuation of a suspend call, so inspect the recorded calls. */
     private fun PendingSyncDao.reassignCalls() =
         mockingDetails(this).invocations

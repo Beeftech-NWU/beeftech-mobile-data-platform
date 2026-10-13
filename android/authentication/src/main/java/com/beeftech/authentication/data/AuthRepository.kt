@@ -25,6 +25,17 @@ sealed class LoginOutcome {
     data class Unavailable(val message: String) : LoginOutcome()
 }
 
+/**
+ * A fresh PIN-authenticated manager session may reconcile a changed backend-generated user ID
+ * only when the same username, site, role and bound device are verified. It never changes
+ * a farmer's site or role and never mixes pending work from different accounts.
+ */
+sealed class OnlineSessionRenewal {
+    data object Renewed : OnlineSessionRenewal()
+    data class RequiresFullLogin(val message: String) : OnlineSessionRenewal()
+    data class Rejected(val message: String) : OnlineSessionRenewal()
+}
+
 class AuthRepository(
     private val apiClient: AuthApiClient,
     private val sessionStore: SessionStore,
@@ -240,6 +251,120 @@ class AuthRepository(
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Renew an authenticated manager session without logging out or discarding offline work.
+     * A re-created backend may generate a different user ID for the SAME account. Only
+     * that ID difference can be reconciled automatically; site/role changes are blocked.
+     */
+    suspend fun renewOnlineSession(pin: String): OnlineSessionRenewal {
+        val existing = sessionStore.currentUser()
+            ?: return OnlineSessionRenewal.RequiresFullLogin("Sign in to BeefTech first.")
+        if (sessionStore.isExpired()) {
+            return OnlineSessionRenewal.RequiresFullLogin("Your local session ended. Sign in online again.")
+        }
+        if (pin.isBlank()) return OnlineSessionRenewal.Rejected("Enter your PIN.")
+        if (lockoutManager.isLockedOut()) {
+            return OnlineSessionRenewal.Rejected("Too many attempts. Try again later.")
+        }
+        val deviceId = deviceIdProvider.getDeviceId()
+        if (existing.deviceId != deviceId) {
+            return OnlineSessionRenewal.RequiresFullLogin(
+                "The device identity changed. Sign in online to verify this device."
+            )
+        }
+        val reply = apiClient.login(existing.username, pin, deviceId)
+        return when (reply) {
+            is LoginApiResult.Success -> {
+                val online = reply.response.user
+                // A valid PIN never authorizes shifting another user's offline data to this user.
+                when {
+                    !online.username.equals(existing.username, ignoreCase = true) ->
+                        OnlineSessionRenewal.RequiresFullLogin(
+                            "The authenticated username differs from the offline account. Sign in online."
+                        )
+                    online.role != existing.role ->
+                        OnlineSessionRenewal.RequiresFullLogin(
+                            "The server role differs from the offline account. Ask the administrator to verify access."
+                        )
+                    // Site-free managers are not safe to reconcile. Admin continues to use
+                    // normal login when a backend-generated user ID changes.
+                    online.siteId != existing.siteId ->
+                        OnlineSessionRenewal.RequiresFullLogin(
+                            "The assigned farm site differs from the offline account. Ask the administrator to verify the site before synchronizing."
+                        )
+                    online.deviceAssignedId != null && online.deviceAssignedId != deviceId ->
+                        OnlineSessionRenewal.RequiresFullLogin(
+                            "The server associates this account with a different device. Sign in online."
+                        )
+                    else -> {
+                        val expiry = parseIsoToMillis(reply.response.expiresAt)
+                        if (expiry <= System.currentTimeMillis()) {
+                            OnlineSessionRenewal.Rejected(
+                                "The server issued an expired session. Try signing in online again."
+                            )
+                        } else {
+                            val newUser = existing.copy(
+                                userId = online.userId,
+                                farmCode = online.farmCode ?: existing.farmCode
+                            )
+                            if (online.userId != existing.userId) {
+                                // This is a *same-site/role* reconciliation, never a cross-site transfer.
+                                val cached = userDao.getUserByUsername(existing.username)
+                                val other = userDao.getUserById(online.userId)
+                                if (existing.siteId.isNullOrBlank() ||
+                                    cached == null || cached.userId != existing.userId ||
+                                    cached.siteId != existing.siteId ||
+                                    cached.role?.toInt() != existing.role ||
+                                    (other != null && !other.username.equals(existing.username, ignoreCase = true)) ||
+                                    pendingSyncDao == null
+                                ) {
+                                    return OnlineSessionRenewal.RequiresFullLogin(
+                                        "Local account identity cannot be safely reconciled. Sign in online as the same manager."
+                                    )
+                                }
+                                // The normal online-login path already uses this verified-ID
+                                // queue migration. Reuse its semantics, then refresh the UI.
+                                pendingSyncDao.reassignUserOperations(existing.userId, online.userId)
+                                userDao.insertUser(
+                                    User(
+                                        userId = online.userId,
+                                        username = online.username,
+                                        pinHash = online.pinHash,
+                                        failedPinAttempts = 0,
+                                        role = online.role?.toLong(),
+                                        deviceAssignedId = online.deviceAssignedId ?: deviceId,
+                                        siteId = online.siteId,
+                                        deviceLastSync = cached.deviceLastSync,
+                                        failedSyncAttempts = cached.failedSyncAttempts
+                                    )
+                                )
+                            }
+                            sessionStore.save(reply.response.token, expiry, newUser)
+                            if (online.userId != existing.userId) {
+                                // AuthGate must not keep showing the old user ID after the
+                                // pending queue has moved to the verified server user ID.
+                                sessionStore.announceIdentityReconciled()
+                            }
+                            lockoutManager.resetAttempts()
+                            OnlineSessionRenewal.Renewed
+                        }
+                    }
+                }
+            }
+            is LoginApiResult.Unauthorized -> {
+                lockoutManager.recordFailedAttempt()
+                OnlineSessionRenewal.Rejected("Incorrect PIN. Check your F Manager credentials.")
+            }
+            is LoginApiResult.Locked -> OnlineSessionRenewal.Rejected("Account temporarily locked. Try again later.")
+            is LoginApiResult.WrongDevice -> OnlineSessionRenewal.Rejected("This device belongs to another account.")
+            is LoginApiResult.DeviceRevoked -> OnlineSessionRenewal.Rejected("Device access revoked. Contact your administrator.")
+            is LoginApiResult.NoNetwork -> OnlineSessionRenewal.Rejected("Cannot reach Render. Connect to the internet and retry.")
+            is LoginApiResult.Error -> OnlineSessionRenewal.Rejected(
+                reply.message.ifBlank { "Online authentication failed." }
+            )
         }
     }
 

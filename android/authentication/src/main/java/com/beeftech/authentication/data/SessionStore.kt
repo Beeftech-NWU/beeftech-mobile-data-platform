@@ -17,7 +17,9 @@ import kotlinx.coroutines.flow.emptyFlow
 /* Something that happened to the session that the screen should react to. */
 enum class SessionEvent {
     /* The server ended this session on purpose (deactivated, PIN reset, unbound, revoked phone). */
-    REVOKED
+    REVOKED,
+    /* Same verified manager and site; only their backend-generated user ID changed. */
+    IDENTITY_RECONCILED
 }
 
 interface SessionStore : TokenProvider {
@@ -33,6 +35,9 @@ interface SessionStore : TokenProvider {
      * Offline login must not trust that user's cached PIN. Null if there is none.
      */
     fun revokedUserId(): String? = null
+
+    /* Notify AuthGate to switch account-ID-dependent observers without logging out. */
+    fun announceIdentityReconciled() {}
 
 
     /*
@@ -196,6 +201,10 @@ class EncryptedSessionStore(
 
     override fun revokedUserId(): String? =
         prefs?.getString(KEY_REVOKED_USER_ID, null)
+
+    override fun announceIdentityReconciled() {
+        _sessionEvents.tryEmit(SessionEvent.IDENTITY_RECONCILED)
+    }
 
     /*
      * The server answered 401.

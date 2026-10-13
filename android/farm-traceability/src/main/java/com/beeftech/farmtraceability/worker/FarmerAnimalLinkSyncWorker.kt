@@ -7,6 +7,7 @@ import androidx.work.WorkerParameters
 import com.beeftech.database.DatabaseProvider
 import com.beeftech.database.entity.SyncBatchEntity
 import com.beeftech.database.security.TokenProviderRegistry
+import com.beeftech.database.repository.PendingSyncRepository
 import com.beeftech.farmtraceability.data.FarmerAnimalLinkApiClient
 import com.beeftech.farmtraceability.data.LinkUploadResult
 import kotlinx.coroutines.CancellationException
@@ -24,9 +25,28 @@ class FarmerAnimalLinkSyncWorker(context: Context, params: WorkerParameters) : C
             return Result.retry()
         }
         val dao = db.farmerAnimalLinkDao()
+        val pendingLinks = dao.pendingUploads()
+        if (pendingLinks.isEmpty()) return Result.success()
+        // Never start an assignment upload from a stale offline-only session.
+        if (tokenProvider.token().isNullOrBlank()) {
+            Log.w("FarmerAnimalLinkSync", "Online authentication needed; assignments safely remain queued")
+            return Result.retry()
+        }
+        // Parent registrations must reach the backend before their relationship.
+        // This avoids transient HTTP 422s when an offline batch reconnects.
+        val outstandingParents = PendingSyncRepository(db.pendingSyncDao())
+            .getAllPendingOperations()
+            .any { it.entityType == "FARMER_REGISTRATION" || it.entityType == "CALF_REGISTRATION" }
+        val calfIdsWaitingForRegistration = db.calfRegistrationDao()
+            .getPendingRegistrationViews().map { it.animalId }.toSet()
+        val outstandingCalves = pendingLinks.any { it.animalId in calfIdsWaitingForRegistration }
+        if (outstandingParents || outstandingCalves) {
+            Log.i("FarmerAnimalLinkSync", "Waiting for farmer/calf registrations before uploading assignments")
+            return Result.retry()
+        }
         val api = FarmerAnimalLinkApiClient(tokenProvider)
         return try {
-            val pending = dao.pendingUploads()
+            val pending = pendingLinks
             var deferredCount = 0
             var acknowledgedCount = 0
             var localHistoryCount = 0

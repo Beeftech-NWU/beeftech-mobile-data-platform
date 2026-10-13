@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.beeftech.authentication.data.SessionStore
+import com.beeftech.authentication.data.SessionEvent
 import com.beeftech.authentication.domain.LoggedInUser
 import com.beeftech.authentication.viewmodel.LoginViewModel
 import com.beeftech.authentication.viewmodel.LoginViewModelFactory
@@ -24,10 +25,18 @@ fun AuthGate(
 
     /* The server ended the session (deactivated, PIN reset, unbound or revoked phone): back to login. */
     LaunchedEffect(sessionStore) {
-        sessionStore.sessionEvents.collect {
-            viewModel.logout()
-            currentUser = null
-            notice = "Your session has ended. Sign in again."
+        sessionStore.sessionEvents.collect { event ->
+            when (event) {
+                SessionEvent.REVOKED -> {
+                    viewModel.logout()
+                    currentUser = null
+                    notice = "Your session has ended. Sign in again."
+                }
+                SessionEvent.IDENTITY_RECONCILED -> {
+                    // A verified same-site backend ID change is not a logout.
+                    currentUser = sessionStore.currentUser()
+                }
+            }
         }
     }
 
