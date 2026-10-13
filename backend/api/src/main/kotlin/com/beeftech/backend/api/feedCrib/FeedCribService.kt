@@ -60,8 +60,11 @@ class FeedCribService(
     suspend fun load(siteId: String, days: Int = DEFAULT_DAYS): FeedCribsResponse {
         val now = System.currentTimeMillis()
         val from = LocalDate.now(ZoneOffset.UTC).minusDays(days.coerceIn(1, MAX_DAYS).toLong())
+        val references = CribRegistrationRepository().setup()
 
         return FeedCribsResponse(
+            pens = references.pens.filter { it.siteId == siteId },
+            rations = references.rations,
             siteId = siteId,
             cribs = repository.listCribs(siteId),
             codes = repository.listCodes(),

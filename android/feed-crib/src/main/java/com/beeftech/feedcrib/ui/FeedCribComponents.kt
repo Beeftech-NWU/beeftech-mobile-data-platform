@@ -22,13 +22,57 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
+
+/**
+ * Slides a header off screen as the list below scrolls down and back in as it scrolls up.
+ * Pair [collapsingHeader] on the header with [nestedScrollConnection] on the scrollable.
+ */
+@Stable
+class CollapsingHeaderState {
+    internal var heightPx by mutableFloatStateOf(0f)
+
+    /** 0 when fully shown, down to -[heightPx] when fully hidden. */
+    internal var offsetPx by mutableFloatStateOf(0f)
+
+    val nestedScrollConnection = object : NestedScrollConnection {
+        override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+            offsetPx = (offsetPx + available.y).coerceIn(-heightPx, 0f)
+            return Offset.Zero
+        }
+    }
+}
+
+@Composable
+fun rememberCollapsingHeaderState(): CollapsingHeaderState = remember { CollapsingHeaderState() }
+
+/** Shrinks the header's layout height by the amount it has been scrolled away, so the list below reclaims the space. */
+fun Modifier.collapsingHeader(state: CollapsingHeaderState): Modifier =
+    clipToBounds().layout { measurable, constraints ->
+        val placeable = measurable.measure(constraints)
+        if (state.heightPx != placeable.height.toFloat()) state.heightPx = placeable.height.toFloat()
+        val offset = state.offsetPx.coerceIn(-placeable.height.toFloat(), 0f).roundToInt()
+        layout(placeable.width, placeable.height + offset) {
+            placeable.placeRelative(0, offset)
+        }
+    }
 
 /** The same header the calf screens use, in the feed crib's sage colours. */
 @Composable
@@ -48,13 +92,15 @@ fun FeedHeader(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (onBackClick != null) {
-                IconButton(onClick = onBackClick, modifier = Modifier.size(42.dp)) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp)
-                    )
+                FeedCribTooltip("Return to the previous Feed Cribs screen.") {
+                    IconButton(onClick = onBackClick, modifier = Modifier.size(42.dp)) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.width(4.dp))
             }

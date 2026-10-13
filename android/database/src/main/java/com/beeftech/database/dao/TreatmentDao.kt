@@ -142,6 +142,7 @@ interface TreatmentDao {
           AND disease = :disease
           AND treatmentName = :treatmentName
           AND batchNumber = :batchNumber
+          AND medicine_used = :medicineUsed
           AND volumeUsed = :volumeUsed
           AND cost = :cost
           AND timestamp >= :minimumTimestamp
@@ -154,6 +155,7 @@ interface TreatmentDao {
         disease: String,
         treatmentName: String,
         batchNumber: String,
+        medicineUsed: String,
         volumeUsed: String,
         cost: Double,
         minimumTimestamp: Long

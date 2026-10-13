@@ -12,7 +12,14 @@ import com.beeftech.database.security.CurrentUserIdRegistry
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import java.util.TimeZone
+import java.util.UUID
+import java.util.Locale
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
+import com.beeftech.database.entity.FeedCribSetupEntity
 
 /**
  * Cribs, codes and readings for the Feed tab: downloads the site's cribs, saves a reading
@@ -30,19 +37,81 @@ class FeedCribRepository(
     private val captureContextProvider: () -> FeedCribCaptureContext,
     private val userIdProvider: () -> String? = { CurrentUserIdRegistry.currentUserId() },
     private val timeZone: TimeZone = TimeZone.getDefault(),
-    private val now: () -> Long = System::currentTimeMillis
+    private val now: () -> Long = System::currentTimeMillis,
+    private val canManageCribs: () -> Boolean = { false },
+    private val userSiteId: () -> String? = { null }
 ) {
 
     // --- reads for the screens ---
 
-    fun observeCribs(): Flow<List<FeedCribEntity>> = feedCribDao.observeCribs()
+    fun observeCribs(): Flow<List<FeedCribEntity>> = combine(feedCribDao.observeCribs(), CurrentUserIdRegistry.currentUserIdFlow) { list, _ ->
+        val site = userSiteId()
+        val setup = cachedSetup()
+        list.filter { site == null || it.siteId == site }.map { crib ->
+            val pen = setup.pens.firstOrNull { it.id == crib.penId }
+            val ration = setup.rations.firstOrNull { it.id == crib.rationId }
+            crib.copy(penDescription = pen?.description ?: crib.penDescription,
+                ration = ration?.name ?: crib.ration, requiredKg = if (pen != null) pen.requiredKg else crib.requiredKg,
+                animalsBegin = if (pen != null) pen.animalsBegin else crib.animalsBegin,
+                animalsIn = if (pen != null) pen.animalsIn else crib.animalsIn,
+                animalsOut = if (pen != null) pen.animalsOut else crib.animalsOut,
+                animalsClose = if (pen != null) pen.animalsClose else crib.animalsClose)
+        }
+    }
 
     fun observeCodes(): Flow<List<CribReadingCodeEntity>> = feedCribDao.observeCodes()
 
     fun observeLastDownloadedAt(): Flow<Long?> = feedCribDao.observeLastDownloadedAt()
 
-    suspend fun findCrib(cribNumber: String): FeedCribEntity? =
-        feedCribDao.getCrib(cribNumber.trim().uppercase())
+    suspend fun findCrib(cribNumber: String): FeedCribEntity? {
+        val list = observeCribs().first()
+        return list.firstOrNull { it.cribUuid == cribNumber }
+            ?: list.filter { it.cribNumber.equals(cribNumber.trim(), ignoreCase = true) }.singleOrNull()
+    }
+
+    suspend fun cachedSetup(): CribSetup {
+        val user = userIdProvider() ?: return CribSetup()
+        return feedCribDao.getSetup(user)?.let { runCatching { Json.decodeFromString<CribSetup>(it.json) }.getOrNull() } ?: CribSetup()
+    }
+
+    suspend fun refreshSetup(): Result<CribSetup> {
+        if (!canManageCribs()) return Result.failure(IllegalStateException("Only administrators can add cribs."))
+        val result = apiClient.fetchSetup()
+        result.getOrNull()?.let { setup ->
+            userIdProvider()?.let { feedCribDao.cacheSetup(FeedCribSetupEntity(it, Json.encodeToString(setup))) }
+        }
+        return result
+    }
+
+    suspend fun addCrib(form: AddCribForm): Map<String, String> {
+        if (!canManageCribs()) return mapOf("form" to "Only administrators can add cribs.")
+        val user = userIdProvider() ?: return mapOf("form" to "Sign in to add a crib.")
+        val setup = cachedSetup()
+        val all = feedCribDao.observeCribsSnapshot()
+        val errors = validateCribForm(form, setup, all)
+        if (errors.isNotEmpty()) return errors
+        val context = captureContextProvider()
+        if (context.deviceId.isBlank() || context.captureAt <= 0)
+            return mapOf("form" to "Device identity and creation time are required. Sign in again.")
+        val crib = FeedCribEntity(
+            cribUuid = UUID.randomUUID().toString(),
+            cribNumber = form.code.trim().uppercase(Locale.ROOT), siteId = form.siteId,
+            penId = form.penId, rationId = form.rationId,
+            description = form.description.trim(), method = form.method,
+            initialAdi = form.adi.toDouble(), currentAdi = form.adi.toDouble(),
+            animalsBegin = null, animalsIn = null, animalsOut = null, animalsClose = null,
+            rfid = form.rfid.trim().uppercase(Locale.ROOT).ifBlank { null },
+            createdBy = user, createdAt = context.captureAt, creationDeviceId = context.deviceId,
+            creationGpsLat = context.gpsLat, creationGpsLng = context.gpsLng,
+            syncStatus = "PENDING", updatedAt = context.captureAt
+        )
+        return try { feedCribDao.insertCrib(crib); emptyMap() }
+        catch (e: kotlinx.coroutines.CancellationException) { throw e }
+        catch (e: Exception) {
+            Log.e("FeedCribRepository", "Local crib insert failed", e)
+            mapOf("form" to "Could not save to this device. Please try again. Your entered values have been kept.")
+        }
+    }
 
     /** The codes shown in a crib's 3x3 grid: for each of the last 3 days and each block, the newest. */
     fun observeLastNineSlots(cribNumber: String): Flow<List<FeedCribEntryEntity>> =
@@ -60,6 +129,21 @@ class FeedCribRepository(
         return feedCribDao.observeEntriesForCrib(cribNumber, SlotAllocator.dateFor(now(), timeZone), userId)
     }
 
+    suspend fun resolveConflict(uuid: String, code: String, tag: String): Map<String, String> {
+        val crib = feedCribDao.findCribUuid(uuid) ?: return mapOf("form" to "Crib not found.")
+        if (!canManageCribs() || crib.createdBy != userIdProvider())
+            return mapOf("form" to "Sign in as the administrator who created this crib.")
+        if (crib.syncStatus != "CONFLICT") return mapOf("form" to "Only an unregistered, conflicted crib can be changed.")
+        val form = AddCribForm(code, crib.siteId, crib.penId.orEmpty(), crib.rationId.orEmpty(),
+            crib.initialAdi.toString(), crib.description, crib.method, tag)
+        val errors = validateCribForm(form, cachedSetup(), feedCribDao.observeCribsSnapshot().filter { it.cribUuid != uuid })
+        if (errors.isNotEmpty()) return errors
+        return try {
+            feedCribDao.resolveCribConflict(uuid, code.trim().uppercase(Locale.ROOT), tag.trim().uppercase(Locale.ROOT).ifBlank { null })
+            emptyMap()
+        } catch (e: Exception) { mapOf("form" to "Could not resolve conflict. Check the code and tag for duplicates.") }
+    }
+
     // --- download ---
 
     /**
@@ -68,17 +152,42 @@ class FeedCribRepository(
      * of cribs, or why it failed (offline, signed out); the old data stays in that case.
      */
     suspend fun refreshCribs(): Result<Int> {
-        val download = apiClient.fetchCribs(GRID_DAYS)
+        if (canManageCribs()) refreshSetup()
+        val setup = cachedSetup()
+        val sites = setup.sites.map { it.id }
+        if (sites.isNotEmpty()) {
+            var total = 0
+            for (site in sites) {
+                val result = downloadSite(site)
+                if (result.isFailure) return result
+                total += result.getOrThrow()
+            }
+            return Result.success(total)
+        }
+        return downloadSite(null)
+    }
+
+    private suspend fun downloadSite(site: String?): Result<Int> {
+        val download = apiClient.fetchCribs(GRID_DAYS, site)
         val response = download.getOrElse { return Result.failure(it) }
 
         return try {
             val downloadedAt = now()
+            if (response.pens.isNotEmpty() || response.rations.isNotEmpty()) {
+                val old = cachedSetup()
+                val updated = old.copy(
+                    pens = old.pens.filter { it.siteId != response.siteId } + response.pens,
+                    rations = response.rations
+                )
+                userIdProvider()?.let { feedCribDao.cacheSetup(FeedCribSetupEntity(it, Json.encodeToString(updated))) }
+            }
 
             feedCribDao.applyDownload(
                 cribs = response.cribs.map { FeedCribMappers.toEntity(it, downloadedAt) },
                 codes = response.codes.map { FeedCribMappers.toEntity(it) },
                 serverEntries = response.entries.map { FeedCribMappers.toEntity(it, response.siteId) },
-                pruneBeforeDate = SlotAllocator.dateDaysBefore(downloadedAt, KEEP_SYNCED_DAYS, timeZone)
+                pruneBeforeDate = SlotAllocator.dateDaysBefore(downloadedAt, KEEP_SYNCED_DAYS, timeZone),
+                siteId = response.siteId
             )
 
             Result.success(response.cribs.size)
@@ -92,9 +201,10 @@ class FeedCribRepository(
 
     /**
      * Files a reading under the right block by the clock, stores it, and tries to send it. The
-     * local save is never lost to a sync problem. [code] is null for an ADI-only change.
+     * local save is never lost to a sync problem. An active reading code is required.
      */
     suspend fun saveEntry(cribNumber: String, code: Int?, adi: Double): SaveEntryOutcome {
+        if (code == null) return SaveEntryOutcome(validationError = "Select a reading code before saving.")
         val userId = userIdProvider()?.takeIf { it.isNotBlank() }
             ?: return SaveEntryOutcome(validationError = "Sign in to save readings.")
 
@@ -119,6 +229,7 @@ class FeedCribRepository(
         val context = captureContextProvider()
 
         val entry = FeedCribEntryEntity(
+            cribUuid = crib.cribUuid,
             cribNumber = crib.cribNumber,
             siteId = crib.siteId,
             readingDate = SlotAllocator.dateFor(context.captureAt, timeZone),
@@ -172,17 +283,17 @@ class FeedCribRepository(
      * call fails only when every request failed.
      */
     private suspend fun syncByDevice(entries: List<FeedCribEntryEntity>): Result<FeedCribEntrySyncResponse> {
-        val byDevice = entries.groupBy { it.deviceId }
+        val byDevice = entries.groupBy { it.deviceId to it.siteId }
 
         if (byDevice.size == 1) {
-            return apiClient.syncEntries(entries, deviceId = byDevice.keys.first())
+            return apiClient.syncEntries(entries, deviceId = byDevice.keys.first().first, siteId = byDevice.keys.first().second)
         }
 
         val results = mutableListOf<FeedCribEntrySyncResult>()
         var firstFailure: Throwable? = null
 
-        for ((deviceId, records) in byDevice) {
-            apiClient.syncEntries(records, deviceId).fold(
+        for ((identity, records) in byDevice) {
+            apiClient.syncEntries(records, identity.first, identity.second).fold(
                 onSuccess = { results += it.results },
                 onFailure = { firstFailure = firstFailure ?: it }
             )
@@ -201,6 +312,41 @@ class FeedCribRepository(
      * retry: readings the server rejected too many times get a fresh set of attempts first. The
      * background worker never sets it.
      */
+    /** Register parent cribs first; a refused parent never sends readings under another UUID. */
+    private suspend fun syncCribRegistrations(userId: String, retryRejected: Boolean): Map<String, String> {
+        if (retryRejected) {
+            /* The manual Sync gives a crib the server refused another go, like a refused reading. */
+            feedCribDao.pendingCribs(userId).filter { it.syncStatus == "REJECTED" }
+                .forEach { feedCribDao.setCribSync(it.cribUuid, "PENDING", null) }
+        }
+        val allCribs = feedCribDao.pendingCribs(userId)
+        val cribs = allCribs.filter { it.syncStatus != "CONFLICT" && it.syncStatus != "REJECTED" }
+        val errors = allCribs.filter { it.syncStatus == "CONFLICT" || it.syncStatus == "REJECTED" }.associate {
+            it.cribUuid to (it.syncError ?: if (it.syncStatus == "CONFLICT") "Crib conflict requires resolution."
+                else "The server refused this crib.")
+        }.toMutableMap()
+        if (cribs.isEmpty()) return errors
+        for (batch in cribs.chunked(200)) {
+            val response = apiClient.syncCribs(batch.map { crib -> CribRegistration(
+                crib.cribUuid, crib.cribNumber, crib.siteId, crib.penId.orEmpty(), crib.rationId.orEmpty(),
+                crib.initialAdi ?: 0.0, crib.description, crib.method, crib.rfid,
+                crib.createdAt ?: 0, crib.creationDeviceId.orEmpty(), crib.creationGpsLat, crib.creationGpsLng
+            ) })
+            val results = response.getOrNull()?.results?.associateBy { it.cribUuid }.orEmpty()
+            batch.forEach { crib ->
+                val result = results[crib.cribUuid]
+                val status = when (result?.status) { "SYNCED" -> "SYNCED"; "CONFLICT" -> "CONFLICT"; "REJECTED" -> "REJECTED"; else -> "PENDING" }
+                val error = if (status == "SYNCED") null else result?.message
+                    ?: response.exceptionOrNull()?.message ?: "Server did not acknowledge crib creation."
+                feedCribDao.setCribSync(crib.cribUuid, status, error)
+                if (error != null) errors[crib.cribUuid] = error
+            }
+        }
+        feedCribDao.pendingCribs(userId).filter { it.syncStatus == "CONFLICT" || it.syncStatus == "REJECTED" }.forEach {
+            errors[it.cribUuid] = it.syncError ?: "Crib conflict requires resolution."
+        }
+        return errors
+    }
     suspend fun syncPending(retryRejected: Boolean = false): FeedCribSyncOutcome {
 
         val userId = userIdProvider()?.takeIf { it.isNotBlank() }
@@ -208,13 +354,25 @@ class FeedCribRepository(
 
         return try {
 
+            val cribErrors = syncCribRegistrations(userId, retryRejected).toMutableMap()
+            val blockedCribs = feedCribDao.observeCribsSnapshot().filter { it.syncStatus != "SYNCED" }.map { it.cribUuid }.toSet()
+
             if (retryRejected) {
                 feedCribDao.requeueRejected(userId)
             }
 
             val queued = pendingSyncRepository.getAllPendingOperations().filter { it.entityType == ENTITY_TYPE }
 
-            val pending = feedCribDao.getPending(userId)
+            val allPending = feedCribDao.getPending(userId)
+            allPending.filter { it.cribUuid in blockedCribs }.forEach {
+                cribErrors[it.recordGuid] = "Crib creation must be acknowledged or its conflict resolved before this reading can upload."
+            }
+            val pending = allPending.filter { it.cribUuid !in blockedCribs }
+            if (pending.isEmpty() && (cribErrors.isNotEmpty() || allPending.any { it.cribUuid in blockedCribs })) {
+                return FeedCribSyncOutcome(0, errorMessagesByRecordGuid = cribErrors.ifEmpty {
+                    allPending.filter { it.cribUuid in blockedCribs }.associate { it.recordGuid to "Crib creation must be resolved before readings can upload. Sign in as its creator to sync it." }
+                })
+            }
 
             if (pending.isEmpty()) {
                 /* Nothing genuinely waiting: clear stale queue rows and finish. */
@@ -222,7 +380,7 @@ class FeedCribRepository(
                 return FeedCribSyncOutcome(syncedCount = 0)
             }
 
-            val pendingGuids = pending.map { it.recordGuid }.toSet()
+            val pendingGuids = allPending.map { it.recordGuid }.toSet()
 
             /* Queue rows whose reading is already synced or gone. */
             queued.filter { it.entityId !in pendingGuids }
@@ -243,7 +401,7 @@ class FeedCribRepository(
                 Log.w(TAG, "Feed crib synchronization request failed: $message")
                 return FeedCribSyncOutcome(
                     syncedCount = 0,
-                    errorMessagesByRecordGuid = pending.associate { it.recordGuid to message }
+                    errorMessagesByRecordGuid = pending.associate { it.recordGuid to message } + cribErrors
                 )
             }
 
@@ -282,7 +440,7 @@ class FeedCribRepository(
 
             FeedCribSyncOutcome(
                 syncedCount = syncedGuids.size,
-                errorMessagesByRecordGuid = unsynced
+                errorMessagesByRecordGuid = cribErrors + unsynced
                     .filter { it.recordGuid in stillPending }
                     .associate {
                         it.recordGuid to (resultByGuid[it.recordGuid]?.message ?: "Server did not confirm the reading.")
@@ -309,6 +467,22 @@ class FeedCribRepository(
                     else mapOf("_sync" to message)
             )
         }
+    }
+
+    /**
+     * True when another automatic attempt could make progress: a crib of the signed-in user is still
+     * pending, or a reading waits whose crib is not stuck. Cribs in conflict or refused by the server,
+     * cribs another user must sync, and the readings behind them wait for a person, so retrying would
+     * never end.
+     */
+    suspend fun hasRetryableWork(): Boolean {
+        val userId = userIdProvider()?.takeIf { it.isNotBlank() } ?: return false
+        if (feedCribDao.pendingCribs(userId).any { it.syncStatus == "PENDING" }) return true
+        val stuck = feedCribDao.observeCribsSnapshot()
+            .filter { it.syncStatus != "SYNCED" &&
+                (it.syncStatus == "CONFLICT" || it.syncStatus == "REJECTED" || it.createdBy != userId) }
+            .map { it.cribUuid }.toSet()
+        return feedCribDao.getPending(userId).any { it.cribUuid !in stuck }
     }
 
     private suspend fun clearQueue(recordGuids: Set<String>) {

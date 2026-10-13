@@ -175,11 +175,13 @@ class FeedCribRepositoryTest {
     }
 
     @Test
-    fun `an ADI only reading has no code`() = runTest {
+    fun `a reading without a code is rejected without persistence or upload`() = runTest {
         val outcome = repository().saveEntry("A01", code = null, adi = 10.4)
 
-        assertNull(outcome.entry!!.code)
-        assertNull(server.syncRequests.single().records.single().code)
+        assertFalse(outcome.saved)
+        assertEquals("Select a reading code before saving.", outcome.validationError)
+        assertTrue(dao.entries.value.isEmpty())
+        assertTrue(server.syncRequests.isEmpty())
     }
 
     @Test

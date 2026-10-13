@@ -398,6 +398,66 @@ class FeedCribRoutesTest {
         assertEquals(11.5, body.crib("A01").adi("currentAdi"))
     }
 
+    private fun creation(uuid: String = "13268e2e-02e4-45b2-92df-479ce60ac5d1", code: String = " a099 ",
+        pen: String = "dev-site-1-pen-1", ration: String = "RATION-FINISHER", adi: String = "1.5", tag: String = "ABC") =
+        """{"cribUuid":"$uuid","cribNumber":"$code","siteId":"dev-site-1","penId":"$pen","rationId":"$ration","initialAdi":$adi,"rfid":"$tag","createdAt":1000,"deviceId":"test-device"}"""
+
+    private suspend fun HttpClient.createCrib(token: String, record: String = creation()) =
+        post("/api/feed-cribs/sync") {
+            header("Authorization", "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody("""{"records":[$record]}""")
+        }
+
+    @Test fun `only admin can create cribs and download setup`() = testApplication {
+        startApp()
+        val client = createClient { }
+        val worker = client.login("jvdm", "30003")
+        val manager = client.login("fmanager", "20002")
+        assertEquals(HttpStatusCode.Unauthorized, client.createCrib("").status)
+        assertEquals(HttpStatusCode.Forbidden, client.createCrib(worker).status)
+        assertEquals(HttpStatusCode.Forbidden, client.createCrib(manager).status)
+        assertEquals(HttpStatusCode.Forbidden, client.get("/api/feed-cribs/setup") { header("Authorization", "Bearer $worker") }.status)
+        val admin = client.login("admin", "10001")
+        assertEquals(HttpStatusCode.OK, client.get("/api/feed-cribs/setup") { header("Authorization", "Bearer $admin") }.status)
+    }
+
+    @Test fun `creation retries are idempotent and readings reference UUID`() = testApplication {
+        startApp()
+        val client = createClient { }
+        val admin = client.login("admin", "10001")
+        val worker = client.login("jvdm", "30003")
+        assertEquals(listOf("SYNCED"), client.createCrib(admin).statuses())
+        assertEquals(listOf("SYNCED"), client.createCrib(admin).statuses())
+        var crib = client.download(worker).crib("A099")
+        assertEquals(1.5, crib.adi("initialAdi"))
+        assertEquals("Pen 1", crib["penDescription"]!!.jsonPrimitive.content)
+        assertEquals(emptyList<String>(), client.download(worker).entries().map { it["recordguid"]!!.jsonPrimitive.content })
+        val uuid = "13268e2e-02e4-45b2-92df-479ce60ac5d1"
+        assertEquals(listOf("ERROR"), client.sync(worker, record("missing-uuid", crib = "A099")).statuses())
+        val reading = record("new-crib-reading", crib = "A099", adi = 2.0).dropLast(1) + ""","cribUuid":"$uuid"}"""
+        assertEquals(listOf("SYNCED"), client.sync(worker, reading).statuses())
+        assertEquals(listOf("SYNCED"), client.createCrib(admin).statuses())
+        crib = client.download(worker).crib("A099")
+        assertEquals(1.5, crib.adi("initialAdi"))
+        assertEquals(2.0, crib.adi("currentAdi"))
+        val other = creation(uuid = "23268e2e-02e4-45b2-92df-479ce60ac5d1", code = "A099", tag = "OTHER")
+        assertEquals(listOf("CONFLICT"), client.createCrib(admin, other).statuses())
+        assertEquals(listOf("CONFLICT"), client.createCrib(admin, creation(uuid = "33268e2e-02e4-45b2-92df-479ce60ac5d1", code = "A100")).statuses())
+    }
+
+    @Test fun `invalid references and ADI do not create a crib`() = testApplication {
+        startApp()
+        val client = createClient { }
+        val admin = client.login("admin", "10001")
+        assertEquals(listOf("REJECTED"), client.createCrib(admin, creation(pen = "unknown")).statuses())
+        assertEquals(listOf("REJECTED"), client.createCrib(admin, creation(ration = "unknown")).statuses())
+        assertEquals(listOf("REJECTED"), client.createCrib(admin, creation(adi = "-1")).statuses())
+        val worker = client.login("jvdm", "30003")
+        val cribs = Json.parseToJsonElement(client.download(worker).bodyAsText()).data()["cribs"]!!.jsonArray
+        assertEquals(8, cribs.size)
+    }
+
     @Test
     fun `the old flat feed crib routes are gone`() = testApplication {
         startApp()

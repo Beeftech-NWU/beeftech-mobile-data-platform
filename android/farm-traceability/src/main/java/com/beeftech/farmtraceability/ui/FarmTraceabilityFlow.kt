@@ -102,13 +102,14 @@ fun FarmTraceabilityFlow(
         disease: String,
         treatment: String,
         batchNumber: String,
+        medicineUsed: String,
         volumeUsed: String,
         cost: String,
         onCompleted: (
             Boolean,
             String
         ) -> Unit
-    ) -> Unit = { _, _, _, _, _, _, onCompleted ->
+    ) -> Unit = { _, _, _, _, _, _, _, onCompleted ->
         onCompleted(
             false,
             "Treatment save is unavailable."
@@ -2666,6 +2667,7 @@ fun FarmTraceabilityFlow(
                         disease,
                         treatment,
                         batchNumber,
+                        medicineUsed,
                         volumeUsed,
                         cost ->
 
@@ -2674,6 +2676,7 @@ fun FarmTraceabilityFlow(
                         disease,
                         treatment,
                         batchNumber,
+                        medicineUsed,
                         volumeUsed,
                         cost
                     ) {

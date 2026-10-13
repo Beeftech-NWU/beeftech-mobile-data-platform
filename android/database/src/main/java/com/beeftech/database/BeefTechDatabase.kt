@@ -122,6 +122,7 @@ import com.beeftech.database.dao.UserDao
         LocationEntity::class,
         PenEntity::class,
         FeedCribEntity::class,
+        com.beeftech.database.entity.FeedCribSetupEntity::class,
         CribReadingCodeEntity::class,
         FeedCribEntryEntity::class,
         RationEntity::class,
@@ -240,7 +241,7 @@ abstract class BeefTechDatabase : RoomDatabase() {
     companion object {
 
         /** Current Room schema version. Bump here when adding a migration. */
-        const val VERSION = 47
+        const val VERSION = 49
 
         /**
          * Phase 3 Migration (Version 9 -> 10):
@@ -4094,6 +4095,12 @@ abstract class BeefTechDatabase : RoomDatabase() {
                     "CREATE INDEX IF NOT EXISTS `index_feed_crib_entries_reading_date_user_id` " +
                         "ON `feed_crib_entries` (`reading_date`, `user_id`)"
                 )
+            }
+        }
+        /** Preserve medicine names on treatment records when upgrading an installed database. */
+        val MIGRATION_48_49 = object : Migration(48, 49) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `treatments` ADD COLUMN `medicine_used` TEXT NOT NULL DEFAULT ''")
             }
         }
     }

@@ -65,8 +65,8 @@ fun TraceabilityHeader(
             .padding(
                 start = 14.dp,
                 end = 22.dp,
-                top = 22.dp,
-                bottom = 20.dp
+                top = 13.dp,
+                bottom = 12.dp
             )
     ) {
         Row(
@@ -124,7 +124,7 @@ fun TraceabilityHeader(
 
                 Text(
                     text = title,
-                    fontSize = 25.sp,
+                    fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     color = BeeftechWhite
                 )
@@ -142,7 +142,7 @@ fun TraceabilityHeader(
             )
         }
 
-        Spacer(modifier = Modifier.height(17.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         HorizontalDivider(
             thickness = 2.dp,
@@ -193,6 +193,8 @@ private fun traceabilityDefaultFieldHelp(label: String): String {
             "This record is linked to the selected animal. To use a different animal, select it before opening this form."
         "disease / condition" ->
             "Select or enter the condition being treated. Use a clear name so this treatment is easy to find later."
+        "medicine used" ->
+            "Enter the exact medicine or product name printed on the packaging, not just the treatment type."
         "treatment type" ->
             "Choose the treatment administered to this animal from the list. Use Other if it is not listed."
         "batch number" ->
@@ -941,7 +943,7 @@ fun TraceabilityCard(
         )
     ) {
         Column(
-            modifier = Modifier.padding(17.dp)
+            modifier = Modifier.padding(13.dp)
         ) {
             content()
         }
@@ -1117,7 +1119,7 @@ fun TraceabilitySyncWarning(
         )
     ) {
         Column(
-            modifier = Modifier.padding(17.dp)
+            modifier = Modifier.padding(13.dp)
         ) {
             Text(
                 text = warningTitle,

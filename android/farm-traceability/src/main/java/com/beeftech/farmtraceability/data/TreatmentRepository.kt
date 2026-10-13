@@ -75,6 +75,7 @@ class TreatmentRepository(
         disease: String,
         treatmentName: String,
         batchNumber: String,
+        medicineUsed: String,
         volumeUsed: String,
         cost: Double,
         gpsLat: Double = 0.0,
@@ -94,6 +95,8 @@ class TreatmentRepository(
 
             val normalizedBatchNumber =
                 batchNumber.trim()
+
+            val normalizedMedicineUsed = medicineUsed.trim()
 
             val normalizedVolumeUsed =
                 volumeUsed.trim()
@@ -117,6 +120,8 @@ class TreatmentRepository(
 
                     batchNumber =
                         normalizedBatchNumber,
+
+                    medicineUsed = normalizedMedicineUsed,
 
                     volumeUsed =
                         normalizedVolumeUsed,
@@ -185,6 +190,8 @@ class TreatmentRepository(
 
                     batchNumber =
                         normalizedBatchNumber,
+
+                    medicineUsed = normalizedMedicineUsed,
 
                     volumeUsed =
                         normalizedVolumeUsed,

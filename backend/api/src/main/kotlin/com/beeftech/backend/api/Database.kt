@@ -1,4 +1,4 @@
-﻿package com.beeftech.backend.api
+package com.beeftech.backend.api
 
 import com.beeftech.backend.api.auth.DevicesTable
 import com.beeftech.backend.api.auth.LoginAttemptsTable
@@ -49,8 +49,10 @@ object DatabaseFactory {
         UsersSchemaMigration.run(database)
         SitesSchemaMigration.run(database)
         RecordScopeSchemaMigration.run(database)
+        TreatmentMedicineSchemaMigration.run(database)
         RecordVoidSchemaMigration.run(database)
         AuditLogSchemaMigration.run(database)
+        com.beeftech.backend.api.feedcrib.CribCreationSchemaMigration.run(database)
 
         transaction(database) {
 
@@ -67,6 +69,8 @@ object DatabaseFactory {
                 UsersTable,
                 SitesTable,
                 FeedCribsTable,
+                com.beeftech.backend.api.feedcrib.CribPensTable,
+                com.beeftech.backend.api.feedcrib.CribRationsTable,
                 CribReadingCodesTable,
                 FeedCribEntriesTable,
                 MortalityTable,

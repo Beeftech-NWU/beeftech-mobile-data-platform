@@ -579,7 +579,9 @@ object DatabaseFactory {
                         guarded(BeefTechDatabase.MIGRATION_43_44),
                         guarded(BeefTechDatabase.MIGRATION_44_45),
                         guarded(BeefTechDatabase.MIGRATION_45_46),
-                        guarded(BeefTechDatabase.MIGRATION_46_47)
+                        guarded(BeefTechDatabase.MIGRATION_46_47),
+                        guarded(com.beeftech.database.FeedCribCreationMigration.MIGRATION_47_48),
+                        guarded(BeefTechDatabase.MIGRATION_48_49)
                     )
 
                     .addCallback(

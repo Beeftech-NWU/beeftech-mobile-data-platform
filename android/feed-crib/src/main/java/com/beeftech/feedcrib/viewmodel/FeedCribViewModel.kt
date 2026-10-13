@@ -16,6 +16,8 @@ import com.beeftech.database.entity.FeedCribEntity
 import com.beeftech.database.entity.FeedCribEntryEntity
 import com.beeftech.feedcrib.data.FeedCribRepository
 import com.beeftech.feedcrib.data.SlotAllocator
+import com.beeftech.feedcrib.data.AddCribForm
+import com.beeftech.feedcrib.data.CribSetup
 import com.beeftech.feedcrib.worker.FeedCribSyncWorker
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -59,8 +61,62 @@ class FeedCribViewModel(
     private val repository: FeedCribRepository,
     private val applicationContext: Context,
     private val clock: () -> Long = System::currentTimeMillis,
-    private val timeZone: TimeZone = TimeZone.getDefault()
+    private val timeZone: TimeZone = TimeZone.getDefault(),
+    private val canAddCribProvider: () -> Boolean = { false }
 ) : ViewModel() {
+
+    val canAddCrib: Boolean get() = canAddCribProvider()
+    private val _cribSetup = MutableStateFlow(CribSetup())
+    val cribSetup = _cribSetup.asStateFlow()
+    private val _addingCrib = MutableStateFlow(false)
+    val addingCrib = _addingCrib.asStateFlow()
+    private val _cribErrors = MutableStateFlow<Map<String, String>>(emptyMap())
+    val cribErrors = _cribErrors.asStateFlow()
+    private val _setupMessage = MutableStateFlow<String?>(null)
+    val setupMessage = _setupMessage.asStateFlow()
+
+    fun prepareAddCrib() {
+        if (!canAddCrib) return
+        _cribErrors.value = emptyMap()
+        viewModelScope.launch {
+            _cribSetup.value = repository.cachedSetup()
+            repository.refreshSetup().fold(
+                onSuccess = { _cribSetup.value = it; _setupMessage.value = null },
+                onFailure = { _setupMessage.value = "Using cached setup. If sites, pens or rations are missing, setup/synchronisation is needed." }
+            )
+        }
+    }
+
+    fun addCrib(form: AddCribForm, onSaved: () -> Unit) {
+        if (_addingCrib.value) return
+        _cribErrors.value = emptyMap()
+        _addingCrib.value = true
+        viewModelScope.launch {
+            val errors = try { repository.addCrib(form) }
+                catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                catch (e: Exception) { mapOf("form" to (e.message ?: "Could not save crib.")) }
+                finally { _addingCrib.value = false }
+            _cribErrors.value = errors
+            if (errors.isEmpty()) {
+                onSaved()
+                scheduleNetworkAvailableSync()
+            }
+        }
+    }
+
+    fun resolveCribConflict(uuid: String, code: String, tag: String, onSaved: () -> Unit) {
+        if (_addingCrib.value) return
+        _addingCrib.value = true
+        viewModelScope.launch {
+            _cribErrors.value = try { repository.resolveConflict(uuid, code, tag) }
+                catch (e: Exception) { mapOf("form" to "Unable to resolve crib conflict.") }
+            _addingCrib.value = false
+            if (_cribErrors.value.isEmpty()) {
+                onSaved()
+                scheduleNetworkAvailableSync()
+            }
+        }
+    }
 
     val cribs: StateFlow<List<FeedCribEntity>> =
         repository.observeCribs().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
@@ -95,7 +151,7 @@ class FeedCribViewModel(
             cribs,
             draft
         ) { slots, allCribs, currentDraft ->
-            val crib = slots?.let { (number, _) -> allCribs.firstOrNull { it.cribNumber == number } }
+            val crib = slots?.let { (number, _) -> allCribs.firstOrNull { it.cribUuid == number } }
             if (slots == null || crib == null) {
                 null
             } else {
@@ -118,6 +174,12 @@ class FeedCribViewModel(
     private val _refreshing = MutableStateFlow(false)
     val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
 
+    private val _syncing = MutableStateFlow(false)
+    val syncing: StateFlow<Boolean> = _syncing.asStateFlow()
+    private val _syncMessage = MutableStateFlow<String?>(null)
+    /** Result of the latest manual sync in this screen's lifetime. */
+    val syncMessage: StateFlow<String?> = _syncMessage.asStateFlow()
+
     init {
         // Backup periodic sync. This is not the primary sync mechanism.
         schedulePeriodicSync()
@@ -135,6 +197,7 @@ class FeedCribViewModel(
      * such crib.
      */
     fun openCrib(cribNumber: String, onResult: (Boolean) -> Unit = {}) {
+        if (_saving.value) return
         viewModelScope.launch {
             val crib = repository.findCrib(cribNumber)
             if (crib == null) {
@@ -142,24 +205,27 @@ class FeedCribViewModel(
                 return@launch
             }
             draft.value = CribDraft(code = null, adi = crib.currentAdi ?: 0.0)
-            selectedCribNumber.value = crib.cribNumber
+            selectedCribNumber.value = crib.cribUuid
             onResult(true)
         }
     }
 
     /** Picks a code; picking the chosen one again clears it. */
     fun selectCode(code: Int?) {
+        if (_saving.value) return
         draft.value = draft.value.let { it.copy(code = if (it.code == code) null else code) }
     }
 
     /** One key press is 0.1 kg; [steps] may be negative. ADI never goes below zero. */
     fun adjustAdi(steps: Int) {
+        if (_saving.value) return
         val current = draft.value
         draft.value = current.copy(adi = SlotAllocator.adjustAdi(current.adi, steps), adiChanged = true)
     }
 
     /** Closes the crib without saving. The screen asks first when [CribDraft.changed]. */
     fun discard() {
+        if (_saving.value) return
         selectedCribNumber.value = null
         draft.value = CribDraft()
     }
@@ -188,8 +254,8 @@ class FeedCribViewModel(
             return
         }
 
-        if (!currentDraft.changed) {
-            onResult(false, "Pick a reading code or change the ADI.")
+        if (currentDraft.code == null) {
+            onResult(false, "Select a reading code before saving.")
             return
         }
 
@@ -255,27 +321,37 @@ class FeedCribViewModel(
 
     /** Sends everything waiting now (the Sync button). Rejected readings get a fresh set of attempts. */
     fun retrySync(onResult: (Boolean, String) -> Unit = { _, _ -> }) {
+        if (_syncing.value) return
+        _syncing.value = true
         viewModelScope.launch {
-            try {
+            val (ok, message) = try {
                 val outcome = repository.syncPending(retryRejected = true)
+                // Refresh even when an upload was rejected: updated codes may explain the rejection.
+                val download = repository.refreshCribs()
 
                 when {
                     outcome.errorMessagesByRecordGuid.isNotEmpty() -> {
                         scheduleNetworkAvailableSync()
-                        onResult(false, outcome.errorMessagesByRecordGuid.values.firstNotNullOfOrNull { it }
+                        false to (outcome.errorMessagesByRecordGuid.values.firstNotNullOfOrNull { it }
                             ?: "Some readings are still waiting to send.")
                     }
                     outcome.rejectedByRecordGuid.isNotEmpty() ->
-                        onResult(false, "The server refused a reading: ${outcome.rejectedByRecordGuid.values.first()}")
+                        false to "The server refused a reading: ${outcome.rejectedByRecordGuid.values.first()}"
+                    download.isFailure -> false to
+                        "${outcome.syncedCount} readings sent. Could not refresh cribs: ${download.exceptionOrNull()?.message ?: "Download failed."}"
                     outcome.syncedCount > 0 ->
-                        onResult(true, if (outcome.syncedCount == 1) "1 reading sent." else "${outcome.syncedCount} readings sent.")
+                        true to ((if (outcome.syncedCount == 1) "1 reading sent." else "${outcome.syncedCount} readings sent.") + " Cribs refreshed.")
                     else ->
-                        onResult(true, "There are no readings waiting to send.")
+                        true to "There are no readings waiting to send. Cribs refreshed."
                 }
             } catch (exception: Exception) {
                 scheduleNetworkAvailableSync()
-                onResult(false, exception.message ?: "Unable to retry the feed crib sync.")
+                false to (exception.message ?: "Unable to retry the feed crib sync.")
             }
+            // Clear the flag before reporting, so a caller reacting to the result sees syncing as finished.
+            _syncing.value = false
+            _syncMessage.value = message
+            onResult(ok, message)
         }
     }
 

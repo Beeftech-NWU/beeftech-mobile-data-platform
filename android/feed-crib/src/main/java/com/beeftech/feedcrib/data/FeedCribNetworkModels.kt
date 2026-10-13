@@ -24,6 +24,7 @@ data class FeedCribEntrySyncRequest(
 /** One reading as the server takes it. Submitter and site come from the token, not from here. */
 @Serializable
 data class FeedCribEntryDto(
+    val cribUuid: String? = null,
     val recordguid: String,
     val cribNumber: String,
     /** The device's local date, yyyy-MM-dd. */
@@ -55,6 +56,8 @@ data class FeedCribEntrySyncResult(
 /** What a phone downloads: the site's cribs, the code table and recent entries from every phone on the site. */
 @Serializable
 data class FeedCribsResponse(
+    val pens: List<CribPen> = emptyList(),
+    val rations: List<CribRation> = emptyList(),
     val siteId: String,
     val cribs: List<FeedCribNetworkDto>,
     val codes: List<CribReadingCodeNetworkDto>,
@@ -64,6 +67,11 @@ data class FeedCribsResponse(
 
 @Serializable
 data class FeedCribNetworkDto(
+    val cribUuid: String? = null,
+    val penId: String? = null,
+    val rationId: String? = null,
+    val initialAdi: Double? = null,
+    val rfid: String? = null,
     val cribNumber: String,
     val siteId: String,
     val penDescription: String = "",
@@ -71,10 +79,10 @@ data class FeedCribNetworkDto(
     val method: String = "",
     val description: String = "",
     val requiredKg: Double? = null,
-    val animalsBegin: Int = 0,
-    val animalsIn: Int = 0,
-    val animalsOut: Int = 0,
-    val animalsClose: Int = 0,
+    val animalsBegin: Int? = 0,
+    val animalsIn: Int? = 0,
+    val animalsOut: Int? = 0,
+    val animalsClose: Int? = 0,
     val currentAdi: Double? = null,
     val active: Boolean = true,
     val updatedAt: Long = 0
@@ -90,6 +98,7 @@ data class CribReadingCodeNetworkDto(
 
 @Serializable
 data class FeedCribEntryDownloadDto(
+    val cribUuid: String? = null,
     val recordguid: String,
     val cribNumber: String,
     val readingDate: String,

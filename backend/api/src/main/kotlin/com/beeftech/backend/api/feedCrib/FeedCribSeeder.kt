@@ -27,6 +27,14 @@ object FeedCribSeeder {
     /** Every environment needs the code table. */
     fun seedCodes() {
         transaction(DatabaseFactory.getDatabase()) {
+            listOf("STARTER" to "Starter Ration", "GROWER" to "Grower Mix",
+                "FINISHER" to "Finisher Ration", "MAINTENANCE" to "Maintenance Ration",
+                "BACKGROUNDING" to "Backgrounding Ration").forEach { (code, label) ->
+                CribRationsTable.insertIgnore {
+                    it[id] = "RATION-$code"
+                    it[name] = label
+                }
+            }
             codes.forEach { (codeValue, codeLabel, codeDescription) ->
                 CribReadingCodesTable.insertIgnore {
                     it[code] = codeValue
@@ -42,7 +50,18 @@ object FeedCribSeeder {
     fun seedDevCribs(siteId: String, now: Long = System.currentTimeMillis()) {
         transaction(DatabaseFactory.getDatabase()) {
             (1..8).forEach { number ->
+                CribPensTable.insertIgnore {
+                    it[id] = "$siteId-pen-$number"
+                    it[CribPensTable.siteId] = siteId
+                    it[description] = "Pen $number"
+                    it[animalsBegin] = 100 + number
+                    it[animalsIn] = 0
+                    it[animalsOut] = 0
+                    it[animalsClose] = 100 + number
+                    it[requiredKg] = 10.0 + number
+                }
                 FeedCribsTable.insertIgnore {
+                    it[cribUuid] = java.util.UUID.nameUUIDFromBytes(("$siteId|A%02d".format(number)).toByteArray()).toString()
                     it[cribNumber] = "A%02d".format(number)
                     it[FeedCribsTable.siteId] = siteId
                     it[penDescription] = "Pen $number"

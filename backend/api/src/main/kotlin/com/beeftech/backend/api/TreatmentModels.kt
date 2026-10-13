@@ -8,6 +8,7 @@ data class TreatmentDto(
     val disease: String,
     val treatmentName: String,
     val batchNumber: String,
+    val medicineUsed: String = "",
     val volumeUsed: String,
     val cost: Double,
     val timestamp: Long,

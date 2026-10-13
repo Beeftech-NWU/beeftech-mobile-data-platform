@@ -1,6 +1,9 @@
 package com.beeftech.feedcrib
 
 import android.content.Context
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import com.beeftech.database.entity.CribReadingCodeEntity
 import com.beeftech.database.entity.FeedCribEntity
 import com.beeftech.database.entity.FeedCribEntryEntity
@@ -63,12 +66,15 @@ class FeedCribViewModelTest {
         dao.codes.value = (0..5).map { CribReadingCodeEntity(it, "Code $it") }
     }
 
+    private val viewModelJobs = mutableListOf<Job>()
+
     @After
     fun tearDown() {
+        runBlocking { viewModelJobs.forEach { it.cancelAndJoin() } }
         Dispatchers.resetMain()
     }
 
-    private fun viewModel(): FeedCribViewModel {
+    private fun viewModel(manageCribs: Boolean = false): FeedCribViewModel {
         val repository = FeedCribRepository(
             feedCribDao = dao,
             pendingSyncRepository = PendingSyncRepository(FakePendingSyncDao()) { "user-1" },
@@ -76,9 +82,50 @@ class FeedCribViewModelTest {
             captureContextProvider = { FeedCribCaptureContext(deviceId = "dev-1", captureAt = clockMillis) },
             userIdProvider = { "user-1" },
             timeZone = utc,
-            now = { clockMillis }
+            now = { clockMillis },
+            canManageCribs = { manageCribs }
         )
-        return FeedCribViewModel(repository, mockContext, { clockMillis }, utc)
+        return FeedCribViewModel(repository, mockContext, { clockMillis }, utc, { manageCribs }).also {
+            viewModelJobs += it.viewModelScope.coroutineContext[Job]!!
+        }
+    }
+
+    @Test
+    fun `adding a crib reports success only after persistence and makes it selectable offline`() = runBlocking {
+        val vm = viewModel(manageCribs = true)
+        vm.prepareAddCrib()
+        withTimeout(5_000) { vm.cribSetup.first { it.sites.isNotEmpty() } }
+        server.offline = true
+        val saved = CompletableDeferred<Unit>()
+        vm.addCrib(com.beeftech.feedcrib.data.AddCribForm("A09", "site-1", "pen-1", "ration-1", "1.5")) {
+            assertTrue(dao.cribs.value.any { it.cribNumber == "A09" })
+            saved.complete(Unit)
+        }
+        withTimeout(5_000) { saved.await() }
+        assertFalse(vm.addingCrib.value)
+        assertTrue(vm.cribErrors.value.isEmpty())
+        val crib = withTimeout(5_000) { vm.cribs.first { list -> list.any { it.cribNumber == "A09" } } }
+            .single { it.cribNumber == "A09" }
+        assertTrue(vm.open(crib.cribUuid))
+        assertTrue(dao.entries.value.isEmpty())
+    }
+
+    @Test
+    fun `failed add retains errors and allows a corrected retry without a partial crib`() = runBlocking {
+        val vm = viewModel(manageCribs = true)
+        vm.prepareAddCrib()
+        withTimeout(5_000) { vm.cribSetup.first { it.sites.isNotEmpty() } }
+        vm.addCrib(com.beeftech.feedcrib.data.AddCribForm()) { error("Invalid crib reported as saved") }
+        withTimeout(5_000) { vm.cribErrors.first { it.isNotEmpty() } }
+        assertFalse(vm.addingCrib.value)
+        assertEquals(2, dao.cribs.value.size)
+        val saved = CompletableDeferred<Unit>()
+        vm.addCrib(com.beeftech.feedcrib.data.AddCribForm("A09", "site-1", "pen-1", "ration-1", "0")) {
+            saved.complete(Unit)
+        }
+        withTimeout(5_000) { saved.await() }
+        assertTrue(vm.cribErrors.value.isEmpty())
+        assertEquals(3, dao.cribs.value.size)
     }
 
     private suspend fun FeedCribViewModel.open(number: String): Boolean {
@@ -262,7 +309,7 @@ class FeedCribViewModelTest {
     }
 
     @Test
-    fun `an ADI only save says so`() = runBlocking {
+    fun `ADI changes cannot be saved until a reading code is selected`() = runBlocking {
         val vm = viewModel()
         vm.open("A01")
         vm.adjustAdi(-3)
@@ -270,9 +317,14 @@ class FeedCribViewModelTest {
 
         val (ok, message) = vm.saveNow()
 
-        assertTrue(ok)
-        assertEquals("Saved A01 · ADI 9.7", message)
-        assertNull(dao.entries.value.single().code)
+        assertFalse(ok)
+        assertEquals("Select a reading code before saving.", message)
+        assertTrue(dao.entries.value.isEmpty())
+        assertEquals(9.7, vm.detail.value!!.draft.adi, 0.0)
+        vm.selectCode(0)
+        assertTrue(vm.saveNow().first)
+        assertEquals(0, dao.entries.value.single().code)
+        assertEquals(9.7, dao.entries.value.single().adi, 0.0)
     }
 
     @Test
@@ -303,6 +355,13 @@ class FeedCribViewModelTest {
         val first = CompletableDeferred<Pair<Boolean, String>>()
         vm.save { ok, message -> first.complete(ok to message) }
         assertTrue(vm.saving.value)
+
+        // A save already stored locally cannot be discarded or changed during upload.
+        vm.discard()
+        vm.selectCode(4)
+        vm.adjustAdi(1)
+        assertEquals(1, vm.detail.value?.draft?.code)
+        assertEquals("A01", vm.detail.value?.crib?.cribNumber)
 
         var secondAnswered = false
         vm.save { _, _ -> secondAnswered = true }
@@ -373,8 +432,10 @@ class FeedCribViewModelTest {
 
         vm.retrySync { ok, message -> result.complete(ok to message) }
 
-        assertEquals(true to "1 reading sent.", withTimeout(5_000) { result.await() })
+        assertEquals(true to "1 reading sent. Cribs refreshed.", withTimeout(5_000) { result.await() })
         assertEquals("SYNCED", dao.entries.value.single().syncStatus)
+        assertEquals(1, server.downloadUrls.size)
+        assertEquals("1 reading sent. Cribs refreshed.", vm.syncMessage.value)
     }
 
     @Test
@@ -383,7 +444,40 @@ class FeedCribViewModelTest {
 
         viewModel().retrySync { ok, message -> result.complete(ok to message) }
 
-        assertEquals(true to "There are no readings waiting to send.", withTimeout(5_000) { result.await() })
+        assertEquals(true to "There are no readings waiting to send. Cribs refreshed.", withTimeout(5_000) { result.await() })
+        assertEquals(1, server.downloadUrls.size)
+    }
+
+    @Test
+    fun `sync with no pending readings still reports a failed reference download`() = runBlocking {
+        server.offline = true
+        val vm = viewModel()
+        val result = CompletableDeferred<Pair<Boolean, String>>()
+        vm.retrySync { ok, message -> result.complete(ok to message) }
+
+        val (ok, message) = withTimeout(5_000) { result.await() }
+        assertFalse(ok)
+        assertTrue(message.contains("Could not refresh cribs"))
+        assertEquals(message, vm.syncMessage.value)
+        assertFalse(vm.syncing.value)
+        assertEquals(2, dao.cribs.value.size)
+    }
+
+    @Test
+    fun `repeated sync tap while downloading starts only one download`() = runBlocking {
+        val gate = CompletableDeferred<Unit>()
+        server.gate = gate
+        val vm = viewModel()
+        val result = CompletableDeferred<Pair<Boolean, String>>()
+        vm.retrySync { ok, message -> result.complete(ok to message) }
+        assertTrue(vm.syncing.value)
+        var secondAnswered = false
+        vm.retrySync { _, _ -> secondAnswered = true }
+        gate.complete(Unit)
+        withTimeout(5_000) { result.await() }
+        assertFalse(secondAnswered)
+        assertEquals(1, server.downloadUrls.size)
+        assertFalse(vm.syncing.value)
     }
 
     @Test

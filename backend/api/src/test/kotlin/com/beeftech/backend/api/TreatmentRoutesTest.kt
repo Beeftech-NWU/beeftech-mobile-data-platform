@@ -67,6 +67,7 @@ class TreatmentRoutesTest {
                   "disease": "Foot Rot",
                   "treatmentName": "Antibiotic",
                   "batchNumber": "B1",
+                  "medicineUsed": "Oxytetracycline",
                   "volumeUsed": "10ml",
                   "cost": 50.0,
                   "timestamp": 1700000000000,
@@ -96,5 +97,14 @@ class TreatmentRoutesTest {
             }
         }
         assertEquals(1, rowCount)
+
+        val medicine = withContext(Dispatchers.IO) {
+            newSuspendedTransaction {
+                TreatmentTable.selectAll()
+                    .where { TreatmentTable.recordguid eq "idempotent-treatment-guid" }
+                    .single()[TreatmentTable.medicineUsed]
+            }
+        }
+        assertEquals("Oxytetracycline", medicine)
     }
 }

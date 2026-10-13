@@ -96,6 +96,24 @@ import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
+    // Window-only brightness override: system brightness settings are never changed.
+    private var previousWindowBrightness: Float? = null
+
+    override fun onResume() {
+        super.onResume()
+        previousWindowBrightness = window.attributes.screenBrightness
+        window.attributes = window.attributes.apply { screenBrightness = 0.90f }
+    }
+
+    override fun onPause() {
+        previousWindowBrightness?.let { previous ->
+            window.attributes = window.attributes.apply { screenBrightness = previous }
+        }
+        previousWindowBrightness = null
+        super.onPause()
+    }
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -427,6 +445,15 @@ class MainActivity : ComponentActivity() {
                                     sessionStore,
                                 deviceIdProvider = {
                                     EncryptedDeviceIdProvider(applicationContext).getDeviceId()
+                                },
+                                canManageCribs = { sessionStore.currentUser()?.roleEnum == Role.ADMIN },
+                                siteIdProvider = {
+                                    val user = sessionStore.currentUser()
+                                    when {
+                                        user == null -> "__NO_SITE__"
+                                        user.roleEnum == Role.ADMIN -> null
+                                        else -> user.siteId ?: "__NO_SITE__"
+                                    }
                                 }
                             )
                         )[FeedCribViewModel::class.java]
@@ -1138,6 +1165,7 @@ class MainActivity : ComponentActivity() {
                                                     disease,
                                                     treatment,
                                                     batchNumber,
+                                                    medicineUsed,
                                                     volumeUsed,
                                                     cost,
                                                     onCompleted ->
@@ -1152,6 +1180,7 @@ class MainActivity : ComponentActivity() {
                                                             treatment,
                                                         batchNumber =
                                                             batchNumber,
+                                                        medicineUsed = medicineUsed,
                                                         volumeUsed =
                                                             volumeUsed,
                                                         costText =

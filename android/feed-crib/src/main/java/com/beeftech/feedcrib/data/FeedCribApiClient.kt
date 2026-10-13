@@ -40,7 +40,8 @@ class FeedCribApiClient(
 
     suspend fun syncEntries(
         records: List<FeedCribEntryEntity>,
-        deviceId: String
+        deviceId: String,
+        siteId: String? = null
     ): Result<FeedCribEntrySyncResponse> {
 
         if (records.isEmpty()) {
@@ -53,6 +54,7 @@ class FeedCribApiClient(
 
             val response = httpClient.post("${baseUrl}api/feed-crib-entries/sync") {
                 bearerAuth(token)
+                if (siteId != null) parameter("siteId", siteId)
                 contentType(ContentType.Application.Json)
                 setBody(
                     FeedCribEntrySyncRequest(
@@ -70,7 +72,7 @@ class FeedCribApiClient(
     }
 
     /** The caller's site: cribs, codes and the entries from the last [days] days (the server caps it at 14). */
-    suspend fun fetchCribs(days: Int = DEFAULT_DAYS): Result<FeedCribsResponse> {
+    suspend fun fetchCribs(days: Int = DEFAULT_DAYS, siteId: String? = null): Result<FeedCribsResponse> {
         return try {
             val token = tokenProvider.token()
                 ?: return Result.failure(IllegalStateException("No authentication token available"))
@@ -78,6 +80,7 @@ class FeedCribApiClient(
             val response = httpClient.get("${baseUrl}api/feed-cribs") {
                 bearerAuth(token)
                 parameter("days", days)
+                if (siteId != null) parameter("siteId", siteId)
             }
 
             unwrap(response, "Feed crib download")
@@ -85,6 +88,20 @@ class FeedCribApiClient(
             Result.failure(exception)
         }
     }
+
+    suspend fun fetchSetup(): Result<CribSetup> = try {
+        val token = tokenProvider.token() ?: return Result.failure(IllegalStateException("Sign in to download setup."))
+        unwrap(httpClient.get("${baseUrl}api/feed-cribs/setup") { bearerAuth(token) }, "Crib setup")
+    } catch (e: Exception) { Result.failure(e) }
+
+    suspend fun syncCribs(records: List<CribRegistration>): Result<CribRegistrationResponse> = try {
+        val token = tokenProvider.token() ?: return Result.failure(IllegalStateException("Sign in to sync cribs."))
+        unwrap(httpClient.post("${baseUrl}api/feed-cribs/sync") {
+            bearerAuth(token)
+            contentType(ContentType.Application.Json)
+            setBody(CribRegistrationRequest(records))
+        }, "Crib creation sync")
+    } catch (e: Exception) { Result.failure(e) }
 
     private suspend inline fun <reified T> unwrap(response: HttpResponse, what: String): Result<T> {
         /* A 401 means sign in again; the session store decides what that does. Queued records are untouched. */
