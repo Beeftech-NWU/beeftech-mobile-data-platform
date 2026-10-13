@@ -16,6 +16,7 @@ class TreatmentRepository {
             disease = this[TreatmentTable.disease],
             treatmentName = this[TreatmentTable.treatmentName],
             batchNumber = this[TreatmentTable.batchNumber],
+            medicineUsed = this[TreatmentTable.medicineUsed],
             volumeUsed = this[TreatmentTable.volumeUsed],
             cost = this[TreatmentTable.cost],
             timestamp = this[TreatmentTable.timestamp],
@@ -52,6 +53,7 @@ class TreatmentRepository {
                     it[disease] = dto.disease
                     it[treatmentName] = dto.treatmentName
                     it[batchNumber] = dto.batchNumber
+                    it[medicineUsed] = dto.medicineUsed
                     it[volumeUsed] = dto.volumeUsed
                     it[cost] = dto.cost
                     it[timestamp] = dto.timestamp
@@ -69,6 +71,7 @@ class TreatmentRepository {
                     it[disease] = dto.disease
                     it[treatmentName] = dto.treatmentName
                     it[batchNumber] = dto.batchNumber
+                    it[medicineUsed] = dto.medicineUsed
                     it[volumeUsed] = dto.volumeUsed
                     it[cost] = dto.cost
                     it[timestamp] = dto.timestamp
@@ -86,6 +89,7 @@ class TreatmentRepository {
                 disease = dto.disease,
                 treatmentName = dto.treatmentName,
                 batchNumber = dto.batchNumber,
+                medicineUsed = dto.medicineUsed,
                 volumeUsed = dto.volumeUsed,
                 cost = dto.cost,
                 timestamp = dto.timestamp,

@@ -127,6 +127,7 @@ class TreatmentViewModel(
         disease: String,
         treatmentName: String,
         batchNumber: String,
+        medicineUsed: String,
         volumeUsed: String,
         costText: String,
         onResult: (Boolean, String) -> Unit = { _, _ -> }
@@ -153,6 +154,11 @@ class TreatmentViewModel(
                 false,
                 "Please enter the treatment."
             )
+            return
+        }
+
+        if (medicineUsed.isBlank()) {
+            onResult(false, "Please enter the medicine used.")
             return
         }
 
@@ -220,6 +226,8 @@ class TreatmentViewModel(
 
                     batchNumber =
                         batchNumber,
+
+                    medicineUsed = medicineUsed,
 
                     volumeUsed =
                         volumeUsed,

@@ -84,8 +84,8 @@ fun FarmTraceabilityScreen(
                 .padding(
                     start = 14.dp,
                     end = 22.dp,
-                    top = 18.dp,
-                    bottom = 25.dp
+                    top = 10.dp,
+                    bottom = 12.dp
                 )
         ) {
 
@@ -101,7 +101,7 @@ fun FarmTraceabilityScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(1.dp))
 
             Column(
                 modifier = Modifier.padding(start = 8.dp)
@@ -128,7 +128,7 @@ fun FarmTraceabilityScreen(
                             "Farm Traceability",
                         tint = BeeftechWhite,
                         modifier =
-                            Modifier.size(34.dp)
+                            Modifier.size(27.dp)
                     )
 
                     Spacer(
@@ -138,13 +138,13 @@ fun FarmTraceabilityScreen(
 
                     Text(
                         text = "Farm Traceability",
-                        fontSize = 29.sp,
+                        fontSize = 23.sp,
                         fontWeight = FontWeight.Bold,
                         color = BeeftechWhite
                     )
                 }
 
-                Spacer(modifier = Modifier.height(7.dp))
+                Spacer(modifier = Modifier.height(3.dp))
 
                 Text(
                     text = "View and manage livestock traceability information",
@@ -159,8 +159,8 @@ fun FarmTraceabilityScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(
-                    horizontal = 18.dp,
-                    vertical = 24.dp
+                    horizontal = 14.dp,
+                    vertical = 12.dp
                 )
         ) {
 
@@ -175,7 +175,7 @@ fun FarmTraceabilityScreen(
                     onSyncClick = onRetrySyncClick
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(12.dp))
             }
 
             // ---------------------------------------------------------
@@ -207,13 +207,13 @@ fun FarmTraceabilityScreen(
             // TRACEABILITY OPTIONS
             // ---------------------------------------------------------
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             TraceabilitySectionTitle(
                 title = "Traceability Options"
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             TraceabilityMenuCard(
                 title = "Assign Animal to Farmer",
@@ -310,14 +310,14 @@ fun FarmTraceabilityScreen(
                 onClick = onMortalityClick
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(12.dp))
         }
     }
 }
 
 @Composable
 private fun MenuSpacer() {
-    Spacer(modifier = Modifier.height(11.dp))
+    Spacer(modifier = Modifier.height(6.dp))
 }
 
 @Composable
@@ -331,7 +331,7 @@ private fun TraceabilityMenuCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(11.dp),
         colors = CardDefaults.cardColors(
             containerColor = BeeftechSurface
         ),
@@ -342,16 +342,16 @@ private fun TraceabilityMenuCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(15.dp),
+                .padding(horizontal = 12.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
 
             Box(
                 modifier = Modifier
-                    .size(47.dp)
+                    .size(42.dp)
                     .background(
                         color = BeeftechSoftAccent,
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(10.dp)
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -363,14 +363,14 @@ private fun TraceabilityMenuCard(
                 )
             }
 
-            Spacer(modifier = Modifier.size(14.dp))
+            Spacer(modifier = Modifier.size(10.dp))
 
             Column(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
                     text = title,
-                    fontSize = 15.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = BeeftechText
                 )
@@ -387,7 +387,7 @@ private fun TraceabilityMenuCard(
 
             Text(
                 text = "›",
-                fontSize = 26.sp,
+                fontSize = 23.sp,
                 fontWeight = FontWeight.Medium,
                 color = BeeftechPrimaryDark
             )
