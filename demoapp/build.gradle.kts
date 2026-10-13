@@ -30,7 +30,7 @@ android {
             buildConfigField(
                 "String",
                 "BACKEND_BASE_URL",
-                "\"${providers.gradleProperty("beeftech.baseUrl").getOrElse("http://10.0.2.2:8081/")}\""
+                "\"${providers.gradleProperty("beeftech.baseUrl").getOrElse("https://beeftech-backend.onrender.com/")}\""
             )
         }
         release {

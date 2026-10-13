@@ -53,7 +53,5 @@ object FarmerFieldRules {
             client.contactName.trim().ifBlank { null }?.let { "Contact: $it" },
             client.contactNumber.trim().ifBlank { null }?.let { "Phone: $it" },
             parseFarmSizeHa(address.farmSizeHa)?.let { "Farm size: ${address.farmSizeHa.trim().trimEnd('.')} ha" },
-            address.headCount.trim().toIntOrNull()?.let { "Head count: $it" },
-            address.primaryBreed.trim().ifBlank { null }?.let { "Primary breed: $it" }
         )
 }

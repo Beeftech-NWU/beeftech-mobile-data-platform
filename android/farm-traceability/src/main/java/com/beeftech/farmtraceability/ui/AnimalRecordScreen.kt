@@ -29,7 +29,9 @@ import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Route
 import androidx.compose.material.icons.outlined.Spa
 import androidx.compose.material.icons.outlined.Timer
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.AlertDialog
@@ -82,6 +84,7 @@ fun AnimalRecordScreen(
     treatmentCount: Int = 0,
     mortalityCount: Int = 0,
     totalCost: String = "",
+    recordFeedback: String = "",
     onBackClick: () -> Unit = {},
     onSupplierClick: () -> Unit = {},
     onLocationFeedClick: () -> Unit = {},
@@ -105,6 +108,7 @@ fun AnimalRecordScreen(
     var massNote by remember(tagNumber) { mutableStateOf("") }
     var massError by remember(tagNumber) { mutableStateOf("") }
     var massSaving by remember(tagNumber) { mutableStateOf(false) }
+    var historyFilter by remember(tagNumber) { mutableStateOf("All") }
 
     fun openMassEditor() {
         editingRegistered = hasCalfRegistration
@@ -136,6 +140,17 @@ fun AnimalRecordScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            if (recordFeedback.isNotBlank()) {
+                TraceabilityCard {
+                    Text(
+                        text = recordFeedback,
+                        color = BeeftechPrimaryDark,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+            TraceabilitySectionTitle("Animal Overview")
             AnimalRecordProfileCard(
                 tagNumber = tagNumber,
                 breed = breed,
@@ -231,7 +246,20 @@ fun AnimalRecordScreen(
 
             Spacer(modifier = Modifier.height(2.dp))
             TraceabilitySectionTitle("Linked Records")
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                listOf("All", "Operations", "Health & Costs").forEach { category ->
+                    FilterChip(
+                        selected = historyFilter == category,
+                        onClick = { historyFilter = category },
+                        label = { Text(category, fontSize = 11.sp) }
+                    )
+                }
+            }
 
+            if (historyFilter != "Health & Costs") {
             RecordLinkCard(
                 title = "Movement History",
                 subtitle = "$movementCount movement${if (movementCount == 1) "" else "s"}",
@@ -248,6 +276,8 @@ fun AnimalRecordScreen(
                 onClick = onLocationFeedClick
             )
 
+            }
+            if (historyFilter != "Operations") {
             RecordLinkCard(
                 title = "Treatments",
                 subtitle = "$treatmentCount treatment${if (treatmentCount == 1) "" else "s"}",
@@ -274,6 +304,8 @@ fun AnimalRecordScreen(
                 accent = Color(0xFF1B7A52),
                 onClick = onCostSummaryClick
             )
+
+            }
 
             Spacer(modifier = Modifier.height(20.dp))
         }

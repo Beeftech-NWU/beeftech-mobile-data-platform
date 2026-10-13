@@ -1,6 +1,7 @@
 package com.beeftech.farmtraceability.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.room.withTransaction
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -241,6 +242,10 @@ fun FarmTraceabilityFlow(
         mutableStateOf("")
     }
 
+    // Save feedback is tied to the selected animal, not to a different farmer or calf.
+    var saveFeedback by remember(selectedAnimalReference) { mutableStateOf("") }
+    var recordFeedback by remember(selectedAnimalReference) { mutableStateOf("") }
+
     // Human-readable tag for display only.
     var selectedTagNumber by remember {
         mutableStateOf("")
@@ -276,6 +281,9 @@ fun FarmTraceabilityFlow(
     fun navigateTo(
         screen: TraceabilityScreen
     ) {
+        if (screen == TraceabilityScreen.TREATMENTS || screen == TraceabilityScreen.ANIMAL_MOVEMENT) {
+            saveFeedback = ""
+        }
         navigationHistory.add(
             currentScreen
         )
@@ -756,11 +764,15 @@ fun FarmTraceabilityFlow(
             LaunchedEffect(database, farmerId) {
                 try {
                     val activeDatabase = database ?: error("Local database is unavailable")
+                    val registeredCalves = activeDatabase.calfRegistrationDao()
+                        .getAllRegistrationViews().firstOrNull().orEmpty()
+                    val registeredIds = registeredCalves.map { it.animalId }.toSet()
                     animals = activeDatabase.animalDao().getAll()
-                    animalTags = activeDatabase.calfRegistrationDao().getAllRegistrationViews()
-                        .firstOrNull().orEmpty().associate { it.animalId to it.tagNumber }
+                        .filter { it.animalId in registeredIds }
+                    animalTags = registeredCalves.associate { it.animalId to it.tagNumber }
                     preselectedAnimalId = preselectedCalfTag?.let { tag ->
                         activeDatabase.calfRegistrationDao().findAnimalIdByTag(tag)
+                            ?.takeIf { it in registeredIds }
                     }
                     links = activeDatabase.farmerAnimalLinkDao().allActive()
                     val knownFarmers = activeDatabase.farmerDao().getAllFarmers()
@@ -903,9 +915,12 @@ fun FarmTraceabilityFlow(
                                         VerifiedCalfImportResult.INVALID -> skipped++
                                     }
                                 }
+                                val registeredCalves = db.calfRegistrationDao()
+                                    .getAllRegistrationViews().firstOrNull().orEmpty()
+                                val registeredIds = registeredCalves.map { it.animalId }.toSet()
                                 animals = db.animalDao().getAll()
-                                animalTags = db.calfRegistrationDao().getAllRegistrationViews()
-                                    .firstOrNull().orEmpty().associate { it.animalId to it.tagNumber }
+                                    .filter { it.animalId in registeredIds }
+                                animalTags = registeredCalves.associate { it.animalId to it.tagNumber }
                                 message = "$imported farm calf/calves downloaded; $skipped skipped " +
                                     "(missing server UUID, invalid data or local conflict). " +
                                     "Existing local animals were not modified."
@@ -944,7 +959,6 @@ fun FarmTraceabilityFlow(
                         }
                     }
                 },
-                onRegisterCalf = onCalfRegistrationClick,
                 onBack = { navigateBack() }
             )
         }
@@ -1008,6 +1022,10 @@ fun FarmTraceabilityFlow(
             var assignedAnimals by remember(database, farmerId) {
                 mutableStateOf(emptyList<com.beeftech.database.entity.Animal>())
             }
+
+            var isSavingHerd by remember(database, farmerId) { mutableStateOf(false) }
+            var herdSaveMessage by remember(database, farmerId) { mutableStateOf("") }
+            val profileScope = rememberCoroutineScope()
 
             LaunchedEffect(
                 database,
@@ -1212,6 +1230,83 @@ fun FarmTraceabilityFlow(
                         ?.toString()
                         .orEmpty(),
 
+                headCount = loadedFarmer?.head_count?.toString().orEmpty(),
+                primaryBreed = loadedFarmer?.primary_breed.orEmpty(),
+                farmerId = farmerId.orEmpty(),
+                isSavingHerd = isSavingHerd,
+                herdSaveMessage = herdSaveMessage,
+                onSaveHerd = { count, capacity, breed ->
+                    if (!isSavingHerd) {
+                        isSavingHerd = true
+                        herdSaveMessage = ""
+                        profileScope.launch {
+                            try {
+                                val db = database ?: error("Local database is unavailable")
+                                val id = farmerId?.takeIf { it.isNotBlank() }
+                                    ?: error("Select a farmer first")
+                                check(!com.beeftech.database.security.CurrentUserIdRegistry
+                                    .currentUserId().isNullOrBlank()) {
+                                    "Sign in to the correct farm account before editing herd details"
+                                }
+                                val countValue = count.trim().takeIf { it.isNotEmpty() }?.toIntOrNull()
+                                val capacityValue = capacity.trim().takeIf { it.isNotEmpty() }?.toIntOrNull()
+                                require((countValue == null || countValue in 0..100000) &&
+                                    (capacityValue == null || capacityValue in 0..100000)) {
+                                    "Head Count and Herd Capacity must be between 0 and 100000"
+                                }
+                                val selectedBreed = breed.trim().takeIf { it.isNotEmpty() }
+                                val allowedBreeds = com.beeftech.calfregistration.ui
+                                    .CalfRegistrationLookups.animalTypes
+                                    .map { it.substringAfter('—').trim() }
+                                require(selectedBreed == null || selectedBreed in allowedBreeds) {
+                                    "Choose Primary Breed from the existing calf breed list"
+                                }
+                                val old = db.farmerDao().getFarmerById(id)
+                                    ?: error("Farmer no longer exists on this device")
+                                if (old.head_count == countValue &&
+                                    old.herd_capacity == capacityValue &&
+                                    old.primary_breed == selectedBreed) {
+                                    herdSaveMessage = "No changes to save"
+                                } else {
+                                    db.withTransaction {
+                                        check(db.farmerDao().updateHerdOverview(
+                                            id, countValue, capacityValue, selectedBreed
+                                        ) == 1) { "Farmer could not be updated" }
+                                        val pending = com.beeftech.database.repository
+                                            .PendingSyncRepository(db.pendingSyncDao())
+                                        if (pending.getAllPendingOperations().none { queuedOperation ->
+                                                queuedOperation.entityType == "FARMER_REGISTRATION" &&
+                                                    queuedOperation.entityId == id
+                                            }) {
+                                            pending.queueOperation(
+                                                entityType = "FARMER_REGISTRATION",
+                                                entityId = id,
+                                                operation = "CREATE",
+                                                payload = id
+                                            )
+                                        }
+                                    }
+                                    farmer = old.copy(
+                                        head_count = countValue,
+                                        herd_capacity = capacityValue,
+                                        primary_breed = selectedBreed,
+                                        sync_status = "PENDING"
+                                    )
+                                    com.beeftech.farmerregistration.FarmerSyncScheduler
+                                        .enqueue(traceabilityContext)
+                                    herdSaveMessage = "Saved offline • Pending Sync"
+                                }
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                herdSaveMessage = e.message ?: "Herd details could not be saved"
+                            } finally {
+                                isSavingHerd = false
+                            }
+                        }
+                    }
+                },
+
                 interestStatus =
                     loadedFarmer
                         ?.interest_status
@@ -1264,8 +1359,6 @@ fun FarmTraceabilityFlow(
                     profileError,
 
                 assignedAnimals = assignedAnimals,
-                onAssignAnimals = { navigateTo(TraceabilityScreen.FARMER_ANIMAL_ASSIGNMENT) },
-                onRegisterCalf = onCalfRegistrationClick,
                 onBackClick = {
                     navigateBack()
                 }
@@ -1626,6 +1719,7 @@ fun FarmTraceabilityFlow(
 
 
             AnimalRecordScreen(
+                recordFeedback = recordFeedback,
                 tagNumber =
                     selectedTagNumber,
 
@@ -2052,6 +2146,7 @@ fun FarmTraceabilityFlow(
 
 
             AnimalMovementScreen(
+                saveFeedback = saveFeedback,
                 animalReference =
                     selectedTagNumber
                         .ifBlank {
@@ -2073,6 +2168,7 @@ fun FarmTraceabilityFlow(
                         responsibleWorker,
                         movementDateText ->
 
+                    saveFeedback = ""
                     val parsedMovementDate =
                         parseTraceabilityDate(
                             movementDateText
@@ -2089,15 +2185,16 @@ fun FarmTraceabilityFlow(
                             parsedMovementDate
                         ) {
                                 success,
-                                _ ->
-
-                            if (
-                                success
-                            ) {
-
+                                message ->
+                            if (success) {
+                                recordFeedback = "Movement saved. Check Sync Status for server confirmation."
                                 returnToAnimalRecordAfterSave()
+                            } else {
+                                saveFeedback = message.ifBlank { "Movement could not be saved. Please try again." }
                             }
                         }
+                    } else {
+                        saveFeedback = "Movement date is invalid. Please choose a valid date."
                     }
                 }
             )
@@ -2644,6 +2741,7 @@ fun FarmTraceabilityFlow(
             }
 
             TreatmentsScreen(
+                saveFeedback = saveFeedback,
                 animalReference =
                     selectedTagNumber
                         .ifBlank {
@@ -2671,6 +2769,7 @@ fun FarmTraceabilityFlow(
                         volumeUsed,
                         cost ->
 
+                    saveFeedback = ""
                     onSaveTreatment(
                         selectedAnimalReference,
                         disease,
@@ -2681,12 +2780,12 @@ fun FarmTraceabilityFlow(
                         cost
                     ) {
                             success,
-                            _ ->
-
-                        if (
-                            success
-                        ) {
+                            message ->
+                        if (success) {
+                            recordFeedback = "Treatment saved. Check Sync Status for server confirmation."
                             returnToAnimalRecordAfterSave()
+                        } else {
+                            saveFeedback = message.ifBlank { "Treatment could not be saved. Please try again." }
                         }
                     }
                 }

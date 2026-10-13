@@ -4,11 +4,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -40,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -184,16 +187,36 @@ fun FarmTraceabilityScreen(
             // Keep the warning and actionable retry here for offline work.
             // ---------------------------------------------------------
             TraceabilityCard {
+                // Status comes from the existing sync ViewModel, not an optimistic UI guess.
+                val failed = syncStatus.contains("fail", ignoreCase = true) ||
+                    syncStatus.contains("error", ignoreCase = true)
+                val pending = (pendingRecordCount ?: 0) > 0
+                // Never infer server acknowledgement from an empty local queue.
+                val acknowledged = syncStatus.trim().equals("Synced", ignoreCase = true) &&
+                    pendingRecordCount == 0
+                val label = when {
+                    failed -> "Sync: Failed"
+                    pending -> "Sync: Pending"
+                    acknowledged -> "Sync: Synced"
+                    pendingRecordCount == 0 -> "Sync queue clear"
+                    else -> "Sync status"
+                }
+                val detail = when {
+                    failed -> syncStatus
+                    pending -> "${pendingRecordCount} record(s) waiting to sync"
+                    acknowledged -> "Server synchronization confirmed"
+                    pendingRecordCount == 0 -> "No pending local records. Check dashboard for server confirmation"
+                    syncStatus.isNotBlank() -> syncStatus
+                    else -> "Open the dashboard to check synchronization"
+                }
                 TraceabilityInfoRow(
                     icon = Icons.Outlined.CloudSync,
-                    title = "Sync overview",
-                    subtitle = pendingRecordCount?.let { count ->
-                        if (count == 0) "All queued records sent"
-                        else "$count record${if (count == 1) "" else "s"} waiting to sync"
-                    } ?: "Sync count unavailable — view dashboard for details"
+                    title = label,
+                    subtitle = detail
                 )
 
-                if (retrySyncAvailable && (pendingRecordCount ?: 0) > 0) {
+                // A warning already contains the single contextual retry action.
+                if (retrySyncAvailable && syncWarningLevel !in 1..3 && pending) {
                     Spacer(modifier = Modifier.height(12.dp))
                     TraceabilitySecondaryButton(
                         text = "Retry Sync",
@@ -203,111 +226,50 @@ fun FarmTraceabilityScreen(
                 }
             }
 
-            // ---------------------------------------------------------
-            // TRACEABILITY OPTIONS
-            // ---------------------------------------------------------
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            TraceabilitySectionTitle(
-                title = "Traceability Options"
+            // Design A: two-column tiles. All 11 original destinations stay unchanged.
+            // The header, warning and existing sync summary above this line are untouched.
+            Spacer(modifier = Modifier.height(16.dp))
+            TraceabilityMenuGroupHeading(
+                title = "Farmer & Animal Management",
+                description = "Profiles, assignments and animal lookup"
             )
-
             Spacer(modifier = Modifier.height(8.dp))
-
-            TraceabilityMenuCard(
-                title = "Assign Animal to Farmer",
-                subtitle = "Choose a farmer, then select a registered animal",
-                icon = Icons.AutoMirrored.Outlined.Assignment,
-                onClick = onAssignAnimalClick
+            TraceabilityMenuGrid(
+                items = listOf(
+                    TraceabilityMenuAction("Farmer & Farm Profile", "Farmer and herd overview", Icons.Outlined.HomeWork, onFarmerFarmProfileClick),
+                    TraceabilityMenuAction("Farmer Registration", "Register a farmer or client", Icons.Outlined.Description, onFarmerRegistrationClick),
+                    TraceabilityMenuAction("Assign Animal to Farmer", "Link a registered calf", Icons.AutoMirrored.Outlined.Assignment, onAssignAnimalClick),
+                    TraceabilityMenuAction("Find Animal", "Search by animal tag", Icons.Outlined.Search, onFindAnimalClick),
+                    TraceabilityMenuAction("Animal Record", "Animal details and history", Icons.Outlined.Description, onAnimalRecordClick)
+                )
             )
 
-            MenuSpacer()
-            TraceabilityMenuCard(
-                title = "Farmer & Farm Profile",
-                subtitle = "View farmer, farm and location details",
-                icon = Icons.Outlined.HomeWork,
-                onClick = onFarmerFarmProfileClick
+            Spacer(modifier = Modifier.height(16.dp))
+            TraceabilityMenuGroupHeading(
+                title = "Farm Operations",
+                description = "Movements, health, feeding and suppliers"
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            TraceabilityMenuGrid(
+                items = listOf(
+                    TraceabilityMenuAction("Animal Movement", "Movements and history", Icons.Outlined.Route, onAnimalMovementClick),
+                    TraceabilityMenuAction("Location & Feed", "Locations and feeding", Icons.Outlined.LocationOn, onLocationFeedClick),
+                    TraceabilityMenuAction("Treatments", "Medicines and treatments", Icons.Outlined.Medication, onTreatmentsClick),
+                    TraceabilityMenuAction("Supplier", "Supplier information", Icons.Outlined.LocalShipping, onSupplierClick)
+                )
             )
 
-            MenuSpacer()
-            TraceabilityMenuCard(
-                title = "Farmer Registration",
-                subtitle = "Register a new farmer or client",
-                icon = Icons.Outlined.Description,
-                onClick = onFarmerRegistrationClick
+            Spacer(modifier = Modifier.height(16.dp))
+            TraceabilityMenuGroupHeading(
+                title = "Records & Costs",
+                description = "Financial and mortality records"
             )
-
-            MenuSpacer()
-
-            TraceabilityMenuCard(
-                title = "Find Animal",
-                subtitle = "Find an animal using its tag reference",
-                icon = Icons.Outlined.Search,
-                onClick = onFindAnimalClick
-            )
-
-            MenuSpacer()
-
-            TraceabilityMenuCard(
-                title = "Animal Record",
-                subtitle = "View the complete animal record",
-                icon = Icons.Outlined.Description,
-                onClick = onAnimalRecordClick
-            )
-
-            MenuSpacer()
-
-            TraceabilityMenuCard(
-                title = "Animal Movement",
-                subtitle = "Capture and review livestock movement records",
-                icon = Icons.Outlined.Route,
-                onClick = onAnimalMovementClick
-            )
-
-            MenuSpacer()
-
-            TraceabilityMenuCard(
-                title = "Supplier",
-                subtitle = "View and capture origin and purchase information",
-                icon = Icons.Outlined.LocalShipping,
-                onClick = onSupplierClick
-            )
-
-            MenuSpacer()
-
-            TraceabilityMenuCard(
-                title = "Location & Feed",
-                subtitle = "View and capture destination and ration information",
-                icon = Icons.Outlined.LocationOn,
-                onClick = onLocationFeedClick
-            )
-
-            MenuSpacer()
-
-            TraceabilityMenuCard(
-                title = "Treatments",
-                subtitle = "View and capture treatment records",
-                icon = Icons.Outlined.Medication,
-                onClick = onTreatmentsClick
-            )
-
-            MenuSpacer()
-
-            TraceabilityMenuCard(
-                title = "Costs",
-                subtitle = "View direct and indirect animal costs",
-                icon = Icons.Outlined.Payments,
-                onClick = onCostSummaryClick
-            )
-
-            MenuSpacer()
-
-            TraceabilityMenuCard(
-                title = "Mortality Records",
-                subtitle = "Capture and review livestock mortality records",
-                icon = Icons.AutoMirrored.Outlined.Assignment,
-                onClick = onMortalityClick
+            Spacer(modifier = Modifier.height(8.dp))
+            TraceabilityMenuGrid(
+                items = listOf(
+                    TraceabilityMenuAction("Costs", "Direct and indirect costs", Icons.Outlined.Payments, onCostSummaryClick),
+                    TraceabilityMenuAction("Mortality Records", "Animal losses and records", Icons.AutoMirrored.Outlined.Assignment, onMortalityClick)
+                )
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -316,80 +278,119 @@ fun FarmTraceabilityScreen(
 }
 
 @Composable
-private fun MenuSpacer() {
-    Spacer(modifier = Modifier.height(6.dp))
+private fun TraceabilityMenuGroupHeading(title: String, description: String) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = title,
+            color = BeeftechPrimaryDeep,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = description,
+            color = BeeftechMutedText,
+            fontSize = 11.sp,
+            lineHeight = 15.sp
+        )
+    }
+}
+
+// One action per existing destination. These are links, not duplicate forms.
+private data class TraceabilityMenuAction(
+    val title: String,
+    val subtitle: String,
+    val icon: ImageVector,
+    val onClick: () -> Unit
+)
+
+@Composable
+private fun TraceabilityMenuGrid(items: List<TraceabilityMenuAction>) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        items.chunked(2).forEach { pair ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                TraceabilityMenuTile(
+                    action = pair[0],
+                    modifier = Modifier.weight(1f)
+                )
+                if (pair.size > 1) {
+                    TraceabilityMenuTile(
+                        action = pair[1],
+                        modifier = Modifier.weight(1f)
+                    )
+                } else {
+                    // Keep the last odd tile at half width, matching the grid.
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
 }
 
 @Composable
-private fun TraceabilityMenuCard(
-    title: String,
-    subtitle: String,
-    icon: ImageVector,
-    onClick: () -> Unit
+private fun TraceabilityMenuTile(
+    action: TraceabilityMenuAction,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+        modifier = modifier.clickable(onClick = action.onClick),
         shape = RoundedCornerShape(11.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = BeeftechSurface
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 1.dp
-        )
+        colors = CardDefaults.cardColors(containerColor = BeeftechSurface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 9.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .heightIn(min = 120.dp)
+                .padding(10.dp)
         ) {
-
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .background(
-                        color = BeeftechSoftAccent,
-                        shape = RoundedCornerShape(10.dp)
-                    ),
-                contentAlignment = Alignment.Center
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = BeeftechPrimaryDark,
-                    modifier = Modifier.size(23.dp)
+                Box(
+                    modifier = Modifier
+                        .size(35.dp)
+                        .background(
+                            color = BeeftechSoftAccent,
+                            shape = RoundedCornerShape(9.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = action.icon,
+                        contentDescription = null,
+                        tint = BeeftechPrimaryDark,
+                        modifier = Modifier.size(21.dp)
+                    )
+                }
+                Text(
+                    text = "›",
+                    fontSize = 20.sp,
+                    color = BeeftechPrimaryDark
                 )
             }
-
-            Spacer(modifier = Modifier.size(10.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = title,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = BeeftechText
-                )
-
-                Spacer(modifier = Modifier.height(3.dp))
-
-                Text(
-                    text = subtitle,
-                    fontSize = 11.sp,
-                    lineHeight = 15.sp,
-                    color = BeeftechMutedText
-                )
-            }
-
+            Spacer(modifier = Modifier.height(7.dp))
             Text(
-                text = "›",
-                fontSize = 23.sp,
-                fontWeight = FontWeight.Medium,
-                color = BeeftechPrimaryDark
+                text = action.title,
+                fontSize = 12.sp,
+                lineHeight = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = BeeftechText,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(3.dp))
+            Text(
+                text = action.subtitle,
+                fontSize = 10.sp,
+                lineHeight = 13.sp,
+                color = BeeftechMutedText,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }

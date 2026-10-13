@@ -56,7 +56,7 @@ class FarmerFieldRulesTest {
             )
 
         assertEquals(
-            listOf("Contact: Jan Botha", "Farm size: 1250.5 ha", "Head count: 380"),
+            listOf("Contact: Jan Botha", "Farm size: 1250.5 ha"),
             lines
         )
     }

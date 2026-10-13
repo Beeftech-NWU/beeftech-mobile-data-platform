@@ -43,7 +43,6 @@ fun FarmerAnimalAssignmentScreen(
     onCheckPending: () -> Unit = {},
     message: String,
     onAssign: (List<String>, (List<String>) -> Unit) -> Unit,
-    onRegisterCalf: () -> Unit,
     onBack: () -> Unit
 ) {
     val selected = remember(farmerId) { mutableStateListOf<String>() }
@@ -400,7 +399,7 @@ fun FarmerAnimalAssignmentScreen(
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(
-                        if (animals.isEmpty()) "Use Tools & sync to download farm calves, or register a new calf."
+                        if (animals.isEmpty()) "Register calves through Calf Registration, or download registered farm calves."
                         else "Try a different search or change the filter.",
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -408,7 +407,6 @@ fun FarmerAnimalAssignmentScreen(
                         OutlinedButton(onClick = onDownloadSiteCalves, enabled = !isDownloading && !isBusy) {
                             Text(if (isDownloading) "Downloading…" else "Download farm animals")
                         }
-                        TextButton(onClick = onRegisterCalf) { Text("Register new calf") }
                     }
                 }
             }

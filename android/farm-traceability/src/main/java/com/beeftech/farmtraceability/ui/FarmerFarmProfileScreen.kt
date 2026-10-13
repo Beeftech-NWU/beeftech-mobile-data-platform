@@ -1,10 +1,24 @@
 package com.beeftech.farmtraceability.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import com.beeftech.calfregistration.ui.CalfRegistrationLookups
 import com.beeftech.database.entity.Animal
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -34,6 +48,12 @@ fun FarmerFarmProfileScreen(
     coRegIdNo: String = "",
     landOwnership: String = "",
     herdCapacity: String = "",
+    headCount: String = "",
+    primaryBreed: String = "",
+    farmerId: String = "",
+    isSavingHerd: Boolean = false,
+    herdSaveMessage: String = "",
+    onSaveHerd: (String, String, String) -> Unit = { _, _, _ -> },
     interestStatus: String = "",
     faCodeRmis: String = "",
     glnNumber: String = "",
@@ -47,8 +67,6 @@ fun FarmerFarmProfileScreen(
     isLoading: Boolean = false,
     errorMessage: String = "",
     assignedAnimals: List<Animal> = emptyList(),
-    onAssignAnimals: () -> Unit = {},
-    onRegisterCalf: () -> Unit = {},
     onBackClick: () -> Unit = {}
 ) {
     Column(
@@ -71,6 +89,67 @@ fun FarmerFarmProfileScreen(
                 .fillMaxWidth()
                 .padding(18.dp)
         ) {
+            // All herd fields are edited here; Calf Registration remains the only
+            // place for creating individual calf records.
+            TraceabilitySectionTitle(title = "Herd Overview")
+            Spacer(modifier = Modifier.height(8.dp))
+            var editedCount by remember(farmerId, headCount) { mutableStateOf(headCount) }
+            var editedCapacity by remember(farmerId, herdCapacity) { mutableStateOf(herdCapacity) }
+            var editedBreed by remember(farmerId, primaryBreed) { mutableStateOf(primaryBreed) }
+            var breedOpen by remember(farmerId) { mutableStateOf(false) }
+            val breeds = remember { CalfRegistrationLookups.animalTypes
+                .map { it.substringAfter('—').trim() } }
+            TraceabilityCard {
+                Text("Reported totals are separate from individually registered calves.",
+                    style = MaterialTheme.typography.bodySmall)
+                Spacer(modifier = Modifier.height(8.dp))
+                Box {
+                    OutlinedButton(onClick = { breedOpen = true },
+                        enabled = !isSavingHerd, modifier = Modifier.fillMaxWidth()) {
+                        Text("Primary Breed: ${editedBreed.ifBlank { "Not selected" }}")
+                    }
+                    DropdownMenu(expanded = breedOpen, onDismissRequest = { breedOpen = false }) {
+                        DropdownMenuItem(text = { Text("Not selected") }, onClick = {
+                            editedBreed = ""; breedOpen = false
+                        })
+                        breeds.forEach { option ->
+                            DropdownMenuItem(text = { Text(option) }, onClick = {
+                                editedBreed = option; breedOpen = false
+                            })
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = editedCount,
+                        onValueChange = { if (it.length <= 6 && it.all(Char::isDigit)) editedCount = it },
+                        label = { Text("Head Count") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = editedCapacity,
+                        onValueChange = { if (it.length <= 6 && it.all(Char::isDigit)) editedCapacity = it },
+                        label = { Text("Herd Capacity") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isSavingHerd && farmerId.isNotBlank(),
+                    onClick = { onSaveHerd(editedCount, editedCapacity, editedBreed) }
+                ) { Text(if (isSavingHerd) "Saving..." else "Save Herd Overview") }
+                if (herdSaveMessage.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(herdSaveMessage, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            Spacer(modifier = Modifier.height(14.dp))
             TraceabilitySectionTitle(title = "Registered animals")
             Spacer(modifier = Modifier.height(12.dp))
             TraceabilityCard {
@@ -82,7 +161,7 @@ fun FarmerFarmProfileScreen(
                 if (assignedAnimals.isEmpty()) {
                     Text("No calves are assigned to this farmer yet.")
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("Assign an existing animal, or register a new calf first.")
+                    Text("Register calves in Calf Registration; link them using Assign Animal to Farmer.")
                 } else {
                     assignedAnimals.forEach { animal ->
                         Spacer(modifier = Modifier.height(12.dp))
@@ -98,14 +177,9 @@ fun FarmerFarmProfileScreen(
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(onClick = onAssignAnimals, modifier = Modifier.fillMaxWidth()) {
-                    Text("Assign existing animals")
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedButton(onClick = onRegisterCalf, modifier = Modifier.fillMaxWidth()) {
-                    Text("Register new calf")
-                }
+                Spacer(modifier = Modifier.height(10.dp))
+                Text("Assigned animal count is not the farmer's reported Head Count.",
+                    style = MaterialTheme.typography.bodySmall)
             }
             Spacer(modifier = Modifier.height(20.dp))
             if (isLoading) {
@@ -195,16 +269,6 @@ fun FarmerFarmProfileScreen(
                     title = "Land Ownership",
                     subtitle = landOwnership.ifBlank {
                         "Land ownership unavailable"
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                TraceabilityInfoRow(
-                    icon = Icons.Outlined.Tag,
-                    title = "Herd Capacity",
-                    subtitle = herdCapacity.ifBlank {
-                        "Herd capacity unavailable"
                     }
                 )
 
@@ -323,7 +387,7 @@ fun FarmerFarmProfileScreen(
                     subtitle = when (syncStatus.uppercase()) {
                         "PENDING" -> "Pending Sync"
                         "PROCESSING" -> "Processing"
-                        "SYNCED" -> "Registered"
+                        "SYNCED" -> "Synced with server"
                         else -> syncStatus.ifBlank {
                             "Sync status unavailable"
                         }
