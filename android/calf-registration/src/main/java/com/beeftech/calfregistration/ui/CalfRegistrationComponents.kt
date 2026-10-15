@@ -11,8 +11,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.outlined.EditNote
-import androidx.compose.material.icons.outlined.ListAlt
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -22,10 +21,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -36,63 +37,64 @@ data class Quadruple<A, B, C, D>(
     val fourth: D
 )
 
+/** Single-row screen header (about 56dp): back, icon chip, title and an optional one-line subtitle. */
 @Composable
 fun CalfHeader(
-    eyebrow: String,
     title: String,
-    subtitle: String,
     icon: ImageVector,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
     showBackButton: Boolean = false,
     onBackClick: (() -> Unit)? = null
 ) {
-    Column(
+    Row(
         modifier = modifier
             .fillMaxWidth()
             .background(BeeftechHeaderBackground)
-            .padding(start = 14.dp, end = 22.dp, top = 22.dp, bottom = 20.dp)
+            .defaultMinSize(minHeight = 56.dp)
+            .padding(start = if (showBackButton) 4.dp else 14.dp, end = 14.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (showBackButton) {
-                IconButton(onClick = { onBackClick?.invoke() }, modifier = Modifier.size(42.dp)) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                        contentDescription = "Back",
-                        tint = BeeftechWhite,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(4.dp))
-            }
-
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .background(BeeftechHeaderAccent.copy(alpha = 0.18f), RoundedCornerShape(11.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = null, tint = BeeftechHeaderAccent, modifier = Modifier.size(22.dp))
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = eyebrow.uppercase(),
-                    fontSize = 10.sp,
-                    letterSpacing = 1.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = BeeftechHeaderAccent
+        if (showBackButton) {
+            IconButton(onClick = { onBackClick?.invoke() }) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                    contentDescription = "Back",
+                    tint = BeeftechWhite
                 )
-                Spacer(modifier = Modifier.height(3.dp))
-                Text(text = title, fontSize = 25.sp, fontWeight = FontWeight.Bold, color = BeeftechWhite)
             }
         }
 
-        Spacer(modifier = Modifier.height(9.dp))
-        Text(text = subtitle, fontSize = 12.sp, lineHeight = 17.sp, color = BeeftechHeaderSubtitle)
-        Spacer(modifier = Modifier.height(17.dp))
-        HorizontalDivider(thickness = 2.dp, color = BeeftechHeaderAccent)
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .background(BeeftechHeaderAccent.copy(alpha = 0.18f), RoundedCornerShape(8.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = BeeftechHeaderAccent, modifier = Modifier.size(18.dp))
+        }
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = BeeftechWhite,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    text = subtitle,
+                    fontSize = 12.sp,
+                    color = BeeftechHeaderSubtitle,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
     }
 }
 
@@ -123,7 +125,44 @@ fun CalfCard(content: @Composable ColumnScope.() -> Unit) {
         colors = CardDefaults.cardColors(containerColor = BeeftechSurface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
-        Column(modifier = Modifier.padding(17.dp), content = content)
+        Column(modifier = Modifier.padding(12.dp), content = content)
+    }
+}
+
+/** Lays out fields side by side with equal widths. */
+@Composable
+fun CalfFieldRow(
+    modifier: Modifier = Modifier,
+    content: @Composable RowScope.() -> Unit
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.Bottom,
+        content = content
+    )
+}
+
+/** Small uppercase field label, with an optional help icon. */
+@Composable
+fun CalfFieldLabel(label: String, infoText: String? = null) {
+    Row(
+        modifier = Modifier.defaultMinSize(minHeight = 18.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label.uppercase(),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            color = BeeftechPrimaryDark,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false)
+        )
+        if (!infoText.isNullOrBlank()) {
+            Spacer(modifier = Modifier.width(2.dp))
+            CalfBirthHelpIcon(title = label, message = infoText)
+        }
     }
 }
 
@@ -152,7 +191,7 @@ fun CalfTextField(
     placeholder: String = "—",
     supportingText: String? = null,
     modifier: Modifier = Modifier,
-    icon: ImageVector = Icons.Outlined.EditNote,
+    icon: ImageVector? = null,
     onFocusLost: (() -> Unit)? = null,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
@@ -161,30 +200,19 @@ fun CalfTextField(
     // onFocusChanged also reports "unfocused" on first composition, so only react after real focus.
     var hadFocus by remember { mutableStateOf(false) }
     Column(modifier = modifier.fillMaxWidth()) {
-        if (infoText.isNullOrBlank()) {
-            Text(text = label.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.6.sp, color = BeeftechPrimaryDark)
-        } else {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = label.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.6.sp, color = BeeftechPrimaryDark)
-                Spacer(modifier = Modifier.width(4.dp))
-                CalfBirthHelpIcon(title = label, message = infoText)
-            }
-        }
-        Spacer(modifier = Modifier.height(7.dp))
+        CalfFieldLabel(label = label, infoText = infoText)
+        Spacer(modifier = Modifier.height(4.dp))
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            placeholder = { Text(placeholder, color = BeeftechMutedText, fontSize = 14.sp) },
+            placeholder = {
+                Text(placeholder, color = BeeftechMutedText, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            },
             singleLine = true,
             keyboardOptions = keyboardOptions,
             keyboardActions = keyboardActions,
-            leadingIcon = {
-                Box(
-                    modifier = Modifier.size(34.dp).background(BeeftechSoftAccent, RoundedCornerShape(8.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(icon, contentDescription = null, tint = BeeftechPrimaryDark, modifier = Modifier.size(19.dp))
-                }
+            leadingIcon = icon?.let {
+                { Icon(it, contentDescription = null, tint = BeeftechPrimaryDark, modifier = Modifier.size(20.dp)) }
             },
             modifier = Modifier.fillMaxWidth().onFocusChanged { state ->
                 if (state.isFocused) {
@@ -213,40 +241,39 @@ fun CalfTextField(
 @Composable
 fun CalfLookupDropdownField(
     label: String,
-    badgeLabel: String = "LOOKUP",
+    badgeLabel: String? = null,
     selectedValue: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(text = label.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.6.sp, color = BeeftechPrimaryDark)
-            Spacer(modifier = Modifier.width(6.dp))
-            LookupTagBadge(label = badgeLabel)
+        if (badgeLabel == null) {
+            CalfFieldLabel(label = label)
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CalfFieldLabel(label = label)
+                Spacer(modifier = Modifier.width(6.dp))
+                LookupTagBadge(label = badgeLabel)
+            }
         }
-        Spacer(modifier = Modifier.height(7.dp))
+        Spacer(modifier = Modifier.height(4.dp))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp)
+                .height(48.dp)
                 .background(BeeftechWhite, RoundedCornerShape(11.dp))
                 .border(1.dp, BeeftechBorder, RoundedCornerShape(11.dp))
                 .clickable(onClick = onClick)
-                .padding(horizontal = 12.dp),
+                .padding(start = 12.dp, end = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier.size(34.dp).background(BeeftechSoftAccent, RoundedCornerShape(8.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Outlined.ListAlt, contentDescription = null, tint = BeeftechPrimaryDark, modifier = Modifier.size(19.dp))
-            }
-            Spacer(modifier = Modifier.width(10.dp))
             Text(
                 text = selectedValue.ifEmpty { "Select an option" },
                 modifier = Modifier.weight(1f),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 color = if (selectedValue.startsWith("Select")) BeeftechMutedText else BeeftechText
             )
             Icon(Icons.Default.ArrowDropDown, contentDescription = "Select", tint = BeeftechPrimaryDark)
@@ -295,16 +322,16 @@ fun CalfMenuCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(15.dp),
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
-                modifier = Modifier.size(47.dp).background(BeeftechSoftAccent, RoundedCornerShape(12.dp)),
+                modifier = Modifier.size(40.dp).background(BeeftechSoftAccent, RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, contentDescription = null, tint = BeeftechPrimaryDark, modifier = Modifier.size(23.dp))
+                Icon(icon, contentDescription = null, tint = BeeftechPrimaryDark, modifier = Modifier.size(21.dp))
             }
-            Spacer(modifier = Modifier.size(14.dp))
+            Spacer(modifier = Modifier.size(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = BeeftechText)
                 Spacer(modifier = Modifier.height(3.dp))
@@ -328,7 +355,7 @@ fun CalfStepTopBar(
         color = BeeftechSurface,
         shadowElevation = 1.dp
     ) {
-        Column(modifier = Modifier.padding(start = 4.dp, end = 16.dp, bottom = 4.dp)) {
+        Column(modifier = Modifier.padding(start = 4.dp, end = 16.dp, bottom = 6.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -354,7 +381,9 @@ fun CalfStepTopBar(
                     text = "  ·  $title",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = BeeftechText
+                    color = BeeftechText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
             StepProgress(
@@ -373,20 +402,18 @@ fun StepProgress(
     modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         for (i in 1..totalSteps) {
             val isActive = i <= currentStep
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(6.dp)
+                    .height(3.dp)
                     .background(
                         color = if (isActive) BeeftechPrimary else BeeftechBorder,
-                        shape = RoundedCornerShape(3.dp)
+                        shape = RoundedCornerShape(2.dp)
                     )
             )
         }
@@ -400,40 +427,35 @@ fun ReviewRow(
     onChangeClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Rows sit together inside one CalfCard on the review screen, so no border or background here.
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(BeeftechWhite, RoundedCornerShape(14.dp))
-            .border(1.dp, BeeftechBorder, RoundedCornerShape(14.dp))
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(vertical = 2.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = label,
-                fontSize = 12.sp,
+                fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
                 color = BeeftechMutedText
             )
-            Spacer(modifier = Modifier.height(3.dp))
             Text(
                 text = value.ifEmpty { "Not set" },
-                fontSize = 16.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = BeeftechText
             )
         }
 
-        TextButton(
-            onClick = onChangeClick,
-            modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
-        ) {
-            Text(
-                text = "Change",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = BeeftechPrimary
+        IconButton(onClick = onChangeClick) {
+            Icon(
+                imageVector = Icons.Outlined.Edit,
+                contentDescription = "Change $label",
+                tint = BeeftechPrimary,
+                modifier = Modifier.size(20.dp)
             )
         }
     }
@@ -511,58 +533,24 @@ fun TagColorCard(
         com.beeftech.database.util.TagColour.YELLOW -> Color(0xFFE0A800)
     }
 
-    Column(
+    val shape = RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomStart = 22.dp, bottomEnd = 22.dp)
+    val name = colour.name.lowercase().replaceFirstChar { it.uppercase() }
+
+    Box(
         modifier = modifier
-            .clickable(onClick = onClick)
-            .padding(4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .height(48.dp)
+            .clip(shape)
+            .background(color = bg, shape = shape)
+            .then(if (isSelected) Modifier.border(width = 3.dp, color = BeeftechText, shape = shape) else Modifier)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .background(
-                    color = bg,
-                    shape = RoundedCornerShape(
-                        topStart = 10.dp,
-                        topEnd = 10.dp,
-                        bottomStart = 24.dp,
-                        bottomEnd = 24.dp
-                    )
-                )
-                .then(
-                    if (isSelected) {
-                        Modifier.border(
-                            width = 3.dp,
-                            color = BeeftechText,
-                            shape = RoundedCornerShape(
-                                topStart = 10.dp,
-                                topEnd = 10.dp,
-                                bottomStart = 24.dp,
-                                bottomEnd = 24.dp
-                            )
-                        )
-                    } else Modifier
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            if (isSelected) {
-                Text(
-                    text = "✓",
-                    color = Color.White,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(4.dp))
-
         Text(
-            text = colour.name.lowercase().replaceFirstChar { it.uppercase() },
+            text = if (isSelected) "✓ $name" else name,
+            color = if (colour == com.beeftech.database.util.TagColour.YELLOW) BeeftechText else Color.White,
             fontSize = 13.sp,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-            color = if (isSelected) BeeftechText else BeeftechMutedText
+            maxLines = 1
         )
     }
 }

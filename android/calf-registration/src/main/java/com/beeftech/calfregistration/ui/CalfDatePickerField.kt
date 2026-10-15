@@ -1,11 +1,9 @@
 package com.beeftech.calfregistration.ui
 
 import android.app.DatePickerDialog
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,14 +20,13 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
@@ -89,67 +86,36 @@ fun CalfDatePickerField(
         }.show()
     }
 
+    // Tapping anywhere on the read-only field opens the picker, not just the trailing icon.
+    val interactionSource = remember { MutableInteractionSource() }
+    LaunchedEffect(interactionSource, value) {
+        interactionSource.interactions.collect { interaction ->
+            if (interaction is PressInteraction.Release) openPicker()
+        }
+    }
+
     Column(
         modifier =
             Modifier.fillMaxWidth()
     ) {
-        if (infoText.isNullOrBlank()) {
-            Text(
-                text = label.uppercase(),
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 0.6.sp,
-                color = BeeftechPrimaryDark
-            )
-        } else {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = label.uppercase(),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.6.sp,
-                    color = BeeftechPrimaryDark
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                CalfBirthHelpIcon(title = label, message = infoText)
-            }
-        }
+        CalfFieldLabel(label = label, infoText = infoText)
 
         Spacer(
-            modifier = Modifier.height(7.dp)
+            modifier = Modifier.height(4.dp)
         )
 
         OutlinedTextField(
             value = value,
             onValueChange = {},
             readOnly = true,
+            interactionSource = interactionSource,
             placeholder = {
                 Text(
                     text = "DD/MM/YYYY",
                     color = BeeftechMutedText,
-                    fontSize = 14.sp
+                    fontSize = 14.sp,
+                    maxLines = 1
                 )
-            },
-            leadingIcon = {
-                Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .background(
-                            BeeftechSoftAccent,
-                            RoundedCornerShape(8.dp)
-                        ),
-                    contentAlignment =
-                        Alignment.Center
-                ) {
-                    Icon(
-                        imageVector =
-                            Icons.Outlined.CalendarMonth,
-                        contentDescription = null,
-                        tint = BeeftechPrimaryDark,
-                        modifier =
-                            Modifier.size(19.dp)
-                    )
-                }
             },
             trailingIcon = {
                 IconButton(

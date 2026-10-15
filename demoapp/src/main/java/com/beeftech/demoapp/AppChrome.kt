@@ -8,6 +8,7 @@ import android.net.NetworkCapabilities
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.CloudQueue
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
@@ -57,6 +59,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -830,6 +833,8 @@ fun BeefMoreScreen(
     onOpen: (AppTab) -> Unit,
     onMyActivity: () -> Unit,
     onLogout: () -> Unit,
+    brightScreen: Boolean,
+    onBrightScreenChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val managementItems = moreTabsFor(role)
@@ -869,6 +874,13 @@ fun BeefMoreScreen(
         }
 
         item {
+            BrightScreenCard(
+                enabled = brightScreen,
+                onChange = onBrightScreenChange
+            )
+        }
+
+        item {
             Spacer(modifier = Modifier.height(4.dp))
             MoreActionCard(
                 title = "Log out",
@@ -877,6 +889,63 @@ fun BeefMoreScreen(
                 onClick = onLogout,
                 danger = true
             )
+        }
+    }
+}
+
+/* Display preference: holds BeefTech at high brightness instead of the phone's own setting. */
+@Composable
+private fun BrightScreenCard(
+    enabled: Boolean,
+    onChange: (Boolean) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .defaultMinSize(minHeight = 76.dp)
+            .toggleable(value = enabled, role = androidx.compose.ui.semantics.Role.Switch, onValueChange = onChange),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = BeefSurface),
+        border = BorderStroke(1.dp, BeefBorder)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .background(BeefSoftGreen, RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.LightMode,
+                    contentDescription = null,
+                    tint = BeefPrimaryStrong,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Spacer(modifier = Modifier.size(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Bright screen",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = BeefText
+                )
+                Text(
+                    text = if (enabled) {
+                        "BeefTech stays bright. Turn off to use your phone's brightness."
+                    } else {
+                        "Uses your phone's brightness. Still brightens in direct sunlight."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = BeefMutedText
+                )
+            }
+            Spacer(modifier = Modifier.size(8.dp))
+            // The whole card is the toggle target, so the switch itself takes no clicks.
+            Switch(checked = enabled, onCheckedChange = null)
         }
     }
 }

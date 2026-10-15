@@ -194,20 +194,12 @@ fun CalfConditionStepScreen(
                 .background(BeeftechBackground)
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = "Age, health and parentage",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = BeeftechText
-            )
-
             // Age category
             CalfLookupDropdownField(
                 label = "Age Category",
-                badgeLabel = "SELECT",
                 selectedValue = formData.age.ifEmpty { "Newborn (< 24h)" },
                 onClick = { activeLookupField = "AGE" }
             )
@@ -218,94 +210,45 @@ fun CalfConditionStepScreen(
                 onSelected = { onFormDataChange(formData.copy(condition = it)) }
             )
 
-            HorizontalDivider(color = BeeftechBorder, thickness = 1.dp)
+            Spacer(modifier = Modifier.height(4.dp))
+            CalfSectionTitle("Parentage (optional)")
 
-            Text(
-                text = "Parentage (optional)",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = BeeftechText
+            ParentTagRow(
+                label = "Dam (Mother) Tag",
+                value = formData.dameTagNumber,
+                scanDescription = "Scan Dam Tag",
+                onPick = { activeLookupField = "DAM" },
+                onScan = { scanField = "DAM" }
+            )
+            ParentTagRow(
+                label = "Sire (Father) Tag",
+                value = formData.sireTagNumber,
+                scanDescription = "Scan Sire Tag",
+                onPick = { activeLookupField = "SIRE" },
+                onScan = { scanField = "SIRE" }
             )
 
-            // Dam Tag
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(modifier = Modifier.weight(1f)) {
-                    CalfLookupDropdownField(
-                        label = "Dam (Mother) Tag",
-                        badgeLabel = "TAG",
-                        selectedValue = formData.dameTagNumber.ifEmpty { "None selected" },
-                        onClick = { activeLookupField = "DAM" }
-                    )
-                }
-                IconButton(
-                    onClick = { scanField = "DAM" },
-                    modifier = Modifier
-                        .padding(top = 22.dp)
-                        .size(48.dp)
-                        .background(BeeftechSoftAccent, RoundedCornerShape(10.dp))
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.DocumentScanner,
-                        contentDescription = "Scan Dam Tag",
-                        tint = BeeftechPrimary
-                    )
-                }
-            }
-
-            // Sire Tag
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(modifier = Modifier.weight(1f)) {
-                    CalfLookupDropdownField(
-                        label = "Sire (Father) Tag",
-                        badgeLabel = "TAG",
-                        selectedValue = formData.sireTagNumber.ifEmpty { "None selected" },
-                        onClick = { activeLookupField = "SIRE" }
-                    )
-                }
-                IconButton(
-                    onClick = { scanField = "SIRE" },
-                    modifier = Modifier
-                        .padding(top = 22.dp)
-                        .size(48.dp)
-                        .background(BeeftechSoftAccent, RoundedCornerShape(10.dp))
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.DocumentScanner,
-                        contentDescription = "Scan Sire Tag",
-                        tint = BeeftechPrimary
-                    )
-                }
-            }
-
-            HorizontalDivider(color = BeeftechBorder, thickness = 1.dp)
-
+            Spacer(modifier = Modifier.height(4.dp))
             // Verification (optional proof references)
             CalfSectionTitle("Verification (optional)")
-            CalfCard {
+            CalfFieldRow {
                 CalfTextField(
                     label = "Process proof",
                     value = formData.processProof,
                     onValueChange = { onFormDataChange(formData.copy(processProof = it.take(MAX_PROOF_LENGTH))) },
-                    placeholder = "Reference or note"
+                    placeholder = "Reference",
+                    modifier = Modifier.weight(1f)
                 )
-                Spacer(modifier = Modifier.height(16.dp))
                 CalfTextField(
                     label = "Implant proof",
                     value = formData.implantProof,
                     onValueChange = { onFormDataChange(formData.copy(implantProof = it.take(MAX_PROOF_LENGTH))) },
-                    placeholder = "Reference or note"
+                    placeholder = "Reference",
+                    modifier = Modifier.weight(1f)
                 )
             }
 
-            HorizontalDivider(color = BeeftechBorder, thickness = 1.dp)
+            Spacer(modifier = Modifier.height(4.dp))
 
             // Photo attachment button: opens the camera, or removes the attached photo
             val hasPhoto = formData.photoPath != null
@@ -326,8 +269,8 @@ fun CalfConditionStepScreen(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .defaultMinSize(minHeight = 56.dp),
-                shape = RoundedCornerShape(14.dp),
+                    .defaultMinSize(minHeight = 48.dp),
+                shape = RoundedCornerShape(11.dp),
                 border = BorderStroke(1.dp, if (hasPhoto) BeeftechPrimary else BeeftechBorder),
                 colors = ButtonDefaults.outlinedButtonColors(
                     containerColor = if (hasPhoto) BeeftechSoftAccent else BeeftechWhite
@@ -347,6 +290,41 @@ fun CalfConditionStepScreen(
                     color = if (hasPhoto) BeeftechPrimary else BeeftechText
                 )
             }
+        }
+    }
+}
+
+/** Parent tag picker with a scan button aligned to the field. */
+@Composable
+private fun ParentTagRow(
+    label: String,
+    value: String,
+    scanDescription: String,
+    onPick: () -> Unit,
+    onScan: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        CalfLookupDropdownField(
+            label = label,
+            selectedValue = value.ifEmpty { "None selected" },
+            onClick = onPick,
+            modifier = Modifier.weight(1f)
+        )
+        IconButton(
+            onClick = onScan,
+            modifier = Modifier
+                .size(48.dp)
+                .background(BeeftechSoftAccent, RoundedCornerShape(10.dp))
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.DocumentScanner,
+                contentDescription = scanDescription,
+                tint = BeeftechPrimary
+            )
         }
     }
 }

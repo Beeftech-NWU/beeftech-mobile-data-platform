@@ -143,15 +143,10 @@ fun TagIdentityScreen(
                 .background(BeeftechBackground)
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = "Which ear tag?",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = BeeftechText
-            )
+            CalfFieldLabel("Tag colour")
 
             // Tag Color Selection
             Row(
@@ -180,9 +175,7 @@ fun TagIdentityScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Tag Number input field (56dp min height with large readable text)
+            // Tag Number input field (large readable text) with the scanner as a trailing action
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -192,13 +185,14 @@ fun TagIdentityScreen(
                         color = if (isDuplicateTag) Color(0xFF8C1D18) else BeeftechPrimary,
                         shape = RoundedCornerShape(14.dp)
                     )
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
+                    .padding(start = 12.dp, end = 4.dp, top = 6.dp)
             ) {
                 Text(
                     text = "Tag number",
                     fontSize = 12.sp,
                     color = BeeftechMutedText,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(start = 4.dp)
                 )
 
                 OutlinedTextField(
@@ -221,6 +215,20 @@ fun TagIdentityScreen(
                         )
                     },
                     singleLine = true,
+                    trailingIcon = {
+                        IconButton(
+                            onClick = { showScanner = true },
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(BeeftechSoftAccent, RoundedCornerShape(10.dp))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.DocumentScanner,
+                                contentDescription = "Scan ear tag",
+                                tint = BeeftechPrimary
+                            )
+                        }
+                    },
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Text,
                         imeAction = ImeAction.Done
@@ -240,7 +248,7 @@ fun TagIdentityScreen(
             when {
                 currentRawInput.isBlank() -> {
                     Text(
-                        text = "Enter the tag sequence (e.g. 14) or scan the tag",
+                        text = "Enter the tag sequence (e.g. 14) or tap the scan button",
                         fontSize = 13.sp,
                         color = BeeftechMutedText
                     )
@@ -271,49 +279,22 @@ fun TagIdentityScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Secondary Action: Scan tag with camera
-            OutlinedButton(
-                onClick = { showScanner = true },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .defaultMinSize(minHeight = 56.dp),
-                shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(2.dp, BeeftechPrimary),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = BeeftechPrimary
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.DocumentScanner,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Scan ear tag instead",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             CalfSectionTitle("Other identifiers (optional)")
-            Spacer(modifier = Modifier.height(12.dp))
-            CalfCard {
+            CalfFieldRow {
                 CalfTextField(
                     label = "Old tag number",
                     value = formData.oldTagNumber,
                     onValueChange = { onFormDataChange(formData.copy(oldTagNumber = it.take(MAX_IDENTIFIER_LENGTH))) },
-                    placeholder = "Previous or legacy tag"
+                    placeholder = "Legacy tag",
+                    modifier = Modifier.weight(1f)
                 )
-                Spacer(modifier = Modifier.height(16.dp))
                 CalfTextField(
                     label = "Reference number",
                     value = formData.referenceNumber,
                     onValueChange = { onFormDataChange(formData.copy(referenceNumber = it.take(MAX_IDENTIFIER_LENGTH))) },
-                    placeholder = "Optional"
+                    placeholder = "Optional",
+                    modifier = Modifier.weight(1f)
                 )
             }
         }

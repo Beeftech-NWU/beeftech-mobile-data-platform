@@ -49,53 +49,30 @@ fun CalvesRegisteredScreen(
     Column(
         modifier = Modifier.fillMaxSize().background(BeeftechBackground).verticalScroll(rememberScrollState())
     ) {
+        val syncedCount = registeredCalves.count { it.synced }
+        val attentionCount = registeredCalves.count { it.needsAttention }
         CalfHeader(
-            eyebrow = "Calf registration",
             title = "Registered Calves",
-            subtitle = "Search and review calves registered on this device.",
+            subtitle = "${registeredCalves.size} total · $syncedCount synced · " +
+                "${registeredCalves.size - syncedCount - attentionCount} pending" +
+                if (attentionCount > 0) " · $attentionCount need attention" else "",
             icon = Icons.Outlined.Pets,
             showBackButton = true,
             onBackClick = onBackClick
         )
 
-        Column(modifier = Modifier.fillMaxWidth().padding(18.dp)) {
-            CalfSectionTitle("Summary")
-            Spacer(modifier = Modifier.height(12.dp))
-            CalfCard {
-                val syncedCount = registeredCalves.count { it.synced }
-                val attentionCount = registeredCalves.count { it.needsAttention }
-                Text(
-                    text = "${registeredCalves.size} calves registered",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = BeeftechText
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "$syncedCount synced • ${registeredCalves.size - syncedCount - attentionCount} pending" +
-                        if (attentionCount > 0) " • $attentionCount need attention" else "",
-                    fontSize = 12.sp,
-                    color = BeeftechMutedText
-                )
-            }
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
+            CalfTextField(
+                label = "Search tag (B64 → Blu0000064)",
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = "Search tag, e.g. B64",
+                icon = Icons.Outlined.Search
+            )
 
-            Spacer(modifier = Modifier.height(24.dp))
-            CalfSectionTitle("Search & Quick Auto-Expansion")
             Spacer(modifier = Modifier.height(12.dp))
-            CalfCard {
-                CalfTextField(
-                    label = "Search Tag ID or Shorthand",
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = "Search tag e.g. B64 or Blu0000064",
-                    supportingText = "Supports quick search codes (B64 -> Blu0000064, R123 -> Red0000123)",
-                    icon = Icons.Outlined.Search
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
             CalfSectionTitle("Registered calves (${filteredCalves.size})")
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             if (filteredCalves.isEmpty()) {
                 CalfCard {
@@ -110,19 +87,19 @@ fun CalvesRegisteredScreen(
             } else {
                 filteredCalves.forEach { calf ->
                     CalfRegisteredItemCard(calf = calf, onClick = { onSelectCalf(calf) })
-                    Spacer(modifier = Modifier.height(11.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                 }
             }
 
-            Spacer(modifier = Modifier.height(15.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             CalfPrimaryButton(text = "Register new calf", onClick = onRegisterNewCalfClick)
-            Spacer(modifier = Modifier.height(30.dp))
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
 
 @Composable
-private fun CalfRegisteredItemCard(calf: CalfRegistrationData, onClick: () -> Unit) {
+internal fun CalfRegisteredItemCard(calf: CalfRegistrationData, onClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
@@ -130,19 +107,18 @@ private fun CalfRegisteredItemCard(calf: CalfRegistrationData, onClick: () -> Un
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
-                modifier = Modifier.size(46.dp).background(BeeftechSoftAccent, RoundedCornerShape(11.dp)),
+                modifier = Modifier.size(36.dp).background(BeeftechSoftAccent, RoundedCornerShape(9.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Outlined.Tag, contentDescription = null, tint = BeeftechPrimaryDark, modifier = Modifier.size(22.dp))
+                Icon(Icons.Outlined.Tag, contentDescription = null, tint = BeeftechPrimaryDark, modifier = Modifier.size(19.dp))
             }
-            Spacer(modifier = Modifier.width(13.dp))
+            Spacer(modifier = Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(calf.tagNumber, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = BeeftechText)
-                Spacer(modifier = Modifier.height(3.dp))
                 Text(
                     text = "${calf.animalType.substringAfter("—", calf.animalType).trim()} • ${calf.gender}",
                     fontSize = 11.sp,
@@ -163,7 +139,7 @@ private fun CalfRegisteredItemCard(calf: CalfRegistrationData, onClick: () -> Un
                     .padding(horizontal = 6.dp, vertical = 3.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text("›", fontSize = 26.sp, fontWeight = FontWeight.Medium, color = BeeftechPrimaryDark)
+            Text("›", fontSize = 22.sp, fontWeight = FontWeight.Medium, color = BeeftechPrimaryDark)
         }
     }
 }

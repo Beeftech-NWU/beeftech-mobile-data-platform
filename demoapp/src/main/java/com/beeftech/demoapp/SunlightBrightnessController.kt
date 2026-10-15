@@ -174,6 +174,13 @@ class SunlightBrightnessController(
                      */
                     1.0f
 
+                } else if (BrightScreenSetting.enabled.value) {
+
+                    /*
+                     * The user turned on Bright screen in More.
+                     */
+                    BrightScreenSetting.BRIGHT_SCREEN_LEVEL
+
                 } else {
 
                     /*
@@ -187,6 +194,17 @@ class SunlightBrightnessController(
             activity.window.attributes =
                 attributes
         }
+    }
+
+    /*
+     * Re-applies brightness to the visible screen, e.g. after the
+     * Bright screen switch changes.
+     */
+    fun refresh() {
+
+        applyBrightness(
+            resumedActivity
+        )
     }
 
     override fun onAccuracyChanged(

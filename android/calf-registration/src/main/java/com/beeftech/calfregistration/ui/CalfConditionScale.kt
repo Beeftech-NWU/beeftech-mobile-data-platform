@@ -40,12 +40,7 @@ fun CalfConditionScale(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Text(
-            text = "CONDITION (1-5)",
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            color = BeeftechPrimaryDark
-        )
+        CalfFieldLabel("Condition (1-5)")
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -72,7 +67,7 @@ private fun RowScope.ConditionBox(
         onClick = onClick,
         modifier = Modifier
             .weight(1f)
-            .defaultMinSize(minHeight = 72.dp),
+            .defaultMinSize(minHeight = 56.dp),
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(
             width = if (isSelected) 2.dp else 1.dp,
@@ -82,17 +77,17 @@ private fun RowScope.ConditionBox(
             containerColor = if (isSelected) BeeftechPrimary else BeeftechWhite,
             contentColor = if (isSelected) BeeftechWhite else BeeftechText
         ),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 2.dp, vertical = 8.dp)
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 2.dp, vertical = 4.dp)
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = score, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text(text = score, fontSize = 18.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold)
             Text(
                 text = CalfRegistrationLookups.conditionLabel(score),
                 fontSize = 10.sp,
                 textAlign = TextAlign.Center,
                 maxLines = 1
             )
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(3.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                 for (i in 1..5) {
                     Box(

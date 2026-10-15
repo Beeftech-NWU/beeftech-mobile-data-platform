@@ -42,15 +42,14 @@ fun CalfDetailScreen(
         modifier = Modifier.fillMaxSize().background(BeeftechBackground).verticalScroll(rememberScrollState())
     ) {
         CalfHeader(
-            eyebrow = "Calf registration",
             title = calf.tagNumber,
-            subtitle = "Registered calf details (read-only).",
+            subtitle = "Registered calf details (read-only)",
             icon = Icons.Outlined.Pets,
             showBackButton = true,
             onBackClick = onBackClick
         )
 
-        Column(modifier = Modifier.fillMaxWidth().padding(18.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
             DetailSection(
                 "Identity",
                 "Tag number" to calf.tagNumber,
@@ -124,7 +123,7 @@ private fun PhotoSection(tagNumber: String, photoPath: String) {
     }
 
     CalfSectionTitle("Photo")
-    Spacer(modifier = Modifier.height(12.dp))
+    Spacer(modifier = Modifier.height(6.dp))
     CalfCard {
         when (val current = state) {
             PhotoState.Loading ->
@@ -154,38 +153,39 @@ private fun PhotoSection(tagNumber: String, photoPath: String) {
                 )
         }
     }
-    Spacer(modifier = Modifier.height(24.dp))
+    Spacer(modifier = Modifier.height(12.dp))
 }
 
 @Composable
 private fun DetailSection(title: String, vararg rows: Pair<String, String>) {
     CalfSectionTitle(title)
-    Spacer(modifier = Modifier.height(12.dp))
+    Spacer(modifier = Modifier.height(6.dp))
     CalfCard {
         rows.forEachIndexed { index, (label, value) ->
-            if (index > 0) Spacer(modifier = Modifier.height(12.dp))
+            if (index > 0) Spacer(modifier = Modifier.height(6.dp))
             DetailRow(label, value)
         }
     }
-    Spacer(modifier = Modifier.height(24.dp))
+    Spacer(modifier = Modifier.height(12.dp))
 }
 
+/** Label on the left, value on the right, so each field takes one line. */
 @Composable
 private fun DetailRow(label: String, value: String) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
         Text(
-            text = label.uppercase(),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 0.6.sp,
-            color = BeeftechPrimaryDark
+            text = label,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            color = BeeftechMutedText,
+            modifier = Modifier.weight(0.4f).padding(top = 1.dp)
         )
-        Spacer(modifier = Modifier.height(3.dp))
         Text(
             text = value.ifBlank { "—" },
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
-            color = BeeftechText
+            color = BeeftechText,
+            modifier = Modifier.weight(0.6f)
         )
     }
 }

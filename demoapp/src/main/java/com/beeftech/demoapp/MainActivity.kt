@@ -101,23 +101,8 @@ import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
-    // Window-only brightness override: system brightness settings are never changed.
-    private var previousWindowBrightness: Float? = null
-
-    override fun onResume() {
-        super.onResume()
-        previousWindowBrightness = window.attributes.screenBrightness
-        window.attributes = window.attributes.apply { screenBrightness = 0.90f }
-    }
-
-    override fun onPause() {
-        previousWindowBrightness?.let { previous ->
-            window.attributes = window.attributes.apply { screenBrightness = previous }
-        }
-        previousWindowBrightness = null
-        super.onPause()
-    }
-
+    // Screen brightness is handled by SunlightBrightnessController and the Bright screen
+    // switch in More (BrightScreenSetting); system brightness settings are never changed.
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -522,6 +507,11 @@ class MainActivity : ComponentActivity() {
                             val diseaseOptions by
                             treatmentViewModel
                                 .diseaseOptions
+                                .collectAsState()
+
+                            val brightScreen by
+                            BrightScreenSetting
+                                .enabled
                                 .collectAsState()
 
                             val treatmentOptions by
@@ -1118,6 +1108,13 @@ class MainActivity : ComponentActivity() {
                                             },
                                             onLogout = {
                                                 showLogoutDialog = true
+                                            },
+                                            brightScreen = brightScreen,
+                                            onBrightScreenChange = { enabled ->
+                                                BrightScreenSetting.set(this@MainActivity, enabled)
+                                                (application as BeefTechApplication)
+                                                    .sunlightBrightnessController
+                                                    .refresh()
                                             }
                                         )
 
