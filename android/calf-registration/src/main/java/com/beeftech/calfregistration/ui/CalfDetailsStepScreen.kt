@@ -133,32 +133,19 @@ fun CalfDetailsStepScreen(
                 .background(BeeftechBackground)
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = "Type and appearance",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = BeeftechText
-            )
-
             // Breed / Animal type
             CalfLookupDropdownField(
                 label = "Breed / Type",
-                badgeLabel = "SELECT",
                 selectedValue = formData.animalType.ifEmpty { "BRN — Brangus" },
                 onClick = { activeLookupField = "ANIMAL_TYPE" }
             )
 
-            // Gender selection - big glove-friendly cards
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    text = "GENDER",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = BeeftechPrimaryDark
-                )
+            // Gender selection - glove-friendly 48dp buttons
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                CalfFieldLabel("Gender")
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -169,7 +156,7 @@ fun CalfDetailsStepScreen(
                             onClick = { onFormDataChange(formData.copy(gender = option)) },
                             modifier = Modifier
                                 .weight(1f)
-                                .defaultMinSize(minHeight = 52.dp),
+                                .defaultMinSize(minHeight = 48.dp),
                             shape = RoundedCornerShape(12.dp),
                             colors = if (isSelected) {
                                 ButtonDefaults.buttonColors(
@@ -194,21 +181,20 @@ fun CalfDetailsStepScreen(
                 }
             }
 
-            // Hide colour
-            CalfLookupDropdownField(
-                label = "Hide Colour",
-                badgeLabel = "SELECT",
-                selectedValue = formData.hideColour.ifEmpty { "Black" },
-                onClick = { activeLookupField = "HIDE_COLOUR" }
-            )
-
-            // Conformity
-            CalfLookupDropdownField(
-                label = "Conformity Score",
-                badgeLabel = "SELECT",
-                selectedValue = formData.conformity.ifEmpty { "Normal / Good" },
-                onClick = { activeLookupField = "CONFORMITY" }
-            )
+            CalfFieldRow {
+                CalfLookupDropdownField(
+                    label = "Hide Colour",
+                    selectedValue = formData.hideColour.ifEmpty { "Black" },
+                    onClick = { activeLookupField = "HIDE_COLOUR" },
+                    modifier = Modifier.weight(1f)
+                )
+                CalfLookupDropdownField(
+                    label = "Conformity",
+                    selectedValue = formData.conformity.ifEmpty { "Normal / Good" },
+                    onClick = { activeLookupField = "CONFORMITY" },
+                    modifier = Modifier.weight(1f)
+                )
+            }
             CalfTextField(
                 label = "Brand mark (optional)",
                 value = formData.mark,
@@ -216,18 +202,19 @@ fun CalfDetailsStepScreen(
                 placeholder = "Brand or distinguishing mark"
             )
             // Birth details remain in the same CalfRegistrationData record as the other steps.
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             CalfSectionTitle("Birth Details")
-            CalfCard {
-                CalfDatePickerField(
-                    label = "Birth date",
-                    value = formData.birthDate,
-                    onValueChange = { chosenDate ->
-                        onFormDataChange(formData.copy(birthDate = chosenDate))
-                    },
-                    infoText = "Select the calf's actual birth date using the calendar."
-                )
-                Spacer(modifier = Modifier.height(16.dp))
+            CalfFieldRow {
+                Box(modifier = Modifier.weight(1f)) {
+                    CalfDatePickerField(
+                        label = "Birth date",
+                        value = formData.birthDate,
+                        onValueChange = { chosenDate ->
+                            onFormDataChange(formData.copy(birthDate = chosenDate))
+                        },
+                        infoText = "Select the calf's actual birth date using the calendar."
+                    )
+                }
                 CalfTextField(
                     label = "Birth mass (kg)",
                     value = formData.birthWeightKg,
@@ -241,39 +228,36 @@ fun CalfDetailsStepScreen(
                         onFormDataChange(formData.copy(birthWeightKg = normalized))
                     },
                     placeholder = "e.g. 35.0",
-                    infoText = "Enter the measured birth mass. If not weighed, use a quick estimate below, and correct it later when measured.",
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                    infoText = "Enter the measured birth mass.\n\nIf the calf was not weighed, tap a quick estimate " +
+                        "(30 kg small, 35 kg typical, 40 kg large) and replace it with a real measurement when available.",
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.weight(1f)
                 )
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "QUICK ESTIMATE - ONLY WHEN NOT WEIGHED",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = BeeftechPrimaryDark,
-                        modifier = Modifier.weight(1f)
-                    )
-                    CalfBirthHelpIcon(
-                        title = "Quick Estimate",
-                        message = "Only use an estimated birth mass when no measurement is available. The selected value fills in Birth Mass; replace it with a real measurement when available."
-                    )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    listOf("30" to "Small", "35" to "Typical", "40" to "Large").forEach { (mass, name) ->
-                        OutlinedButton(
-                            onClick = { onFormDataChange(formData.copy(birthWeightKg = mass)) },
-                            modifier = Modifier.weight(1f),
-                            contentPadding = PaddingValues(horizontal = 5.dp, vertical = 9.dp)
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("$mass kg", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                Text(name, fontSize = 9.sp)
-                            }
-                        }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Not weighed?",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = BeeftechMutedText
+                )
+                listOf("30", "35", "40").forEach { mass ->
+                    OutlinedButton(
+                        onClick = { onFormDataChange(formData.copy(birthWeightKg = mass)) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .defaultMinSize(minHeight = 40.dp),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                    ) {
+                        Text(
+                            text = "$mass kg",
+                            fontSize = 13.sp,
+                            fontWeight = if (formData.birthWeightKg == mass) FontWeight.Bold else FontWeight.Medium
+                        )
                     }
                 }
             }

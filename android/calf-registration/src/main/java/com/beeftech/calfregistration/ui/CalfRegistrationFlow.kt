@@ -121,13 +121,17 @@ fun CalfRegistrationFlow(
             when (currentStep) {
                 CalfFlowStep.HOME -> {
                     CalfRegistrationHomeScreen(
-                        registeredCount = registeredCalves.size,
+                        registeredCalves = registeredCalves,
                         onRegisterCalfClick = {
                             formData = createNextCalfForm()
                             navigateTo(CalfFlowStep.STEP_1_TAG)
                         },
                         onViewRegisteredClick = {
                             navigateTo(CalfFlowStep.REGISTERED_LIST)
+                        },
+                        onSelectCalf = { selected ->
+                            selectedCalf = selected
+                            navigateTo(CalfFlowStep.CALF_DETAIL)
                         }
                     )
                 }
