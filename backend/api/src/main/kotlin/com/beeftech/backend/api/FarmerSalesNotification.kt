@@ -337,6 +337,16 @@ class SmtpFarmerSalesNotificationService(
             encodeDefaults = true
         }
 
+    private fun notificationRecipients(primary: String?): Array<InternetAddress> =
+        (listOfNotNull(primary) +
+            System.getenv("BEEFTECH_NOTIFICATION_EMAILS").orEmpty().split(","))
+            .flatMap { it.split(",") }
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinctBy { it.lowercase() }
+            .map { InternetAddress(it, true) }
+            .toTypedArray()
+
     override fun notifyRegistration(
         payload: FarmerSalesNotificationPayload
     ): Boolean {
@@ -463,12 +473,7 @@ class SmtpFarmerSalesNotificationService(
                     )
                 )
 
-                setRecipient(
-                    Message.RecipientType.TO,
-                    InternetAddress(
-                        recipientAddress
-                    )
-                )
+                setRecipients(Message.RecipientType.TO, notificationRecipients(recipientAddress))
 
                 subject =
                     (if (payload.resentAt != null) "BeefTech Farmer Registration (Resent) - " else "BeefTech Farmer Registration - ") +
@@ -671,7 +676,7 @@ class SmtpFarmerSalesNotificationService(
         val isAssignment = payload.eventType == "CALF_ASSIGNED_TO_FARMER" && payload.assignment != null
         val message = MimeMessage(Session.getInstance(properties, authenticator)).apply {
             setFrom(InternetAddress(config.fromAddress))
-            setRecipient(Message.RecipientType.TO, InternetAddress(recipient))
+            setRecipients(Message.RecipientType.TO, notificationRecipients(recipient))
             setSubject(
                 if (isAssignment) "BeefTech Calf Assigned to Farmer - ${payload.tagNumber}"
                 else (if (payload.resentAt != null) "BeefTech Calf Registration (Resent) - "
