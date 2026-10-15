@@ -9,8 +9,9 @@ import com.beeftech.database.security.TokenProviderRegistry
 class BeefTechApplication :
     Application() {
 
-    private lateinit var sunlightBrightnessController:
+    lateinit var sunlightBrightnessController:
         SunlightBrightnessController
+        private set
 
     private lateinit var syncPolicyActivityGuard:
         SyncPolicyActivityGuard
@@ -72,8 +73,13 @@ class BeefTechApplication :
         /*
          * Field usability:
          * automatically boost BeefTech screen brightness
-         * when the device detects strong ambient sunlight.
+         * when the device detects strong ambient sunlight,
+         * and honour the user's Bright screen choice otherwise.
          */
+        BrightScreenSetting.load(
+            this
+        )
+
         sunlightBrightnessController =
             SunlightBrightnessController(
                 this
